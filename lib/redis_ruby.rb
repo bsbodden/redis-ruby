@@ -36,4 +36,5 @@ require_relative "redis_ruby/commands/sets"
 require_relative "redis_ruby/commands/sorted_sets"
 
 # Client layer
+require_relative "redis_ruby/pipeline"
 require_relative "redis_ruby/client"

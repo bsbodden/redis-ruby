@@ -100,6 +100,24 @@ module RedisRuby
       call("GET", key)
     end
 
+    # Execute commands in a pipeline
+    #
+    # @yield [Pipeline] pipeline object to queue commands
+    # @return [Array] results from all commands
+    # @example
+    #   results = client.pipelined do |pipe|
+    #     pipe.set("key1", "value1")
+    #     pipe.get("key1")
+    #   end
+    def pipelined
+      ensure_connected
+      pipeline = Pipeline.new(@connection)
+      yield pipeline
+      results = pipeline.execute
+      # Raise any errors that occurred
+      results.map { |r| r.is_a?(CommandError) ? raise(r) : r }
+    end
+
     # Close the connection
     def close
       @connection&.close
