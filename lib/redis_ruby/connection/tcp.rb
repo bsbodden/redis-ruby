@@ -74,6 +74,35 @@ module RedisRuby
         @socket && !@socket.closed?
       end
 
+      # Write a single command to the socket
+      #
+      # @param command [String, Array] Command (can be pre-built array)
+      # @param args [Array] Command arguments
+      # @return [void]
+      def write_command(command, *args)
+        if command.is_a?(Array)
+          encoded = @encoder.encode_pipeline([command])
+        else
+          encoded = @encoder.encode_command(command, *args)
+        end
+        @socket.write(encoded)
+        @socket.flush
+      end
+
+      # Read a response from the socket
+      #
+      # @param timeout [Float, nil] Optional timeout in seconds
+      # @return [Object] Decoded response
+      def read_response(timeout: nil)
+        if timeout
+          @buffered_io.with_timeout(timeout) do
+            @decoder.decode
+          end
+        else
+          @decoder.decode
+        end
+      end
+
       private
 
       # Establish socket connection
@@ -96,23 +125,11 @@ module RedisRuby
         @socket.sync = false
       end
 
-      # Write a single command to the socket
-      def write_command(command, *)
-        encoded = @encoder.encode_command(command, *)
-        @socket.write(encoded)
-        @socket.flush
-      end
-
       # Write multiple commands to the socket
       def write_pipeline(commands)
         encoded = @encoder.encode_pipeline(commands)
         @socket.write(encoded)
         @socket.flush
-      end
-
-      # Read a response from the socket
-      def read_response
-        @decoder.decode
       end
     end
   end

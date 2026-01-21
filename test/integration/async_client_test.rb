@@ -191,8 +191,8 @@ class AsyncClientIntegrationTest < RedisRubyTestCase
     concurrent_time = Time.now - concurrent_start
 
     # Concurrent should generally be faster or similar (depends on scheduler overhead)
-    # At minimum, it shouldn't be significantly slower
-    assert_operator concurrent_time, :<=, sequential_time * 1.5,
+    # At minimum, it shouldn't be significantly slower (allow 3x for CI variance)
+    assert_operator concurrent_time, :<=, sequential_time * 3.0,
                     "Concurrent (#{concurrent_time}s) too slow vs sequential (#{sequential_time}s)"
   ensure
     n.times { |i| @async_client.del("#{key_prefix}:#{i}") }

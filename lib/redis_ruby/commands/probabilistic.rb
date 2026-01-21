@@ -2,9 +2,9 @@
 
 module RedisRuby
   module Commands
-    # Redis Bloom Filter commands module
+    # Redis Probabilistic Data Structures
     #
-    # Provides probabilistic data structures for membership testing:
+    # Provides probabilistic data structures for approximate computation:
     # - Bloom Filter (BF.*) - Test if element may exist in set
     # - Cuckoo Filter (CF.*) - Similar to bloom with deletion support
     # - Count-Min Sketch (CMS.*) - Frequency estimation
@@ -12,7 +12,7 @@ module RedisRuby
     # - t-digest (TDIGEST.*) - Percentile estimation
     #
     # @see https://redis.io/docs/data-types/probabilistic/
-    module BloomFilter
+    module Probabilistic
       # BLOOM FILTER COMMANDS
 
       # Create a new bloom filter

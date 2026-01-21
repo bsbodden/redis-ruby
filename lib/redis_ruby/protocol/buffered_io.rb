@@ -199,6 +199,19 @@ module RedisRuby
         @offset >= @buffer.bytesize && @io.eof?
       end
 
+      # Execute a block with a temporary timeout
+      #
+      # @param timeout [Float] Temporary read timeout
+      # @yield Block to execute with the timeout
+      # @return [Object] Result of the block
+      def with_timeout(timeout)
+        old_timeout = @read_timeout
+        @read_timeout = timeout
+        yield
+      ensure
+        @read_timeout = old_timeout
+      end
+
       private
 
       # Ensure at least `bytes` bytes are available in the buffer

@@ -46,11 +46,17 @@ module RedisRuby
     include Commands::Lists
     include Commands::Sets
     include Commands::SortedSets
+    include Commands::Geo
+    include Commands::HyperLogLog
+    include Commands::Bitmap
+    include Commands::Scripting
     include Commands::JSON
     include Commands::Search
-    include Commands::BloomFilter
+    include Commands::Probabilistic
     include Commands::TimeSeries
     include Commands::VectorSet
+    include Commands::Streams
+    include Commands::PubSub
 
     attr_reader :host, :port, :db, :timeout
 

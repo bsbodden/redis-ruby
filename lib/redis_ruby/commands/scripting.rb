@@ -1,0 +1,166 @@
+# frozen_string_literal: true
+
+require "digest/sha1"
+
+module RedisRuby
+  module Commands
+    # Lua scripting commands
+    #
+    # Redis supports server-side Lua scripting for atomic operations.
+    # Scripts are executed atomically - no other command runs during script execution.
+    #
+    # @example Simple script
+    #   redis.eval("return 'hello'", 0)
+    #   # => "hello"
+    #
+    # @example Script with keys and arguments
+    #   redis.eval("return redis.call('SET', KEYS[1], ARGV[1])", 1, "mykey", "myvalue")
+    #
+    # @example Using EVALSHA for cached scripts
+    #   sha = redis.script_load("return redis.call('INCR', KEYS[1])")
+    #   redis.evalsha(sha, 1, "counter")
+    #
+    # @see https://redis.io/commands/?group=scripting
+    module Scripting
+      # Execute a Lua script
+      #
+      # @param script [String] Lua script to execute
+      # @param numkeys [Integer] Number of keys (KEYS array size)
+      # @param keys_and_args [Array] Keys followed by arguments
+      # @return [Object] Script return value
+      #
+      # @example No keys or args
+      #   redis.eval("return 42", 0)
+      #
+      # @example With keys and args
+      #   redis.eval("return redis.call('SET', KEYS[1], ARGV[1])", 1, "key", "value")
+      def eval(script, numkeys, *keys_and_args)
+        call("EVAL", script, numkeys, *keys_and_args)
+      end
+
+      # Execute a cached Lua script by SHA1 hash
+      #
+      # More efficient than EVAL when running the same script repeatedly.
+      # Raises NOSCRIPT error if script not cached - use script_load first.
+      #
+      # @param sha [String] SHA1 hash of the script
+      # @param numkeys [Integer] Number of keys
+      # @param keys_and_args [Array] Keys followed by arguments
+      # @return [Object] Script return value
+      #
+      # @example
+      #   sha = redis.script_load("return redis.call('GET', KEYS[1])")
+      #   redis.evalsha(sha, 1, "mykey")
+      def evalsha(sha, numkeys, *keys_and_args)
+        call("EVALSHA", sha, numkeys, *keys_and_args)
+      end
+
+      # Execute a Lua script in read-only mode (Redis 7.0+)
+      #
+      # Like EVAL but ensures the script only reads data.
+      # Can be routed to read replicas.
+      #
+      # @param script [String] Lua script to execute
+      # @param numkeys [Integer] Number of keys
+      # @param keys_and_args [Array] Keys followed by arguments
+      # @return [Object] Script return value
+      def eval_ro(script, numkeys, *keys_and_args)
+        call("EVAL_RO", script, numkeys, *keys_and_args)
+      end
+
+      # Execute a cached Lua script in read-only mode (Redis 7.0+)
+      #
+      # Like EVALSHA but ensures the script only reads data.
+      #
+      # @param sha [String] SHA1 hash of the script
+      # @param numkeys [Integer] Number of keys
+      # @param keys_and_args [Array] Keys followed by arguments
+      # @return [Object] Script return value
+      def evalsha_ro(sha, numkeys, *keys_and_args)
+        call("EVALSHA_RO", sha, numkeys, *keys_and_args)
+      end
+
+      # Load a script into the script cache
+      #
+      # @param script [String] Lua script to cache
+      # @return [String] SHA1 hash of the script
+      #
+      # @example
+      #   sha = redis.script_load("return 'cached'")
+      #   # => "a42059b356c875f0717db19a51f6aaa9161e77a2"
+      def script_load(script)
+        call("SCRIPT", "LOAD", script)
+      end
+
+      # Check if scripts exist in the cache
+      #
+      # @param shas [Array<String>] SHA1 hashes to check
+      # @return [Array<Boolean>] True/false for each SHA
+      #
+      # @example
+      #   redis.script_exists(sha1, sha2)
+      #   # => [true, false]
+      def script_exists(*shas)
+        result = call("SCRIPT", "EXISTS", *shas)
+        result.map { |v| v == 1 }
+      end
+
+      # Flush the script cache
+      #
+      # @param mode [Symbol, nil] :async or :sync (default: sync)
+      # @return [String] "OK"
+      #
+      # @example
+      #   redis.script_flush
+      #   redis.script_flush(:async)
+      def script_flush(mode = nil)
+        if mode
+          call("SCRIPT", "FLUSH", mode.to_s.upcase)
+        else
+          call("SCRIPT", "FLUSH")
+        end
+      end
+
+      # Kill currently executing script
+      #
+      # Only works if the script has not yet performed any writes.
+      #
+      # @return [String] "OK"
+      def script_kill
+        call("SCRIPT", "KILL")
+      end
+
+      # Get debugging info about a script
+      #
+      # @param subcommand [String] DEBUG subcommand
+      # @param args [Array] Subcommand arguments
+      # @return [Object] Debug information
+      def script_debug(mode)
+        call("SCRIPT", "DEBUG", mode.to_s.upcase)
+      end
+
+      # Execute a script with automatic EVALSHA/EVAL fallback
+      #
+      # Tries EVALSHA first, falls back to EVAL if script not cached.
+      # Caches the script after first execution.
+      #
+      # @param script [String] Lua script
+      # @param keys [Array<String>] Key names
+      # @param args [Array] Arguments
+      # @return [Object] Script return value
+      #
+      # @example
+      #   redis.evalsha_or_eval("return redis.call('GET', KEYS[1])", ["mykey"])
+      def evalsha_or_eval(script, keys = [], args = [])
+        sha = Digest::SHA1.hexdigest(script)
+        begin
+          evalsha(sha, keys.size, *keys, *args)
+        rescue CommandError => e
+          raise unless e.message.include?("NOSCRIPT")
+
+          eval(script, keys.size, *keys, *args)
+        end
+      end
+    end
+  end
+end

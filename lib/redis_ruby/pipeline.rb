@@ -22,6 +22,11 @@ module RedisRuby
     include Commands::Lists
     include Commands::Sets
     include Commands::SortedSets
+    include Commands::Geo
+    include Commands::HyperLogLog
+    include Commands::Bitmap
+    include Commands::Scripting
+    include Commands::Streams
 
     def initialize(connection)
       @connection = connection
