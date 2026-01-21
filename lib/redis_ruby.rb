@@ -82,6 +82,8 @@ require_relative "redis_ruby/protocol/resp3_decoder"
 
 # Connection layer
 require_relative "redis_ruby/connection/tcp"
+require_relative "redis_ruby/connection/ssl"
+require_relative "redis_ruby/connection/unix"
 require_relative "redis_ruby/connection/pool"
 require_relative "redis_ruby/connection/async_pool"
 

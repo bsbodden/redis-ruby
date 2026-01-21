@@ -6,12 +6,27 @@ module RedisRuby
   # The main synchronous Redis client
   #
   # Pure Ruby implementation using RESP3 protocol.
-  # This is the foundation - async client will wrap this with Fiber scheduler.
+  # Supports TCP, SSL/TLS, and Unix socket connections.
   #
-  # @example Basic usage
+  # @example Basic TCP usage
   #   client = RedisRuby::Client.new(url: "redis://localhost:6379")
   #   client.set("key", "value")
   #   client.get("key") # => "value"
+  #
+  # @example SSL/TLS connection
+  #   client = RedisRuby::Client.new(url: "rediss://redis.example.com:6379")
+  #
+  # @example Unix socket connection
+  #   client = RedisRuby::Client.new(url: "unix:///var/run/redis/redis.sock")
+  #
+  # @example SSL with custom parameters
+  #   client = RedisRuby::Client.new(
+  #     url: "rediss://redis.example.com:6379",
+  #     ssl_params: {
+  #       ca_file: "/path/to/ca.crt",
+  #       verify_mode: OpenSSL::SSL::VERIFY_PEER
+  #     }
+  #   )
   #
   class Client
     include Commands::Strings
@@ -21,7 +36,7 @@ module RedisRuby
     include Commands::Sets
     include Commands::SortedSets
 
-    attr_reader :host, :port, :db, :timeout
+    attr_reader :host, :port, :path, :db, :timeout
 
     DEFAULT_HOST = "localhost"
     DEFAULT_PORT = 6379
@@ -30,23 +45,30 @@ module RedisRuby
 
     # Initialize a new Redis client
     #
-    # @param url [String, nil] Redis URL (redis://host:port/db)
-    # @param host [String] Redis host
-    # @param port [Integer] Redis port
+    # @param url [String, nil] Redis URL (redis://, rediss://, unix://)
+    # @param host [String] Redis host (for TCP/SSL)
+    # @param port [Integer] Redis port (for TCP/SSL)
+    # @param path [String, nil] Unix socket path
     # @param db [Integer] Redis database number
     # @param password [String, nil] Redis password
     # @param timeout [Float] Connection timeout in seconds
-    def initialize(url: nil, host: DEFAULT_HOST, port: DEFAULT_PORT, db: DEFAULT_DB,
-                   password: nil, timeout: DEFAULT_TIMEOUT)
+    # @param ssl [Boolean] Enable SSL/TLS
+    # @param ssl_params [Hash] SSL parameters for OpenSSL::SSL::SSLContext
+    def initialize(url: nil, host: DEFAULT_HOST, port: DEFAULT_PORT, path: nil,
+                   db: DEFAULT_DB, password: nil, timeout: DEFAULT_TIMEOUT,
+                   ssl: false, ssl_params: {})
       if url
         parse_url(url)
       else
         @host = host
         @port = port
+        @path = path
         @db = db
         @password = password
+        @ssl = ssl
       end
       @timeout = timeout
+      @ssl_params = ssl_params
       @connection = nil
     end
 
@@ -55,9 +77,9 @@ module RedisRuby
     # @param command [String] Command name
     # @param args [Array] Command arguments
     # @return [Object] Command result
-    def call(command, *)
+    def call(command, *args)
       ensure_connected
-      result = @connection.call(command, *)
+      result = @connection.call(command, *args)
       raise result if result.is_a?(CommandError)
 
       result
@@ -197,24 +219,85 @@ module RedisRuby
       @connection&.connected? || false
     end
 
+    # Check if using SSL/TLS
+    #
+    # @return [Boolean]
+    def ssl?
+      @ssl || false
+    end
+
+    # Check if using Unix socket
+    #
+    # @return [Boolean]
+    def unix?
+      !@path.nil?
+    end
+
     private
 
     # Parse Redis URL
+    # Supports: redis://, rediss://, unix://
     def parse_url(url)
       uri = URI.parse(url)
+
+      case uri.scheme
+      when "redis"
+        parse_tcp_url(uri)
+        @ssl = false
+      when "rediss"
+        parse_tcp_url(uri)
+        @ssl = true
+      when "unix"
+        parse_unix_url(uri)
+      else
+        raise ArgumentError, "Unsupported URL scheme: #{uri.scheme}. Use redis://, rediss://, or unix://"
+      end
+    end
+
+    # Parse TCP/SSL URL
+    def parse_tcp_url(uri)
       @host = uri.host || DEFAULT_HOST
       @port = uri.port || DEFAULT_PORT
       @db = uri.path&.delete_prefix("/")&.to_i || DEFAULT_DB
       @password = uri.password
+      @path = nil
+    end
+
+    # Parse Unix socket URL
+    def parse_unix_url(uri)
+      @path = uri.path
+      @host = nil
+      @port = nil
+
+      # Parse query string for db
+      if uri.query
+        params = URI.decode_www_form(uri.query).to_h
+        @db = params["db"]&.to_i || DEFAULT_DB
+      else
+        @db = DEFAULT_DB
+      end
+
+      @password = uri.user # unix://password@/path/to/socket
     end
 
     # Ensure connection is established
     def ensure_connected
       return if @connection&.connected?
 
-      @connection = Connection::TCP.new(host: @host, port: @port, timeout: @timeout)
+      @connection = create_connection
       authenticate if @password
       select_db if @db.positive?
+    end
+
+    # Create appropriate connection based on configuration
+    def create_connection
+      if @path
+        Connection::Unix.new(path: @path, timeout: @timeout)
+      elsif @ssl
+        Connection::SSL.new(host: @host, port: @port, timeout: @timeout, ssl_params: @ssl_params)
+      else
+        Connection::TCP.new(host: @host, port: @port, timeout: @timeout)
+      end
     end
 
     # Authenticate with password
