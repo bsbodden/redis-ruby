@@ -34,8 +34,8 @@ class UnixConnectionTest < Minitest::Test
 
     @mock_socket.expects(:write).with(expected_encoded)
     @mock_socket.expects(:flush)
-    @mock_socket.expects(:getbyte).returns(43) # '+'
-    @mock_socket.expects(:gets).with("\r\n").returns("PONG\r\n")
+    # BufferedIO uses read_nonblock
+    @mock_socket.expects(:read_nonblock).returns("+PONG\r\n")
 
     conn = RedisRuby::Connection::Unix.new
     result = conn.call("PING")

@@ -27,9 +27,23 @@ module TestContainerSupport
       return if @started
 
       puts "Starting Redis container..."
-      @redis_container = Testcontainers::RedisContainer.new("redis/redis-stack:latest")
+      # Use Redis 8 with all modules (JSON, Search, TimeSeries, Bloom, Vector Sets)
+      @redis_container = Testcontainers::DockerContainer.new("redis:8")
+      @redis_container.with_exposed_port(6379)
+
+      # Connect to devcontainer network for connectivity within the devcontainer
+      devcontainer_network = ENV["COMPOSE_PROJECT_NAME"]
+      if devcontainer_network
+        network_name = "#{devcontainer_network}_redis-rb-dev"
+        begin
+          @redis_container.with_network(network_name)
+        rescue StandardError
+          # Network might not exist outside devcontainer
+        end
+      end
+
       @redis_container.start
-      @redis_container.wait_for_tcp_port(6379)
+      @redis_container.wait_for_tcp_port(6379, timeout: 60)
 
       @redis_url = "redis://#{@redis_container.host}:#{@redis_container.mapped_port(6379)}"
       puts "Redis container started at #{@redis_url}"

@@ -124,7 +124,7 @@ class ConnectionPoolTest < Minitest::Test
   def setup_ping_response
     @mock_socket.expects(:write).with("*1\r\n$4\r\nPING\r\n")
     @mock_socket.expects(:flush)
-    @mock_socket.expects(:getbyte).returns(43) # '+'
-    @mock_socket.expects(:gets).with("\r\n").returns("PONG\r\n")
+    # BufferedIO uses read_nonblock
+    @mock_socket.expects(:read_nonblock).returns("+PONG\r\n")
   end
 end

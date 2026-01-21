@@ -23,8 +23,8 @@ class PooledClientTest < Minitest::Test
     # SELECT response for db=1
     @mock_socket.stubs(:write)
     @mock_socket.stubs(:flush)
-    @mock_socket.stubs(:getbyte).returns(43) # '+'
-    @mock_socket.stubs(:gets).returns("OK\r\n")
+    # BufferedIO uses read_nonblock
+    @mock_socket.stubs(:read_nonblock).returns("+OK\r\n")
 
     client = RedisRuby::PooledClient.new(url: "redis://localhost:6380/1")
 
@@ -73,8 +73,8 @@ class PooledClientTest < Minitest::Test
     TCPSocket.stubs(:new).returns(@mock_socket)
     @mock_socket.stubs(:write)
     @mock_socket.stubs(:flush)
-    @mock_socket.stubs(:getbyte).returns(43)
-    @mock_socket.stubs(:gets).returns("PONG\r\n")
+    # BufferedIO uses read_nonblock
+    @mock_socket.stubs(:read_nonblock).returns("+PONG\r\n")
 
     client = RedisRuby::PooledClient.new(host: "localhost", port: 6379)
 
@@ -108,7 +108,7 @@ class PooledClientTest < Minitest::Test
   def setup_ping_response
     @mock_socket.expects(:write).with("*1\r\n$4\r\nPING\r\n")
     @mock_socket.expects(:flush)
-    @mock_socket.expects(:getbyte).returns(43) # '+'
-    @mock_socket.expects(:gets).with("\r\n").returns("PONG\r\n")
+    # BufferedIO uses read_nonblock
+    @mock_socket.expects(:read_nonblock).returns("+PONG\r\n")
   end
 end

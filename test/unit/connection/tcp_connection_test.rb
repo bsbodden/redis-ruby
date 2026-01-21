@@ -65,8 +65,8 @@ class TCPConnectionTest < Minitest::Test
 
     @mock_socket.expects(:write).with(expected_encoded)
     @mock_socket.expects(:flush)
-    @mock_socket.expects(:getbyte).returns(43) # '+'
-    @mock_socket.expects(:gets).with("\r\n").returns("PONG\r\n")
+    # BufferedIO uses read_nonblock
+    @mock_socket.expects(:read_nonblock).returns("+PONG\r\n")
 
     conn = RedisRuby::Connection::TCP.new
     result = conn.call("PING")
@@ -80,8 +80,7 @@ class TCPConnectionTest < Minitest::Test
 
     @mock_socket.expects(:write).with(expected_encoded)
     @mock_socket.expects(:flush)
-    @mock_socket.expects(:getbyte).returns(43) # '+'
-    @mock_socket.expects(:gets).with("\r\n").returns("OK\r\n")
+    @mock_socket.expects(:read_nonblock).returns("+OK\r\n")
 
     conn = RedisRuby::Connection::TCP.new
     result = conn.call("SET", "key", "value")
@@ -94,8 +93,7 @@ class TCPConnectionTest < Minitest::Test
 
     @mock_socket.expects(:write)
     @mock_socket.expects(:flush)
-    @mock_socket.expects(:getbyte).returns(58) # ':'
-    @mock_socket.expects(:gets).with("\r\n").returns("42\r\n")
+    @mock_socket.expects(:read_nonblock).returns(":42\r\n")
 
     conn = RedisRuby::Connection::TCP.new
     result = conn.call("INCR", "counter")
@@ -108,8 +106,7 @@ class TCPConnectionTest < Minitest::Test
 
     @mock_socket.expects(:write)
     @mock_socket.expects(:flush)
-    @mock_socket.expects(:getbyte).returns(36) # '$'
-    @mock_socket.expects(:gets).with("\r\n").returns("-1\r\n")
+    @mock_socket.expects(:read_nonblock).returns("$-1\r\n")
 
     conn = RedisRuby::Connection::TCP.new
     result = conn.call("GET", "nonexistent")
@@ -122,8 +119,7 @@ class TCPConnectionTest < Minitest::Test
 
     @mock_socket.expects(:write)
     @mock_socket.expects(:flush)
-    @mock_socket.expects(:getbyte).returns(45) # '-'
-    @mock_socket.expects(:gets).with("\r\n").returns("ERR unknown command\r\n")
+    @mock_socket.expects(:read_nonblock).returns("-ERR unknown command\r\n")
 
     conn = RedisRuby::Connection::TCP.new
     error = conn.call("BADCMD")
@@ -141,19 +137,8 @@ class TCPConnectionTest < Minitest::Test
     @mock_socket.expects(:write).with(expected)
     @mock_socket.expects(:flush)
 
-    # Set up sequential responses using a sequence of returns
-    # First response: +OK (simple string)
-    # Second response: $6\r\nvalue1\r\n (bulk string)
-    getbyte_seq = sequence("getbyte")
-    @mock_socket.expects(:getbyte).returns(43).in_sequence(getbyte_seq) # '+'
-    @mock_socket.expects(:getbyte).returns(36).in_sequence(getbyte_seq) # '$'
-
-    gets_seq = sequence("gets")
-    @mock_socket.expects(:gets).with("\r\n").returns("OK\r\n").in_sequence(gets_seq)
-    @mock_socket.expects(:gets).with("\r\n").returns("6\r\n").in_sequence(gets_seq)
-
-    @mock_socket.expects(:read).with(6).returns("value1")
-    @mock_socket.expects(:read).with(2).returns("\r\n")
+    # Both responses in one read (buffered)
+    @mock_socket.expects(:read_nonblock).returns("+OK\r\n$6\r\nvalue1\r\n")
 
     conn = RedisRuby::Connection::TCP.new
     results = conn.pipeline([

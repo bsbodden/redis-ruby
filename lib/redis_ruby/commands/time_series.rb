@@ -1,0 +1,436 @@
+# frozen_string_literal: true
+
+module RedisRuby
+  module Commands
+    # Redis TimeSeries commands module
+    #
+    # Provides time series data capabilities:
+    # - High-volume data ingestion
+    # - Aggregation and downsampling
+    # - Range queries with aggregations
+    # - Compaction rules
+    #
+    # @see https://redis.io/docs/data-types/timeseries/
+    module TimeSeries
+      # Create a new time series
+      #
+      # @param key [String] Time series key
+      # @param retention [Integer] Max retention in milliseconds
+      # @param encoding [String] "COMPRESSED" or "UNCOMPRESSED"
+      # @param chunk_size [Integer] Initial allocation size in bytes
+      # @param duplicate_policy [String] Policy on duplicate timestamps
+      # @param labels [Hash] Key-value labels for filtering
+      # @return [String] "OK"
+      #
+      # @example Create time series with labels
+      #   redis.ts_create("temp:sensor1",
+      #     retention: 86400000,
+      #     labels: { sensor: "temp", location: "room1" })
+      def ts_create(key, retention: nil, encoding: nil, chunk_size: nil,
+                    duplicate_policy: nil, labels: nil, ignore_max_time_diff: nil,
+                    ignore_max_val_diff: nil)
+        args = [key]
+        args.push("RETENTION", retention) if retention
+        args.push("ENCODING", encoding) if encoding
+        args.push("CHUNK_SIZE", chunk_size) if chunk_size
+        args.push("DUPLICATE_POLICY", duplicate_policy) if duplicate_policy
+
+        if ignore_max_time_diff || ignore_max_val_diff
+          args << "IGNORE"
+          args << ignore_max_time_diff if ignore_max_time_diff
+          args << ignore_max_val_diff if ignore_max_val_diff
+        end
+
+        if labels
+          args << "LABELS"
+          labels.each { |k, v| args.push(k.to_s, v.to_s) }
+        end
+
+        call("TS.CREATE", *args)
+      end
+
+      # Delete a time series
+      #
+      # @param key [String] Time series key
+      # @param from_ts [Integer] Start timestamp
+      # @param to_ts [Integer] End timestamp
+      # @return [Integer] Number of samples deleted
+      def ts_del(key, from_ts, to_ts)
+        call("TS.DEL", key, from_ts, to_ts)
+      end
+
+      # Alter a time series
+      #
+      # @param key [String] Time series key
+      # @param retention [Integer] New retention
+      # @param chunk_size [Integer] New chunk size
+      # @param duplicate_policy [String] New duplicate policy
+      # @param labels [Hash] New labels (replaces existing)
+      # @return [String] "OK"
+      def ts_alter(key, retention: nil, chunk_size: nil, duplicate_policy: nil, labels: nil,
+                   ignore_max_time_diff: nil, ignore_max_val_diff: nil)
+        args = [key]
+        args.push("RETENTION", retention) if retention
+        args.push("CHUNK_SIZE", chunk_size) if chunk_size
+        args.push("DUPLICATE_POLICY", duplicate_policy) if duplicate_policy
+
+        if ignore_max_time_diff || ignore_max_val_diff
+          args << "IGNORE"
+          args << ignore_max_time_diff if ignore_max_time_diff
+          args << ignore_max_val_diff if ignore_max_val_diff
+        end
+
+        if labels
+          args << "LABELS"
+          labels.each { |k, v| args.push(k.to_s, v.to_s) }
+        end
+
+        call("TS.ALTER", *args)
+      end
+
+      # Add a sample to time series
+      #
+      # @param key [String] Time series key
+      # @param timestamp [Integer, String] Timestamp (milliseconds) or "*" for auto
+      # @param value [Float] Sample value
+      # @param retention [Integer] Override retention
+      # @param encoding [String] Override encoding
+      # @param chunk_size [Integer] Override chunk size
+      # @param on_duplicate [String] Override duplicate policy
+      # @param labels [Hash] Labels (creates series if needed)
+      # @return [Integer] Timestamp of added sample
+      #
+      # @example Add sample with auto timestamp
+      #   redis.ts_add("temp:sensor1", "*", 23.5)
+      #
+      # @example Add sample with specific timestamp
+      #   redis.ts_add("temp:sensor1", 1640000000000, 23.5)
+      def ts_add(key, timestamp, value, retention: nil, encoding: nil,
+                 chunk_size: nil, on_duplicate: nil, labels: nil,
+                 ignore_max_time_diff: nil, ignore_max_val_diff: nil)
+        args = [key, timestamp, value]
+        args.push("RETENTION", retention) if retention
+        args.push("ENCODING", encoding) if encoding
+        args.push("CHUNK_SIZE", chunk_size) if chunk_size
+        args.push("ON_DUPLICATE", on_duplicate) if on_duplicate
+
+        if ignore_max_time_diff || ignore_max_val_diff
+          args << "IGNORE"
+          args << ignore_max_time_diff if ignore_max_time_diff
+          args << ignore_max_val_diff if ignore_max_val_diff
+        end
+
+        if labels
+          args << "LABELS"
+          labels.each { |k, v| args.push(k.to_s, v.to_s) }
+        end
+
+        call("TS.ADD", *args)
+      end
+
+      # Add multiple samples atomically
+      #
+      # @param samples [Array<Array>] Array of [key, timestamp, value] triples
+      # @return [Array<Integer>] Timestamps of added samples
+      #
+      # @example Add multiple samples
+      #   redis.ts_madd(
+      #     ["temp:1", "*", 23.5],
+      #     ["temp:2", "*", 24.0],
+      #     ["temp:3", "*", 22.8]
+      #   )
+      def ts_madd(*samples)
+        args = samples.flatten
+        call("TS.MADD", *args)
+      end
+
+      # Increment the latest value
+      #
+      # @param key [String] Time series key
+      # @param value [Float] Value to add
+      # @param timestamp [Integer, String] Timestamp or "*"
+      # @param retention [Integer] Override retention
+      # @param labels [Hash] Labels
+      # @return [Integer] Timestamp of sample
+      def ts_incrby(key, value, timestamp: nil, retention: nil, labels: nil,
+                    chunk_size: nil, ignore_max_time_diff: nil, ignore_max_val_diff: nil)
+        args = [key, value]
+        args.push("TIMESTAMP", timestamp) if timestamp
+        args.push("RETENTION", retention) if retention
+        args.push("CHUNK_SIZE", chunk_size) if chunk_size
+
+        if ignore_max_time_diff || ignore_max_val_diff
+          args << "IGNORE"
+          args << ignore_max_time_diff if ignore_max_time_diff
+          args << ignore_max_val_diff if ignore_max_val_diff
+        end
+
+        if labels
+          args << "LABELS"
+          labels.each { |k, v| args.push(k.to_s, v.to_s) }
+        end
+
+        call("TS.INCRBY", *args)
+      end
+
+      # Decrement the latest value
+      #
+      # @param key [String] Time series key
+      # @param value [Float] Value to subtract
+      # @param timestamp [Integer, String] Timestamp or "*"
+      # @param retention [Integer] Override retention
+      # @param labels [Hash] Labels
+      # @return [Integer] Timestamp of sample
+      def ts_decrby(key, value, timestamp: nil, retention: nil, labels: nil,
+                    chunk_size: nil, ignore_max_time_diff: nil, ignore_max_val_diff: nil)
+        args = [key, value]
+        args.push("TIMESTAMP", timestamp) if timestamp
+        args.push("RETENTION", retention) if retention
+        args.push("CHUNK_SIZE", chunk_size) if chunk_size
+
+        if ignore_max_time_diff || ignore_max_val_diff
+          args << "IGNORE"
+          args << ignore_max_time_diff if ignore_max_time_diff
+          args << ignore_max_val_diff if ignore_max_val_diff
+        end
+
+        if labels
+          args << "LABELS"
+          labels.each { |k, v| args.push(k.to_s, v.to_s) }
+        end
+
+        call("TS.DECRBY", *args)
+      end
+
+      # Create a compaction rule
+      #
+      # @param source_key [String] Source time series
+      # @param dest_key [String] Destination time series
+      # @param aggregation [String] Aggregation type
+      # @param bucket_duration [Integer] Bucket size in milliseconds
+      # @param align_timestamp [Integer] Alignment timestamp
+      # @return [String] "OK"
+      #
+      # @example Create hourly average compaction
+      #   redis.ts_createrule("temp:raw", "temp:hourly", "avg", 3600000)
+      def ts_createrule(source_key, dest_key, aggregation, bucket_duration, align_timestamp: nil)
+        args = [source_key, dest_key, "AGGREGATION", aggregation, bucket_duration]
+        args.push(align_timestamp) if align_timestamp
+        call("TS.CREATERULE", *args)
+      end
+
+      # Delete a compaction rule
+      #
+      # @param source_key [String] Source time series
+      # @param dest_key [String] Destination time series
+      # @return [String] "OK"
+      def ts_deleterule(source_key, dest_key)
+        call("TS.DELETERULE", source_key, dest_key)
+      end
+
+      # Query a range of samples
+      #
+      # @param key [String] Time series key
+      # @param from_ts [Integer, String] Start timestamp or "-" for oldest
+      # @param to_ts [Integer, String] End timestamp or "+" for newest
+      # @param latest [Boolean] Report latest samples
+      # @param filter_by_ts [Array<Integer>] Filter by timestamps
+      # @param filter_by_value [Array<Float>] Filter by value range [min, max]
+      # @param count [Integer] Max samples to return
+      # @param align [Integer, String] Bucket alignment
+      # @param aggregation [String] Aggregation type
+      # @param bucket_duration [Integer] Bucket size
+      # @param bucket_timestamp [String] "start", "end", or "mid"
+      # @param empty [Boolean] Report empty buckets
+      # @return [Array] Array of [timestamp, value] pairs
+      #
+      # @example Get all samples
+      #   redis.ts_range("temp:sensor1", "-", "+")
+      #
+      # @example Get with hourly average aggregation
+      #   redis.ts_range("temp:sensor1", "-", "+",
+      #     aggregation: "avg", bucket_duration: 3600000)
+      def ts_range(key, from_ts, to_ts, latest: false, filter_by_ts: nil,
+                   filter_by_value: nil, count: nil, align: nil,
+                   aggregation: nil, bucket_duration: nil, bucket_timestamp: nil,
+                   empty: false)
+        args = [key, from_ts, to_ts]
+        args << "LATEST" if latest
+        args.push("FILTER_BY_TS", *filter_by_ts) if filter_by_ts
+        args.push("FILTER_BY_VALUE", filter_by_value[0], filter_by_value[1]) if filter_by_value
+        args.push("COUNT", count) if count
+        args.push("ALIGN", align) if align
+
+        if aggregation
+          args.push("AGGREGATION", aggregation, bucket_duration)
+          args.push("BUCKETTIMESTAMP", bucket_timestamp) if bucket_timestamp
+          args << "EMPTY" if empty
+        end
+
+        call("TS.RANGE", *args)
+      end
+
+      # Query range in reverse order
+      #
+      # @param key [String] Time series key
+      # @param from_ts [Integer, String] Start timestamp
+      # @param to_ts [Integer, String] End timestamp
+      # @param (see #ts_range)
+      # @return [Array] Array of [timestamp, value] pairs (newest first)
+      def ts_revrange(key, from_ts, to_ts, latest: false, filter_by_ts: nil,
+                      filter_by_value: nil, count: nil, align: nil,
+                      aggregation: nil, bucket_duration: nil, bucket_timestamp: nil,
+                      empty: false)
+        args = [key, from_ts, to_ts]
+        args << "LATEST" if latest
+        args.push("FILTER_BY_TS", *filter_by_ts) if filter_by_ts
+        args.push("FILTER_BY_VALUE", filter_by_value[0], filter_by_value[1]) if filter_by_value
+        args.push("COUNT", count) if count
+        args.push("ALIGN", align) if align
+
+        if aggregation
+          args.push("AGGREGATION", aggregation, bucket_duration)
+          args.push("BUCKETTIMESTAMP", bucket_timestamp) if bucket_timestamp
+          args << "EMPTY" if empty
+        end
+
+        call("TS.REVRANGE", *args)
+      end
+
+      # Query range across multiple time series
+      #
+      # @param from_ts [Integer, String] Start timestamp
+      # @param to_ts [Integer, String] End timestamp
+      # @param filters [Array<String>] Label filters
+      # @param latest [Boolean] Report latest samples
+      # @param filter_by_ts [Array<Integer>] Filter by timestamps
+      # @param filter_by_value [Array<Float>] Filter by value range
+      # @param withlabels [Boolean] Include labels in response
+      # @param selected_labels [Array<String>] Specific labels to include
+      # @param count [Integer] Max samples per series
+      # @param align [Integer, String] Bucket alignment
+      # @param aggregation [String] Aggregation type
+      # @param bucket_duration [Integer] Bucket size
+      # @param bucket_timestamp [String] Bucket timestamp position
+      # @param empty [Boolean] Report empty buckets
+      # @param groupby [String] Group by label
+      # @param reduce [String] Reduce function for groupby
+      # @return [Array] Array of [key, labels, samples] for each series
+      #
+      # @example Query by label filter
+      #   redis.ts_mrange("-", "+", ["sensor=temp", "location=room1"])
+      def ts_mrange(from_ts, to_ts, filters, latest: false, filter_by_ts: nil,
+                    filter_by_value: nil, withlabels: false, selected_labels: nil,
+                    count: nil, align: nil, aggregation: nil, bucket_duration: nil,
+                    bucket_timestamp: nil, empty: false, groupby: nil, reduce: nil)
+        args = [from_ts, to_ts]
+        args << "LATEST" if latest
+        args.push("FILTER_BY_TS", *filter_by_ts) if filter_by_ts
+        args.push("FILTER_BY_VALUE", filter_by_value[0], filter_by_value[1]) if filter_by_value
+        args << "WITHLABELS" if withlabels
+        args.push("SELECTED_LABELS", *selected_labels) if selected_labels
+        args.push("COUNT", count) if count
+        args.push("ALIGN", align) if align
+
+        if aggregation
+          args.push("AGGREGATION", aggregation, bucket_duration)
+          args.push("BUCKETTIMESTAMP", bucket_timestamp) if bucket_timestamp
+          args << "EMPTY" if empty
+        end
+
+        args.push("FILTER", *filters)
+
+        if groupby
+          args.push("GROUPBY", groupby, "REDUCE", reduce)
+        end
+
+        call("TS.MRANGE", *args)
+      end
+
+      # Query range in reverse across multiple series
+      #
+      # @param from_ts [Integer, String] Start timestamp
+      # @param to_ts [Integer, String] End timestamp
+      # @param filters [Array<String>] Label filters
+      # @param (see #ts_mrange)
+      # @return [Array] Array of [key, labels, samples] (newest first)
+      def ts_mrevrange(from_ts, to_ts, filters, latest: false, filter_by_ts: nil,
+                       filter_by_value: nil, withlabels: false, selected_labels: nil,
+                       count: nil, align: nil, aggregation: nil, bucket_duration: nil,
+                       bucket_timestamp: nil, empty: false, groupby: nil, reduce: nil)
+        args = [from_ts, to_ts]
+        args << "LATEST" if latest
+        args.push("FILTER_BY_TS", *filter_by_ts) if filter_by_ts
+        args.push("FILTER_BY_VALUE", filter_by_value[0], filter_by_value[1]) if filter_by_value
+        args << "WITHLABELS" if withlabels
+        args.push("SELECTED_LABELS", *selected_labels) if selected_labels
+        args.push("COUNT", count) if count
+        args.push("ALIGN", align) if align
+
+        if aggregation
+          args.push("AGGREGATION", aggregation, bucket_duration)
+          args.push("BUCKETTIMESTAMP", bucket_timestamp) if bucket_timestamp
+          args << "EMPTY" if empty
+        end
+
+        args.push("FILTER", *filters)
+
+        if groupby
+          args.push("GROUPBY", groupby, "REDUCE", reduce)
+        end
+
+        call("TS.MREVRANGE", *args)
+      end
+
+      # Get the latest sample
+      #
+      # @param key [String] Time series key
+      # @param latest [Boolean] Return latest even if replicated
+      # @return [Array] [timestamp, value] or nil
+      def ts_get(key, latest: false)
+        args = [key]
+        args << "LATEST" if latest
+        call("TS.GET", *args)
+      end
+
+      # Get latest samples from multiple series
+      #
+      # @param filters [Array<String>] Label filters
+      # @param latest [Boolean] Return latest even if replicated
+      # @param withlabels [Boolean] Include labels
+      # @param selected_labels [Array<String>] Specific labels to include
+      # @return [Array] Array of [key, labels, [timestamp, value]]
+      def ts_mget(filters, latest: false, withlabels: false, selected_labels: nil)
+        args = []
+        args << "LATEST" if latest
+        args << "WITHLABELS" if withlabels
+        args.push("SELECTED_LABELS", *selected_labels) if selected_labels
+        args.push("FILTER", *filters)
+        call("TS.MGET", *args)
+      end
+
+      # Get time series information
+      #
+      # @param key [String] Time series key
+      # @param debug [Boolean] Include debug info
+      # @return [Hash] Time series metadata
+      def ts_info(key, debug: false)
+        args = [key]
+        args << "DEBUG" if debug
+        result = call("TS.INFO", *args)
+        result.each_slice(2).to_h
+      end
+
+      # Query time series by filters
+      #
+      # @param filters [Array<String>] Label filters
+      # @return [Array<String>] Matching time series keys
+      #
+      # @example Find all temperature sensors
+      #   redis.ts_queryindex("sensor=temp")
+      def ts_queryindex(*filters)
+        call("TS.QUERYINDEX", *filters)
+      end
+    end
+  end
+end

@@ -35,6 +35,11 @@ module RedisRuby
     include Commands::Lists
     include Commands::Sets
     include Commands::SortedSets
+    include Commands::JSON
+    include Commands::Search
+    include Commands::BloomFilter
+    include Commands::TimeSeries
+    include Commands::VectorSet
 
     attr_reader :host, :port, :path, :db, :timeout
 
@@ -132,8 +137,9 @@ module RedisRuby
       pipeline = Pipeline.new(@connection)
       yield pipeline
       results = pipeline.execute
-      # Raise any errors that occurred
-      results.map { |r| r.is_a?(CommandError) ? raise(r) : r }
+      # Raise any errors that occurred (most pipelines have no errors)
+      results.each { |r| raise r if r.is_a?(CommandError) }
+      results
     end
 
     # Execute commands in a transaction (MULTI/EXEC)
@@ -152,8 +158,9 @@ module RedisRuby
       results = transaction.execute
       return nil if results.nil?
 
-      # Raise any errors in results
-      results.map { |r| r.is_a?(CommandError) ? raise(r) : r }
+      # Raise any errors in results (most transactions have no errors)
+      results.each { |r| raise r if r.is_a?(CommandError) }
+      results
     end
 
     # Watch keys for changes (optimistic locking)

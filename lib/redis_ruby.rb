@@ -8,6 +8,13 @@ module RedisRuby
   class CommandError < Error; end
   class TimeoutError < Error; end
 
+  # Sentinel-specific errors
+  class SentinelError < Error; end
+  class MasterNotFoundError < SentinelError; end
+  class ReplicaNotFoundError < SentinelError; end
+  class FailoverError < SentinelError; end
+  class ReadOnlyError < CommandError; end
+
   class << self
     # Create a new synchronous Redis client connection
     #
@@ -73,11 +80,32 @@ module RedisRuby
     def async_pooled(url: nil, **)
       AsyncPooledClient.new(url: url, **)
     end
+
+    # Create a Sentinel-backed Redis client
+    #
+    # Automatically discovers and connects to the Redis master/replica
+    # through Sentinel servers. Handles automatic failover.
+    #
+    # @param sentinels [Array<Hash>] List of Sentinel servers with :host and :port
+    # @param service_name [String] Name of the monitored master
+    # @param role [Symbol] :master or :replica (defaults to :master)
+    # @param options [Hash] Additional connection options
+    # @return [RedisRuby::SentinelClient]
+    # @example
+    #   client = RedisRuby.sentinel(
+    #     sentinels: [{ host: "sentinel1", port: 26379 }],
+    #     service_name: "mymaster"
+    #   )
+    #   client.set("key", "value")
+    def sentinel(sentinels:, service_name:, role: :master, **)
+      SentinelClient.new(sentinels: sentinels, service_name: service_name, role: role, **)
+    end
   end
 end
 
 # Protocol layer
 require_relative "redis_ruby/protocol/resp3_encoder"
+require_relative "redis_ruby/protocol/buffered_io"
 require_relative "redis_ruby/protocol/resp3_decoder"
 
 # Connection layer
@@ -87,6 +115,9 @@ require_relative "redis_ruby/connection/unix"
 require_relative "redis_ruby/connection/pool"
 require_relative "redis_ruby/connection/async_pool"
 
+# Sentinel support
+require_relative "redis_ruby/sentinel_manager"
+
 # Commands layer (shared by sync/async clients)
 require_relative "redis_ruby/commands/strings"
 require_relative "redis_ruby/commands/keys"
@@ -94,6 +125,12 @@ require_relative "redis_ruby/commands/hashes"
 require_relative "redis_ruby/commands/lists"
 require_relative "redis_ruby/commands/sets"
 require_relative "redis_ruby/commands/sorted_sets"
+require_relative "redis_ruby/commands/json"
+require_relative "redis_ruby/commands/search"
+require_relative "redis_ruby/commands/bloom_filter"
+require_relative "redis_ruby/commands/time_series"
+require_relative "redis_ruby/commands/vector_set"
+require_relative "redis_ruby/commands/sentinel"
 
 # Client layer
 require_relative "redis_ruby/pipeline"
@@ -102,3 +139,4 @@ require_relative "redis_ruby/client"
 require_relative "redis_ruby/async_client"
 require_relative "redis_ruby/pooled_client"
 require_relative "redis_ruby/async_pooled_client"
+require_relative "redis_ruby/sentinel_client"

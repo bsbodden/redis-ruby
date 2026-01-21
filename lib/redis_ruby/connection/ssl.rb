@@ -80,7 +80,9 @@ module RedisRuby
       # @return [Array] Array of results
       def pipeline(commands)
         write_pipeline(commands)
-        commands.map { read_response }
+        # Pre-allocate array to avoid map allocation
+        count = commands.size
+        Array.new(count) { read_response }
       end
 
       # Close the connection
@@ -109,7 +111,8 @@ module RedisRuby
         @ssl_socket.connect
         @ssl_socket.post_connection_check(@host) if verify_peer?
 
-        @decoder = Protocol::RESP3Decoder.new(@ssl_socket)
+        @buffered_io = Protocol::BufferedIO.new(@ssl_socket, read_timeout: @timeout, write_timeout: @timeout)
+        @decoder = Protocol::RESP3Decoder.new(@buffered_io)
       end
 
       # Configure underlying TCP socket

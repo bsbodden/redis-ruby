@@ -16,6 +16,14 @@ group :development do
   gem "redis", "~> 5.0"  # For benchmarking against redis-rb
 end
 
+# Profiling tools
+group :profiling do
+  gem "stackprof", "~> 0.2"       # Sampling CPU profiler
+  gem "vernier", "~> 1.0"         # Modern sampling profiler (YJIT-aware)
+  gem "memory_profiler", "~> 1.0" # Memory allocation profiler
+  gem "allocation_tracer"         # Object allocation tracking
+end
+
 group :test do
   gem "minitest", "~> 5.25"
   gem "minitest-reporters", "~> 1.7"

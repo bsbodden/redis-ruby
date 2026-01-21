@@ -14,12 +14,17 @@ module RedisRuby
     # RESP3 Protocol Decoder
     #
     # Decodes RESP3 wire format into Ruby objects.
-    # Optimized for performance using byte-level operations.
+    # Optimized for performance using byte-level operations and buffered IO.
     #
-    # @example Decoding a response
-    #   io = TCPSocket.new("localhost", 6379)
-    #   decoder = RESP3Decoder.new(io)
+    # @example Decoding a response with BufferedIO
+    #   bio = BufferedIO.new(socket, read_timeout: 5.0)
+    #   decoder = RESP3Decoder.new(bio)
     #   result = decoder.decode
+    #
+    # @example Decoding a response with StringIO (for testing)
+    #   io = StringIO.new("+OK\r\n")
+    #   decoder = RESP3Decoder.new(io)
+    #   result = decoder.decode  # => "OK"
     #
     # @see https://redis.io/docs/latest/develop/reference/protocol-spec/
     class RESP3Decoder
@@ -39,18 +44,22 @@ module RedisRuby
       SET            = 126 # '~'
       PUSH           = 62  # '>'
 
-      # Special values
+      # Special bytes
       CR = 13 # '\r'
       LF = 10 # '\n'
+      TRUE_BYTE = 116  # 't'
+      FALSE_BYTE = 102 # 'f'
+      MINUS_BYTE = 45  # '-'
 
       def initialize(stream)
         @stream = stream
+        @buffered = stream.respond_to?(:gets_integer)
       end
 
       # Decode the next RESP3 value from the stream
       #
       # @return [Object] Decoded Ruby value
-      # rubocop:disable Metrics/CyclomaticComplexity
+      # rubocop:disable Metrics/CyclomaticComplexity, Metrics/MethodLength
       def decode
         type_byte = @stream.getbyte
         return nil if type_byte.nil?
@@ -74,22 +83,60 @@ module RedisRuby
           raise ProtocolError, "Unknown RESP3 type: #{type_byte.chr}"
         end
       end
-      # rubocop:enable Metrics/CyclomaticComplexity
+      # rubocop:enable Metrics/CyclomaticComplexity, Metrics/MethodLength
 
       private
 
       # Read a line (up to CRLF) and return without the terminator
+      # Uses optimized method if available
       def read_line
-        line = @stream.gets("\r\n")
-        return nil if line.nil?
+        if @buffered
+          @stream.gets_chomp
+        else
+          line = @stream.gets("\r\n")
+          return nil if line.nil?
+          line.chomp!("\r\n")
+          line
+        end
+      end
 
-        # Remove trailing \r\n (use chomp to avoid mutating frozen strings)
-        line.chomp("\r\n")
+      # Read an integer from the stream
+      # Uses optimized byte-by-byte parsing if available
+      def read_integer
+        if @buffered
+          @stream.gets_integer
+        else
+          read_line.to_i
+        end
       end
 
       # Read exactly count bytes
       def read_bytes(count)
-        @stream.read(count)
+        if @buffered
+          @stream.read(count)
+        else
+          @stream.read(count)
+        end
+      end
+
+      # Read bytes and skip trailing CRLF
+      def read_bytes_chomp(count)
+        if @buffered
+          @stream.read_chomp(count)
+        else
+          data = @stream.read(count)
+          @stream.read(2) # consume \r\n
+          data
+        end
+      end
+
+      # Skip n bytes
+      def skip_bytes(count)
+        if @buffered
+          @stream.skip(count)
+        else
+          @stream.read(count)
+        end
       end
 
       # +OK\r\n -> "OK"
@@ -105,25 +152,22 @@ module RedisRuby
 
       # :1000\r\n -> 1000
       def decode_integer
-        line = read_line
-        line.to_i
+        read_integer
       end
 
       # $5\r\nhello\r\n -> "hello"
       # $-1\r\n -> nil
       def decode_bulk_string
-        length = read_line.to_i
+        length = read_integer
         return nil if length == -1
 
-        data = read_bytes(length)
-        read_bytes(2) # consume \r\n
-        data
+        read_bytes_chomp(length)
       end
 
       # *2\r\n... -> [...]
       # *-1\r\n -> nil
       def decode_array
-        count = read_line.to_i
+        count = read_integer
         return nil if count == -1
 
         Array.new(count) { decode }
@@ -131,7 +175,7 @@ module RedisRuby
 
       # _\r\n -> nil
       def decode_null
-        read_bytes(2) # consume \r\n
+        skip_bytes(2) # consume \r\n
         nil
       end
 
@@ -139,11 +183,11 @@ module RedisRuby
       # #f\r\n -> false
       def decode_boolean
         char = @stream.getbyte
-        read_bytes(2) # consume \r\n
+        skip_bytes(2) # consume \r\n
 
         case char
-        when 116 then true  # 't'
-        when 102 then false # 'f'
+        when TRUE_BYTE then true
+        when FALSE_BYTE then false
         else
           raise ProtocolError, "Invalid boolean value: #{char.chr}"
         end
@@ -166,32 +210,29 @@ module RedisRuby
 
       # (12345678901234567890\r\n -> Integer
       def decode_big_number
-        line = read_line
-        line.to_i
+        read_integer
       end
 
       # !21\r\nSYNTAX invalid syntax\r\n -> CommandError
       def decode_bulk_error
-        length = read_line.to_i
-        message = read_bytes(length)
-        read_bytes(2) # consume \r\n
+        length = read_integer
+        message = read_bytes_chomp(length)
         CommandError.new(message)
       end
 
       # =15\r\ntxt:Some string\r\n -> "Some string"
       def decode_verbatim
-        length = read_line.to_i
-        data = read_bytes(length)
-        read_bytes(2) # consume \r\n
+        length = read_integer
+        data = read_bytes_chomp(length)
 
         # Format is "enc:content" where enc is 3 chars
         # Skip the encoding prefix and colon (4 bytes)
-        data[4..]
+        data.byteslice(4..-1)
       end
 
       # %2\r\n+key1\r\n:1\r\n+key2\r\n:2\r\n -> { "key1" => 1, "key2" => 2 }
       def decode_map
-        count = read_line.to_i
+        count = read_integer
         result = {}
 
         count.times do
@@ -205,7 +246,7 @@ module RedisRuby
 
       # ~3\r\n+item1\r\n+item2\r\n+item3\r\n -> Set[item1, item2, item3]
       def decode_set
-        count = read_line.to_i
+        count = read_integer
         result = ::Set.new
 
         count.times do
@@ -217,7 +258,7 @@ module RedisRuby
 
       # >2\r\n+message\r\n+data\r\n -> PushMessage
       def decode_push
-        count = read_line.to_i
+        count = read_integer
         data = Array.new(count) { decode }
         PushMessage.new(data)
       end

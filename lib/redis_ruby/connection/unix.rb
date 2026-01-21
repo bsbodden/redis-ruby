@@ -49,7 +49,9 @@ module RedisRuby
       # @return [Array] Array of results
       def pipeline(commands)
         write_pipeline(commands)
-        commands.map { read_response }
+        # Pre-allocate array to avoid map allocation
+        count = commands.size
+        Array.new(count) { read_response }
       end
 
       # Close the connection
@@ -70,7 +72,8 @@ module RedisRuby
       def connect
         @socket = UNIXSocket.new(@path)
         configure_socket
-        @decoder = Protocol::RESP3Decoder.new(@socket)
+        @buffered_io = Protocol::BufferedIO.new(@socket, read_timeout: @timeout, write_timeout: @timeout)
+        @decoder = Protocol::RESP3Decoder.new(@buffered_io)
       rescue Errno::ENOENT
         raise ConnectionError, "Unix socket not found: #{@path}"
       rescue Errno::EACCES

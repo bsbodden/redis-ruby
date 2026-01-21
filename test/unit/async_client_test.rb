@@ -9,7 +9,7 @@ class AsyncClientTest < Minitest::Test
   end
 
   def test_async_client_new
-    setup_connected_socket_with_simple_response("PONG")
+    setup_connected_socket
 
     client = RedisRuby::AsyncClient.new(host: "localhost", port: 6379)
 
@@ -18,7 +18,7 @@ class AsyncClientTest < Minitest::Test
   end
 
   def test_async_client_ping
-    setup_connected_socket_with_simple_response("PONG")
+    setup_connected_socket
     setup_ping_response
 
     client = RedisRuby::AsyncClient.new(host: "localhost", port: 6379)
@@ -29,7 +29,7 @@ class AsyncClientTest < Minitest::Test
   end
 
   def test_async_client_includes_command_modules
-    setup_connected_socket_with_simple_response("PONG")
+    setup_connected_socket
 
     client = RedisRuby::AsyncClient.new(host: "localhost", port: 6379)
 
@@ -43,12 +43,12 @@ class AsyncClientTest < Minitest::Test
   end
 
   def test_async_client_url_parsing
-    setup_connected_socket_with_simple_response("PONG")
+    setup_connected_socket
     # SELECT response for db=1
     @mock_socket.expects(:write).with("*2\r\n$6\r\nSELECT\r\n$1\r\n1\r\n")
     @mock_socket.expects(:flush)
-    @mock_socket.expects(:getbyte).returns(43) # '+'
-    @mock_socket.expects(:gets).with("\r\n").returns("OK\r\n")
+    # BufferedIO uses read_nonblock
+    @mock_socket.expects(:read_nonblock).returns("+OK\r\n")
 
     client = RedisRuby::AsyncClient.new(url: "redis://localhost:6380/1")
 
@@ -59,7 +59,7 @@ class AsyncClientTest < Minitest::Test
   end
 
   def test_async_client_connected
-    setup_connected_socket_with_simple_response("PONG")
+    setup_connected_socket
     @mock_socket.stubs(:closed?).returns(false)
 
     client = RedisRuby::AsyncClient.new(host: "localhost", port: 6379)
@@ -74,13 +74,13 @@ class AsyncClientTest < Minitest::Test
   end
 
   def test_async_client_error_handling
-    setup_connected_socket_with_simple_response("PONG")
+    setup_connected_socket
 
     # Error response for UNKNOWN command
     @mock_socket.expects(:write)
     @mock_socket.expects(:flush)
-    @mock_socket.expects(:getbyte).returns(45) # '-'
-    @mock_socket.expects(:gets).with("\r\n").returns("ERR unknown command\r\n")
+    # BufferedIO uses read_nonblock
+    @mock_socket.expects(:read_nonblock).returns("-ERR unknown command\r\n")
 
     client = RedisRuby::AsyncClient.new(host: "localhost", port: 6379)
 
@@ -92,7 +92,7 @@ class AsyncClientTest < Minitest::Test
 
   def test_async_client_thread_safety
     # Verify mutex is used - check that client has a mutex
-    setup_connected_socket_with_simple_response("PONG")
+    setup_connected_socket
 
     client = RedisRuby::AsyncClient.new(host: "localhost", port: 6379)
 
@@ -110,7 +110,7 @@ class AsyncClientTest < Minitest::Test
     @mock_socket.stubs(:close)
   end
 
-  def setup_connected_socket_with_simple_response(_response)
+  def setup_connected_socket
     TCPSocket.stubs(:new).returns(@mock_socket)
     setup_mock_socket_options
   end
@@ -118,7 +118,7 @@ class AsyncClientTest < Minitest::Test
   def setup_ping_response
     @mock_socket.expects(:write).with("*1\r\n$4\r\nPING\r\n")
     @mock_socket.expects(:flush)
-    @mock_socket.expects(:getbyte).returns(43) # '+'
-    @mock_socket.expects(:gets).with("\r\n").returns("PONG\r\n")
+    # BufferedIO uses read_nonblock
+    @mock_socket.expects(:read_nonblock).returns("+PONG\r\n")
   end
 end

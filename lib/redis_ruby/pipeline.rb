@@ -34,7 +34,9 @@ module RedisRuby
     # @param args [Array] Command arguments
     # @return [Pipeline] self for chaining
     def call(command, *args)
-      @commands << [command, *args]
+      # Reuse args array to avoid allocation
+      args.unshift(command)
+      @commands << args
       self
     end
 

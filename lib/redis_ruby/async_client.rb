@@ -39,6 +39,11 @@ module RedisRuby
     include Commands::Lists
     include Commands::Sets
     include Commands::SortedSets
+    include Commands::JSON
+    include Commands::Search
+    include Commands::BloomFilter
+    include Commands::TimeSeries
+    include Commands::VectorSet
 
     attr_reader :host, :port, :db, :timeout
 

@@ -42,16 +42,18 @@ class RESP3EncoderTest < Minitest::Test
     # Binary data should be handled correctly
     binary = "\x00\x01\x02\xFF"
     result = @encoder.encode_command("SET", "key", binary)
+    expected = "*3\r\n$3\r\nSET\r\n$3\r\nkey\r\n$4\r\n\x00\x01\x02\xFF\r\n".b
 
-    assert_equal "*3\r\n$3\r\nSET\r\n$3\r\nkey\r\n$4\r\n\x00\x01\x02\xFF\r\n", result
+    assert_equal expected, result
   end
 
   def test_encode_command_with_unicode
     # Unicode strings - byte length matters, not character length
     # "héllo" is 6 bytes in UTF-8 (h=1, é=2, l=1, l=1, o=1)
     result = @encoder.encode_command("SET", "key", "héllo")
+    expected = "*3\r\n$3\r\nSET\r\n$3\r\nkey\r\n$6\r\nhéllo\r\n".b
 
-    assert_equal "*3\r\n$3\r\nSET\r\n$3\r\nkey\r\n$6\r\nhéllo\r\n", result
+    assert_equal expected, result
   end
 
   def test_encode_command_with_empty_string
