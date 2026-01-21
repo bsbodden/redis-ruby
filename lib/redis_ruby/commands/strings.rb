@@ -98,16 +98,16 @@ module RedisRuby
       #
       # @param args [Array] key-value pairs (key1, value1, key2, value2, ...)
       # @return [String] "OK"
-      def mset(*args)
-        call("MSET", *args)
+      def mset(*)
+        call("MSET", *)
       end
 
       # Set multiple keys to multiple values, only if none of the keys exist
       #
       # @param args [Array] key-value pairs
       # @return [Integer] 1 if all keys were set, 0 if no keys were set
-      def msetnx(*args)
-        call("MSETNX", *args)
+      def msetnx(*)
+        call("MSETNX", *)
       end
 
       # Set the value of a key, only if the key does not exist

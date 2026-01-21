@@ -13,7 +13,7 @@ class PipelineTest < RedisRubyTestCase
       pipe.get("test:pipe2")
     end
 
-    assert_equal ["OK", "OK", "value1", "value2"], results
+    assert_equal %w[OK OK value1 value2], results
   ensure
     redis.del("test:pipe1", "test:pipe2")
   end
@@ -23,7 +23,7 @@ class PipelineTest < RedisRubyTestCase
       # No commands
     end
 
-    assert_equal [], results
+    assert_empty results
   end
 
   def test_pipelined_with_nil_result
@@ -96,7 +96,7 @@ class PipelineTest < RedisRubyTestCase
 
     assert_equal 3, results[0]
     assert_equal %w[one two three], results[1]
-    assert_equal "2", results[2] # Note: score returned as string in pipeline
+    assert_equal "2", results[2] # NOTE: score returned as string in pipeline
   ensure
     redis.del("test:zset")
   end
@@ -108,7 +108,7 @@ class PipelineTest < RedisRubyTestCase
     end
 
     assert_equal "OK", results[0]
-    assert results[1] > 0 && results[1] <= 100
+    assert results[1].positive? && results[1] <= 100
   ensure
     redis.del("test:expiring")
   end
@@ -126,6 +126,6 @@ class PipelineTest < RedisRubyTestCase
     redis.del(*keys)
 
     # Just verify it completed - actual performance testing is in benchmarks
-    assert pipeline_time < 5 # Should complete in under 5 seconds
+    assert_operator pipeline_time, :<, 5 # Should complete in under 5 seconds
   end
 end

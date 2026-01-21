@@ -3,17 +3,36 @@
 require "uri"
 
 module RedisRuby
-  # The main synchronous Redis client
+  # Asynchronous Redis client using Fiber Scheduler
   #
-  # Pure Ruby implementation using RESP3 protocol.
-  # This is the foundation - async client will wrap this with Fiber scheduler.
+  # When used inside an `Async` block, all I/O operations automatically
+  # yield to the fiber scheduler, enabling concurrent command execution.
+  # When used outside an Async context, behaves like the synchronous client.
   #
-  # @example Basic usage
-  #   client = RedisRuby::Client.new(url: "redis://localhost:6379")
-  #   client.set("key", "value")
-  #   client.get("key") # => "value"
+  # @example Basic async usage
+  #   require "async"
   #
-  class Client
+  #   Async do
+  #     client = RedisRuby::AsyncClient.new(url: "redis://localhost:6379")
+  #     client.set("key", "value")
+  #     client.get("key") # => "value"
+  #   end
+  #
+  # @example Concurrent commands
+  #   require "async"
+  #
+  #   Async do |task|
+  #     client = RedisRuby::AsyncClient.new(url: "redis://localhost:6379")
+  #
+  #     # Execute commands concurrently
+  #     tasks = 10.times.map do |i|
+  #       task.async { client.get("key:#{i}") }
+  #     end
+  #
+  #     results = tasks.map(&:wait)
+  #   end
+  #
+  class AsyncClient
     include Commands::Strings
     include Commands::Keys
     include Commands::Hashes
@@ -28,7 +47,7 @@ module RedisRuby
     DEFAULT_DB = 0
     DEFAULT_TIMEOUT = 5.0
 
-    # Initialize a new Redis client
+    # Initialize a new async Redis client
     #
     # @param url [String, nil] Redis URL (redis://host:port/db)
     # @param host [String] Redis host
@@ -48,19 +67,26 @@ module RedisRuby
       end
       @timeout = timeout
       @connection = nil
+      @mutex = Mutex.new
+      ensure_connected
     end
 
     # Execute a Redis command
     #
+    # Thread-safe: uses mutex for connection access.
+    # Fiber-safe: yields to scheduler during I/O.
+    #
     # @param command [String] Command name
     # @param args [Array] Command arguments
     # @return [Object] Command result
-    def call(command, *)
-      ensure_connected
-      result = @connection.call(command, *)
-      raise result if result.is_a?(CommandError)
+    def call(command, *args)
+      @mutex.synchronize do
+        ensure_connected
+        result = @connection.call(command, *args)
+        raise result if result.is_a?(CommandError)
 
-      result
+        result
+      end
     end
 
     # Ping the Redis server
@@ -100,91 +126,64 @@ module RedisRuby
     #
     # @yield [Pipeline] pipeline object to queue commands
     # @return [Array] results from all commands
-    # @example
-    #   results = client.pipelined do |pipe|
-    #     pipe.set("key1", "value1")
-    #     pipe.get("key1")
-    #   end
     def pipelined
-      ensure_connected
-      pipeline = Pipeline.new(@connection)
-      yield pipeline
-      results = pipeline.execute
-      # Raise any errors that occurred
-      results.map { |r| r.is_a?(CommandError) ? raise(r) : r }
+      @mutex.synchronize do
+        ensure_connected
+        pipeline = Pipeline.new(@connection)
+        yield pipeline
+        results = pipeline.execute
+        results.map { |r| r.is_a?(CommandError) ? raise(r) : r }
+      end
     end
 
     # Execute commands in a transaction (MULTI/EXEC)
     #
     # @yield [Transaction] transaction object to queue commands
     # @return [Array, nil] results from all commands, or nil if aborted
-    # @example
-    #   results = client.multi do |tx|
-    #     tx.set("key1", "value1")
-    #     tx.incr("counter")
-    #   end
     def multi
-      ensure_connected
-      transaction = Transaction.new(@connection)
-      yield transaction
-      results = transaction.execute
-      return nil if results.nil?
+      @mutex.synchronize do
+        ensure_connected
+        transaction = Transaction.new(@connection)
+        yield transaction
+        results = transaction.execute
+        return nil if results.nil?
 
-      # Raise any errors in results
-      results.map { |r| r.is_a?(CommandError) ? raise(r) : r }
+        results.map { |r| r.is_a?(CommandError) ? raise(r) : r }
+      end
     end
 
     # Watch keys for changes (optimistic locking)
     #
-    # If any watched key is modified before EXEC, the transaction aborts.
-    #
     # @param keys [Array<String>] keys to watch
     # @yield [optional] block to execute while watching
     # @return [Object] result of block, or "OK" if no block
-    # @example With block (auto-unwatch)
-    #   client.watch("counter") do
-    #     current = client.get("counter").to_i
-    #     client.multi do |tx|
-    #       tx.set("counter", current + 1)
-    #     end
-    #   end
-    # @example Without block (manual unwatch)
-    #   client.watch("counter")
-    #   current = client.get("counter").to_i
-    #   client.multi { |tx| tx.set("counter", current + 1) }
-    #   client.unwatch
     def watch(*keys, &block)
-      ensure_connected
-      result = @connection.call("WATCH", *keys)
-      return result unless block
+      @mutex.synchronize do
+        ensure_connected
+        result = @connection.call("WATCH", *keys)
+        return result unless block
 
-      begin
-        yield
-      ensure
-        @connection.call("UNWATCH")
+        begin
+          yield
+        ensure
+          @connection.call("UNWATCH")
+        end
       end
-    end
-
-    # Discard a transaction in progress
-    #
-    # @return [String] "OK"
-    def discard
-      ensure_connected
-      call("DISCARD")
     end
 
     # Unwatch all watched keys
     #
     # @return [String] "OK"
     def unwatch
-      ensure_connected
       call("UNWATCH")
     end
 
     # Close the connection
     def close
-      @connection&.close
-      @connection = nil
+      @mutex.synchronize do
+        @connection&.close
+        @connection = nil
+      end
     end
 
     alias disconnect close

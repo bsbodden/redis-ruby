@@ -69,9 +69,7 @@ module RedisRuby
     end
 
     # SET (override to not raise on error in pipeline)
-    # rubocop:disable Metrics/ParameterLists
     def set(key, value, ex: nil, px: nil, nx: false, xx: false)
-      # rubocop:enable Metrics/ParameterLists
       args = [key, value]
       args.push("EX", ex) if ex
       args.push("PX", px) if px

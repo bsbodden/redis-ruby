@@ -17,9 +17,7 @@ module RedisRuby
       # @param lt [Boolean] only update if new score < current
       # @param ch [Boolean] return number of changed elements
       # @return [Integer] number of elements added (or changed if ch)
-      # rubocop:disable Metrics/ParameterLists
       def zadd(key, *score_members, nx: false, xx: false, gt: false, lt: false, ch: false)
-        # rubocop:enable Metrics/ParameterLists
         args = ["ZADD", key]
         args.push("NX") if nx
         args.push("XX") if xx

@@ -46,13 +46,24 @@ Layout/FirstHashElementIndentation:
 
 # Metrics - be reasonable
 Metrics/AbcSize:
-  Max: 25
+  Max: 30
+  Exclude:
+    - "test/**/*"
+
+Metrics/ParameterLists:
+  Max: 8
+  CountKeywordArgs: false  # Redis commands often have many keyword options
 
 Metrics/MethodLength:
   Max: 20
 
 Metrics/ClassLength:
   Max: 200
+
+Metrics/ModuleLength:
+  Max: 150
+  Exclude:
+    - "lib/redis_ruby/commands/**/*"
 
 Metrics/BlockLength:
   Exclude:
@@ -62,12 +73,19 @@ Metrics/BlockLength:
 # Naming
 Naming/MethodParameterName:
   AllowedNames:
-    - ex
-    - px
-    - nx
-    - xx
-    - db
-    - id
+    - ex   # expiration in seconds
+    - px   # expiration in milliseconds
+    - nx   # only if not exists
+    - xx   # only if exists
+    - gt   # greater than
+    - lt   # less than
+    - ch   # changed
+    - db   # database
+    - id   # identifier
+
+# Redis commands use non-predicate names like SETNX, GETEX
+Naming/PredicateMethod:
+  Enabled: false
 
 # Minitest
 Minitest/MultipleAssertions:

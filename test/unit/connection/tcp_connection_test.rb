@@ -14,6 +14,7 @@ class TCPConnectionTest < Minitest::Test
     setup_mock_socket_options
 
     conn = RedisRuby::Connection::TCP.new
+
     assert_equal "localhost", conn.host
     assert_equal 6379, conn.port
   end
@@ -23,6 +24,7 @@ class TCPConnectionTest < Minitest::Test
     setup_mock_socket_options
 
     conn = RedisRuby::Connection::TCP.new(host: "redis.example.com", port: 6380)
+
     assert_equal "redis.example.com", conn.host
     assert_equal 6380, conn.port
   end
@@ -68,6 +70,7 @@ class TCPConnectionTest < Minitest::Test
 
     conn = RedisRuby::Connection::TCP.new
     result = conn.call("PING")
+
     assert_equal "PONG", result
   end
 
@@ -82,6 +85,7 @@ class TCPConnectionTest < Minitest::Test
 
     conn = RedisRuby::Connection::TCP.new
     result = conn.call("SET", "key", "value")
+
     assert_equal "OK", result
   end
 
@@ -95,6 +99,7 @@ class TCPConnectionTest < Minitest::Test
 
     conn = RedisRuby::Connection::TCP.new
     result = conn.call("INCR", "counter")
+
     assert_equal 42, result
   end
 
@@ -108,6 +113,7 @@ class TCPConnectionTest < Minitest::Test
 
     conn = RedisRuby::Connection::TCP.new
     result = conn.call("GET", "nonexistent")
+
     assert_nil result
   end
 
@@ -121,6 +127,7 @@ class TCPConnectionTest < Minitest::Test
 
     conn = RedisRuby::Connection::TCP.new
     error = conn.call("BADCMD")
+
     assert_instance_of RedisRuby::CommandError, error
     assert_equal "ERR unknown command", error.message
   end
@@ -150,10 +157,11 @@ class TCPConnectionTest < Minitest::Test
 
     conn = RedisRuby::Connection::TCP.new
     results = conn.pipeline([
-      ["SET", "key1", "value1"],
-      ["GET", "key1"]
+      %w[SET key1 value1],
+      %w[GET key1],
     ])
-    assert_equal ["OK", "value1"], results
+
+    assert_equal %w[OK value1], results
   end
 
   # Connection management
@@ -170,7 +178,8 @@ class TCPConnectionTest < Minitest::Test
     @mock_socket.stubs(:closed?).returns(false)
 
     conn = RedisRuby::Connection::TCP.new
-    assert conn.connected?
+
+    assert_predicate conn, :connected?
   end
 
   def test_connected_returns_false_when_closed
@@ -178,7 +187,8 @@ class TCPConnectionTest < Minitest::Test
     @mock_socket.stubs(:closed?).returns(true)
 
     conn = RedisRuby::Connection::TCP.new
-    refute conn.connected?
+
+    refute_predicate conn, :connected?
   end
 
   private

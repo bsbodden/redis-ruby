@@ -13,7 +13,7 @@ class TransactionTest < RedisRubyTestCase
       tx.get("test:tx2")
     end
 
-    assert_equal ["OK", "OK", "value1", "value2"], results
+    assert_equal %w[OK OK value1 value2], results
   ensure
     redis.del("test:tx1", "test:tx2")
   end
@@ -23,7 +23,7 @@ class TransactionTest < RedisRubyTestCase
       # No commands
     end
 
-    assert_equal [], results
+    assert_empty results
   end
 
   def test_multi_with_incr
@@ -49,7 +49,7 @@ class TransactionTest < RedisRubyTestCase
     end
 
     # Both operations should execute atomically
-    assert_equal ["OK", "new_value"], results
+    assert_equal %w[OK new_value], results
     assert_equal "new_value", redis.get("test:key")
   ensure
     redis.del("test:key")
@@ -150,6 +150,7 @@ class TransactionTest < RedisRubyTestCase
     redis.set("test:key", "value")
     redis.watch("test:key")
     result = redis.unwatch
+
     assert_equal "OK", result
   ensure
     redis.del("test:key")

@@ -9,13 +9,31 @@ module RedisRuby
   class TimeoutError < Error; end
 
   class << self
-    # Create a new Redis client connection
+    # Create a new synchronous Redis client connection
     #
     # @param url [String] Redis URL (redis://host:port/db)
     # @param options [Hash] Connection options
     # @return [RedisRuby::Client]
     def new(url: nil, **)
       Client.new(url: url, **)
+    end
+
+    # Create a new asynchronous Redis client connection
+    #
+    # When used inside an `Async` block, I/O operations automatically
+    # yield to the fiber scheduler, enabling concurrent execution.
+    #
+    # @param url [String] Redis URL (redis://host:port/db)
+    # @param options [Hash] Connection options
+    # @return [RedisRuby::AsyncClient]
+    # @example
+    #   require "async"
+    #   Async do
+    #     client = RedisRuby.async(url: "redis://localhost:6379")
+    #     client.set("key", "value")
+    #   end
+    def async(url: nil, **)
+      AsyncClient.new(url: url, **)
     end
   end
 end
@@ -39,3 +57,4 @@ require_relative "redis_ruby/commands/sorted_sets"
 require_relative "redis_ruby/pipeline"
 require_relative "redis_ruby/transaction"
 require_relative "redis_ruby/client"
+require_relative "redis_ruby/async_client"

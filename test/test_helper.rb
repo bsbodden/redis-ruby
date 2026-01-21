@@ -77,9 +77,7 @@ class RedisRubyTestCase < Minitest::Test
     @redis&.close
   end
 
-  def redis
-    @redis
-  end
+  attr_reader :redis
 end
 
 # Clean up containers at exit
