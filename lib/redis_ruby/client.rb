@@ -28,8 +28,10 @@ module RedisRuby
     # @param db [Integer] Redis database number
     # @param password [String, nil] Redis password
     # @param timeout [Float] Connection timeout in seconds
+    # rubocop:disable Metrics/ParameterLists
     def initialize(url: nil, host: DEFAULT_HOST, port: DEFAULT_PORT, db: DEFAULT_DB,
                    password: nil, timeout: DEFAULT_TIMEOUT)
+      # rubocop:enable Metrics/ParameterLists
       if url
         parse_url(url)
       else
@@ -47,9 +49,9 @@ module RedisRuby
     # @param command [String] Command name
     # @param args [Array] Command arguments
     # @return [Object] Command result
-    def call(command, *args)
+    def call(command, *)
       ensure_connected
-      result = @connection.call(command, *args)
+      result = @connection.call(command, *)
       raise result if result.is_a?(CommandError)
 
       result
@@ -71,7 +73,9 @@ module RedisRuby
     # @param nx [Boolean] Only set if key doesn't exist
     # @param xx [Boolean] Only set if key exists
     # @return [String, nil] "OK" or nil
+    # rubocop:disable Metrics/ParameterLists
     def set(key, value, ex: nil, px: nil, nx: false, xx: false)
+      # rubocop:enable Metrics/ParameterLists
       args = [key, value]
       args.push("EX", ex) if ex
       args.push("PX", px) if px

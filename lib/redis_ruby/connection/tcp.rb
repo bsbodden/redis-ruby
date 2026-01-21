@@ -46,8 +46,8 @@ module RedisRuby
       # @param command [String] Command name
       # @param args [Array] Command arguments
       # @return [Object] Command result
-      def call(command, *args)
-        write_command(command, *args)
+      def call(command, *)
+        write_command(command, *)
         read_response
       end
 
@@ -94,8 +94,8 @@ module RedisRuby
       end
 
       # Write a single command to the socket
-      def write_command(command, *args)
-        encoded = @encoder.encode_command(command, *args)
+      def write_command(command, *)
+        encoded = @encoder.encode_command(command, *)
         @socket.write(encoded)
         @socket.flush
       end

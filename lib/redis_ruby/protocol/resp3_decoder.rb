@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require "set"
-
 module RedisRuby
   module Protocol
     # Represents a RESP3 push message (pub/sub, invalidation, etc.)
@@ -45,15 +43,16 @@ module RedisRuby
       CR = 13 # '\r'
       LF = 10 # '\n'
 
-      def initialize(io)
-        @io = io
+      def initialize(stream)
+        @stream = stream
       end
 
-      # Decode the next RESP3 value from the IO stream
+      # Decode the next RESP3 value from the stream
       #
       # @return [Object] Decoded Ruby value
+      # rubocop:disable Metrics/CyclomaticComplexity
       def decode
-        type_byte = @io.getbyte
+        type_byte = @stream.getbyte
         return nil if type_byte.nil?
 
         case type_byte
@@ -75,21 +74,22 @@ module RedisRuby
           raise ProtocolError, "Unknown RESP3 type: #{type_byte.chr}"
         end
       end
+      # rubocop:enable Metrics/CyclomaticComplexity
 
       private
 
       # Read a line (up to CRLF) and return without the terminator
       def read_line
-        line = @io.gets("\r\n")
+        line = @stream.gets("\r\n")
         return nil if line.nil?
 
         # Remove trailing \r\n (use chomp to avoid mutating frozen strings)
         line.chomp("\r\n")
       end
 
-      # Read exactly n bytes
-      def read_bytes(n)
-        @io.read(n)
+      # Read exactly count bytes
+      def read_bytes(count)
+        @stream.read(count)
       end
 
       # +OK\r\n -> "OK"
@@ -138,7 +138,7 @@ module RedisRuby
       # #t\r\n -> true
       # #f\r\n -> false
       def decode_boolean
-        char = @io.getbyte
+        char = @stream.getbyte
         read_bytes(2) # consume \r\n
 
         case char

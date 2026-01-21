@@ -14,8 +14,8 @@ module RedisRuby
     # @param url [String] Redis URL (redis://host:port/db)
     # @param options [Hash] Connection options
     # @return [RedisRuby::Client]
-    def new(url: nil, **options)
-      Client.new(url: url, **options)
+    def new(url: nil, **)
+      Client.new(url: url, **)
     end
   end
 end
