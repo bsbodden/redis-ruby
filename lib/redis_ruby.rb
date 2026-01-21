@@ -30,6 +30,10 @@ require_relative "redis_ruby/connection/tcp"
 # Commands layer (shared by sync/async clients)
 require_relative "redis_ruby/commands/strings"
 require_relative "redis_ruby/commands/keys"
+require_relative "redis_ruby/commands/hashes"
+require_relative "redis_ruby/commands/lists"
+require_relative "redis_ruby/commands/sets"
+require_relative "redis_ruby/commands/sorted_sets"
 
 # Client layer
 require_relative "redis_ruby/client"

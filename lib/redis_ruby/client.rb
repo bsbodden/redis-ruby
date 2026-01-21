@@ -16,6 +16,10 @@ module RedisRuby
   class Client
     include Commands::Strings
     include Commands::Keys
+    include Commands::Hashes
+    include Commands::Lists
+    include Commands::Sets
+    include Commands::SortedSets
 
     attr_reader :host, :port, :db, :timeout
 
