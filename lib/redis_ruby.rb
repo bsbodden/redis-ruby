@@ -23,4 +23,5 @@ end
 # Autoload components
 require_relative "redis_ruby/protocol/resp3_encoder"
 require_relative "redis_ruby/protocol/resp3_decoder"
+require_relative "redis_ruby/connection/tcp"
 require_relative "redis_ruby/client"

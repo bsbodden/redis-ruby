@@ -83,9 +83,8 @@ module RedisRuby
         line = @io.gets("\r\n")
         return nil if line.nil?
 
-        # Remove trailing \r\n
-        line.chomp!("\r\n")
-        line
+        # Remove trailing \r\n (use chomp to avoid mutating frozen strings)
+        line.chomp("\r\n")
       end
 
       # Read exactly n bytes

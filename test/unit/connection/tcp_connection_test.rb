@@ -1,0 +1,195 @@
+# frozen_string_literal: true
+
+require_relative "../unit_test_helper"
+require "socket"
+
+class TCPConnectionTest < Minitest::Test
+  def setup
+    @mock_socket = mock("socket")
+  end
+
+  # Connection initialization
+  def test_default_host_and_port
+    TCPSocket.expects(:new).with("localhost", 6379).returns(@mock_socket)
+    setup_mock_socket_options
+
+    conn = RedisRuby::Connection::TCP.new
+    assert_equal "localhost", conn.host
+    assert_equal 6379, conn.port
+  end
+
+  def test_custom_host_and_port
+    TCPSocket.expects(:new).with("redis.example.com", 6380).returns(@mock_socket)
+    setup_mock_socket_options
+
+    conn = RedisRuby::Connection::TCP.new(host: "redis.example.com", port: 6380)
+    assert_equal "redis.example.com", conn.host
+    assert_equal 6380, conn.port
+  end
+
+  # Socket options
+  def test_sets_tcp_nodelay
+    TCPSocket.expects(:new).returns(@mock_socket)
+    # Verify TCP_NODELAY is set (both options will be set)
+    @mock_socket.expects(:setsockopt).with(Socket::IPPROTO_TCP, Socket::TCP_NODELAY, 1).once
+    @mock_socket.expects(:setsockopt).with(Socket::SOL_SOCKET, Socket::SO_KEEPALIVE, 1).once
+    @mock_socket.stubs(:sync=)
+
+    RedisRuby::Connection::TCP.new
+  end
+
+  def test_sets_keepalive
+    TCPSocket.expects(:new).returns(@mock_socket)
+    # Verify SO_KEEPALIVE is set (both options will be set)
+    @mock_socket.expects(:setsockopt).with(Socket::IPPROTO_TCP, Socket::TCP_NODELAY, 1).once
+    @mock_socket.expects(:setsockopt).with(Socket::SOL_SOCKET, Socket::SO_KEEPALIVE, 1).once
+    @mock_socket.stubs(:sync=)
+
+    RedisRuby::Connection::TCP.new
+  end
+
+  def test_sets_sync_false_for_buffering
+    TCPSocket.expects(:new).returns(@mock_socket)
+    @mock_socket.stubs(:setsockopt)
+    @mock_socket.expects(:sync=).with(false)
+
+    RedisRuby::Connection::TCP.new
+  end
+
+  # Command execution
+  def test_call_encodes_and_sends_command
+    setup_connected_socket
+    expected_encoded = "*1\r\n$4\r\nPING\r\n"
+
+    @mock_socket.expects(:write).with(expected_encoded)
+    @mock_socket.expects(:flush)
+    @mock_socket.expects(:getbyte).returns(43) # '+'
+    @mock_socket.expects(:gets).with("\r\n").returns("PONG\r\n")
+
+    conn = RedisRuby::Connection::TCP.new
+    result = conn.call("PING")
+    assert_equal "PONG", result
+  end
+
+  def test_call_with_arguments
+    setup_connected_socket
+    expected_encoded = "*3\r\n$3\r\nSET\r\n$3\r\nkey\r\n$5\r\nvalue\r\n"
+
+    @mock_socket.expects(:write).with(expected_encoded)
+    @mock_socket.expects(:flush)
+    @mock_socket.expects(:getbyte).returns(43) # '+'
+    @mock_socket.expects(:gets).with("\r\n").returns("OK\r\n")
+
+    conn = RedisRuby::Connection::TCP.new
+    result = conn.call("SET", "key", "value")
+    assert_equal "OK", result
+  end
+
+  def test_call_returns_integer
+    setup_connected_socket
+
+    @mock_socket.expects(:write)
+    @mock_socket.expects(:flush)
+    @mock_socket.expects(:getbyte).returns(58) # ':'
+    @mock_socket.expects(:gets).with("\r\n").returns("42\r\n")
+
+    conn = RedisRuby::Connection::TCP.new
+    result = conn.call("INCR", "counter")
+    assert_equal 42, result
+  end
+
+  def test_call_returns_nil_for_missing_key
+    setup_connected_socket
+
+    @mock_socket.expects(:write)
+    @mock_socket.expects(:flush)
+    @mock_socket.expects(:getbyte).returns(36) # '$'
+    @mock_socket.expects(:gets).with("\r\n").returns("-1\r\n")
+
+    conn = RedisRuby::Connection::TCP.new
+    result = conn.call("GET", "nonexistent")
+    assert_nil result
+  end
+
+  def test_call_raises_on_error_response
+    setup_connected_socket
+
+    @mock_socket.expects(:write)
+    @mock_socket.expects(:flush)
+    @mock_socket.expects(:getbyte).returns(45) # '-'
+    @mock_socket.expects(:gets).with("\r\n").returns("ERR unknown command\r\n")
+
+    conn = RedisRuby::Connection::TCP.new
+    error = conn.call("BADCMD")
+    assert_instance_of RedisRuby::CommandError, error
+    assert_equal "ERR unknown command", error.message
+  end
+
+  # Pipeline
+  def test_pipeline_sends_multiple_commands
+    setup_connected_socket
+    expected = "*3\r\n$3\r\nSET\r\n$4\r\nkey1\r\n$6\r\nvalue1\r\n" \
+               "*2\r\n$3\r\nGET\r\n$4\r\nkey1\r\n"
+
+    @mock_socket.expects(:write).with(expected)
+    @mock_socket.expects(:flush)
+
+    # Set up sequential responses using a sequence of returns
+    # First response: +OK (simple string)
+    # Second response: $6\r\nvalue1\r\n (bulk string)
+    getbyte_seq = sequence("getbyte")
+    @mock_socket.expects(:getbyte).returns(43).in_sequence(getbyte_seq) # '+'
+    @mock_socket.expects(:getbyte).returns(36).in_sequence(getbyte_seq) # '$'
+
+    gets_seq = sequence("gets")
+    @mock_socket.expects(:gets).with("\r\n").returns("OK\r\n").in_sequence(gets_seq)
+    @mock_socket.expects(:gets).with("\r\n").returns("6\r\n").in_sequence(gets_seq)
+
+    @mock_socket.expects(:read).with(6).returns("value1")
+    @mock_socket.expects(:read).with(2).returns("\r\n")
+
+    conn = RedisRuby::Connection::TCP.new
+    results = conn.pipeline([
+      ["SET", "key1", "value1"],
+      ["GET", "key1"]
+    ])
+    assert_equal ["OK", "value1"], results
+  end
+
+  # Connection management
+  def test_close_closes_socket
+    setup_connected_socket
+    @mock_socket.expects(:close)
+
+    conn = RedisRuby::Connection::TCP.new
+    conn.close
+  end
+
+  def test_connected_returns_true_when_open
+    setup_connected_socket
+    @mock_socket.stubs(:closed?).returns(false)
+
+    conn = RedisRuby::Connection::TCP.new
+    assert conn.connected?
+  end
+
+  def test_connected_returns_false_when_closed
+    setup_connected_socket
+    @mock_socket.stubs(:closed?).returns(true)
+
+    conn = RedisRuby::Connection::TCP.new
+    refute conn.connected?
+  end
+
+  private
+
+  def setup_mock_socket_options
+    @mock_socket.stubs(:setsockopt)
+    @mock_socket.stubs(:sync=)
+  end
+
+  def setup_connected_socket
+    TCPSocket.expects(:new).returns(@mock_socket)
+    setup_mock_socket_options
+  end
+end
