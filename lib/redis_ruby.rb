@@ -20,8 +20,16 @@ module RedisRuby
   end
 end
 
-# Autoload components
+# Protocol layer
 require_relative "redis_ruby/protocol/resp3_encoder"
 require_relative "redis_ruby/protocol/resp3_decoder"
+
+# Connection layer
 require_relative "redis_ruby/connection/tcp"
+
+# Commands layer (shared by sync/async clients)
+require_relative "redis_ruby/commands/strings"
+require_relative "redis_ruby/commands/keys"
+
+# Client layer
 require_relative "redis_ruby/client"

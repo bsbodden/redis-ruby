@@ -3,9 +3,10 @@
 require "uri"
 
 module RedisRuby
-  # The main Redis client class
+  # The main synchronous Redis client
   #
   # Pure Ruby implementation using RESP3 protocol.
+  # This is the foundation - async client will wrap this with Fiber scheduler.
   #
   # @example Basic usage
   #   client = RedisRuby::Client.new(url: "redis://localhost:6379")
@@ -13,6 +14,9 @@ module RedisRuby
   #   client.get("key") # => "value"
   #
   class Client
+    include Commands::Strings
+    include Commands::Keys
+
     attr_reader :host, :port, :db, :timeout
 
     DEFAULT_HOST = "localhost"
@@ -90,22 +94,6 @@ module RedisRuby
     # @return [String, nil] The value or nil
     def get(key)
       call("GET", key)
-    end
-
-    # Delete one or more keys
-    #
-    # @param keys [Array<String>] Keys to delete
-    # @return [Integer] Number of keys deleted
-    def del(*keys)
-      call("DEL", *keys)
-    end
-
-    # Check if keys exist
-    #
-    # @param keys [Array<String>] Keys to check
-    # @return [Integer] Number of keys that exist
-    def exists(*keys)
-      call("EXISTS", *keys)
     end
 
     # Close the connection
