@@ -13,6 +13,7 @@ group :development do
   gem "yard", "~> 0.9"
   gem "debug", "~> 1.9"
   gem "benchmark-ips", "~> 2.13"
+  gem "redis", "~> 5.0"  # For benchmarking against redis-rb
 end
 
 group :test do
