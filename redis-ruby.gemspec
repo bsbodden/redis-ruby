@@ -34,9 +34,6 @@ Gem::Specification.new do |spec|
   spec.executables = spec.files.grep(%r{\Aexe/}) { |f| File.basename(f) }
   spec.require_paths = ["lib"]
 
-  # Runtime dependencies
+  # Runtime dependencies (connection_pool for future pooling support)
   spec.add_dependency "connection_pool", "~> 2.4"
-
-  # For fast protocol parsing
-  spec.add_dependency "redis-client", ">= 0.22"
 end
