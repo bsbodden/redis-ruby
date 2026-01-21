@@ -118,6 +118,73 @@ module RedisRuby
       results.map { |r| r.is_a?(CommandError) ? raise(r) : r }
     end
 
+    # Execute commands in a transaction (MULTI/EXEC)
+    #
+    # @yield [Transaction] transaction object to queue commands
+    # @return [Array, nil] results from all commands, or nil if aborted
+    # @example
+    #   results = client.multi do |tx|
+    #     tx.set("key1", "value1")
+    #     tx.incr("counter")
+    #   end
+    def multi
+      ensure_connected
+      transaction = Transaction.new(@connection)
+      yield transaction
+      results = transaction.execute
+      return nil if results.nil?
+
+      # Raise any errors in results
+      results.map { |r| r.is_a?(CommandError) ? raise(r) : r }
+    end
+
+    # Watch keys for changes (optimistic locking)
+    #
+    # If any watched key is modified before EXEC, the transaction aborts.
+    #
+    # @param keys [Array<String>] keys to watch
+    # @yield [optional] block to execute while watching
+    # @return [Object] result of block, or "OK" if no block
+    # @example With block (auto-unwatch)
+    #   client.watch("counter") do
+    #     current = client.get("counter").to_i
+    #     client.multi do |tx|
+    #       tx.set("counter", current + 1)
+    #     end
+    #   end
+    # @example Without block (manual unwatch)
+    #   client.watch("counter")
+    #   current = client.get("counter").to_i
+    #   client.multi { |tx| tx.set("counter", current + 1) }
+    #   client.unwatch
+    def watch(*keys, &block)
+      ensure_connected
+      result = @connection.call("WATCH", *keys)
+      return result unless block
+
+      begin
+        yield
+      ensure
+        @connection.call("UNWATCH")
+      end
+    end
+
+    # Discard a transaction in progress
+    #
+    # @return [String] "OK"
+    def discard
+      ensure_connected
+      call("DISCARD")
+    end
+
+    # Unwatch all watched keys
+    #
+    # @return [String] "OK"
+    def unwatch
+      ensure_connected
+      call("UNWATCH")
+    end
+
     # Close the connection
     def close
       @connection&.close
