@@ -15,6 +15,12 @@ module RedisRuby
   class FailoverError < SentinelError; end
   class ReadOnlyError < CommandError; end
 
+  # Cluster-specific errors
+  class ClusterError < Error; end
+  class ClusterDownError < ClusterError; end
+  class MovedError < ClusterError; end
+  class AskError < ClusterError; end
+
   class << self
     # Create a new synchronous Redis client connection
     #
@@ -100,6 +106,31 @@ module RedisRuby
     def sentinel(sentinels:, service_name:, role: :master, **)
       SentinelClient.new(sentinels: sentinels, service_name: service_name, role: role, **)
     end
+
+    # Create a Redis Cluster client
+    #
+    # Automatically handles sharding, failover, and routing across
+    # a Redis Cluster deployment.
+    #
+    # @param nodes [Array<String, Hash>] Seed nodes (URLs or {host:, port:} hashes)
+    # @param password [String, nil] Password for cluster authentication
+    # @param read_from [Symbol] :master (default), :replica, :replica_preferred
+    # @param options [Hash] Additional connection options
+    # @return [RedisRuby::ClusterClient]
+    # @example
+    #   client = RedisRuby.cluster(
+    #     nodes: ["redis://node1:6379", "redis://node2:6379", "redis://node3:6379"]
+    #   )
+    #   client.set("key", "value")
+    #
+    # @example Read from replicas
+    #   client = RedisRuby.cluster(
+    #     nodes: ["redis://node1:6379"],
+    #     read_from: :replica_preferred
+    #   )
+    def cluster(nodes:, **)
+      ClusterClient.new(nodes: nodes, **)
+    end
   end
 end
 
@@ -137,6 +168,7 @@ require_relative "redis_ruby/commands/time_series"
 require_relative "redis_ruby/commands/vector_set"
 require_relative "redis_ruby/commands/sentinel"
 require_relative "redis_ruby/commands/pubsub"
+require_relative "redis_ruby/commands/cluster"
 
 # Client layer
 require_relative "redis_ruby/pipeline"
@@ -146,3 +178,4 @@ require_relative "redis_ruby/async_client"
 require_relative "redis_ruby/pooled_client"
 require_relative "redis_ruby/async_pooled_client"
 require_relative "redis_ruby/sentinel_client"
+require_relative "redis_ruby/cluster_client"
