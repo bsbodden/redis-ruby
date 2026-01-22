@@ -25,7 +25,7 @@ puts "=" * 60
 puts "\nSingle GET:"
 puts "-" * 40
 Benchmark.ips do |x|
-  x.config(warmup: 2, time: 3)
+  x.config(warmup: 3, time: 5)
   x.report("redis-rb") { redis_rb.get("benchmark:key") }
   x.report("redis-ruby") { redis_ruby.get("benchmark:key") }
   x.compare!
@@ -34,7 +34,7 @@ end
 puts "\nSingle SET:"
 puts "-" * 40
 Benchmark.ips do |x|
-  x.config(warmup: 2, time: 3)
+  x.config(warmup: 3, time: 5)
   x.report("redis-rb") { redis_rb.set("benchmark:test", "val") }
   x.report("redis-ruby") { redis_ruby.set("benchmark:test", "val") }
   x.compare!
@@ -43,7 +43,7 @@ end
 puts "\nPipeline 10:"
 puts "-" * 40
 Benchmark.ips do |x|
-  x.config(warmup: 2, time: 3)
+  x.config(warmup: 3, time: 5)
   x.report("redis-rb") { redis_rb.pipelined { |p| 10.times { |i| p.get("benchmark:key:#{i}") } } }
   x.report("redis-ruby") { redis_ruby.pipelined { |p| 10.times { |i| p.get("benchmark:key:#{i}") } } }
   x.compare!
@@ -52,7 +52,7 @@ end
 puts "\nPipeline 100:"
 puts "-" * 40
 Benchmark.ips do |x|
-  x.config(warmup: 2, time: 3)
+  x.config(warmup: 3, time: 5)
   x.report("redis-rb") { redis_rb.pipelined { |p| 100.times { |i| p.get("benchmark:key:#{i % 10}") } } }
   x.report("redis-ruby") { redis_ruby.pipelined { |p| 100.times { |i| p.get("benchmark:key:#{i % 10}") } } }
   x.compare!

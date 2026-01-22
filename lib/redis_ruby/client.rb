@@ -98,7 +98,8 @@ module RedisRuby
     # @return [Object] Command result
     def call(command, *)
       ensure_connected
-      result = @connection.call(command, *)
+      # Use call_direct to skip redundant ensure_connected in TCP
+      result = @connection.call_direct(command, *)
       raise result if result.is_a?(CommandError)
 
       result
@@ -276,8 +277,9 @@ module RedisRuby
     end
 
     # Ensure connection is established
+    # Optimized: avoid safe navigation for hot path
     def ensure_connected
-      return if @connection&.connected?
+      return if @connection && @connection.connected?
 
       @connection = create_connection
       authenticate if @password

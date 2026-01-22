@@ -20,6 +20,15 @@ module RedisRuby
       ARRAY_PREFIX = "*".b.freeze
       BULK_PREFIX = "$".b.freeze
 
+      # Pre-encoded command prefixes for ultra-fast path
+      # Format: *{argc}\r\n${cmdlen}\r\n{CMD}\r\n
+      GET_PREFIX = "*2\r\n$3\r\nGET\r\n".b.freeze
+      SET_PREFIX = "*3\r\n$3\r\nSET\r\n".b.freeze
+      DEL_PREFIX = "*2\r\n$3\r\nDEL\r\n".b.freeze
+      INCR_PREFIX = "*2\r\n$4\r\nINCR\r\n".b.freeze
+      DECR_PREFIX = "*2\r\n$4\r\nDECR\r\n".b.freeze
+      EXISTS_PREFIX = "*2\r\n$6\r\nEXISTS\r\n".b.freeze
+
       # Cache size strings 0-1024 to avoid allocations
       # Most Redis values are small, so this covers the common case
       SIZE_CACHE_LIMIT = 1024
@@ -40,27 +49,50 @@ module RedisRuby
       # @param args [Array] Command arguments
       # @return [String] RESP3 encoded command (binary encoding)
       def encode_command(command, *args)
-        # Fast path for common case: no hash arguments
-        if args.none?(Hash)
-          dump_array_fast(command, args)
-        else
-          # Slow path: flatten hash arguments, reuse buffer
-          @buffer.clear
-          parts_count = 1 + args.sum { |a| a.is_a?(Hash) ? a.size * 2 : 1 }
-          @buffer << ARRAY_PREFIX << int_to_s(parts_count) << EOL
-          dump_string_value(command, @buffer)
-          args.each do |arg|
-            if arg.is_a?(Hash)
-              arg.each_pair do |k, v|
-                dump_element(k, @buffer)
-                dump_element(v, @buffer)
-              end
-            else
-              dump_element(arg, @buffer)
-            end
-          end
-          @buffer
+        argc = args.size
+
+        # Ultra-fast path for GET key (most common)
+        if argc == 1 && command == "GET"
+          return encode_get_fast(args[0])
         end
+
+        # Ultra-fast path for SET key value (second most common)
+        if argc == 2 && command == "SET"
+          return encode_set_fast(args[0], args[1])
+        end
+
+        # Fast path for 0-2 args: check directly instead of iterating
+        has_hash = case argc
+                   when 0 then false
+                   when 1 then args[0].is_a?(Hash)
+                   when 2 then args[0].is_a?(Hash) || args[1].is_a?(Hash)
+                   else args.any?(Hash)
+                   end
+
+        if has_hash
+          encode_with_hash(command, args)
+        else
+          dump_array_fast(command, args)
+        end
+      end
+
+      # Ultra-fast GET encoding - single key lookup
+      # @api private
+      def encode_get_fast(key)
+        @buffer.clear
+        @buffer << GET_PREFIX
+        dump_bulk_string_fast(key, @buffer)
+        @buffer
+      end
+
+      # Ultra-fast SET encoding - key + value
+      # @api private
+      def encode_set_fast(key, value)
+        @buffer.clear
+        @buffer << SET_PREFIX
+        dump_bulk_string_fast(key, @buffer)
+        dump_bulk_string_fast(value, @buffer)
+        @buffer
       end
 
       # Encode multiple commands for pipelining
@@ -72,7 +104,18 @@ module RedisRuby
         # Reuse buffer, sizing for pipeline
         @buffer.clear
         commands.each do |cmd|
-          dump_array(cmd, @buffer)
+          # Fast path: check first element for common commands
+          first = cmd[0]
+          if first == "GET" && cmd.size == 2
+            @buffer << GET_PREFIX
+            dump_bulk_string_fast(cmd[1], @buffer)
+          elsif first == "SET" && cmd.size == 3
+            @buffer << SET_PREFIX
+            dump_bulk_string_fast(cmd[1], @buffer)
+            dump_bulk_string_fast(cmd[2], @buffer)
+          else
+            dump_array(cmd, @buffer)
+          end
         end
         @buffer
       end
@@ -91,6 +134,32 @@ module RedisRuby
 
       private
 
+      # Encode command with hash arguments (slow path)
+      def encode_with_hash(command, args)
+        @buffer.clear
+        parts_count = 1 + args.sum { |a| a.is_a?(Hash) ? a.size * 2 : 1 }
+        @buffer << ARRAY_PREFIX << int_to_s(parts_count) << EOL
+        dump_string_value(command, @buffer)
+        args.each do |arg|
+          if arg.is_a?(Hash)
+            arg.each_pair do |k, v|
+              dump_element(k, @buffer)
+              dump_element(v, @buffer)
+            end
+          else
+            dump_element(arg, @buffer)
+          end
+        end
+        @buffer
+      end
+
+      # Fast bulk string encoding - inlined for hot path
+      # Assumes string input (most common case)
+      def dump_bulk_string_fast(str, buffer)
+        s = str.to_s
+        buffer << BULK_PREFIX << int_to_s(s.bytesize) << EOL << s << EOL
+      end
+
       # Fast path for arrays without hash arguments
       # Reuses internal buffer to avoid allocations
       # Note: Caller must use returned string before next encode_command call
@@ -99,7 +168,19 @@ module RedisRuby
         @buffer.clear
         @buffer << ARRAY_PREFIX << int_to_s(count) << EOL
         dump_string_value(command, @buffer)
-        args.each { |arg| dump_element(arg, @buffer) }
+        # Inline string handling for hot path (most args are strings)
+        args.each do |arg|
+          if arg.is_a?(String)
+            if arg.ascii_only?
+              @buffer << BULK_PREFIX << int_to_s(arg.bytesize) << EOL << arg << EOL
+            else
+              bin = arg.b
+              @buffer << BULK_PREFIX << int_to_s(bin.bytesize) << EOL << bin << EOL
+            end
+          else
+            dump_element(arg, @buffer)
+          end
+        end
         @buffer
       end
 

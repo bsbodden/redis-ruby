@@ -49,8 +49,14 @@ module RedisRuby
       # @return [Object] Command result
       def call(command, *)
         ensure_connected
-        write_command(command, *)
-        read_response
+        call_direct(command, *)
+      end
+
+      # Direct call without connection check - use when caller already verified connection
+      # @api private
+      def call_direct(command, *)
+        write_command_fast(command, *)
+        @decoder.decode
       end
 
       # Ensure we have a valid connection, reconnecting if forked
@@ -120,6 +126,13 @@ module RedisRuby
                     @encoder.encode_command(command, *)
                   end
         @socket.write(encoded)
+        @socket.flush
+      end
+
+      # Fast path write - assumes command is a string (99% of calls)
+      # @api private
+      def write_command_fast(command, *)
+        @socket.write(@encoder.encode_command(command, *))
         @socket.flush
       end
 
