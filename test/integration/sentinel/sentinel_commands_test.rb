@@ -1,0 +1,197 @@
+# frozen_string_literal: true
+
+require_relative "sentinel_test_helper"
+
+# Redis Sentinel commands integration tests
+#
+# Tests Sentinel-specific commands:
+# - SENTINEL MASTER
+# - SENTINEL REPLICAS
+# - SENTINEL SENTINELS
+# - SENTINEL GET-MASTER-ADDR-BY-NAME
+#
+# Based on test patterns from redis-rb, redis-py, Jedis, and Lettuce
+class SentinelCommandsIntegrationTest < SentinelTestCase
+  use_sentinel_testcontainers!
+
+  # Test: SENTINEL MASTER returns master info
+  def test_sentinel_master
+    # Connect directly to a sentinel
+    sentinel = connect_to_sentinel
+
+    result = sentinel.call("SENTINEL", "MASTER", service_name)
+    assert_kind_of Array, result
+
+    # Parse into hash
+    info = parse_array_to_hash(result)
+
+    assert_equal service_name, info["name"]
+    assert_not_nil info["ip"]
+    assert_not_nil info["port"]
+    assert_includes info["flags"], "master"
+  ensure
+    sentinel&.close
+  end
+
+  # Test: SENTINEL GET-MASTER-ADDR-BY-NAME returns address
+  def test_sentinel_get_master_addr
+    sentinel = connect_to_sentinel
+
+    result = sentinel.call("SENTINEL", "GET-MASTER-ADDR-BY-NAME", service_name)
+    assert_kind_of Array, result
+    assert_equal 2, result.size
+
+    host, port = result
+    assert_not_nil host
+    assert_kind_of String, port  # Port comes as string
+    assert_match(/^\d+$/, port)
+  ensure
+    sentinel&.close
+  end
+
+  # Test: SENTINEL REPLICAS returns replica info
+  def test_sentinel_replicas
+    sentinel = connect_to_sentinel
+
+    result = sentinel.call("SENTINEL", "REPLICAS", service_name)
+    assert_kind_of Array, result
+
+    # Should have at least one replica in our test setup
+    # (may be empty if replica hasn't registered yet)
+    if result.any?
+      replica_info = parse_array_to_hash(result.first)
+      assert_not_nil replica_info["ip"]
+      assert_not_nil replica_info["port"]
+      assert_includes replica_info["flags"], "slave"
+    end
+  ensure
+    sentinel&.close
+  end
+
+  # Test: SENTINEL SENTINELS returns other sentinels
+  def test_sentinel_sentinels
+    sentinel = connect_to_sentinel
+
+    result = sentinel.call("SENTINEL", "SENTINELS", service_name)
+    assert_kind_of Array, result
+
+    # Should see other sentinels (we have 3, so should see 2 others)
+    # May take time for sentinels to discover each other
+    if result.any?
+      other_sentinel = parse_array_to_hash(result.first)
+      assert_not_nil other_sentinel["ip"]
+      assert_not_nil other_sentinel["port"]
+      assert_includes other_sentinel["flags"], "sentinel"
+    end
+  ensure
+    sentinel&.close
+  end
+
+  # Test: SENTINEL CKQUORUM checks quorum
+  def test_sentinel_ckquorum
+    sentinel = connect_to_sentinel
+
+    result = sentinel.call("SENTINEL", "CKQUORUM", service_name)
+    # Should return OK message if quorum is reachable
+    assert_match(/OK|NOQUORUM/, result.to_s)
+  ensure
+    sentinel&.close
+  end
+
+  # Test: SENTINEL MYID returns sentinel ID
+  def test_sentinel_myid
+    sentinel = connect_to_sentinel
+
+    result = sentinel.call("SENTINEL", "MYID")
+    assert_kind_of String, result
+    assert_equal 40, result.length  # Redis IDs are 40 hex chars
+  ensure
+    sentinel&.close
+  end
+
+  # Test: SENTINEL MASTERS returns all masters
+  def test_sentinel_masters
+    sentinel = connect_to_sentinel
+
+    result = sentinel.call("SENTINEL", "MASTERS")
+    assert_kind_of Array, result
+    assert_operator result.size, :>=, 1
+
+    master_info = parse_array_to_hash(result.first)
+    assert_equal service_name, master_info["name"]
+    assert_includes master_info["flags"], "master"
+  ensure
+    sentinel&.close
+  end
+
+  # Test: INFO command on sentinel
+  def test_sentinel_info
+    sentinel = connect_to_sentinel
+
+    result = sentinel.call("INFO", "sentinel")
+    assert_kind_of String, result
+    assert_match(/sentinel_masters/, result)
+  ensure
+    sentinel&.close
+  end
+
+  # Test: PING on sentinel
+  def test_sentinel_ping
+    sentinel = connect_to_sentinel
+
+    result = sentinel.call("PING")
+    assert_equal "PONG", result
+  ensure
+    sentinel&.close
+  end
+
+  # Test: Client can reconnect to master after getting address
+  def test_reconnect_to_discovered_master
+    sentinel = connect_to_sentinel
+
+    # Get master address from sentinel
+    result = sentinel.call("SENTINEL", "GET-MASTER-ADDR-BY-NAME", service_name)
+    host, port = result
+
+    sentinel.close
+
+    # Connect to the master
+    master_conn = RedisRuby::Connection::TCP.new(
+      host: host,
+      port: port.to_i,
+      timeout: 5.0
+    )
+
+    # Verify it's the master
+    info = master_conn.call("INFO", "replication")
+    assert_match(/role:master/, info)
+
+    # Perform operations
+    master_conn.call("SET", "direct:test", "value")
+    assert_equal "value", master_conn.call("GET", "direct:test")
+  ensure
+    master_conn&.call("DEL", "direct:test") rescue nil
+    master_conn&.close
+  end
+
+  private
+
+  def connect_to_sentinel
+    addr = sentinel_addresses.first
+    RedisRuby::Connection::TCP.new(
+      host: addr[:host],
+      port: addr[:port],
+      timeout: 5.0
+    )
+  end
+
+  def parse_array_to_hash(array)
+    return {} unless array.is_a?(Array)
+
+    hash = {}
+    array.each_slice(2) do |key, value|
+      hash[key] = value if key.is_a?(String)
+    end
+    hash
+  end
+end
