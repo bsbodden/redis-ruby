@@ -75,25 +75,6 @@ module RedisRuby
       call("PING")
     end
 
-    # SET (override to not raise on error in pipeline)
-    def set(key, value, ex: nil, px: nil, exat: nil, pxat: nil, nx: false, xx: false, keepttl: false, get: false)
-      args = [key, value]
-      args.push("EX", ex) if ex
-      args.push("PX", px) if px
-      args.push("EXAT", exat) if exat
-      args.push("PXAT", pxat) if pxat
-      args.push("NX") if nx
-      args.push("XX") if xx
-      args.push("KEEPTTL") if keepttl
-      args.push("GET") if get
-      call("SET", *args)
-    end
-
-    # GET (override to not raise on error in pipeline)
-    def get(key)
-      call("GET", key)
-    end
-
     # Override commands that do post-processing
     # In a pipeline, we just queue the raw command
 

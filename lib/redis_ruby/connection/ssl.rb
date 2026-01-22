@@ -154,7 +154,7 @@ module RedisRuby
         context = OpenSSL::SSL::SSLContext.new
 
         # Set verification mode
-        context.verify_mode = @ssl_params.fetch(:verify_mode, OpenSSL::SSL::VERIFY_PEER)
+        context.verify_mode = @ssl_params.fetch(:verify_mode) { OpenSSL::SSL::VERIFY_PEER }
 
         # Set CA certificate
         if @ssl_params[:ca_file]
@@ -174,14 +174,14 @@ module RedisRuby
         context.ciphers = @ssl_params[:ciphers] if @ssl_params[:ciphers]
 
         # Set minimum TLS version (default to TLS 1.2)
-        context.min_version = @ssl_params.fetch(:min_version, OpenSSL::SSL::TLS1_2_VERSION)
+        context.min_version = @ssl_params.fetch(:min_version) { OpenSSL::SSL::TLS1_2_VERSION }
 
         context
       end
 
       # Check if peer verification is enabled
       def verify_peer?
-        @ssl_params.fetch(:verify_mode, OpenSSL::SSL::VERIFY_PEER) != OpenSSL::SSL::VERIFY_NONE
+        @ssl_params.fetch(:verify_mode) { OpenSSL::SSL::VERIFY_PEER } != OpenSSL::SSL::VERIFY_NONE
       end
 
       # Write a single command to the socket

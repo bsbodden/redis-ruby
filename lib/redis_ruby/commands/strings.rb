@@ -6,6 +6,40 @@ module RedisRuby
     #
     # @see https://redis.io/commands/?group=string
     module Strings
+      # Set the value of a key with optional expiration and conditions
+      #
+      # @param key [String] The key
+      # @param value [String] The value
+      # @param ex [Integer, nil] Expiration in seconds
+      # @param px [Integer, nil] Expiration in milliseconds
+      # @param exat [Integer, nil] Absolute Unix timestamp in seconds (Redis 6.2+)
+      # @param pxat [Integer, nil] Absolute Unix timestamp in milliseconds (Redis 6.2+)
+      # @param nx [Boolean] Only set if key doesn't exist
+      # @param xx [Boolean] Only set if key exists
+      # @param keepttl [Boolean] Keep existing TTL (Redis 6.0+)
+      # @param get [Boolean] Return old value (Redis 6.2+)
+      # @return [String, nil] "OK" or nil (or old value if get: true)
+      def set(key, value, ex: nil, px: nil, exat: nil, pxat: nil, nx: false, xx: false, keepttl: false, get: false)
+        args = [key, value]
+        args.push("EX", ex) if ex
+        args.push("PX", px) if px
+        args.push("EXAT", exat) if exat
+        args.push("PXAT", pxat) if pxat
+        args.push("NX") if nx
+        args.push("XX") if xx
+        args.push("KEEPTTL") if keepttl
+        args.push("GET") if get
+        call("SET", *args)
+      end
+
+      # Get the value of a key
+      #
+      # @param key [String] The key
+      # @return [String, nil] The value or nil
+      def get(key)
+        call("GET", key)
+      end
+
       # Increment the integer value of a key by one
       #
       # @param key [String]

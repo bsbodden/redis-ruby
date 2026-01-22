@@ -16,6 +16,16 @@ group :development do
   gem "redis", "~> 5.0"  # For benchmarking against redis-rb
 end
 
+# Code quality tools (similar to Python's mfcqi)
+group :quality do
+  gem "rubycritic", "~> 4.9"      # Unified quality report (wraps Flog, Flay, Reek)
+  gem "flog", "~> 4.8"            # ABC complexity metrics
+  gem "flay", "~> 2.13"           # Code duplication detection
+  gem "reek", "~> 6.3"            # Code smell detection
+  gem "debride", "~> 1.12"        # Find unused methods
+  gem "fasterer", "~> 0.11"       # Performance suggestions
+end
+
 # Profiling tools
 group :profiling do
   gem "stackprof", "~> 0.2"       # Sampling CPU profiler

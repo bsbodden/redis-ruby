@@ -32,12 +32,7 @@ module RedisRuby
       # @param lt [Boolean] only set if new TTL < current TTL (Redis 7.0+)
       # @return [Integer] 1 if timeout was set, 0 if not set
       def expire(key, seconds, nx: false, xx: false, gt: false, lt: false)
-        args = ["EXPIRE", key, seconds]
-        args.push("NX") if nx
-        args.push("XX") if xx
-        args.push("GT") if gt
-        args.push("LT") if lt
-        call(*args)
+        call(*build_expire_args("EXPIRE", key, seconds, nx: nx, xx: xx, gt: gt, lt: lt))
       end
 
       # Set a key's time to live in milliseconds
@@ -50,12 +45,7 @@ module RedisRuby
       # @param lt [Boolean] only set if new TTL < current TTL (Redis 7.0+)
       # @return [Integer] 1 if timeout was set, 0 if not set
       def pexpire(key, milliseconds, nx: false, xx: false, gt: false, lt: false)
-        args = ["PEXPIRE", key, milliseconds]
-        args.push("NX") if nx
-        args.push("XX") if xx
-        args.push("GT") if gt
-        args.push("LT") if lt
-        call(*args)
+        call(*build_expire_args("PEXPIRE", key, milliseconds, nx: nx, xx: xx, gt: gt, lt: lt))
       end
 
       # Set the expiration for a key as a Unix timestamp (seconds)
@@ -68,12 +58,7 @@ module RedisRuby
       # @param lt [Boolean] only set if new expiration < current (Redis 7.0+)
       # @return [Integer] 1 if timeout was set, 0 if not set
       def expireat(key, timestamp, nx: false, xx: false, gt: false, lt: false)
-        args = ["EXPIREAT", key, timestamp]
-        args.push("NX") if nx
-        args.push("XX") if xx
-        args.push("GT") if gt
-        args.push("LT") if lt
-        call(*args)
+        call(*build_expire_args("EXPIREAT", key, timestamp, nx: nx, xx: xx, gt: gt, lt: lt))
       end
 
       # Set the expiration for a key as a Unix timestamp (milliseconds)
@@ -86,12 +71,7 @@ module RedisRuby
       # @param lt [Boolean] only set if new expiration < current (Redis 7.0+)
       # @return [Integer] 1 if timeout was set, 0 if not set
       def pexpireat(key, timestamp, nx: false, xx: false, gt: false, lt: false)
-        args = ["PEXPIREAT", key, timestamp]
-        args.push("NX") if nx
-        args.push("XX") if xx
-        args.push("GT") if gt
-        args.push("LT") if lt
-        call(*args)
+        call(*build_expire_args("PEXPIREAT", key, timestamp, nx: nx, xx: xx, gt: gt, lt: lt))
       end
 
       # Get the time to live for a key in seconds
@@ -249,6 +229,19 @@ module RedisRuby
         args.push("DB", db) if db
         args.push("REPLACE") if replace
         call(*args)
+      end
+
+      private
+
+      # Build arguments for expiration commands with NX/XX/GT/LT options
+      # @private
+      def build_expire_args(command, key, value, nx:, xx:, gt:, lt:)
+        args = [command, key, value]
+        args.push("NX") if nx
+        args.push("XX") if xx
+        args.push("GT") if gt
+        args.push("LT") if lt
+        args
       end
     end
   end

@@ -254,19 +254,12 @@ module RedisRuby
                    filter_by_value: nil, count: nil, align: nil,
                    aggregation: nil, bucket_duration: nil, bucket_timestamp: nil,
                    empty: false)
-        args = [key, from_ts, to_ts]
-        args << "LATEST" if latest
-        args.push("FILTER_BY_TS", *filter_by_ts) if filter_by_ts
-        args.push("FILTER_BY_VALUE", filter_by_value[0], filter_by_value[1]) if filter_by_value
-        args.push("COUNT", count) if count
-        args.push("ALIGN", align) if align
-
-        if aggregation
-          args.push("AGGREGATION", aggregation, bucket_duration)
-          args.push("BUCKETTIMESTAMP", bucket_timestamp) if bucket_timestamp
-          args << "EMPTY" if empty
-        end
-
+        args = build_range_args(key, from_ts, to_ts,
+                                latest: latest, filter_by_ts: filter_by_ts,
+                                filter_by_value: filter_by_value, count: count,
+                                align: align, aggregation: aggregation,
+                                bucket_duration: bucket_duration,
+                                bucket_timestamp: bucket_timestamp, empty: empty)
         call("TS.RANGE", *args)
       end
 
@@ -281,19 +274,12 @@ module RedisRuby
                       filter_by_value: nil, count: nil, align: nil,
                       aggregation: nil, bucket_duration: nil, bucket_timestamp: nil,
                       empty: false)
-        args = [key, from_ts, to_ts]
-        args << "LATEST" if latest
-        args.push("FILTER_BY_TS", *filter_by_ts) if filter_by_ts
-        args.push("FILTER_BY_VALUE", filter_by_value[0], filter_by_value[1]) if filter_by_value
-        args.push("COUNT", count) if count
-        args.push("ALIGN", align) if align
-
-        if aggregation
-          args.push("AGGREGATION", aggregation, bucket_duration)
-          args.push("BUCKETTIMESTAMP", bucket_timestamp) if bucket_timestamp
-          args << "EMPTY" if empty
-        end
-
+        args = build_range_args(key, from_ts, to_ts,
+                                latest: latest, filter_by_ts: filter_by_ts,
+                                filter_by_value: filter_by_value, count: count,
+                                align: align, aggregation: aggregation,
+                                bucket_duration: bucket_duration,
+                                bucket_timestamp: bucket_timestamp, empty: empty)
         call("TS.REVRANGE", *args)
       end
 
@@ -323,27 +309,14 @@ module RedisRuby
                     filter_by_value: nil, withlabels: false, selected_labels: nil,
                     count: nil, align: nil, aggregation: nil, bucket_duration: nil,
                     bucket_timestamp: nil, empty: false, groupby: nil, reduce: nil)
-        args = [from_ts, to_ts]
-        args << "LATEST" if latest
-        args.push("FILTER_BY_TS", *filter_by_ts) if filter_by_ts
-        args.push("FILTER_BY_VALUE", filter_by_value[0], filter_by_value[1]) if filter_by_value
-        args << "WITHLABELS" if withlabels
-        args.push("SELECTED_LABELS", *selected_labels) if selected_labels
-        args.push("COUNT", count) if count
-        args.push("ALIGN", align) if align
-
-        if aggregation
-          args.push("AGGREGATION", aggregation, bucket_duration)
-          args.push("BUCKETTIMESTAMP", bucket_timestamp) if bucket_timestamp
-          args << "EMPTY" if empty
-        end
-
-        args.push("FILTER", *filters)
-
-        if groupby
-          args.push("GROUPBY", groupby, "REDUCE", reduce)
-        end
-
+        args = build_mrange_args(from_ts, to_ts, filters,
+                                 latest: latest, filter_by_ts: filter_by_ts,
+                                 filter_by_value: filter_by_value, withlabels: withlabels,
+                                 selected_labels: selected_labels, count: count,
+                                 align: align, aggregation: aggregation,
+                                 bucket_duration: bucket_duration,
+                                 bucket_timestamp: bucket_timestamp, empty: empty,
+                                 groupby: groupby, reduce: reduce)
         call("TS.MRANGE", *args)
       end
 
@@ -358,27 +331,14 @@ module RedisRuby
                        filter_by_value: nil, withlabels: false, selected_labels: nil,
                        count: nil, align: nil, aggregation: nil, bucket_duration: nil,
                        bucket_timestamp: nil, empty: false, groupby: nil, reduce: nil)
-        args = [from_ts, to_ts]
-        args << "LATEST" if latest
-        args.push("FILTER_BY_TS", *filter_by_ts) if filter_by_ts
-        args.push("FILTER_BY_VALUE", filter_by_value[0], filter_by_value[1]) if filter_by_value
-        args << "WITHLABELS" if withlabels
-        args.push("SELECTED_LABELS", *selected_labels) if selected_labels
-        args.push("COUNT", count) if count
-        args.push("ALIGN", align) if align
-
-        if aggregation
-          args.push("AGGREGATION", aggregation, bucket_duration)
-          args.push("BUCKETTIMESTAMP", bucket_timestamp) if bucket_timestamp
-          args << "EMPTY" if empty
-        end
-
-        args.push("FILTER", *filters)
-
-        if groupby
-          args.push("GROUPBY", groupby, "REDUCE", reduce)
-        end
-
+        args = build_mrange_args(from_ts, to_ts, filters,
+                                 latest: latest, filter_by_ts: filter_by_ts,
+                                 filter_by_value: filter_by_value, withlabels: withlabels,
+                                 selected_labels: selected_labels, count: count,
+                                 align: align, aggregation: aggregation,
+                                 bucket_duration: bucket_duration,
+                                 bucket_timestamp: bucket_timestamp, empty: empty,
+                                 groupby: groupby, reduce: reduce)
         call("TS.MREVRANGE", *args)
       end
 
@@ -430,6 +390,56 @@ module RedisRuby
       #   redis.ts_queryindex("sensor=temp")
       def ts_queryindex(*filters)
         call("TS.QUERYINDEX", *filters)
+      end
+
+      private
+
+      # Build arguments for TS.RANGE/TS.REVRANGE commands
+      # @private
+      def build_range_args(key, from_ts, to_ts, latest:, filter_by_ts:, filter_by_value:,
+                           count:, align:, aggregation:, bucket_duration:,
+                           bucket_timestamp:, empty:)
+        args = [key, from_ts, to_ts]
+        args << "LATEST" if latest
+        args.push("FILTER_BY_TS", *filter_by_ts) if filter_by_ts
+        args.push("FILTER_BY_VALUE", filter_by_value[0], filter_by_value[1]) if filter_by_value
+        args.push("COUNT", count) if count
+        args.push("ALIGN", align) if align
+
+        if aggregation
+          args.push("AGGREGATION", aggregation, bucket_duration)
+          args.push("BUCKETTIMESTAMP", bucket_timestamp) if bucket_timestamp
+          args << "EMPTY" if empty
+        end
+
+        args
+      end
+
+      # Build arguments for TS.MRANGE/TS.MREVRANGE commands
+      # @private
+      def build_mrange_args(from_ts, to_ts, filters, latest:, filter_by_ts:,
+                            filter_by_value:, withlabels:, selected_labels:,
+                            count:, align:, aggregation:, bucket_duration:,
+                            bucket_timestamp:, empty:, groupby:, reduce:)
+        args = [from_ts, to_ts]
+        args << "LATEST" if latest
+        args.push("FILTER_BY_TS", *filter_by_ts) if filter_by_ts
+        args.push("FILTER_BY_VALUE", filter_by_value[0], filter_by_value[1]) if filter_by_value
+        args << "WITHLABELS" if withlabels
+        args.push("SELECTED_LABELS", *selected_labels) if selected_labels
+        args.push("COUNT", count) if count
+        args.push("ALIGN", align) if align
+
+        if aggregation
+          args.push("AGGREGATION", aggregation, bucket_duration)
+          args.push("BUCKETTIMESTAMP", bucket_timestamp) if bucket_timestamp
+          args << "EMPTY" if empty
+        end
+
+        args.push("FILTER", *filters)
+        args.push("GROUPBY", groupby, "REDUCE", reduce) if groupby
+
+        args
       end
     end
   end

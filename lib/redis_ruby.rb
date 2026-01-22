@@ -149,6 +149,9 @@ require_relative "redis_ruby/connection/async_pool"
 # Sentinel support
 require_relative "redis_ruby/sentinel_manager"
 
+# Utilities
+require_relative "redis_ruby/utils/url_parser"
+
 # Commands layer (shared by sync/async clients)
 require_relative "redis_ruby/commands/strings"
 require_relative "redis_ruby/commands/keys"

@@ -1,75 +1,82 @@
 # Redis-Py vs Redis-Ruby Gap Analysis
 
-**Date:** January 2026
+**Date:** January 2026 (Updated)
 **Analysis:** Comprehensive comparison of test coverage
 
 ## Executive Summary
 
-Redis-ruby has **582 tests** vs Redis-py's **~1,100+ tests** across all modules. While redis-ruby has good breadth, it lacks depth in:
-1. Advanced command options
-2. Redis 7+/8+ features
-3. Module-specific testing (Search, Cluster)
+Redis-ruby has **~991 test methods** vs Redis-py's **~1,100+ tests** across all modules. We have achieved near parity in test coverage and have implemented all Phase 1 critical features.
 
-## Priority Implementation Plan
+### Implementation Status: ✅ Phase 1 COMPLETE
 
-### Phase 1: Critical Missing Features (~90 tests)
+All Phase 1 critical features have been implemented with full test coverage:
+- ✅ Hash Field Expiration (Redis 7.4+) - All commands with NX/XX/GT/LT options
+- ✅ Conditional Expiration (Redis 7.0+) - EXPIRE/PEXPIRE/EXPIREAT/PEXPIREAT with NX/XX/GT/LT
+- ✅ ZADD Advanced Options - NX/XX/GT/LT/CH combinations
+- ✅ Sharded PubSub (Redis 7.0+) - SSUBSCRIBE/SUNSUBSCRIBE/SPUBLISH
+- ✅ Redis 7+ Commands - ZMPOP/LMPOP/ZINTERCARD/XAUTOCLAIM/EXPIRETIME/PEXPIRETIME
 
-#### 1.1 Hash Field Expiration (Redis 7.3+) - 20 tests
+## Implemented Commands (Confirmed)
+
+### Hash Field Expiration (Redis 7.4+) ✅
 ```ruby
-# Commands to implement and test:
-- HEXPIRE key seconds FIELDS count field [field ...]
-- HPEXPIRE key milliseconds FIELDS count field [field ...]
-- HEXPIREAT key unix-time-seconds FIELDS count field [field ...]
-- HPEXPIREAT key unix-time-milliseconds FIELDS count field [field ...]
-- Options: NX, XX, GT, LT
-- HTTL, HPTTL, HEXPIRETIME, HPEXPIRETIME
-- HPERSIST
+hexpire(key, seconds, *fields, nx:, xx:, gt:, lt:)
+hpexpire(key, milliseconds, *fields, nx:, xx:, gt:, lt:)
+hexpireat(key, unix_time, *fields, nx:, xx:, gt:, lt:)
+hpexpireat(key, unix_time_ms, *fields, nx:, xx:, gt:, lt:)
+httl(key, *fields)
+hpttl(key, *fields)
+hexpiretime(key, *fields)
+hpexpiretime(key, *fields)
+hpersist(key, *fields)
 ```
 
-#### 1.2 Conditional Expiration (Redis 7.0+) - 15 tests
+### Conditional Expiration (Redis 7.0+) ✅
 ```ruby
-# Add options to existing commands:
-- EXPIRE key seconds [NX | XX | GT | LT]
-- PEXPIRE key milliseconds [NX | XX | GT | LT]
-- EXPIREAT key unix-time-seconds [NX | XX | GT | LT]
-- PEXPIREAT key unix-time-milliseconds [NX | XX | GT | LT]
+expire(key, seconds, nx:, xx:, gt:, lt:)
+pexpire(key, milliseconds, nx:, xx:, gt:, lt:)
+expireat(key, timestamp, nx:, xx:, gt:, lt:)
+pexpireat(key, timestamp, nx:, xx:, gt:, lt:)
+expiretime(key)
+pexpiretime(key)
 ```
 
-#### 1.3 ZADD Advanced Options - 15 tests
+### ZADD Advanced Options ✅
 ```ruby
-# Test combinations:
-- ZADD key NX score member
-- ZADD key XX score member
-- ZADD key GT score member
-- ZADD key LT score member
-- ZADD key CH score member
-- ZADD key NX CH score member
-- ZADD key XX GT score member
+zadd(key, *score_members, nx:, xx:, gt:, lt:, ch:)
 ```
 
-#### 1.4 Sharded PubSub (Redis 7.0+) - 15 tests
+### Sharded PubSub (Redis 7.0+) ✅
 ```ruby
-# New commands:
-- SSUBSCRIBE shardchannel [shardchannel ...]
-- SUNSUBSCRIBE [shardchannel [shardchannel ...]]
-- SPUBLISH shardchannel message
+ssubscribe(*shardchannels, &block)
+sunsubscribe(*shardchannels)
+spublish(shardchannel, message)
+pubsub_shardchannels(pattern)
+pubsub_shardnumsub(*channels)
 ```
 
-#### 1.5 Additional Redis 7+ Commands - 25 tests
+### Redis 7+ Commands ✅
 ```ruby
-# Missing commands:
-- ZMPOP numkeys key [key ...] MIN | MAX [COUNT count]
-- ZINTERCARD numkeys key [key ...] [LIMIT limit]
-- LMPOP numkeys key [key ...] LEFT | RIGHT [COUNT count]
-- XAUTOCLAIM key group consumer min-idle-time start [COUNT count] [JUSTID]
-- EXPIRETIME key
-- PEXPIRETIME key
+zmpop(*keys, modifier:, count:)
+bzmpop(timeout, *keys, modifier:, count:)
+zintercard(*keys, limit:)
+lmpop(*keys, direction:, count:)
+blmpop(timeout, *keys, direction:, count:)
+xautoclaim(key, group, consumer, min_idle_time, start, count:, justid:)
 ```
+
+### ZRANGE Unified Interface (Redis 6.2+) ✅
+```ruby
+zrange(key, start, stop, byscore:, bylex:, rev:, limit:, withscores:)
+zrangestore(destination, key, start, stop, byscore:, bylex:, rev:, limit:)
+```
+
+## Remaining Gaps (Phase 2-4)
 
 ### Phase 2: High Priority (~120 tests)
 
 #### 2.1 PubSub Comprehensive - 25 tests
-- Multiple channel subscriptions
+- Multiple channel subscriptions (need more edge case tests)
 - Pattern matching edge cases
 - Subscription state validation
 - Message ordering tests
@@ -90,23 +97,15 @@ Redis-ruby has **582 tests** vs Redis-py's **~1,100+ tests** across all modules.
 - JSON.CLEAR
 - Complex path expressions
 
-#### 2.4 ZRANGE Unified Interface - 15 tests
-```ruby
-# Redis 6.2+ unified ZRANGE:
-- ZRANGE key min max [BYSCORE | BYLEX] [REV] [LIMIT offset count] [WITHSCORES]
-- ZRANGESTORE dst src min max [BYSCORE | BYLEX] [REV] [LIMIT offset count]
-```
-
-#### 2.5 Stream Enhancements - 15 tests
-- XADD with NOMKSTREAM
-- XADD with LIMIT
-- XGROUP CREATE variants (MKSTREAM, ENTRIESREAD)
-- XINFO STREAM with FULL
+#### 2.4 Stream Enhancements - 15 tests
+- Additional XINFO STREAM with FULL tests
+- XGROUP CREATE variants edge cases
 
 ### Phase 3: Server/Admin Commands (~60 tests)
 
 #### 3.1 CLIENT Commands - 15 tests
 ```ruby
+# Commands to implement:
 - CLIENT LIST [TYPE normal|master|replica|pubsub] [ID id [id ...]]
 - CLIENT KILL [ID client-id] [ADDR ip:port] [LADDR ip:port] [USER username] [MAXAGE maxage]
 - CLIENT NO-EVICT ON|OFF
@@ -115,14 +114,15 @@ Redis-ruby has **582 tests** vs Redis-py's **~1,100+ tests** across all modules.
 
 #### 3.2 Memory Commands - 10 tests
 ```ruby
+# Commands to implement:
 - MEMORY DOCTOR
 - MEMORY STATS
 - MEMORY MALLOC-SIZE pointer
-- MEMORY USAGE key [SAMPLES count]
 ```
 
 #### 3.3 Latency Commands - 10 tests
 ```ruby
+# Commands to implement:
 - LATENCY DOCTOR
 - LATENCY GRAPH event
 - LATENCY HISTORY event
@@ -132,6 +132,7 @@ Redis-ruby has **582 tests** vs Redis-py's **~1,100+ tests** across all modules.
 
 #### 3.4 ACL Commands - 15 tests
 ```ruby
+# Commands to implement:
 - ACL LIST
 - ACL GETUSER username
 - ACL SETUSER username [rule [rule ...]]
@@ -142,9 +143,8 @@ Redis-ruby has **582 tests** vs Redis-py's **~1,100+ tests** across all modules.
 
 #### 3.5 Debug/Info - 10 tests
 ```ruby
-- DEBUG SLEEP seconds
-- DEBUG SEGFAULT
-- INFO [section [section ...]]
+# Commands to implement:
+- INFO [section [section ...]] - with section parsing
 - MODULE LIST
 ```
 
@@ -152,6 +152,7 @@ Redis-ruby has **582 tests** vs Redis-py's **~1,100+ tests** across all modules.
 
 #### 4.1 Slot Management - 20 tests
 ```ruby
+# Commands to implement:
 - CLUSTER ADDSLOTS slot [slot ...]
 - CLUSTER DELSLOTS slot [slot ...]
 - CLUSTER SETSLOT slot IMPORTING node-id
@@ -162,6 +163,7 @@ Redis-ruby has **582 tests** vs Redis-py's **~1,100+ tests** across all modules.
 
 #### 4.2 Node Management - 15 tests
 ```ruby
+# Commands to implement:
 - CLUSTER MEET ip port
 - CLUSTER FORGET node-id
 - CLUSTER REPLICATE node-id
@@ -171,81 +173,46 @@ Redis-ruby has **582 tests** vs Redis-py's **~1,100+ tests** across all modules.
 
 #### 4.3 Cluster Info - 15 tests
 ```ruby
+# Commands to implement:
 - CLUSTER INFO
 - CLUSTER NODES
-- CLUSTER SLOTS (deprecated, use CLUSTER SHARDS)
 - CLUSTER SHARDS
 - CLUSTER KEYSLOT key
 - CLUSTER COUNTKEYSINSLOT slot
 ```
 
-## Commands Completely Missing from redis-ruby
-
-### Redis 7.0+ Commands
-| Command | Description | Priority |
-|---------|-------------|----------|
-| `ZMPOP` | Pop from multiple sorted sets | High |
-| `LMPOP` | Pop from multiple lists | High |
-| `ZINTERCARD` | Cardinality of intersection | High |
-| `XAUTOCLAIM` | Auto-claim pending stream entries | High |
-| `EXPIRETIME` | Get absolute expiration time (seconds) | High |
-| `PEXPIRETIME` | Get absolute expiration time (ms) | High |
-| `SSUBSCRIBE` | Sharded subscribe | High |
-| `SUNSUBSCRIBE` | Sharded unsubscribe | High |
-| `SPUBLISH` | Sharded publish | High |
-
-### Redis 7.3+ Commands (Hash Field Expiration)
-| Command | Description | Priority |
-|---------|-------------|----------|
-| `HEXPIRE` | Set field expiration (seconds) | Critical |
-| `HPEXPIRE` | Set field expiration (ms) | Critical |
-| `HEXPIREAT` | Set field expiration (unix timestamp) | Critical |
-| `HPEXPIREAT` | Set field expiration (unix timestamp ms) | Critical |
-| `HTTL` | Get field TTL (seconds) | Critical |
-| `HPTTL` | Get field TTL (ms) | Critical |
-| `HEXPIRETIME` | Get field expiration time | Critical |
-| `HPEXPIRETIME` | Get field expiration time (ms) | Critical |
-| `HPERSIST` | Remove field expiration | Critical |
-
-### Redis 8.0+ Commands
-| Command | Description | Priority |
-|---------|-------------|----------|
-| `DELEX` | Conditional delete | Medium |
-| `SET ... IFEQ` | Set if value equals | Medium |
-| `SET ... IFNE` | Set if value not equals | Medium |
-
-## Option Coverage Gaps
-
-### Commands with untested options:
-
-| Command | Missing Options |
-|---------|-----------------|
-| `ZADD` | `NX`, `XX`, `GT`, `LT`, `CH` combinations |
-| `EXPIRE` | `NX`, `XX`, `GT`, `LT` |
-| `GEOADD` | `NX`, `XX`, `CH` |
-| `ZRANK` | `WITHSCORE` (Redis 7.2+) |
-| `BITCOUNT` | `BYTE\|BIT` mode (Redis 7.0+) |
-| `CLIENT KILL` | `ID`, `ADDR`, `LADDR`, `USER`, `MAXAGE` |
-| `XADD` | `NOMKSTREAM`, `LIMIT` |
-| `SCAN` | `TYPE` filter |
-
 ## Test Count Summary
 
-| Phase | New Tests | Cumulative |
-|-------|-----------|------------|
-| Phase 1 (Critical) | 90 | 672 |
-| Phase 2 (High) | 120 | 792 |
-| Phase 3 (Server) | 60 | 852 |
-| Phase 4 (Cluster) | 50 | 902 |
-| **Total Target** | **320** | **~900** |
+| Phase | Status | Tests |
+|-------|--------|-------|
+| Phase 1 (Critical) | ✅ COMPLETE | ~150 |
+| Phase 2 (High) | Partial | ~60/120 |
+| Phase 3 (Server) | Minimal | ~10/60 |
+| Phase 4 (Cluster) | Partial | ~30/50 |
+| **Current Total** | | **~991** |
+| **Target** | | **~1,100** |
 
-## Implementation Notes
+## Code Quality Tools Added
 
-1. **Use TestContainers with Redis 7.4+** for new feature tests
-2. **Add version checks** for Redis version-specific features
-3. **Create helper methods** for option combination testing
-4. **Document breaking changes** between Redis versions
-5. **Consider backwards compatibility** with Redis 6.x
+The following tools have been added for code quality analysis (similar to Python's mfcqi):
+
+```ruby
+# Gemfile - quality group
+gem "rubycritic"    # Unified quality report (wraps Flog, Flay, Reek)
+gem "flog"          # ABC complexity metrics
+gem "flay"          # Code duplication detection
+gem "reek"          # Code smell detection
+gem "debride"       # Find unused methods
+gem "fasterer"      # Performance suggestions
+```
+
+Rake tasks:
+- `rake quality:all` - Run all quality checks
+- `rake quality:rubycritic` - Generate unified quality report
+- `rake quality:flog` - ABC complexity analysis
+- `rake quality:flay` - Code duplication detection
+- `rake quality:reek` - Code smell detection
+- `rake quality:report` - Generate HTML quality report
 
 ## References
 
