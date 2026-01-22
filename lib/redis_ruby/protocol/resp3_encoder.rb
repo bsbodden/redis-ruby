@@ -34,9 +34,16 @@ module RedisRuby
       SIZE_CACHE_LIMIT = 1024
       SIZE_CACHE = Array.new(SIZE_CACHE_LIMIT + 1) { |i| i.to_s.b.freeze }.freeze
 
+      # Ruby 3.1+ has Symbol#name which returns frozen string (faster than to_s)
+      USE_SYMBOL_NAME = Symbol.method_defined?(:name)
+
       # Default buffer capacity - sized for typical commands
       # Smaller initial size reduces allocation overhead
       DEFAULT_BUFFER_CAPACITY = 4096
+
+      # Buffer cutoff threshold - if buffer exceeds this, reallocate
+      # Prevents memory bloat from large payloads persisting
+      BUFFER_CUTOFF = 65_536 # 64KB
 
       def initialize
         # Reusable buffer for encoding - avoids allocations
@@ -49,6 +56,9 @@ module RedisRuby
       # @param args [Array] Command arguments
       # @return [String] RESP3 encoded command (binary encoding)
       def encode_command(command, *args)
+        # Reset buffer if it grew too large (prevents memory bloat)
+        reset_buffer_if_large
+
         argc = args.size
 
         # Ultra-fast path for GET key (most common)
@@ -101,7 +111,8 @@ module RedisRuby
       # @param commands [Array<Array>] Array of command arrays
       # @return [String] RESP3 encoded commands concatenated (binary encoding)
       def encode_pipeline(commands)
-        # Reuse buffer, sizing for pipeline
+        # Reset buffer if it grew too large (prevents memory bloat)
+        reset_buffer_if_large
         @buffer.clear
         commands.each do |cmd|
           # Fast path: check first element for common commands
@@ -134,6 +145,14 @@ module RedisRuby
 
       private
 
+      # Reset buffer if it grew too large (prevents memory bloat from large payloads)
+      # Only reallocates when buffer exceeds cutoff threshold
+      def reset_buffer_if_large
+        return unless @buffer.bytesize > BUFFER_CUTOFF
+
+        @buffer = String.new(encoding: Encoding::BINARY, capacity: DEFAULT_BUFFER_CAPACITY)
+      end
+
       # Encode command with hash arguments (slow path)
       def encode_with_hash(command, args)
         @buffer.clear
@@ -154,9 +173,10 @@ module RedisRuby
       end
 
       # Fast bulk string encoding - inlined for hot path
-      # Assumes string input (most common case)
+      # Handles binary encoding properly for non-ASCII strings
       def dump_bulk_string_fast(str, buffer)
         s = str.to_s
+        s = s.b unless s.ascii_only?
         buffer << BULK_PREFIX << int_to_s(s.bytesize) << EOL << s << EOL
       end
 
@@ -197,23 +217,44 @@ module RedisRuby
       end
 
       # Dump a single element to buffer
+      # Optimized: Uses Symbol#name on Ruby 3.1+ (returns frozen string, no allocation)
       #
       # @param element [Object] Element to encode
       # @param buffer [String] Buffer to write to
-      def dump_element(element, buffer)
-        case element
-        when String
-          dump_string(element, buffer)
-        when Symbol
-          dump_string_value(element.name, buffer)
-        when Integer
-          dump_string_value(element.to_s, buffer)
-        when Float
-          dump_string_value(element.to_s, buffer)
-        when nil
-          buffer << NULL_BULK_STRING
-        else
-          dump_string_value(element.to_s, buffer)
+      if USE_SYMBOL_NAME
+        def dump_element(element, buffer)
+          case element
+          when String
+            dump_string(element, buffer)
+          when Symbol
+            # Symbol#name returns frozen string - faster than to_s
+            dump_string_value(element.name, buffer)
+          when Integer
+            dump_string_value(element.to_s, buffer)
+          when Float
+            dump_string_value(element.to_s, buffer)
+          when nil
+            buffer << NULL_BULK_STRING
+          else
+            dump_string_value(element.to_s, buffer)
+          end
+        end
+      else
+        def dump_element(element, buffer)
+          case element
+          when String
+            dump_string(element, buffer)
+          when Symbol
+            dump_string_value(element.to_s, buffer)
+          when Integer
+            dump_string_value(element.to_s, buffer)
+          when Float
+            dump_string_value(element.to_s, buffer)
+          when nil
+            buffer << NULL_BULK_STRING
+          else
+            dump_string_value(element.to_s, buffer)
+          end
         end
       end
 

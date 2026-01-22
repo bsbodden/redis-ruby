@@ -22,6 +22,10 @@ module RedisRuby
       # Buffer grows as needed but most ops are small
       DEFAULT_CHUNK_SIZE = 4096
 
+      # Buffer cutoff threshold - if buffer exceeds this, reallocate on next op
+      # Prevents memory bloat from large responses persisting
+      BUFFER_CUTOFF = 65_536 # 64KB
+
       # Use byteindex on Ruby 3.2+ (faster), fall back to index
       USE_BYTEINDEX = String.method_defined?(:byteindex)
 
@@ -225,27 +229,47 @@ module RedisRuby
 
       # Fill the buffer with more data from the underlying IO
       #
+      # Optimized: Uses in-place buffer filling when buffer is empty to avoid
+      # intermediate string allocations. This matches redis-client's approach.
+      #
       # @param min_bytes [Integer] minimum bytes needed
       def fill_buffer(min_bytes)
-        # Compact buffer if offset is past halfway point
-        # Use slice! to modify in place and avoid allocation
-        if @offset.positive? && @offset > @buffer.bytesize / 2
-          @buffer.slice!(0, @offset)
-          @offset = 0
+        buffer_size = @buffer.bytesize
+        start = @offset
+
+        # Check if buffer can be reused (all data consumed)
+        empty_buffer = start >= buffer_size
+
+        # Reset oversized buffer to prevent memory bloat
+        if empty_buffer && buffer_size > BUFFER_CUTOFF
+          @buffer = String.new(encoding: Encoding::BINARY, capacity: @chunk_size)
+          buffer_size = 0
         end
 
         remaining = min_bytes
         while remaining.positive?
           begin
-            chunk = @io.read_nonblock(@chunk_size, exception: false)
+            bytes = if empty_buffer
+                      # In-place fill: read directly into @buffer (avoids allocation)
+                      @io.read_nonblock(@chunk_size, @buffer, exception: false)
+                    else
+                      # Append mode: read into new string then concat
+                      @io.read_nonblock(@chunk_size, exception: false)
+                    end
           rescue IOError, Errno::ECONNRESET => e
             raise ConnectionError, "Connection error: #{e.message}"
           end
 
-          case chunk
+          case bytes
           when String
-            @buffer << chunk
-            remaining -= chunk.bytesize
+            if empty_buffer
+              # Buffer was overwritten, reset offset
+              @offset = 0
+              empty_buffer = false
+            else
+              @buffer << bytes
+            end
+            remaining -= bytes.bytesize
           when :wait_readable
             @io.wait_readable(@read_timeout) or raise(TimeoutError, "Read timeout after #{@read_timeout}s")
           when :wait_writable
