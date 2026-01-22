@@ -11,7 +11,7 @@ require "bundler/setup"
 require "benchmark/ips"
 
 # Load both implementations
-require "redis"       # redis-rb gem
+require "redis" # redis-rb gem
 require_relative "../lib/redis_ruby"
 
 REDIS_URL = ENV.fetch("REDIS_URL", "redis://localhost:6379")

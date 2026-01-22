@@ -2,57 +2,82 @@
 
 require "test_helper"
 
-class PubSubIntegrationTest < Minitest::Test
+class PubSubIntegrationTest < RedisRubyTestCase
+  use_testcontainers!
+
   def setup
-    @redis = RedisRuby.new(host: ENV.fetch("REDIS_HOST", "redis"), port: ENV.fetch("REDIS_PORT", 6379).to_i)
-    @publisher = RedisRuby.new(host: ENV.fetch("REDIS_HOST", "redis"), port: ENV.fetch("REDIS_PORT", 6379).to_i)
+    super
+    @channel_prefix = "pubsub:test:#{SecureRandom.hex(4)}"
+    # Publisher needs its own connection for concurrent operations
+    @publisher = create_publisher_connection
   end
 
   def teardown
-    @redis.close
-    @publisher.close
+    begin
+      @publisher&.close
+    rescue StandardError
+      nil
+    end
+    super
   end
+
+  private
+
+  def create_publisher_connection
+    url = ENV.fetch("REDIS_URL", "redis://localhost:6379")
+    uri = URI.parse(url)
+    RedisRuby.new(host: uri.host, port: uri.port)
+  end
+
+  public
 
   # PUBLISH tests
   def test_publish_returns_subscriber_count
     # When no subscribers, returns 0
-    result = @redis.publish("pubsub:test:channel", "hello")
+    result = redis.publish("pubsub:test:channel", "hello")
+
     assert_equal 0, result
   end
 
   def test_publish_with_message
-    result = @redis.publish("pubsub:test:channel", "test message")
+    result = redis.publish("pubsub:test:channel", "test message")
+
     assert_kind_of Integer, result
   end
 
   # PUBSUB CHANNELS tests
   def test_pubsub_channels_empty
     # Returns list of active channels (may be empty or have channels from other tests)
-    result = @redis.pubsub_channels
+    result = redis.pubsub_channels
+
     assert_kind_of Array, result
   end
 
   def test_pubsub_channels_with_pattern
-    result = @redis.pubsub_channels("pubsub:test:*")
+    result = redis.pubsub_channels("pubsub:test:*")
+
     assert_kind_of Array, result
   end
 
   # PUBSUB NUMSUB tests
   def test_pubsub_numsub
-    result = @redis.pubsub_numsub("channel1", "channel2")
+    result = redis.pubsub_numsub("channel1", "channel2")
+
     assert_kind_of Hash, result
     assert_equal 0, result["channel1"]
     assert_equal 0, result["channel2"]
   end
 
   def test_pubsub_numsub_empty
-    result = @redis.pubsub_numsub
-    assert_equal({}, result)
+    result = redis.pubsub_numsub
+
+    assert_empty(result)
   end
 
   # PUBSUB NUMPAT tests
   def test_pubsub_numpat
-    result = @redis.pubsub_numpat
+    result = redis.pubsub_numpat
+
     assert_kind_of Integer, result
     assert_operator result, :>=, 0
   end
@@ -65,24 +90,24 @@ class PubSubIntegrationTest < Minitest::Test
 
     # Use a separate thread to publish
     publisher_thread = Thread.new do
-      sleep 0.1  # Wait for subscription to be set up
+      sleep 0.1 # Wait for subscription to be set up
       @publisher.publish("pubsub:test:block", "message1")
       @publisher.publish("pubsub:test:block", "message2")
       sleep 0.1
     end
 
-    @redis.subscribe("pubsub:test:block") do |on|
-      on.subscribe do |channel, subscriptions|
+    redis.subscribe("pubsub:test:block") do |on|
+      on.subscribe do |_channel, _subscriptions|
         subscribe_count += 1
       end
 
       on.message do |channel, message|
         messages << [channel, message]
         # Unsubscribe after receiving 2 messages
-        @redis.unsubscribe if messages.size >= 2
+        redis.unsubscribe if messages.size >= 2
       end
 
-      on.unsubscribe do |channel, subscriptions|
+      on.unsubscribe do |_channel, _subscriptions|
         unsubscribe_count += 1
       end
     end
@@ -107,14 +132,14 @@ class PubSubIntegrationTest < Minitest::Test
       sleep 0.1
     end
 
-    @redis.subscribe("pubsub:test:multi1", "pubsub:test:multi2") do |on|
-      on.subscribe do |channel, count|
+    redis.subscribe("pubsub:test:multi1", "pubsub:test:multi2") do |on|
+      on.subscribe do |channel, _count|
         channels_subscribed << channel
       end
 
       on.message do |channel, message|
         messages << [channel, message]
-        @redis.unsubscribe if messages.size >= 2
+        redis.unsubscribe if messages.size >= 2
       end
     end
 
@@ -135,14 +160,14 @@ class PubSubIntegrationTest < Minitest::Test
       sleep 0.1
     end
 
-    @redis.psubscribe("pubsub:pattern:*") do |on|
-      on.psubscribe do |pattern, count|
+    redis.psubscribe("pubsub:pattern:*") do |on|
+      on.psubscribe do |pattern, _count|
         assert_equal "pubsub:pattern:*", pattern
       end
 
       on.pmessage do |pattern, channel, message|
         messages << [pattern, channel, message]
-        @redis.punsubscribe if messages.size >= 2
+        redis.punsubscribe if messages.size >= 2
       end
     end
 
@@ -157,7 +182,7 @@ class PubSubIntegrationTest < Minitest::Test
     # Test that subscribe can timeout without blocking forever
     start_time = Time.now
 
-    @redis.subscribe_with_timeout(0.5, "pubsub:test:timeout") do |on|
+    redis.subscribe_with_timeout(0.5, "pubsub:test:timeout") do |on|
       on.message do |channel, message|
         # Should not receive anything
       end
@@ -171,7 +196,8 @@ class PubSubIntegrationTest < Minitest::Test
 
   # PUBSUB SHARDCHANNELS tests (Redis 7+)
   def test_pubsub_shardchannels
-    result = @redis.pubsub_shardchannels
+    result = redis.pubsub_shardchannels
+
     assert_kind_of Array, result
   rescue RedisRuby::CommandError => e
     skip "PUBSUB SHARDCHANNELS not supported" if e.message.include?("unknown subcommand")
@@ -179,7 +205,8 @@ class PubSubIntegrationTest < Minitest::Test
   end
 
   def test_pubsub_shardnumsub
-    result = @redis.pubsub_shardnumsub("shard:channel1")
+    result = redis.pubsub_shardnumsub("shard:channel1")
+
     assert_kind_of Hash, result
   rescue RedisRuby::CommandError => e
     skip "PUBSUB SHARDNUMSUB not supported" if e.message.include?("unknown subcommand")
@@ -193,7 +220,8 @@ class PubSubIntegrationTest < Minitest::Test
   # SPUBLISH tests
   def test_spublish_returns_subscriber_count
     # When no subscribers, returns 0
-    result = @redis.spublish("shard:test:channel", "hello")
+    result = redis.spublish("shard:test:channel", "hello")
+
     assert_equal 0, result
   rescue RedisRuby::CommandError => e
     skip "SPUBLISH not supported (requires Redis 7.0+)" if e.message.include?("unknown command")
@@ -201,7 +229,8 @@ class PubSubIntegrationTest < Minitest::Test
   end
 
   def test_spublish_with_message
-    result = @redis.spublish("shard:test:channel", "test message")
+    result = redis.spublish("shard:test:channel", "test message")
+
     assert_kind_of Integer, result
   rescue RedisRuby::CommandError => e
     skip "SPUBLISH not supported (requires Redis 7.0+)" if e.message.include?("unknown command")
@@ -221,17 +250,17 @@ class PubSubIntegrationTest < Minitest::Test
       sleep 0.1
     end
 
-    @redis.ssubscribe("shard:test:block") do |on|
-      on.ssubscribe do |channel, subscriptions|
+    redis.ssubscribe("shard:test:block") do |on|
+      on.ssubscribe do |_channel, _subscriptions|
         subscribe_count += 1
       end
 
       on.smessage do |channel, message|
         messages << [channel, message]
-        @redis.sunsubscribe if messages.size >= 2
+        redis.sunsubscribe if messages.size >= 2
       end
 
-      on.sunsubscribe do |channel, subscriptions|
+      on.sunsubscribe do |_channel, _subscriptions|
         unsubscribe_count += 1
       end
     end
@@ -259,14 +288,14 @@ class PubSubIntegrationTest < Minitest::Test
       sleep 0.1
     end
 
-    @redis.ssubscribe("shard:test:multi1", "shard:test:multi2") do |on|
-      on.ssubscribe do |channel, count|
+    redis.ssubscribe("shard:test:multi1", "shard:test:multi2") do |on|
+      on.ssubscribe do |channel, _count|
         channels_subscribed << channel
       end
 
       on.smessage do |channel, message|
         messages << [channel, message]
-        @redis.sunsubscribe if messages.size >= 2
+        redis.sunsubscribe if messages.size >= 2
       end
     end
 
@@ -283,13 +312,14 @@ class PubSubIntegrationTest < Minitest::Test
   def test_ssubscribe_timeout
     start_time = Time.now
 
-    @redis.ssubscribe_with_timeout(0.5, "shard:test:timeout") do |on|
+    redis.ssubscribe_with_timeout(0.5, "shard:test:timeout") do |on|
       on.smessage do |channel, message|
         # Should not receive anything
       end
     end
 
     elapsed = Time.now - start_time
+
     assert_operator elapsed, :>=, 0.4
     assert_operator elapsed, :<, 2.0
   rescue RedisRuby::CommandError => e
@@ -298,7 +328,8 @@ class PubSubIntegrationTest < Minitest::Test
   end
 
   def test_pubsub_shardchannels_with_pattern
-    result = @redis.pubsub_shardchannels("shard:test:*")
+    result = redis.pubsub_shardchannels("shard:test:*")
+
     assert_kind_of Array, result
   rescue RedisRuby::CommandError => e
     skip "PUBSUB SHARDCHANNELS not supported" if e.message.include?("unknown subcommand")
@@ -312,7 +343,8 @@ class PubSubIntegrationTest < Minitest::Test
   # Unicode channel names test
   def test_publish_unicode_channel
     unicode_channel = "pubsub:test:unicodeチャンネル"
-    result = @redis.publish(unicode_channel, "hello")
+    result = redis.publish(unicode_channel, "hello")
+
     assert_kind_of Integer, result
   end
 
@@ -326,10 +358,10 @@ class PubSubIntegrationTest < Minitest::Test
       sleep 0.1
     end
 
-    @redis.subscribe(unicode_channel) do |on|
+    redis.subscribe(unicode_channel) do |on|
       on.message do |channel, message|
         messages << [channel, message]
-        @redis.unsubscribe
+        redis.unsubscribe
       end
     end
 
@@ -344,7 +376,8 @@ class PubSubIntegrationTest < Minitest::Test
   # Binary message test
   def test_publish_binary_message
     binary_message = "\x00\x01\x02\xFF".b
-    result = @redis.publish("pubsub:test:binary", binary_message)
+    result = redis.publish("pubsub:test:binary", binary_message)
+
     assert_kind_of Integer, result
   end
 
@@ -358,10 +391,10 @@ class PubSubIntegrationTest < Minitest::Test
       sleep 0.1
     end
 
-    @redis.subscribe("pubsub:test:binary") do |on|
-      on.message do |channel, message|
+    redis.subscribe("pubsub:test:binary") do |on|
+      on.message do |_channel, message|
         messages << message
-        @redis.unsubscribe
+        redis.unsubscribe
       end
     end
 
@@ -381,10 +414,10 @@ class PubSubIntegrationTest < Minitest::Test
       sleep 0.1
     end
 
-    @redis.psubscribe("*") do |on|
+    redis.psubscribe("*") do |on|
       on.pmessage do |pattern, channel, message|
         messages << [pattern, channel, message]
-        @redis.punsubscribe if messages.size >= 1
+        redis.punsubscribe if messages.size >= 1
       end
     end
 
@@ -404,10 +437,10 @@ class PubSubIntegrationTest < Minitest::Test
       sleep 0.1
     end
 
-    @redis.psubscribe("pubsub:test:?") do |on|
+    redis.psubscribe("pubsub:test:?") do |on|
       on.pmessage do |pattern, channel, message|
         messages << [pattern, channel, message]
-        @redis.punsubscribe if messages.size >= 1
+        redis.punsubscribe if messages.size >= 1
       end
     end
 
@@ -429,10 +462,10 @@ class PubSubIntegrationTest < Minitest::Test
       sleep 0.1
     end
 
-    @redis.psubscribe("pubsub:test:[xy]") do |on|
+    redis.psubscribe("pubsub:test:[xy]") do |on|
       on.pmessage do |pattern, channel, message|
         messages << [pattern, channel, message]
-        @redis.punsubscribe if messages.size >= 2
+        redis.punsubscribe if messages.size >= 2
       end
     end
 
@@ -441,6 +474,7 @@ class PubSubIntegrationTest < Minitest::Test
     # Should only match x and y
     assert_equal 2, messages.size
     channels = messages.map { |m| m[1] }
+
     assert_includes channels, "pubsub:test:x"
     assert_includes channels, "pubsub:test:y"
   end
@@ -453,13 +487,13 @@ class PubSubIntegrationTest < Minitest::Test
       sleep 0.2
     end
 
-    @redis.subscribe("pubsub:test:all1", "pubsub:test:all2", "pubsub:test:all3") do |on|
-      on.subscribe do |channel, count|
+    redis.subscribe("pubsub:test:all1", "pubsub:test:all2", "pubsub:test:all3") do |on|
+      on.subscribe do |_channel, count|
         # Once we're subscribed to all 3, unsubscribe from all
-        @redis.unsubscribe if count == 3
+        redis.unsubscribe if count == 3
       end
 
-      on.unsubscribe do |channel, count|
+      on.unsubscribe do |channel, _count|
         channels_unsubscribed << channel
       end
     end
@@ -481,12 +515,12 @@ class PubSubIntegrationTest < Minitest::Test
       sleep 0.2
     end
 
-    @redis.psubscribe("pubsub:test:p1*", "pubsub:test:p2*", "pubsub:test:p3*") do |on|
-      on.psubscribe do |pattern, count|
-        @redis.punsubscribe if count == 3
+    redis.psubscribe("pubsub:test:p1*", "pubsub:test:p2*", "pubsub:test:p3*") do |on|
+      on.psubscribe do |_pattern, count|
+        redis.punsubscribe if count == 3
       end
 
-      on.punsubscribe do |pattern, count|
+      on.punsubscribe do |pattern, _count|
         patterns_unsubscribed << pattern
       end
     end
@@ -511,10 +545,10 @@ class PubSubIntegrationTest < Minitest::Test
       sleep 0.1
     end
 
-    @redis.subscribe("pubsub:test:order") do |on|
-      on.message do |channel, message|
+    redis.subscribe("pubsub:test:order") do |on|
+      on.message do |_channel, message|
         messages << message
-        @redis.unsubscribe if messages.size >= 5
+        redis.unsubscribe if messages.size >= 5
       end
     end
 
@@ -529,13 +563,13 @@ class PubSubIntegrationTest < Minitest::Test
     subscriber_ready = false
 
     subscriber_thread = Thread.new do
-      @redis.subscribe("pubsub:test:count") do |on|
-        on.subscribe do |channel, count|
+      redis.subscribe("pubsub:test:count") do |on|
+        on.subscribe do |_channel, _count|
           subscriber_ready = true
         end
 
-        on.message do |channel, message|
-          @redis.unsubscribe
+        on.message do |_channel, _message|
+          redis.unsubscribe
         end
       end
     end

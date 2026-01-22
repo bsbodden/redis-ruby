@@ -55,8 +55,8 @@ module RedisRuby
       #       puts "Unsubscribed from #{channel}"
       #     end
       #   end
-      def subscribe(*channels, &block)
-        subscription_loop("SUBSCRIBE", channels, &block)
+      def subscribe(*channels, &)
+        subscription_loop("SUBSCRIBE", channels, &)
       end
 
       # Subscribe with timeout
@@ -66,8 +66,8 @@ module RedisRuby
       # @param timeout [Float] Timeout in seconds
       # @param channels [Array<String>] Channel names
       # @yield [SubscriptionHandler] Handler for setting up callbacks
-      def subscribe_with_timeout(timeout, *channels, &block)
-        subscription_loop("SUBSCRIBE", channels, timeout: timeout, &block)
+      def subscribe_with_timeout(timeout, *channels, &)
+        subscription_loop("SUBSCRIBE", channels, timeout: timeout, &)
       end
 
       # Unsubscribe from channels
@@ -75,12 +75,12 @@ module RedisRuby
       # @param channels [Array<String>] Channels to unsubscribe from (empty = all)
       # @return [void]
       def unsubscribe(*channels)
-        if @subscription_connection
-          if channels.empty?
-            @subscription_connection.write_command(["UNSUBSCRIBE"])
-          else
-            @subscription_connection.write_command(["UNSUBSCRIBE", *channels])
-          end
+        return unless @subscription_connection
+
+        if channels.empty?
+          @subscription_connection.write_command(["UNSUBSCRIBE"])
+        else
+          @subscription_connection.write_command(["UNSUBSCRIBE", *channels])
         end
       end
 
@@ -99,8 +99,8 @@ module RedisRuby
       #       puts "#{pattern} -> #{channel}: #{message}"
       #     end
       #   end
-      def psubscribe(*patterns, &block)
-        subscription_loop("PSUBSCRIBE", patterns, &block)
+      def psubscribe(*patterns, &)
+        subscription_loop("PSUBSCRIBE", patterns, &)
       end
 
       # Pattern subscribe with timeout
@@ -108,8 +108,8 @@ module RedisRuby
       # @param timeout [Float] Timeout in seconds
       # @param patterns [Array<String>] Patterns to subscribe to
       # @yield [SubscriptionHandler] Handler for setting up callbacks
-      def psubscribe_with_timeout(timeout, *patterns, &block)
-        subscription_loop("PSUBSCRIBE", patterns, timeout: timeout, &block)
+      def psubscribe_with_timeout(timeout, *patterns, &)
+        subscription_loop("PSUBSCRIBE", patterns, timeout: timeout, &)
       end
 
       # Unsubscribe from patterns
@@ -117,12 +117,12 @@ module RedisRuby
       # @param patterns [Array<String>] Patterns to unsubscribe from (empty = all)
       # @return [void]
       def punsubscribe(*patterns)
-        if @subscription_connection
-          if patterns.empty?
-            @subscription_connection.write_command(["PUNSUBSCRIBE"])
-          else
-            @subscription_connection.write_command(["PUNSUBSCRIBE", *patterns])
-          end
+        return unless @subscription_connection
+
+        if patterns.empty?
+          @subscription_connection.write_command(["PUNSUBSCRIBE"])
+        else
+          @subscription_connection.write_command(["PUNSUBSCRIBE", *patterns])
         end
       end
 
@@ -213,8 +213,8 @@ module RedisRuby
       #       puts "#{channel}: #{message}"
       #     end
       #   end
-      def ssubscribe(*shardchannels, &block)
-        subscription_loop("SSUBSCRIBE", shardchannels, sharded: true, &block)
+      def ssubscribe(*shardchannels, &)
+        subscription_loop("SSUBSCRIBE", shardchannels, sharded: true, &)
       end
 
       # Shard subscribe with timeout (Redis 7.0+)
@@ -222,8 +222,8 @@ module RedisRuby
       # @param timeout [Float] Timeout in seconds
       # @param shardchannels [Array<String>] Shard channel names
       # @yield [SubscriptionHandler] Handler for setting up callbacks
-      def ssubscribe_with_timeout(timeout, *shardchannels, &block)
-        subscription_loop("SSUBSCRIBE", shardchannels, timeout: timeout, sharded: true, &block)
+      def ssubscribe_with_timeout(timeout, *shardchannels, &)
+        subscription_loop("SSUBSCRIBE", shardchannels, timeout: timeout, sharded: true, &)
       end
 
       # Unsubscribe from shard channels (Redis 7.0+)
@@ -231,12 +231,12 @@ module RedisRuby
       # @param shardchannels [Array<String>] Shard channels to unsubscribe from (empty = all)
       # @return [void]
       def sunsubscribe(*shardchannels)
-        if @subscription_connection
-          if shardchannels.empty?
-            @subscription_connection.write_command(["SUNSUBSCRIBE"])
-          else
-            @subscription_connection.write_command(["SUNSUBSCRIBE", *shardchannels])
-          end
+        return unless @subscription_connection
+
+        if shardchannels.empty?
+          @subscription_connection.write_command(["SUNSUBSCRIBE"])
+        else
+          @subscription_connection.write_command(["SUNSUBSCRIBE", *shardchannels])
         end
       end
 
@@ -281,6 +281,7 @@ module RedisRuby
             message = @subscription_connection.read_response(timeout: timeout ? [1.0, timeout].min : nil)
           rescue TimeoutError
             next if deadline && Time.now < deadline
+
             break
           end
 

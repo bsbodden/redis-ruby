@@ -10,7 +10,7 @@ class SearchCommandsTest < RedisRubyTestCase
     @index_name = "test_idx_#{SecureRandom.hex(4)}"
     # Clean up any leftover indexes
     begin
-      redis.ft_dropindex(@index_name, dd: true)
+      redis.ft_dropindex(@index_name, delete_docs: true)
     rescue RedisRuby::CommandError
       # Index doesn't exist, that's fine
     end
@@ -19,7 +19,7 @@ class SearchCommandsTest < RedisRubyTestCase
   def teardown
     # Clean up after each test
     begin
-      redis.ft_dropindex(@index_name, dd: true)
+      redis.ft_dropindex(@index_name, delete_docs: true)
     rescue RedisRuby::CommandError
       # Index doesn't exist, that's fine
     end
@@ -46,15 +46,18 @@ class SearchCommandsTest < RedisRubyTestCase
 
     # Basic search
     result = redis.ft_search(@index_name, "Hello")
+
     assert_equal 1, result[0]
     assert_equal "doc:1", result[1]
 
     # Search with multiple results
     result = redis.ft_search(@index_name, "Redis")
+
     assert_equal 2, result[0]
 
     # Search with scores
     result = redis.ft_search(@index_name, "World", withscores: true)
+
     assert_equal 2, result[0]
     # With scores: [total, doc_id, score, fields, doc_id, score, fields, ...]
     assert_includes ["doc:1", "doc:3"], result[1]
@@ -76,11 +79,13 @@ class SearchCommandsTest < RedisRubyTestCase
 
     # Get first 2 results
     result = redis.ft_search(@index_name, "item", limit: [0, 2])
+
     assert_equal 5, result[0] # Total count
     assert_equal 2, (result.length - 1) / 2 # 2 results returned
 
     # Get next 2 results
     result = redis.ft_search(@index_name, "item", limit: [2, 2])
+
     assert_equal 5, result[0]
     assert_equal 2, (result.length - 1) / 2
   ensure
@@ -102,11 +107,13 @@ class SearchCommandsTest < RedisRubyTestCase
 
     # Sort by price ascending
     result = redis.ft_search(@index_name, "*", sortby: "price", sortasc: true)
+
     assert_equal 3, result[0]
     assert_equal "product:2", result[1] # Cheapest first
 
     # Sort by price descending
     result = redis.ft_search(@index_name, "*", sortby: "price", sortasc: false)
+
     assert_equal 3, result[0]
     assert_equal "product:3", result[1] # Most expensive first
   ensure
@@ -128,6 +135,7 @@ class SearchCommandsTest < RedisRubyTestCase
 
     # Filter by numeric range
     result = redis.ft_search(@index_name, "*", filter: { score: [40, 100] })
+
     assert_equal 2, result[0]
     refute_includes result, "filtered:1"
   ensure
@@ -147,6 +155,7 @@ class SearchCommandsTest < RedisRubyTestCase
 
     # Get only document IDs
     result = redis.ft_search(@index_name, "Document", nocontent: true)
+
     assert_equal 2, result[0]
     # No fields returned, just IDs
     assert_equal 3, result.length # [count, id1, id2]
@@ -191,6 +200,7 @@ class SearchCommandsTest < RedisRubyTestCase
 
     # Drop index
     result = redis.ft_dropindex(@index_name)
+
     assert_equal "OK", result
 
     # Verify index is gone
@@ -208,7 +218,7 @@ class SearchCommandsTest < RedisRubyTestCase
     sleep 0.1
 
     # Drop index and documents
-    redis.ft_dropindex(@index_name, dd: true)
+    redis.ft_dropindex(@index_name, delete_docs: true)
 
     # Verify document is deleted
     assert_nil redis.hget("todel:1", "name")
@@ -228,6 +238,7 @@ class SearchCommandsTest < RedisRubyTestCase
 
     # Find the category field
     category_field = attributes.find { |attr| attr.include?("category") }
+
     refute_nil category_field
   end
 
@@ -240,7 +251,7 @@ class SearchCommandsTest < RedisRubyTestCase
     explanation = redis.ft_explain(@index_name, "hello world")
 
     assert_kind_of String, explanation
-    assert explanation.length > 0
+    assert_predicate explanation.length, :positive?
   end
 
   def test_ft_aggregate_basic
@@ -263,7 +274,7 @@ class SearchCommandsTest < RedisRubyTestCase
 
     # Result: [total, [field1, val1, field2, val2], ...]
     assert_kind_of Array, result
-    assert result[0] >= 2 # At least 2 groups
+    assert_operator result[0], :>=, 2 # At least 2 groups
   ensure
     redis.del("agg:1", "agg:2", "agg:3")
   end
@@ -302,7 +313,7 @@ class SearchCommandsTest < RedisRubyTestCase
     suggestions = redis.ft_sugget(suggestion_key, "hel")
 
     assert_kind_of Array, suggestions
-    assert suggestions.length >= 2
+    assert_operator suggestions.length, :>=, 2
     assert_includes suggestions, "hello there"
     assert_includes suggestions, "hello world"
   ensure
@@ -320,7 +331,7 @@ class SearchCommandsTest < RedisRubyTestCase
 
     # With scores: [string, score, string, score, ...]
     assert_kind_of Array, result
-    assert result.length >= 4 # At least 2 suggestions with scores
+    assert_operator result.length, :>=, 4 # At least 2 suggestions with scores
   ensure
     redis.del(suggestion_key)
   end
@@ -356,9 +367,11 @@ class SearchCommandsTest < RedisRubyTestCase
     suggestion_key = "suggestions:del:#{SecureRandom.hex(4)}"
 
     redis.ft_sugadd(suggestion_key, "to delete", 1.0)
+
     assert_equal 1, redis.ft_suglen(suggestion_key)
 
     result = redis.ft_sugdel(suggestion_key, "to delete")
+
     assert_equal 1, result
 
     assert_equal 0, redis.ft_suglen(suggestion_key)
@@ -371,16 +384,22 @@ class SearchCommandsTest < RedisRubyTestCase
 
     # Add terms to dictionary
     added = redis.ft_dictadd(dict_name, "term1", "term2", "term3")
+
     assert_equal 3, added
 
     # Dump dictionary
     terms = redis.ft_dictdump(dict_name)
+
     assert_kind_of Array, terms
     assert_includes terms, "term1"
     assert_includes terms, "term2"
     assert_includes terms, "term3"
   ensure
-    redis.ft_dictdel(dict_name, "term1", "term2", "term3") rescue nil
+    begin
+      redis.ft_dictdel(dict_name, "term1", "term2", "term3")
+    rescue StandardError
+      nil
+    end
   end
 
   def test_ft_dictdel
@@ -388,13 +407,19 @@ class SearchCommandsTest < RedisRubyTestCase
 
     redis.ft_dictadd(dict_name, "word1", "word2")
     deleted = redis.ft_dictdel(dict_name, "word1")
+
     assert_equal 1, deleted
 
     terms = redis.ft_dictdump(dict_name)
+
     refute_includes terms, "word1"
     assert_includes terms, "word2"
   ensure
-    redis.ft_dictdel(dict_name, "word2") rescue nil
+    begin
+      redis.ft_dictdel(dict_name, "word2")
+    rescue StandardError
+      nil
+    end
   end
 
   def test_ft_aliasadd_and_aliasdel
@@ -407,6 +432,7 @@ class SearchCommandsTest < RedisRubyTestCase
 
     # Add alias
     result = redis.ft_aliasadd(alias_name, @index_name)
+
     assert_equal "OK", result
 
     # Alias should work for search
@@ -415,10 +441,15 @@ class SearchCommandsTest < RedisRubyTestCase
 
     # Delete alias
     result = redis.ft_aliasdel(alias_name)
+
     assert_equal "OK", result
   ensure
     redis.del("aliaskey")
-    redis.ft_aliasdel(alias_name) rescue nil
+    begin
+      redis.ft_aliasdel(alias_name)
+    rescue StandardError
+      nil
+    end
   end
 
   def test_ft_tagvals
@@ -481,10 +512,12 @@ class SearchCommandsTest < RedisRubyTestCase
   def test_ft_config
     # Get all config
     config = redis.ft_config_get("*")
+
     assert_kind_of Hash, config
 
     # Get specific config
     timeout_config = redis.ft_config_get("TIMEOUT")
+
     assert_kind_of Hash, timeout_config
   end
 
@@ -501,11 +534,12 @@ class SearchCommandsTest < RedisRubyTestCase
     sleep 0.1
 
     # Return only specific fields
-    result = redis.ft_search(@index_name, "Test", return: ["title", "score"])
+    result = redis.ft_search(@index_name, "Test", return: %w[title score])
 
     assert_equal 1, result[0]
     fields = result[2]
     field_hash = Hash[*fields]
+
     assert field_hash.key?("title")
     assert field_hash.key?("score")
   ensure
@@ -549,13 +583,19 @@ class SearchCommandsTest < RedisRubyTestCase
 
       # Search JSON index
       result = redis.ft_search(json_index, "@name:Alice")
+
       assert_equal 1, result[0]
 
       # Sort by age
       result = redis.ft_search(json_index, "*", sortby: "age", sortasc: true)
+
       assert_equal 2, result[0]
     ensure
-      redis.ft_dropindex(json_index, dd: true) rescue nil
+      begin
+        redis.ft_dropindex(json_index, delete_docs: true)
+      rescue StandardError
+        nil
+      end
       redis.del("user:1", "user:2")
     end
   end

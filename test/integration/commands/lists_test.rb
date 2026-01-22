@@ -314,7 +314,7 @@ class ListsCommandsTest < RedisRubyTestCase
   def test_lrange_empty_list
     redis.del("test:list")
 
-    assert_equal [], redis.lrange("test:list", 0, -1)
+    assert_empty redis.lrange("test:list", 0, -1)
   end
 
   def test_llen_empty_list
@@ -489,7 +489,7 @@ class ListsCommandsTest < RedisRubyTestCase
     result = redis.lmpop("test:list")
 
     assert_equal "test:list", result[0]
-    assert_equal ["a"], result[1]  # Left pop = first element
+    assert_equal ["a"], result[1] # Left pop = first element
   rescue RedisRuby::CommandError => e
     skip "LMPOP not supported (requires Redis 7.0+)" if e.message.include?("unknown command")
     raise

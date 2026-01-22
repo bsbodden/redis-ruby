@@ -16,6 +16,7 @@ class ClusterUnitTest < Minitest::Test
     # Different keys may have different slots
     # (not guaranteed, but very likely for these keys)
     slots = %w[foo bar hello test].map { |k| client.key_slot(k) }.uniq
+
     assert_operator slots.size, :>, 1, "Expected different keys to have different slots"
   end
 
@@ -33,6 +34,7 @@ class ClusterUnitTest < Minitest::Test
     # Different hash tags = potentially different slots
     slot_a = client.key_slot("{a}key")
     slot_b = client.key_slot("{b}key")
+
     refute_equal slot_a, slot_b
   end
 
@@ -42,11 +44,13 @@ class ClusterUnitTest < Minitest::Test
     # Empty hash tag {} is ignored, full key is used
     slot1 = client.key_slot("foo{}bar")
     slot2 = client.key_slot("foo{}bar")
+
     assert_equal slot1, slot2
 
     # Nested braces - first complete pair is used
     slot3 = client.key_slot("foo{bar}baz")
     slot4 = client.key_slot("{bar}")
+
     assert_equal slot3, slot4
   end
 
@@ -56,6 +60,7 @@ class ClusterUnitTest < Minitest::Test
     # No closing brace - full key is used
     slot1 = client.key_slot("foo{bar")
     slot2 = client.key_slot("foo{bar")
+
     assert_equal slot1, slot2
   end
 
@@ -66,6 +71,7 @@ class ClusterUnitTest < Minitest::Test
     10_000.times do
       key = "test_key_#{rand(1_000_000)}"
       slot = client.key_slot(key)
+
       assert_operator slot, :>=, 0
       assert_operator slot, :<, 16_384
     end
@@ -86,16 +92,16 @@ class ClusterUnitTest < Minitest::Test
   end
 
   def test_cluster_error_classes
-    assert RedisRuby::ClusterError < RedisRuby::Error
-    assert RedisRuby::ClusterDownError < RedisRuby::ClusterError
-    assert RedisRuby::MovedError < RedisRuby::ClusterError
-    assert RedisRuby::AskError < RedisRuby::ClusterError
+    assert_operator RedisRuby::ClusterError, :<, RedisRuby::Error
+    assert_operator RedisRuby::ClusterDownError, :<, RedisRuby::ClusterError
+    assert_operator RedisRuby::MovedError, :<, RedisRuby::ClusterError
+    assert_operator RedisRuby::AskError, :<, RedisRuby::ClusterError
   end
 
   def test_normalize_nodes_urls
     # Can't easily test without mocking, but we can test the error case
     assert_raises(ArgumentError) do
-      RedisRuby::ClusterClient.new(nodes: [123])  # Invalid node type
+      RedisRuby::ClusterClient.new(nodes: [123]) # Invalid node type
     end
   end
 
@@ -142,7 +148,7 @@ module RedisRuby
         256.times do |i|
           crc = i << 8
           8.times do
-            crc = (crc & 0x8000).zero? ? crc << 1 : (crc << 1) ^ 0x1021
+            crc = crc.nobits?(0x8000) ? crc << 1 : (crc << 1) ^ 0x1021
           end
           table[i] = crc & 0xFFFF
         end

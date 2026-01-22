@@ -216,7 +216,7 @@ class TCPConnectionTest < Minitest::Test
     conn.reconnect
 
     # Verify we have a new connection
-    assert conn.instance_variable_get(:@pid) == Process.pid
+    assert_equal conn.instance_variable_get(:@pid), Process.pid
   end
 
   def test_ensure_connected_reconnects_if_not_connected
@@ -243,7 +243,7 @@ class TCPConnectionTest < Minitest::Test
     conn.ensure_connected
 
     # Should have reconnected
-    assert conn.connected?
+    assert_predicate conn, :connected?
   end
 
   private

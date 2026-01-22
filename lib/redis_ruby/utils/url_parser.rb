@@ -62,7 +62,7 @@ module RedisRuby
           port: uri.port || DEFAULT_PORT,
           db: extract_db(uri.path),
           password: uri.password,
-          username: uri.user != "" ? uri.user : nil
+          username: uri.user == "" ? nil : uri.user,
         }
       end
 
@@ -86,7 +86,7 @@ module RedisRuby
           path: path,
           db: db,
           password: uri.password,
-          username: uri.user != "" ? uri.user : nil
+          username: uri.user == "" ? nil : uri.user,
         }
       end
 

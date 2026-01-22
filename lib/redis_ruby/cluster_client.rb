@@ -44,7 +44,7 @@ module RedisRuby
       256.times do |i|
         crc = i << 8
         8.times do
-          crc = (crc & 0x8000).zero? ? crc << 1 : (crc << 1) ^ 0x1021
+          crc = crc.nobits?(0x8000) ? crc << 1 : (crc << 1) ^ 0x1021
         end
         table[i] = crc & 0xFFFF
       end
@@ -71,7 +71,7 @@ module RedisRuby
       @read_from = read_from
       @retry_count = retry_count
 
-      @slots = Array.new(HASH_SLOTS)  # slot -> node mapping
+      @slots = Array.new(HASH_SLOTS) # slot -> node mapping
       @nodes = {}                      # "host:port" -> connection
       @masters = []                    # list of master addresses
       @replicas = {}                   # master_id -> [replica addresses]
@@ -267,13 +267,13 @@ module RedisRuby
     end
 
     # Handle command errors including redirections
-    def handle_command_error(error, command, args, slot, redirections)
+    def handle_command_error(error, command, args, _slot, redirections)
       message = error.message
 
       if message.start_with?("MOVED")
         # MOVED <slot> <host>:<port>
-        _, new_slot, new_addr = message.split
-        refresh_slots  # Topology changed
+        _, new_slot, = message.split
+        refresh_slots # Topology changed
         new_slot_int = new_slot.to_i
 
         execute_with_retry(command, args, new_slot_int, redirections: redirections + 1)
@@ -281,7 +281,7 @@ module RedisRuby
         # ASK <slot> <host>:<port>
         _, new_slot, new_addr = message.split
         host, port = new_addr.split(":")
-        new_slot_int = new_slot.to_i
+        new_slot.to_i
 
         # For ASK, we need to send ASKING before the command
         conn = get_connection("#{host}:#{port}")
@@ -351,19 +351,15 @@ module RedisRuby
       nodes_to_try = @seed_nodes.map { |n| "#{n[:host]}:#{n[:port]}" } + @nodes.keys
 
       nodes_to_try.uniq.each do |addr|
-        begin
-          conn = get_connection_internal(addr)
-          result = conn.call("CLUSTER", "SLOTS")
+        conn = get_connection_internal(addr)
+        result = conn.call("CLUSTER", "SLOTS")
 
-          if result.is_a?(CommandError)
-            next
-          end
+        next if result.is_a?(CommandError)
 
-          update_slots_from_result(result)
-          return
-        rescue StandardError
-          next
-        end
+        update_slots_from_result(result)
+        return
+      rescue StandardError
+        next
       end
 
       raise RedisRuby::ConnectionError, "Could not connect to any cluster node"
@@ -393,7 +389,7 @@ module RedisRuby
         (start_slot..end_slot).each do |slot|
           @slots[slot] = {
             master: master_addr,
-            replicas: replica_addrs
+            replicas: replica_addrs,
           }
         end
       end

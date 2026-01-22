@@ -50,7 +50,7 @@ class UnixConnectionTest < Minitest::Test
 
     conn = RedisRuby::Connection::Unix.new
 
-    assert conn.connected?
+    assert_predicate conn, :connected?
   end
 
   def test_connected_returns_false_when_closed
@@ -60,7 +60,7 @@ class UnixConnectionTest < Minitest::Test
 
     conn = RedisRuby::Connection::Unix.new
 
-    refute conn.connected?
+    refute_predicate conn, :connected?
   end
 
   def test_close_closes_socket

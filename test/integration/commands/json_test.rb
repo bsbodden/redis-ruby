@@ -134,7 +134,7 @@ class JSONCommandsTest < RedisRubyTestCase
   end
 
   def test_json_arrappend
-    redis.json_set("json:arrapp", "$", { tags: ["a", "b"] })
+    redis.json_set("json:arrapp", "$", { tags: %w[a b] })
 
     result = redis.json_arrappend("json:arrapp", "$.tags", "c", "d")
 

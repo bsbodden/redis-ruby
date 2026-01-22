@@ -23,9 +23,11 @@ class BloomFilterCommandsTest < RedisRubyTestCase
 
   def test_bf_reserve
     result = redis.bf_reserve(@bf_key, 0.01, 1000)
+
     assert_equal "OK", result
 
     info = redis.bf_info(@bf_key)
+
     assert_kind_of Hash, info
   end
 
@@ -34,10 +36,12 @@ class BloomFilterCommandsTest < RedisRubyTestCase
 
     # Add item
     result = redis.bf_add(@bf_key, "item1")
+
     assert_equal 1, result
 
     # Add same item again
     result = redis.bf_add(@bf_key, "item1")
+
     assert_equal 0, result
 
     # Check existence
@@ -50,16 +54,19 @@ class BloomFilterCommandsTest < RedisRubyTestCase
 
     # Add multiple items
     result = redis.bf_madd(@bf_key, "a", "b", "c")
+
     assert_equal [1, 1, 1], result
 
     # Check multiple items
     result = redis.bf_mexists(@bf_key, "a", "b", "d")
+
     assert_equal [1, 1, 0], result
   end
 
   def test_bf_insert
     # Insert with auto-create
     result = redis.bf_insert(@bf_key, "item1", "item2", capacity: 500, error: 0.001)
+
     assert_equal [1, 1], result
 
     # Verify items exist
@@ -72,6 +79,7 @@ class BloomFilterCommandsTest < RedisRubyTestCase
     redis.bf_add(@bf_key, "test")
 
     info = redis.bf_info(@bf_key)
+
     assert_kind_of Hash, info
     assert info.key?("Capacity") || info.key?("capacity")
   end
@@ -81,6 +89,7 @@ class BloomFilterCommandsTest < RedisRubyTestCase
     redis.bf_madd(@bf_key, "a", "b", "c")
 
     card = redis.bf_card(@bf_key)
+
     assert_equal 3, card
   end
 
@@ -88,6 +97,7 @@ class BloomFilterCommandsTest < RedisRubyTestCase
 
   def test_cf_reserve
     result = redis.cf_reserve(@cf_key, 1000)
+
     assert_equal "OK", result
   end
 
@@ -95,6 +105,7 @@ class BloomFilterCommandsTest < RedisRubyTestCase
     redis.cf_reserve(@cf_key, 1000)
 
     result = redis.cf_add(@cf_key, "item1")
+
     assert_equal 1, result
 
     assert_equal 1, redis.cf_exists(@cf_key, "item1")
@@ -106,10 +117,12 @@ class BloomFilterCommandsTest < RedisRubyTestCase
 
     # Add new item
     result = redis.cf_addnx(@cf_key, "unique")
+
     assert_equal 1, result
 
     # Try to add same item
     result = redis.cf_addnx(@cf_key, "unique")
+
     assert_equal 0, result
   end
 
@@ -120,6 +133,7 @@ class BloomFilterCommandsTest < RedisRubyTestCase
     assert_equal 1, redis.cf_exists(@cf_key, "to_delete")
 
     result = redis.cf_del(@cf_key, "to_delete")
+
     assert_equal 1, result
 
     assert_equal 0, redis.cf_exists(@cf_key, "to_delete")
@@ -133,11 +147,13 @@ class BloomFilterCommandsTest < RedisRubyTestCase
     redis.cf_add(@cf_key, "frequent")
 
     count = redis.cf_count(@cf_key, "frequent")
-    assert count >= 1
+
+    assert_operator count, :>=, 1
   end
 
   def test_cf_insert
     result = redis.cf_insert(@cf_key, "a", "b", "c", capacity: 500)
+
     assert_equal [1, 1, 1], result
   end
 
@@ -147,6 +163,7 @@ class BloomFilterCommandsTest < RedisRubyTestCase
     redis.cf_add(@cf_key, "b")
 
     result = redis.cf_mexists(@cf_key, "a", "b", "c")
+
     assert_equal [1, 1, 0], result
   end
 
@@ -154,6 +171,7 @@ class BloomFilterCommandsTest < RedisRubyTestCase
     redis.cf_reserve(@cf_key, 1000)
 
     info = redis.cf_info(@cf_key)
+
     assert_kind_of Hash, info
   end
 
@@ -161,11 +179,13 @@ class BloomFilterCommandsTest < RedisRubyTestCase
 
   def test_cms_initbydim
     result = redis.cms_initbydim(@cms_key, 1000, 5)
+
     assert_equal "OK", result
   end
 
   def test_cms_initbyprob
     result = redis.cms_initbyprob(@cms_key, 0.001, 0.01)
+
     assert_equal "OK", result
   end
 
@@ -174,19 +194,22 @@ class BloomFilterCommandsTest < RedisRubyTestCase
 
     # Increment counts
     result = redis.cms_incrby(@cms_key, "item1", 5, "item2", 10)
+
     assert_kind_of Array, result
 
     # Query counts
     counts = redis.cms_query(@cms_key, "item1", "item2", "item3")
-    assert counts[0] >= 5
-    assert counts[1] >= 10
-    assert counts[2] == 0
+
+    assert_operator counts[0], :>=, 5
+    assert_operator counts[1], :>=, 10
+    assert_predicate counts[2], :zero?
   end
 
   def test_cms_info
     redis.cms_initbydim(@cms_key, 1000, 5)
 
     info = redis.cms_info(@cms_key)
+
     assert_kind_of Hash, info
     assert info.key?("width") || info.key?("Width")
   end
@@ -195,6 +218,7 @@ class BloomFilterCommandsTest < RedisRubyTestCase
 
   def test_topk_reserve
     result = redis.topk_reserve(@topk_key, 5)
+
     assert_equal "OK", result
   end
 
@@ -206,6 +230,7 @@ class BloomFilterCommandsTest < RedisRubyTestCase
 
     # List top items
     top = redis.topk_list(@topk_key)
+
     assert_includes top, "a"
     assert_includes top, "b"
   end
@@ -214,6 +239,7 @@ class BloomFilterCommandsTest < RedisRubyTestCase
     redis.topk_reserve(@topk_key, 3)
 
     result = redis.topk_incrby(@topk_key, "item1", 10, "item2", 5)
+
     assert_kind_of Array, result
   end
 
@@ -222,6 +248,7 @@ class BloomFilterCommandsTest < RedisRubyTestCase
     redis.topk_add(@topk_key, "frequent", "frequent", "frequent")
 
     result = redis.topk_query(@topk_key, "frequent", "rare")
+
     assert_equal 1, result[0]
     assert_equal 0, result[1]
   end
@@ -231,9 +258,10 @@ class BloomFilterCommandsTest < RedisRubyTestCase
     redis.topk_add(@topk_key, "a", "a", "a", "b", "b")
 
     counts = redis.topk_count(@topk_key, "a", "b", "c")
-    assert counts[0] >= 3
-    assert counts[1] >= 2
-    assert counts[2] == 0
+
+    assert_operator counts[0], :>=, 3
+    assert_operator counts[1], :>=, 2
+    assert_predicate counts[2], :zero?
   end
 
   def test_topk_list_withcount
@@ -241,6 +269,7 @@ class BloomFilterCommandsTest < RedisRubyTestCase
     redis.topk_add(@topk_key, "x", "x", "y")
 
     result = redis.topk_list(@topk_key, withcount: true)
+
     assert_kind_of Array, result
   end
 
@@ -248,6 +277,7 @@ class BloomFilterCommandsTest < RedisRubyTestCase
     redis.topk_reserve(@topk_key, 5)
 
     info = redis.topk_info(@topk_key)
+
     assert_kind_of Hash, info
     assert info.key?("k") || info.key?("K")
   end
@@ -256,11 +286,13 @@ class BloomFilterCommandsTest < RedisRubyTestCase
 
   def test_tdigest_create
     result = redis.tdigest_create(@td_key)
+
     assert_equal "OK", result
   end
 
   def test_tdigest_create_with_compression
     result = redis.tdigest_create(@td_key, compression: 500)
+
     assert_equal "OK", result
   end
 
@@ -268,6 +300,7 @@ class BloomFilterCommandsTest < RedisRubyTestCase
     redis.tdigest_create(@td_key)
 
     result = redis.tdigest_add(@td_key, 1.0, 2.0, 3.0, 4.0, 5.0)
+
     assert_equal "OK", result
   end
 
@@ -277,9 +310,11 @@ class BloomFilterCommandsTest < RedisRubyTestCase
 
     # Get median (50th percentile)
     result = redis.tdigest_quantile(@td_key, 0.5)
+
     assert_kind_of Array, result
     value = result[0].to_f
-    assert value >= 4 && value <= 6
+
+    assert value.between?(4, 6)
   end
 
   def test_tdigest_min_max
@@ -289,8 +324,8 @@ class BloomFilterCommandsTest < RedisRubyTestCase
     min = redis.tdigest_min(@td_key)
     max = redis.tdigest_max(@td_key)
 
-    assert_equal 10.0, min.to_f
-    assert_equal 50.0, max.to_f
+    assert_in_delta(10.0, min.to_f)
+    assert_in_delta(50.0, max.to_f)
   end
 
   def test_tdigest_rank
@@ -298,6 +333,7 @@ class BloomFilterCommandsTest < RedisRubyTestCase
     redis.tdigest_add(@td_key, 1, 2, 3, 4, 5)
 
     ranks = redis.tdigest_rank(@td_key, 1, 3, 5)
+
     assert_kind_of Array, ranks
   end
 
@@ -306,9 +342,11 @@ class BloomFilterCommandsTest < RedisRubyTestCase
     redis.tdigest_add(@td_key, 1, 2, 3, 4, 5)
 
     cdf = redis.tdigest_cdf(@td_key, 2.5)
+
     assert_kind_of Array, cdf
     value = cdf[0].to_f
-    assert value >= 0 && value <= 1
+
+    assert value.between?(0, 1)
   end
 
   def test_tdigest_reset
@@ -316,6 +354,7 @@ class BloomFilterCommandsTest < RedisRubyTestCase
     redis.tdigest_add(@td_key, 1, 2, 3)
 
     result = redis.tdigest_reset(@td_key)
+
     assert_equal "OK", result
   end
 
@@ -324,6 +363,7 @@ class BloomFilterCommandsTest < RedisRubyTestCase
     redis.tdigest_add(@td_key, 1, 2, 3)
 
     info = redis.tdigest_info(@td_key)
+
     assert_kind_of Hash, info
   end
 
@@ -333,6 +373,7 @@ class BloomFilterCommandsTest < RedisRubyTestCase
 
     # Get trimmed mean excluding outliers
     mean = redis.tdigest_trimmed_mean(@td_key, 0.1, 0.9)
+
     assert_kind_of Float, mean.to_f
   end
 end

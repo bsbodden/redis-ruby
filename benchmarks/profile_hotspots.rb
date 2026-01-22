@@ -53,10 +53,10 @@ def run_workload(redis, iterations, pipeline_size)
     redis.set("profile_key", "value_#{i}")
 
     # Pipeline every 10th iteration
-    if (i % 10).zero?
-      redis.pipelined do |p|
-        pipeline_size.times { |j| p.get("pipe_key_#{j}") }
-      end
+    next unless (i % 10).zero?
+
+    redis.pipelined do |p|
+      pipeline_size.times { |j| p.get("pipe_key_#{j}") }
     end
   end
 end
@@ -70,7 +70,7 @@ when "stackprof"
     run_workload(redis, ITERATIONS, PIPELINE_SIZE)
   end
 
-  puts "\n" + "=" * 70
+  puts "\n#{"=" * 70}"
   puts "TOP METHODS BY CPU TIME"
   puts "=" * 70
   StackProf::Report.new(profile).print_text(false, 30)
@@ -88,7 +88,7 @@ when "stackprof_wall"
     run_workload(redis, ITERATIONS, PIPELINE_SIZE)
   end
 
-  puts "\n" + "=" * 70
+  puts "\n#{"=" * 70}"
   puts "TOP METHODS BY WALL TIME"
   puts "=" * 70
   StackProf::Report.new(profile).print_text(false, 30)
@@ -97,7 +97,7 @@ when "vernier"
   require "vernier"
 
   puts "Running Vernier profiling..."
-  Dir.mkdir("tmp") unless Dir.exist?("tmp")
+  FileUtils.mkdir_p("tmp")
 
   Vernier.profile(out: "tmp/vernier_profile.json") do
     run_workload(redis, ITERATIONS, PIPELINE_SIZE)
@@ -115,7 +115,7 @@ when "memory"
     run_workload(redis, ITERATIONS / 10, PIPELINE_SIZE)
   end
 
-  puts "\n" + "=" * 70
+  puts "\n#{"=" * 70}"
   puts "MEMORY ALLOCATION REPORT"
   puts "=" * 70
   report.pretty_print(to_file: "tmp/memory_profile.txt", detailed_report: true, scale_bytes: true)
@@ -137,10 +137,10 @@ when "allocations"
   results = ObjectSpace::AllocationTracer.result
   sorted = results.sort_by { |_k, v| -v[0] }.first(30)
 
-  puts "\n" + "=" * 70
+  puts "\n#{"=" * 70}"
   puts "TOP ALLOCATION SITES"
   puts "=" * 70
-  puts format("%-50s %10s %10s", "Location", "Count", "Old Count")
+  puts "Location                                                Count  Old Count"
   puts "-" * 70
   sorted.each do |(path, line, type), (count, old_count, *)|
     short_path = path.to_s.gsub(%r{.*/lib/}, "lib/")

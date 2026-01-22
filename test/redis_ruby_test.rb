@@ -111,8 +111,8 @@ class RedisRubyTest < RedisRubyTestCase
     new_ttl = redis.ttl("test:keepttl")
 
     # TTL should be preserved (within tolerance)
-    assert new_ttl.positive?
-    assert new_ttl <= original_ttl
+    assert_predicate new_ttl, :positive?
+    assert_operator new_ttl, :<=, original_ttl
   ensure
     redis.del("test:keepttl")
   end

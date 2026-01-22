@@ -38,7 +38,7 @@ puts
 uri = URI.parse(REDIS_URL)
 
 # Initialize clients
-redis_rb = Redis.new(url: REDIS_URL)  # Uses redis-client internally (pure Ruby by default)
+redis_rb = Redis.new(url: REDIS_URL) # Uses redis-client internally (pure Ruby by default)
 redis_ruby = RedisRuby.new(url: REDIS_URL)
 
 # Create hiredis client if available
@@ -80,9 +80,7 @@ Benchmark.ips do |x|
   x.config(warmup: 2, time: 5)
   x.report("redis-rb (pure ruby)") { redis_rb.get("benchmark:key") }
   x.report("redis-ruby") { redis_ruby.get("benchmark:key") }
-  if HIREDIS_AVAILABLE
-    x.report("hiredis-client") { hiredis_client.call("GET", "benchmark:key") }
-  end
+  x.report("hiredis-client") { hiredis_client.call("GET", "benchmark:key") } if HIREDIS_AVAILABLE
   x.compare!
 end
 puts
@@ -97,9 +95,7 @@ Benchmark.ips do |x|
   x.config(warmup: 2, time: 5)
   x.report("redis-rb (pure ruby)") { redis_rb.set("benchmark:set", "value") }
   x.report("redis-ruby") { redis_ruby.set("benchmark:set2", "value") }
-  if HIREDIS_AVAILABLE
-    x.report("hiredis-client") { hiredis_client.call("SET", "benchmark:set3", "value") }
-  end
+  x.report("hiredis-client") { hiredis_client.call("SET", "benchmark:set3", "value") } if HIREDIS_AVAILABLE
   x.compare!
 end
 puts
@@ -174,9 +170,7 @@ Benchmark.ips do |x|
   x.config(warmup: 2, time: 5)
   x.report("redis-rb (pure ruby)") { redis_rb.incr("benchmark:counter") }
   x.report("redis-ruby") { redis_ruby.incr("benchmark:counter") }
-  if HIREDIS_AVAILABLE
-    x.report("hiredis-client") { hiredis_client.call("INCR", "benchmark:counter") }
-  end
+  x.report("hiredis-client") { hiredis_client.call("INCR", "benchmark:counter") } if HIREDIS_AVAILABLE
   x.compare!
 end
 puts

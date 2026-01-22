@@ -168,7 +168,7 @@ class SortedSetsCommandsTest < RedisRubyTestCase
     result = redis.zadd("test:zset", 1, "one", nx: true)
 
     assert_equal 1, result
-    assert_equal 1.0, redis.zscore("test:zset", "one")
+    assert_in_delta(1.0, redis.zscore("test:zset", "one"))
   ensure
     redis.del("test:zset")
   end
@@ -179,7 +179,7 @@ class SortedSetsCommandsTest < RedisRubyTestCase
 
     assert_equal 0, result
     # Score should remain 1, not 5
-    assert_equal 1.0, redis.zscore("test:zset", "one")
+    assert_in_delta(1.0, redis.zscore("test:zset", "one"))
   ensure
     redis.del("test:zset")
   end
@@ -188,9 +188,9 @@ class SortedSetsCommandsTest < RedisRubyTestCase
     redis.zadd("test:zset", 1, "one")
     result = redis.zadd("test:zset", 5, "one", 2, "two", nx: true)
 
-    assert_equal 1, result  # Only "two" was added
-    assert_equal 1.0, redis.zscore("test:zset", "one")
-    assert_equal 2.0, redis.zscore("test:zset", "two")
+    assert_equal 1, result # Only "two" was added
+    assert_in_delta(1.0, redis.zscore("test:zset", "one"))
+    assert_in_delta(2.0, redis.zscore("test:zset", "two"))
   ensure
     redis.del("test:zset")
   end
@@ -201,7 +201,7 @@ class SortedSetsCommandsTest < RedisRubyTestCase
     result = redis.zadd("test:zset", 5, "one", xx: true)
 
     assert_equal 0, result  # No new members added
-    assert_equal 5.0, redis.zscore("test:zset", "one")
+    assert_in_delta(5.0, redis.zscore("test:zset", "one"))
   ensure
     redis.del("test:zset")
   end
@@ -220,7 +220,7 @@ class SortedSetsCommandsTest < RedisRubyTestCase
     result = redis.zadd("test:zset", 5, "one", 2, "two", xx: true)
 
     assert_equal 0, result  # "two" was not added
-    assert_equal 5.0, redis.zscore("test:zset", "one")
+    assert_in_delta(5.0, redis.zscore("test:zset", "one"))
     assert_nil redis.zscore("test:zset", "two")
   ensure
     redis.del("test:zset")
@@ -232,7 +232,7 @@ class SortedSetsCommandsTest < RedisRubyTestCase
     result = redis.zadd("test:zset", 10, "one", gt: true)
 
     assert_equal 0, result
-    assert_equal 10.0, redis.zscore("test:zset", "one")
+    assert_in_delta(10.0, redis.zscore("test:zset", "one"))
   ensure
     redis.del("test:zset")
   end
@@ -243,7 +243,7 @@ class SortedSetsCommandsTest < RedisRubyTestCase
 
     assert_equal 0, result
     # Score remains 10 (5 is not greater)
-    assert_equal 10.0, redis.zscore("test:zset", "one")
+    assert_in_delta(10.0, redis.zscore("test:zset", "one"))
   ensure
     redis.del("test:zset")
   end
@@ -252,7 +252,7 @@ class SortedSetsCommandsTest < RedisRubyTestCase
     result = redis.zadd("test:zset", 5, "one", gt: true)
 
     assert_equal 1, result
-    assert_equal 5.0, redis.zscore("test:zset", "one")
+    assert_in_delta(5.0, redis.zscore("test:zset", "one"))
   ensure
     redis.del("test:zset")
   end
@@ -263,7 +263,7 @@ class SortedSetsCommandsTest < RedisRubyTestCase
     result = redis.zadd("test:zset", 5, "one", lt: true)
 
     assert_equal 0, result
-    assert_equal 5.0, redis.zscore("test:zset", "one")
+    assert_in_delta(5.0, redis.zscore("test:zset", "one"))
   ensure
     redis.del("test:zset")
   end
@@ -274,7 +274,7 @@ class SortedSetsCommandsTest < RedisRubyTestCase
 
     assert_equal 0, result
     # Score remains 5 (10 is not less)
-    assert_equal 5.0, redis.zscore("test:zset", "one")
+    assert_in_delta(5.0, redis.zscore("test:zset", "one"))
   ensure
     redis.del("test:zset")
   end
@@ -283,7 +283,7 @@ class SortedSetsCommandsTest < RedisRubyTestCase
     result = redis.zadd("test:zset", 5, "one", lt: true)
 
     assert_equal 1, result
-    assert_equal 5.0, redis.zscore("test:zset", "one")
+    assert_in_delta(5.0, redis.zscore("test:zset", "one"))
   ensure
     redis.del("test:zset")
   end
@@ -317,8 +317,8 @@ class SortedSetsCommandsTest < RedisRubyTestCase
     # Only updates existing where new score > old: one (5->10)
     # two (10->5) won't update, three doesn't exist
     assert_equal 0, result
-    assert_equal 10.0, redis.zscore("test:zset", "one")
-    assert_equal 10.0, redis.zscore("test:zset", "two")  # unchanged
+    assert_in_delta(10.0, redis.zscore("test:zset", "one"))
+    assert_in_delta(10.0, redis.zscore("test:zset", "two")) # unchanged
     assert_nil redis.zscore("test:zset", "three")
   ensure
     redis.del("test:zset")
@@ -331,14 +331,14 @@ class SortedSetsCommandsTest < RedisRubyTestCase
     # Only updates existing where new score < old: one (10->5)
     # two (5->10) won't update, three doesn't exist
     assert_equal 0, result
-    assert_equal 5.0, redis.zscore("test:zset", "one")
-    assert_equal 5.0, redis.zscore("test:zset", "two")  # unchanged
+    assert_in_delta(5.0, redis.zscore("test:zset", "one"))
+    assert_in_delta(5.0, redis.zscore("test:zset", "two")) # unchanged
     assert_nil redis.zscore("test:zset", "three")
   ensure
     redis.del("test:zset")
   end
 
-  # Note: NX+GT and NX+LT combinations are NOT valid in Redis
+  # NOTE: NX+GT and NX+LT combinations are NOT valid in Redis
   # Redis returns: "ERR GT, LT, and/or NX options at the same time are not compatible"
 
   # ZMSCORE tests (Redis 6.2+)
@@ -403,7 +403,7 @@ class SortedSetsCommandsTest < RedisRubyTestCase
     redis.zadd("test:zset", 0, "a", 0, "b", 0, "c", 0, "d", 0, "e")
     result = redis.zlexcount("test:zset", "[b", "[d")
 
-    assert_equal 3, result  # b, c, d
+    assert_equal 3, result # b, c, d
   ensure
     redis.del("test:zset")
   end
@@ -487,8 +487,8 @@ class SortedSetsCommandsTest < RedisRubyTestCase
     assert_equal 2, count
     # one: (1*2) + (1*3) = 5
     # two: (2*2) + (2*3) = 10
-    assert_equal 5.0, redis.zscore("test:result", "one")
-    assert_equal 10.0, redis.zscore("test:result", "two")
+    assert_in_delta(5.0, redis.zscore("test:result", "one"))
+    assert_in_delta(10.0, redis.zscore("test:result", "two"))
   ensure
     redis.del("test:zset1", "test:zset2", "test:result")
   end
@@ -499,8 +499,8 @@ class SortedSetsCommandsTest < RedisRubyTestCase
     count = redis.zinterstore("test:result", %w[test:zset1 test:zset2], aggregate: :min)
 
     assert_equal 2, count
-    assert_equal 1.0, redis.zscore("test:result", "one")
-    assert_equal 2.0, redis.zscore("test:result", "two")
+    assert_in_delta(1.0, redis.zscore("test:result", "one"))
+    assert_in_delta(2.0, redis.zscore("test:result", "two"))
   ensure
     redis.del("test:zset1", "test:zset2", "test:result")
   end
@@ -511,8 +511,8 @@ class SortedSetsCommandsTest < RedisRubyTestCase
     count = redis.zinterstore("test:result", %w[test:zset1 test:zset2], aggregate: :max)
 
     assert_equal 2, count
-    assert_equal 3.0, redis.zscore("test:result", "one")
-    assert_equal 5.0, redis.zscore("test:result", "two")
+    assert_in_delta(3.0, redis.zscore("test:result", "one"))
+    assert_in_delta(5.0, redis.zscore("test:result", "two"))
   ensure
     redis.del("test:zset1", "test:zset2", "test:result")
   end
@@ -524,9 +524,9 @@ class SortedSetsCommandsTest < RedisRubyTestCase
     count = redis.zunionstore("test:result", %w[test:zset1 test:zset2], weights: [2, 3])
 
     assert_equal 3, count
-    assert_equal 2.0, redis.zscore("test:result", "one")
-    assert_equal 4.0, redis.zscore("test:result", "two")
-    assert_equal 9.0, redis.zscore("test:result", "three")
+    assert_in_delta(2.0, redis.zscore("test:result", "one"))
+    assert_in_delta(4.0, redis.zscore("test:result", "two"))
+    assert_in_delta(9.0, redis.zscore("test:result", "three"))
   ensure
     redis.del("test:zset1", "test:zset2", "test:result")
   end
@@ -537,7 +537,7 @@ class SortedSetsCommandsTest < RedisRubyTestCase
     count = redis.zunionstore("test:result", %w[test:zset1 test:zset2], aggregate: :min)
 
     assert_equal 1, count
-    assert_equal 3.0, redis.zscore("test:result", "one")
+    assert_in_delta(3.0, redis.zscore("test:result", "one"))
   ensure
     redis.del("test:zset1", "test:zset2", "test:result")
   end
@@ -617,7 +617,7 @@ class SortedSetsCommandsTest < RedisRubyTestCase
     # "two" appears in both sets, default aggregate is SUM: 2 + 3 = 5
     two_entry = result.find { |m, _s| m == "two" }
 
-    assert_equal 5.0, two_entry[1]
+    assert_in_delta(5.0, two_entry[1])
   ensure
     redis.del("test:zset1", "test:zset2")
   end
@@ -631,7 +631,7 @@ class SortedSetsCommandsTest < RedisRubyTestCase
     # one: (1*2) + (1*3) = 5
     one_entry = result.find { |m, _s| m == "one" }
 
-    assert_equal 5.0, one_entry[1]
+    assert_in_delta(5.0, one_entry[1])
   ensure
     redis.del("test:zset1", "test:zset2")
   end
@@ -644,7 +644,7 @@ class SortedSetsCommandsTest < RedisRubyTestCase
 
     one_entry = result.find { |m, _s| m == "one" }
 
-    assert_equal 3.0, one_entry[1]
+    assert_in_delta(3.0, one_entry[1])
   ensure
     redis.del("test:zset1", "test:zset2")
   end
@@ -657,7 +657,7 @@ class SortedSetsCommandsTest < RedisRubyTestCase
 
     one_entry = result.find { |m, _s| m == "one" }
 
-    assert_equal 5.0, one_entry[1]
+    assert_in_delta(5.0, one_entry[1])
   ensure
     redis.del("test:zset1", "test:zset2")
   end
@@ -688,7 +688,7 @@ class SortedSetsCommandsTest < RedisRubyTestCase
     # "two" has score 2 + 3 = 5, "one" has score 1 + 4 = 5
     two_entry = result.find { |m, _s| m == "two" }
 
-    assert_equal 5.0, two_entry[1]
+    assert_in_delta(5.0, two_entry[1])
   ensure
     redis.del("test:zset1", "test:zset2")
   end
@@ -701,7 +701,7 @@ class SortedSetsCommandsTest < RedisRubyTestCase
 
     one_entry = result.find { |m, _s| m == "one" }
 
-    assert_equal 5.0, one_entry[1]
+    assert_in_delta(5.0, one_entry[1])
   ensure
     redis.del("test:zset1", "test:zset2")
   end
@@ -741,7 +741,7 @@ class SortedSetsCommandsTest < RedisRubyTestCase
     assert_equal 2, result.length
     one_entry = result.find { |m, _s| m == "one" }
 
-    assert_equal 1.0, one_entry[1]
+    assert_in_delta(1.0, one_entry[1])
   ensure
     redis.del("test:zset1", "test:zset2")
   end
@@ -967,7 +967,7 @@ class SortedSetsCommandsTest < RedisRubyTestCase
   def test_zrange_byscore_rev
     redis.zadd("test:zset", 1, "one", 2, "two", 3, "three")
 
-    # Note: with REV, the order of min/max is reversed
+    # NOTE: with REV, the order of min/max is reversed
     result = redis.zrange("test:zset", "+inf", "-inf", byscore: true, rev: true)
 
     assert_equal %w[three two one], result
@@ -1008,7 +1008,7 @@ class SortedSetsCommandsTest < RedisRubyTestCase
   def test_zrange_bylex_rev
     redis.zadd("test:zset", 0, "a", 0, "b", 0, "c", 0, "d", 0, "e")
 
-    # Note: with REV, the order of min/max is reversed
+    # NOTE: with REV, the order of min/max is reversed
     result = redis.zrange("test:zset", "[d", "[b", bylex: true, rev: true)
 
     assert_equal %w[d c b], result

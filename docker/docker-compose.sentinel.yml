@@ -1,0 +1,96 @@
+# Redis Sentinel for testing
+# Usage: docker-compose -f docker/docker-compose.sentinel.yml up -d
+#
+# Sentinels will be available at localhost:26379,26380,26381
+# Master is at localhost:6379, Replica at localhost:6380
+# Set REDIS_SENTINEL_URL=localhost:26379,localhost:26380,localhost:26381
+
+services:
+  redis-master:
+    image: redis:7.0
+    container_name: redis-master
+    ports:
+      - "6379:6379"
+    command: redis-server --port 6379
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 5s
+      retries: 10
+    networks:
+      - redis-sentinel-net
+
+  redis-replica:
+    image: redis:7.0
+    container_name: redis-replica
+    ports:
+      - "6380:6380"
+    command: redis-server --port 6380 --replicaof redis-master 6379
+    depends_on:
+      redis-master:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "6380", "ping"]
+      interval: 2s
+      timeout: 5s
+      retries: 10
+    networks:
+      - redis-sentinel-net
+
+  sentinel-1:
+    image: bitnami/redis-sentinel:latest
+    container_name: sentinel-1
+    ports:
+      - "26379:26379"
+    environment:
+      - REDIS_MASTER_HOST=redis-master
+      - REDIS_MASTER_PORT_NUMBER=6379
+      - REDIS_MASTER_SET=mymaster
+      - REDIS_SENTINEL_QUORUM=2
+      - REDIS_SENTINEL_DOWN_AFTER_MILLISECONDS=5000
+      - REDIS_SENTINEL_FAILOVER_TIMEOUT=10000
+    depends_on:
+      redis-master:
+        condition: service_healthy
+    networks:
+      - redis-sentinel-net
+
+  sentinel-2:
+    image: bitnami/redis-sentinel:latest
+    container_name: sentinel-2
+    ports:
+      - "26380:26379"
+    environment:
+      - REDIS_MASTER_HOST=redis-master
+      - REDIS_MASTER_PORT_NUMBER=6379
+      - REDIS_MASTER_SET=mymaster
+      - REDIS_SENTINEL_QUORUM=2
+      - REDIS_SENTINEL_DOWN_AFTER_MILLISECONDS=5000
+      - REDIS_SENTINEL_FAILOVER_TIMEOUT=10000
+    depends_on:
+      redis-master:
+        condition: service_healthy
+    networks:
+      - redis-sentinel-net
+
+  sentinel-3:
+    image: bitnami/redis-sentinel:latest
+    container_name: sentinel-3
+    ports:
+      - "26381:26379"
+    environment:
+      - REDIS_MASTER_HOST=redis-master
+      - REDIS_MASTER_PORT_NUMBER=6379
+      - REDIS_MASTER_SET=mymaster
+      - REDIS_SENTINEL_QUORUM=2
+      - REDIS_SENTINEL_DOWN_AFTER_MILLISECONDS=5000
+      - REDIS_SENTINEL_FAILOVER_TIMEOUT=10000
+    depends_on:
+      redis-master:
+        condition: service_healthy
+    networks:
+      - redis-sentinel-net
+
+networks:
+  redis-sentinel-net:
+    driver: bridge

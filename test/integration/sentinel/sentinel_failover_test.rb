@@ -19,6 +19,7 @@ class SentinelFailoverIntegrationTest < SentinelTestCase
 
     # Initial operation
     sentinel_client.call("SET", key, "value1")
+
     assert_equal "value1", sentinel_client.call("GET", key)
 
     # Force disconnect
@@ -26,9 +27,14 @@ class SentinelFailoverIntegrationTest < SentinelTestCase
 
     # Operations should work after reconnect
     sentinel_client.call("SET", key, "value2")
+
     assert_equal "value2", sentinel_client.call("GET", key)
   ensure
-    sentinel_client.call("DEL", key) rescue nil
+    begin
+      sentinel_client.call("DEL", key)
+    rescue StandardError
+      nil
+    end
   end
 
   # Test: Multiple reconnections work
@@ -37,6 +43,7 @@ class SentinelFailoverIntegrationTest < SentinelTestCase
 
     5.times do |i|
       sentinel_client.call("SET", key, "value#{i}")
+
       assert_equal "value#{i}", sentinel_client.call("GET", key)
 
       # Force reconnect
@@ -45,15 +52,20 @@ class SentinelFailoverIntegrationTest < SentinelTestCase
 
     # Final verification
     sentinel_client.call("SET", key, "final")
+
     assert_equal "final", sentinel_client.call("GET", key)
   ensure
-    sentinel_client.call("DEL", key) rescue nil
+    begin
+      sentinel_client.call("DEL", key)
+    rescue StandardError
+      nil
+    end
   end
 
   # Test: Client is master role by default
   def test_default_master_role
-    assert sentinel_client.master?
-    refute sentinel_client.replica?
+    assert_predicate sentinel_client, :master?
+    refute_predicate sentinel_client, :replica?
   end
 
   # Test: Can verify connection state
@@ -63,15 +75,18 @@ class SentinelFailoverIntegrationTest < SentinelTestCase
       sentinels: sentinel_addresses,
       service_name: service_name
     )
-    refute new_client.connected?
+
+    refute_predicate new_client, :connected?
 
     # Connected after operation
     new_client.call("PING")
-    assert new_client.connected?
+
+    assert_predicate new_client, :connected?
 
     # Disconnected after close
     new_client.close
-    refute new_client.connected?
+
+    refute_predicate new_client, :connected?
   end
 
   # Test: Operations work after close and reopen
@@ -80,6 +95,7 @@ class SentinelFailoverIntegrationTest < SentinelTestCase
 
     # Initial operations
     sentinel_client.call("SET", key, "value1")
+
     assert_equal "value1", sentinel_client.call("GET", key)
 
     # Close and create new client
@@ -92,9 +108,14 @@ class SentinelFailoverIntegrationTest < SentinelTestCase
 
     # Operations with new client
     new_client.call("SET", key, "value2")
+
     assert_equal "value2", new_client.call("GET", key)
   ensure
-    new_client&.call("DEL", key) rescue nil
+    begin
+      new_client&.call("DEL", key)
+    rescue StandardError
+      nil
+    end
     new_client&.close
   end
 
@@ -108,7 +129,11 @@ class SentinelFailoverIntegrationTest < SentinelTestCase
 
     assert_equal "value99", sentinel_client.call("GET", key)
   ensure
-    sentinel_client.call("DEL", key) rescue nil
+    begin
+      sentinel_client.call("DEL", key)
+    rescue StandardError
+      nil
+    end
   end
 
   # Test: Data persists across reconnections
@@ -121,10 +146,15 @@ class SentinelFailoverIntegrationTest < SentinelTestCase
     # Force reconnect multiple times
     3.times do
       sentinel_client.reconnect
+
       assert_equal "persistent_value", sentinel_client.call("GET", key)
     end
   ensure
-    sentinel_client.call("DEL", key) rescue nil
+    begin
+      sentinel_client.call("DEL", key)
+    rescue StandardError
+      nil
+    end
   end
 
   # Test: Hash operations persist
@@ -138,7 +168,11 @@ class SentinelFailoverIntegrationTest < SentinelTestCase
     assert_equal "value1", sentinel_client.call("HGET", key, "field1")
     assert_equal "value2", sentinel_client.call("HGET", key, "field2")
   ensure
-    sentinel_client.call("DEL", key) rescue nil
+    begin
+      sentinel_client.call("DEL", key)
+    rescue StandardError
+      nil
+    end
   end
 
   # Test: List operations persist
@@ -149,9 +183,13 @@ class SentinelFailoverIntegrationTest < SentinelTestCase
 
     sentinel_client.reconnect
 
-    assert_equal ["a", "b", "c"], sentinel_client.call("LRANGE", key, 0, -1)
+    assert_equal %w[a b c], sentinel_client.call("LRANGE", key, 0, -1)
   ensure
-    sentinel_client.call("DEL", key) rescue nil
+    begin
+      sentinel_client.call("DEL", key)
+    rescue StandardError
+      nil
+    end
   end
 
   # Test: Counter increments persist
@@ -165,7 +203,11 @@ class SentinelFailoverIntegrationTest < SentinelTestCase
 
     assert_equal "10", sentinel_client.call("GET", key)
   ensure
-    sentinel_client.call("DEL", key) rescue nil
+    begin
+      sentinel_client.call("DEL", key)
+    rescue StandardError
+      nil
+    end
   end
 
   # Test: Client handles rapid reconnections
@@ -179,12 +221,16 @@ class SentinelFailoverIntegrationTest < SentinelTestCase
 
     assert_equal "value19", sentinel_client.call("GET", key)
   ensure
-    sentinel_client.call("DEL", key) rescue nil
+    begin
+      sentinel_client.call("DEL", key)
+    rescue StandardError
+      nil
+    end
   end
 
   # Test: Sentinel manager accessible
   def test_sentinel_manager_accessible
-    assert_not_nil sentinel_client.sentinel_manager
+    refute_nil sentinel_client.sentinel_manager
     assert_kind_of RedisRuby::SentinelManager, sentinel_client.sentinel_manager
   end
 
@@ -193,9 +239,10 @@ class SentinelFailoverIntegrationTest < SentinelTestCase
     sentinel_client.call("PING")
 
     address = sentinel_client.current_address
-    assert_not_nil address
-    assert_not_nil address[:host]
-    assert_not_nil address[:port]
+
+    refute_nil address
+    refute_nil address[:host]
+    refute_nil address[:port]
   end
 
   # Test: Service name accessible

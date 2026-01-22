@@ -6,17 +6,17 @@ class SentinelManagerTest < Minitest::Test
   def test_normalize_sentinels_with_hashes
     manager = RedisRuby::SentinelManager.new(
       sentinels: [
-        { host: "sentinel1", port: 26379 },
-        { host: "sentinel2", port: 26380 }
+        { host: "sentinel1", port: 26_379 },
+        { host: "sentinel2", port: 26_380 },
       ],
       service_name: "mymaster"
     )
 
     assert_equal 2, manager.sentinels.length
     assert_equal "sentinel1", manager.sentinels[0][:host]
-    assert_equal 26379, manager.sentinels[0][:port]
+    assert_equal 26_379, manager.sentinels[0][:port]
     assert_equal "sentinel2", manager.sentinels[1][:host]
-    assert_equal 26380, manager.sentinels[1][:port]
+    assert_equal 26_380, manager.sentinels[1][:port]
   end
 
   def test_normalize_sentinels_with_strings
@@ -27,7 +27,7 @@ class SentinelManagerTest < Minitest::Test
 
     assert_equal 2, manager.sentinels.length
     assert_equal "sentinel1", manager.sentinels[0][:host]
-    assert_equal 26379, manager.sentinels[0][:port]
+    assert_equal 26_379, manager.sentinels[0][:port]
   end
 
   def test_normalize_sentinels_with_default_port
@@ -36,17 +36,17 @@ class SentinelManagerTest < Minitest::Test
       service_name: "mymaster"
     )
 
-    assert_equal 26379, manager.sentinels[0][:port]
+    assert_equal 26_379, manager.sentinels[0][:port]
   end
 
   def test_normalize_sentinels_with_string_keys
     manager = RedisRuby::SentinelManager.new(
-      sentinels: [{ "host" => "sentinel1", "port" => 26379 }],
+      sentinels: [{ "host" => "sentinel1", "port" => 26_379 }],
       service_name: "mymaster"
     )
 
     assert_equal "sentinel1", manager.sentinels[0][:host]
-    assert_equal 26379, manager.sentinels[0][:port]
+    assert_equal 26_379, manager.sentinels[0][:port]
   end
 
   def test_invalid_sentinel_configuration
@@ -60,7 +60,7 @@ class SentinelManagerTest < Minitest::Test
 
   def test_service_name
     manager = RedisRuby::SentinelManager.new(
-      sentinels: [{ host: "sentinel1", port: 26379 }],
+      sentinels: [{ host: "sentinel1", port: 26_379 }],
       service_name: "mymaster"
     )
 
@@ -70,9 +70,9 @@ class SentinelManagerTest < Minitest::Test
   def test_rotate_sentinels
     manager = RedisRuby::SentinelManager.new(
       sentinels: [
-        { host: "sentinel1", port: 26379 },
-        { host: "sentinel2", port: 26380 },
-        { host: "sentinel3", port: 26381 }
+        { host: "sentinel1", port: 26_379 },
+        { host: "sentinel2", port: 26_380 },
+        { host: "sentinel3", port: 26_381 },
       ],
       service_name: "mymaster"
     )
@@ -85,7 +85,7 @@ class SentinelManagerTest < Minitest::Test
 
   def test_reset
     manager = RedisRuby::SentinelManager.new(
-      sentinels: [{ host: "sentinel1", port: 26379 }],
+      sentinels: [{ host: "sentinel1", port: 26_379 }],
       service_name: "mymaster"
     )
 
@@ -95,14 +95,14 @@ class SentinelManagerTest < Minitest::Test
 
   def test_check_master_state_valid
     manager = RedisRuby::SentinelManager.new(
-      sentinels: [{ host: "sentinel1", port: 26379 }],
+      sentinels: [{ host: "sentinel1", port: 26_379 }],
       service_name: "mymaster"
     )
 
     state = {
       "role-reported" => "master",
       "flags" => "master",
-      "num-other-sentinels" => "2"
+      "num-other-sentinels" => "2",
     }
 
     assert manager.send(:check_master_state, state)
@@ -110,14 +110,14 @@ class SentinelManagerTest < Minitest::Test
 
   def test_check_master_state_sdown
     manager = RedisRuby::SentinelManager.new(
-      sentinels: [{ host: "sentinel1", port: 26379 }],
+      sentinels: [{ host: "sentinel1", port: 26_379 }],
       service_name: "mymaster"
     )
 
     state = {
       "role-reported" => "master",
       "flags" => "master,s_down",
-      "num-other-sentinels" => "2"
+      "num-other-sentinels" => "2",
     }
 
     refute manager.send(:check_master_state, state)
@@ -125,14 +125,14 @@ class SentinelManagerTest < Minitest::Test
 
   def test_check_master_state_odown
     manager = RedisRuby::SentinelManager.new(
-      sentinels: [{ host: "sentinel1", port: 26379 }],
+      sentinels: [{ host: "sentinel1", port: 26_379 }],
       service_name: "mymaster"
     )
 
     state = {
       "role-reported" => "master",
       "flags" => "master,o_down",
-      "num-other-sentinels" => "2"
+      "num-other-sentinels" => "2",
     }
 
     refute manager.send(:check_master_state, state)
@@ -140,7 +140,7 @@ class SentinelManagerTest < Minitest::Test
 
   def test_check_master_state_not_enough_sentinels
     manager = RedisRuby::SentinelManager.new(
-      sentinels: [{ host: "sentinel1", port: 26379 }],
+      sentinels: [{ host: "sentinel1", port: 26_379 }],
       service_name: "mymaster",
       min_other_sentinels: 2
     )
@@ -148,7 +148,7 @@ class SentinelManagerTest < Minitest::Test
     state = {
       "role-reported" => "master",
       "flags" => "master",
-      "num-other-sentinels" => "1"
+      "num-other-sentinels" => "1",
     }
 
     refute manager.send(:check_master_state, state)
@@ -156,7 +156,7 @@ class SentinelManagerTest < Minitest::Test
 
   def test_parse_info_array
     manager = RedisRuby::SentinelManager.new(
-      sentinels: [{ host: "sentinel1", port: 26379 }],
+      sentinels: [{ host: "sentinel1", port: 26_379 }],
       service_name: "mymaster"
     )
 
@@ -170,23 +170,23 @@ class SentinelManagerTest < Minitest::Test
 
   def test_parse_info_array_empty
     manager = RedisRuby::SentinelManager.new(
-      sentinels: [{ host: "sentinel1", port: 26379 }],
+      sentinels: [{ host: "sentinel1", port: 26_379 }],
       service_name: "mymaster"
     )
 
-    assert_equal({}, manager.send(:parse_info_array, nil))
-    assert_equal({}, manager.send(:parse_info_array, "not an array"))
+    assert_empty(manager.send(:parse_info_array, nil))
+    assert_empty(manager.send(:parse_info_array, "not an array"))
   end
 
   def test_find_master_state
     manager = RedisRuby::SentinelManager.new(
-      sentinels: [{ host: "sentinel1", port: 26379 }],
+      sentinels: [{ host: "sentinel1", port: 26_379 }],
       service_name: "mymaster"
     )
 
     masters = [
       ["name", "other", "ip", "192.168.1.1", "port", "6379"],
-      ["name", "mymaster", "ip", "192.168.1.2", "port", "6380"]
+      ["name", "mymaster", "ip", "192.168.1.2", "port", "6380"],
     ]
 
     result = manager.send(:find_master_state, masters, "mymaster")
@@ -198,15 +198,16 @@ class SentinelManagerTest < Minitest::Test
 
   def test_find_master_state_not_found
     manager = RedisRuby::SentinelManager.new(
-      sentinels: [{ host: "sentinel1", port: 26379 }],
+      sentinels: [{ host: "sentinel1", port: 26_379 }],
       service_name: "mymaster"
     )
 
     masters = [
-      ["name", "other", "ip", "192.168.1.1", "port", "6379"]
+      ["name", "other", "ip", "192.168.1.1", "port", "6379"],
     ]
 
     result = manager.send(:find_master_state, masters, "mymaster")
+
     assert_nil result
   end
 end

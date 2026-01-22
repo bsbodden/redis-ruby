@@ -306,10 +306,12 @@ class KeysCommandsTest < RedisRubyTestCase
 
     # NX should succeed since no expiry
     future_time = Time.now.to_i + 100
+
     assert_equal 1, redis.expireat("test:key", future_time, nx: true)
 
     # NX should fail since expiry now exists
     new_future_time = Time.now.to_i + 200
+
     assert_equal 0, redis.expireat("test:key", new_future_time, nx: true)
   ensure
     redis.del("test:key")
@@ -380,6 +382,7 @@ class KeysCommandsTest < RedisRubyTestCase
 
     # NX should fail since expiry now exists
     new_future_time = (Time.now.to_f * 1000).to_i + 200_000
+
     assert_equal 0, redis.pexpireat("test:key", new_future_time, nx: true)
   ensure
     redis.del("test:key")

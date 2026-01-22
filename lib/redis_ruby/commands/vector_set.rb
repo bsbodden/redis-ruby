@@ -172,7 +172,7 @@ module RedisRuby
             "quantization" => result[0],
             "raw" => result[1],
             "l2" => result[2].to_f,
-            "range" => result.length > 3 ? result[3].to_f : nil
+            "range" => result.length > 3 ? result[3].to_f : nil,
           }.compact
         elsif result.is_a?(Array)
           result.map(&:to_f)
@@ -225,10 +225,10 @@ module RedisRuby
       # @return [Integer] 1 on success
       def vsetattr(key, element, attributes)
         attrs_json = if attributes.is_a?(Hash)
-          attributes.empty? ? "{}" : ::JSON.generate(attributes)
-        else
-          attributes
-        end
+                       attributes.empty? ? "{}" : ::JSON.generate(attributes)
+                     else
+                       attributes
+                     end
 
         call("VSETATTR", key, element, attrs_json)
       end
@@ -272,7 +272,7 @@ module RedisRuby
             parsed_attribs = parse_json_attrs(attribs)
             output[element] = {
               "score" => score.to_f,
-              "attributes" => parsed_attribs
+              "attributes" => parsed_attribs,
             }
           end
           output

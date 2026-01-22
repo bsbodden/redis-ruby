@@ -19,13 +19,18 @@ class ClusterRedirectIntegrationTest < ClusterTestCase
     key = "moved:test:key"
 
     result = cluster.call("SET", key, "value")
+
     assert_equal "OK", result
 
     # Even if we connected to the wrong node initially,
     # the client should have followed MOVED and succeeded
     assert_equal "value", cluster.call("GET", key)
   ensure
-    cluster.call("DEL", key) rescue nil
+    begin
+      cluster.call("DEL", key)
+    rescue StandardError
+      nil
+    end
   end
 
   # Test: Multiple operations after redirect work correctly
@@ -37,12 +42,18 @@ class ClusterRedirectIntegrationTest < ClusterTestCase
 
     # Subsequent operations should work without issues
     cluster.call("APPEND", key, "_appended")
+
     assert_equal "initial_appended", cluster.call("GET", key)
 
     cluster.call("SET", key, "updated")
+
     assert_equal "updated", cluster.call("GET", key)
   ensure
-    cluster.call("DEL", key) rescue nil
+    begin
+      cluster.call("DEL", key)
+    rescue StandardError
+      nil
+    end
   end
 
   # Test: Slot topology refresh after MOVED
@@ -51,7 +62,7 @@ class ClusterRedirectIntegrationTest < ClusterTestCase
 
     # Store initial slot mapping
     slot = cluster.key_slot(key)
-    initial_node = cluster.node_for_slot(slot)
+    cluster.node_for_slot(slot)
 
     # Perform operations
     cluster.call("SET", key, "value")
@@ -59,9 +70,14 @@ class ClusterRedirectIntegrationTest < ClusterTestCase
 
     # The slot should still be mapped (topology was refreshed if needed)
     current_node = cluster.node_for_slot(slot)
-    assert_not_nil current_node
+
+    refute_nil current_node
   ensure
-    cluster.call("DEL", key) rescue nil
+    begin
+      cluster.call("DEL", key)
+    rescue StandardError
+      nil
+    end
   end
 
   # Test: Cross-slot operations fail appropriately
@@ -88,14 +104,17 @@ class ClusterRedirectIntegrationTest < ClusterTestCase
     # MSET should work with hash-tagged keys
     args = keys.flat_map.with_index { |k, i| [k, "value#{i}"] }
     result = cluster.call("MSET", *args)
+
     assert_equal "OK", result
 
     # MGET should also work
     values = cluster.call("MGET", *keys)
-    assert_equal ["value0", "value1", "value2"], values
+
+    assert_equal %w[value0 value1 value2], values
 
     # DEL with multiple keys in same slot
     deleted = cluster.call("DEL", *keys)
+
     assert_equal 3, deleted
   end
 
@@ -107,14 +126,18 @@ class ClusterRedirectIntegrationTest < ClusterTestCase
     cluster.call("SET", keys[0], "0")
     cluster.call("SET", keys[1], "0")
 
-    # Note: Cluster MULTI is limited - this tests basic functionality
+    # NOTE: Cluster MULTI is limited - this tests basic functionality
     cluster.call("INCR", keys[0])
     cluster.call("INCR", keys[1])
 
     assert_equal "1", cluster.call("GET", keys[0])
     assert_equal "1", cluster.call("GET", keys[1])
   ensure
-    keys&.each { |k| cluster.call("DEL", k) rescue nil }
+    keys&.each do |k|
+      cluster.call("DEL", k)
+    rescue StandardError
+      nil
+    end
   end
 
   # Test: Read from replica after MOVED
@@ -128,7 +151,11 @@ class ClusterRedirectIntegrationTest < ClusterTestCase
       assert_equal "test_value", cluster.call("GET", key)
     end
   ensure
-    cluster.call("DEL", key) rescue nil
+    begin
+      cluster.call("DEL", key)
+    rescue StandardError
+      nil
+    end
   end
 
   # Test: Rapid operations don't cause redirect loops
@@ -146,7 +173,11 @@ class ClusterRedirectIntegrationTest < ClusterTestCase
       assert_equal "value#{i}", cluster.call("GET", "#{base_key}:#{i}")
     end
   ensure
-    count.times { |i| cluster.call("DEL", "#{base_key}:#{i}") rescue nil }
+    count.times do |i|
+      cluster.call("DEL", "#{base_key}:#{i}")
+    rescue StandardError
+      nil
+    end
   end
 
   # Test: Connection recovery after node issues
@@ -155,6 +186,7 @@ class ClusterRedirectIntegrationTest < ClusterTestCase
 
     # Normal operation
     cluster.call("SET", key, "value1")
+
     assert_equal "value1", cluster.call("GET", key)
 
     # Force refresh (simulates detecting stale topology)
@@ -162,9 +194,14 @@ class ClusterRedirectIntegrationTest < ClusterTestCase
 
     # Operations should still work
     cluster.call("SET", key, "value2")
+
     assert_equal "value2", cluster.call("GET", key)
   ensure
-    cluster.call("DEL", key) rescue nil
+    begin
+      cluster.call("DEL", key)
+    rescue StandardError
+      nil
+    end
   end
 
   # Test: Handles maximum redirections limit
@@ -182,21 +219,23 @@ class ClusterRedirectIntegrationTest < ClusterTestCase
       "slot:mid",      # Middle slot range
       "slot:high",     # High slot range
       "slot:random1",
-      "slot:random2"
+      "slot:random2",
     ]
 
-    slots = test_keys.map { |k| cluster.key_slot(k) }
+    test_keys.map { |k| cluster.key_slot(k) }
 
     # Set all keys
     test_keys.each_with_index do |key, i|
       cluster.call("SET", key, "value#{i}")
-    end
 
-    # Get all keys
-    test_keys.each_with_index do |key, i|
+      # Get all keys
       assert_equal "value#{i}", cluster.call("GET", key)
     end
   ensure
-    test_keys&.each { |k| cluster.call("DEL", k) rescue nil }
+    test_keys&.each do |k|
+      cluster.call("DEL", k)
+    rescue StandardError
+      nil
+    end
   end
 end

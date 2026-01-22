@@ -61,7 +61,7 @@ module RedisRuby
         @timeout = timeout
         @ssl_params = ssl_params
         @encoder = Protocol::RESP3Encoder.new
-        @pid = nil  # Track process ID for fork safety
+        @pid = nil # Track process ID for fork safety
         connect
       end
 
@@ -70,9 +70,9 @@ module RedisRuby
       # @param command [String] Command name
       # @param args [Array] Command arguments
       # @return [Object] Command result
-      def call(command, *args)
+      def call(command, *)
         ensure_connected
-        write_command(command, *args)
+        write_command(command, *)
         read_response
       end
 
@@ -108,7 +108,11 @@ module RedisRuby
       #
       # @return [void]
       def reconnect
-        close rescue nil
+        begin
+          close
+        rescue StandardError
+          nil
+        end
         connect
       end
 
@@ -134,13 +138,13 @@ module RedisRuby
 
         ssl_context = create_ssl_context
         @ssl_socket = OpenSSL::SSL::SSLSocket.new(@tcp_socket, ssl_context)
-        @ssl_socket.hostname = @host  # SNI support
+        @ssl_socket.hostname = @host # SNI support
         @ssl_socket.connect
         @ssl_socket.post_connection_check(@host) if verify_peer?
 
         @buffered_io = Protocol::BufferedIO.new(@ssl_socket, read_timeout: @timeout, write_timeout: @timeout)
         @decoder = Protocol::RESP3Decoder.new(@buffered_io)
-        @pid = Process.pid  # Track PID for fork safety
+        @pid = Process.pid # Track PID for fork safety
       end
 
       # Configure underlying TCP socket
@@ -185,8 +189,8 @@ module RedisRuby
       end
 
       # Write a single command to the socket
-      def write_command(command, *args)
-        encoded = @encoder.encode_command(command, *args)
+      def write_command(command, *)
+        encoded = @encoder.encode_command(command, *)
         @ssl_socket.write(encoded)
         @ssl_socket.flush
       end

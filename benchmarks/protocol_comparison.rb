@@ -31,15 +31,15 @@ puts
 # Test data - pre-encoded RESP3 responses
 ENCODED_SIMPLE = "+OK\r\n"
 ENCODED_BULK = "$11\r\nHello World\r\n"
-ENCODED_LARGE_BULK = "$2048\r\n#{"x" * 2048}\r\n"
+ENCODED_LARGE_BULK = "$2048\r\n#{"x" * 2048}\r\n".freeze
 ENCODED_INTEGER = ":12345\r\n"
 ENCODED_ARRAY_SMALL = "*3\r\n$3\r\nfoo\r\n$3\r\nbar\r\n$3\r\nbaz\r\n"
-ENCODED_ARRAY_100 = "*100\r\n" + (1..100).map { |i| "$#{("item#{i}").length}\r\nitem#{i}\r\n" }.join
+ENCODED_ARRAY_100 = "*100\r\n" + (1..100).map { |i| "$#{"item#{i}".length}\r\nitem#{i}\r\n" }.join
 
 # Command encoding test data
-SIMPLE_CMD = ["PING"]
-SET_CMD = ["SET", "key", "value"]
-LARGE_CMD = ["SET", "key", "x" * 2048]
+SIMPLE_CMD = ["PING"].freeze
+SET_CMD = %w[SET key value].freeze
+LARGE_CMD = ["SET", "key", "x" * 2048].freeze
 
 # redis-client encoder/decoder
 redis_client_encoder = ->(cmd) { RedisClient::RESP3.dump(cmd) }
@@ -79,7 +79,7 @@ class RedisClientTestIO
 
   def gets_integer
     int = 0
-    while true
+    loop do
       chr = @data.getbyte(@offset)
       break unless chr
 

@@ -245,7 +245,7 @@ module RedisRuby
 
       # Parse CLUSTER NODES response
       def parse_cluster_nodes(nodes_str)
-        nodes_str.split("\n").map do |line|
+        nodes_str.split("\n").filter_map do |line|
           parts = line.split
           next if parts.empty?
 
@@ -257,7 +257,7 @@ module RedisRuby
             ping_sent: parts[4].to_i,
             pong_recv: parts[5].to_i,
             config_epoch: parts[6].to_i,
-            link_state: parts[7]
+            link_state: parts[7],
           }
 
           # Parse slots (remaining parts)
@@ -266,14 +266,14 @@ module RedisRuby
             if slot_range.include?("-")
               start_slot, end_slot = slot_range.split("-").map(&:to_i)
               slots << (start_slot..end_slot)
-            elsif slot_range =~ /^\d+$/
+            elsif /^\d+$/.match?(slot_range)
               slots << slot_range.to_i
             end
           end
           node[:slots] = slots
 
           node
-        end.compact
+        end
       end
 
       # Parse CLUSTER SLOTS response
@@ -285,7 +285,7 @@ module RedisRuby
             start_slot: start_slot,
             end_slot: end_slot,
             master: parse_node_info(master),
-            replicas: replicas.map { |r| parse_node_info(r) }
+            replicas: replicas.map { |r| parse_node_info(r) },
           }
         end
       end
@@ -297,7 +297,7 @@ module RedisRuby
         {
           host: node_data[0],
           port: node_data[1],
-          id: node_data[2]
+          id: node_data[2],
         }
       end
     end

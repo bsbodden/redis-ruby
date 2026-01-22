@@ -335,7 +335,7 @@ class SetsCommandsTest < RedisRubyTestCase
 
     result = redis.smembers("test:set")
 
-    assert_equal [], result
+    assert_empty result
   end
 
   def test_scard_empty_set
@@ -375,7 +375,7 @@ class SetsCommandsTest < RedisRubyTestCase
 
     result = redis.sinter("test:set1", "test:set2")
 
-    assert_equal [], result
+    assert_empty result
   ensure
     redis.del("test:set1", "test:set2")
   end

@@ -14,7 +14,7 @@ class SSLConnectionTest < Minitest::Test
     # Test that defaults are defined
     assert_equal "localhost", RedisRuby::Connection::SSL::DEFAULT_HOST
     assert_equal 6379, RedisRuby::Connection::SSL::DEFAULT_PORT
-    assert_equal 5.0, RedisRuby::Connection::SSL::DEFAULT_TIMEOUT
+    assert_in_delta(5.0, RedisRuby::Connection::SSL::DEFAULT_TIMEOUT)
   end
 
   def test_ssl_has_required_methods

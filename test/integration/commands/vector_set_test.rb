@@ -20,7 +20,11 @@ class VectorSetCommandsTest < RedisRubyTestCase
   end
 
   def teardown
-    redis.del(@vset_key) rescue nil
+    begin
+      redis.del(@vset_key)
+    rescue StandardError
+      nil
+    end
     super
   end
 
@@ -40,10 +44,12 @@ class VectorSetCommandsTest < RedisRubyTestCase
   def test_vadd_with_values
     vector = [1.0, 2.0, 3.0]
     result = redis.vadd(@vset_key, vector, "elem1")
+
     assert_equal 1, result
 
     # Verify element was added
     card = redis.vcard(@vset_key)
+
     assert_equal 1, card
   end
 
@@ -52,9 +58,11 @@ class VectorSetCommandsTest < RedisRubyTestCase
     fp32_blob = to_fp32_blob(vector)
 
     result = redis.vadd(@vset_key, fp32_blob, "elem_fp32")
+
     assert_equal 1, result
 
     card = redis.vcard(@vset_key)
+
     assert_equal 1, card
   end
 
@@ -67,10 +75,12 @@ class VectorSetCommandsTest < RedisRubyTestCase
 
     # Update element (returns 0 for update)
     result = redis.vadd(@vset_key, vector2, "elem1")
+
     assert_equal 0, result
 
     # Still only 1 element
     card = redis.vcard(@vset_key)
+
     assert_equal 1, card
   end
 
@@ -82,14 +92,16 @@ class VectorSetCommandsTest < RedisRubyTestCase
 
     # Verify attributes
     retrieved_attrs = redis.vgetattr(@vset_key, "product1")
+
     assert_equal "electronics", retrieved_attrs["category"]
-    assert_equal 99.99, retrieved_attrs["price"]
+    assert_in_delta(99.99, retrieved_attrs["price"])
   end
 
   def test_vadd_with_quantization
     vector = [1.0, 2.0, 3.0, 4.0, 5.0]
 
     result = redis.vadd(@vset_key, vector, "quant_elem", quantization: "NOQUANT")
+
     assert_equal 1, result
   end
 
@@ -99,6 +111,7 @@ class VectorSetCommandsTest < RedisRubyTestCase
     redis.vadd(@vset_key, vector, "reduced", reduce_dim: 3)
 
     dim = redis.vdim(@vset_key)
+
     assert_equal 3, dim
   end
 
@@ -107,6 +120,7 @@ class VectorSetCommandsTest < RedisRubyTestCase
     redis.vadd(@vset_key, vector, "elem1")
 
     dim = redis.vdim(@vset_key)
+
     assert_equal 4, dim
   end
 
@@ -116,6 +130,7 @@ class VectorSetCommandsTest < RedisRubyTestCase
     redis.vadd(@vset_key, [5.0, 6.0], "c")
 
     card = redis.vcard(@vset_key)
+
     assert_equal 3, card
   end
 
@@ -125,6 +140,7 @@ class VectorSetCommandsTest < RedisRubyTestCase
     assert_equal 1, redis.vcard(@vset_key)
 
     result = redis.vrem(@vset_key, "to_remove")
+
     assert_equal 1, result
 
     assert_equal 0, redis.vcard(@vset_key)
@@ -134,6 +150,7 @@ class VectorSetCommandsTest < RedisRubyTestCase
     redis.vadd(@vset_key, [1.0, 2.0], "exists")
 
     result = redis.vrem(@vset_key, "does_not_exist")
+
     assert_equal 0, result
   end
 
@@ -152,6 +169,7 @@ class VectorSetCommandsTest < RedisRubyTestCase
     redis.vadd(@vset_key, [1.0, 2.0], "exists")
 
     emb = redis.vemb(@vset_key, "nonexistent")
+
     assert_nil emb
   end
 
@@ -235,16 +253,18 @@ class VectorSetCommandsTest < RedisRubyTestCase
 
     assert_kind_of Hash, info
     # Should contain size/dimension info
-    assert info.length > 0
+    assert_predicate info.length, :positive?
   end
 
   def test_vsetattr
     redis.vadd(@vset_key, [1.0, 2.0], "elem1")
 
     result = redis.vsetattr(@vset_key, "elem1", { color: "red", size: "large" })
+
     assert_equal 1, result
 
     attrs = redis.vgetattr(@vset_key, "elem1")
+
     assert_equal "red", attrs["color"]
     assert_equal "large", attrs["size"]
   end
@@ -256,6 +276,7 @@ class VectorSetCommandsTest < RedisRubyTestCase
     redis.vsetattr(@vset_key, "elem1", {})
 
     attrs = redis.vgetattr(@vset_key, "elem1")
+
     assert_nil attrs
   end
 
@@ -272,6 +293,7 @@ class VectorSetCommandsTest < RedisRubyTestCase
     redis.vadd(@vset_key, [1.0, 2.0], "no_attrs")
 
     attrs = redis.vgetattr(@vset_key, "no_attrs")
+
     assert_nil attrs
   end
 
@@ -282,10 +304,12 @@ class VectorSetCommandsTest < RedisRubyTestCase
 
     # Get single random member
     member = redis.vrandmember(@vset_key)
+
     assert_includes %w[a b c], member
 
     # Get multiple random members
     members = redis.vrandmember(@vset_key, 2)
+
     assert_equal 2, members.length
   end
 

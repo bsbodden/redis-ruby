@@ -32,18 +32,18 @@ puts
 SIMPLE_STRING = "OK"
 BULK_STRING = "Hello World"
 LARGE_BULK_STRING = "x" * 2048
-INTEGER_VALUE = 12345
-ARRAY_SMALL = %w[foo bar baz]
+INTEGER_VALUE = 12_345
+ARRAY_SMALL = %w[foo bar baz].freeze
 ARRAY_LARGE = (1..100).map { |i| "item#{i}" }
-NESTED_ARRAY = [["a", "b"], ["c", "d"], [1, 2, 3]]
+NESTED_ARRAY = [%w[a b], %w[c d], [1, 2, 3]].freeze
 
 # Pre-encode test responses (simulating what Redis sends back)
 ENCODED_SIMPLE = "+OK\r\n"
 ENCODED_BULK = "$11\r\nHello World\r\n"
-ENCODED_LARGE_BULK = "$2048\r\n#{"x" * 2048}\r\n"
+ENCODED_LARGE_BULK = "$2048\r\n#{"x" * 2048}\r\n".freeze
 ENCODED_INTEGER = ":12345\r\n"
 ENCODED_ARRAY_SMALL = "*3\r\n$3\r\nfoo\r\n$3\r\nbar\r\n$3\r\nbaz\r\n"
-ENCODED_ARRAY_100 = "*100\r\n" + (1..100).map { |i| "$#{("item#{i}").length}\r\nitem#{i}\r\n" }.join
+ENCODED_ARRAY_100 = "*100\r\n" + (1..100).map { |i| "$#{"item#{i}".length}\r\nitem#{i}\r\n" }.join
 
 # redis-ruby encoder/decoder
 encoder = RedisRuby::Protocol::RESP3Encoder.new
@@ -185,7 +185,7 @@ Benchmark.ips do |x|
   x.config(warmup: 2, time: 5)
   x.report("redis-ruby") do
     # Encode
-    encoded = encoder.encode_command("GET", "key")
+    encoder.encode_command("GET", "key")
     # Simulate response decode
     io = StringIO.new(ENCODED_BULK)
     decoder = RedisRuby::Protocol::RESP3Decoder.new(io)

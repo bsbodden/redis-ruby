@@ -20,6 +20,7 @@ class ClusterFailoverIntegrationTest < ClusterTestCase
 
     # Set a key
     cluster.call("SET", key, "value1")
+
     assert_equal "value1", cluster.call("GET", key)
 
     # Force topology refresh
@@ -27,9 +28,14 @@ class ClusterFailoverIntegrationTest < ClusterTestCase
 
     # Operations should still work
     cluster.call("SET", key, "value2")
+
     assert_equal "value2", cluster.call("GET", key)
   ensure
-    cluster.call("DEL", key) rescue nil
+    begin
+      cluster.call("DEL", key)
+    rescue StandardError
+      nil
+    end
   end
 
   # Test: Connection recovery on temporary failure
@@ -38,6 +44,7 @@ class ClusterFailoverIntegrationTest < ClusterTestCase
 
     # Perform initial operations
     cluster.call("SET", key, "initial")
+
     assert_equal "initial", cluster.call("GET", key)
 
     # Close connections (simulates temporary network issue)
@@ -48,14 +55,19 @@ class ClusterFailoverIntegrationTest < ClusterTestCase
 
     # Operations should work with new client
     cluster.call("SET", key, "recovered")
+
     assert_equal "recovered", cluster.call("GET", key)
   ensure
-    cluster.call("DEL", key) rescue nil
+    begin
+      cluster.call("DEL", key)
+    rescue StandardError
+      nil
+    end
   end
 
   # Test: Cluster health check
   def test_cluster_health_check
-    assert cluster.cluster_healthy?
+    assert_predicate cluster, :cluster_healthy?
   end
 
   # Test: Node count reflects cluster size
@@ -89,7 +101,11 @@ class ClusterFailoverIntegrationTest < ClusterTestCase
 
     assert_equal "newvalue9", cluster.call("GET", key)
   ensure
-    cluster.call("DEL", key) rescue nil
+    begin
+      cluster.call("DEL", key)
+    rescue StandardError
+      nil
+    end
   end
 
   # Test: Multiple reconnections maintain consistency
@@ -98,6 +114,7 @@ class ClusterFailoverIntegrationTest < ClusterTestCase
 
     3.times do |i|
       cluster.call("SET", key, "iteration#{i}")
+
       assert_equal "iteration#{i}", cluster.call("GET", key)
 
       # Force refresh
@@ -106,7 +123,11 @@ class ClusterFailoverIntegrationTest < ClusterTestCase
 
     assert_equal "iteration2", cluster.call("GET", key)
   ensure
-    cluster.call("DEL", key) rescue nil
+    begin
+      cluster.call("DEL", key)
+    rescue StandardError
+      nil
+    end
   end
 
   # Test: Cluster INFO shows correct state
@@ -144,7 +165,11 @@ class ClusterFailoverIntegrationTest < ClusterTestCase
       assert_equal "value#{i}", cluster.call("GET", "#{prefix}:#{i}")
     end
   ensure
-    key_count.times { |i| cluster.call("DEL", "#{prefix}:#{i}") rescue nil }
+    key_count.times do |i|
+      cluster.call("DEL", "#{prefix}:#{i}")
+    rescue StandardError
+      nil
+    end
   end
 
   # Test: Hash-tagged operations survive refresh
@@ -166,9 +191,14 @@ class ClusterFailoverIntegrationTest < ClusterTestCase
 
     # Multi-key operation should still work
     values = cluster.call("MGET", *keys)
+
     assert_equal 5, values.size
   ensure
-    keys&.each { |k| cluster.call("DEL", k) rescue nil }
+    keys&.each do |k|
+      cluster.call("DEL", k)
+    rescue StandardError
+      nil
+    end
   end
 
   # Test: Long-running session maintains consistency
@@ -185,7 +215,11 @@ class ClusterFailoverIntegrationTest < ClusterTestCase
 
     assert_equal "iter99", cluster.call("GET", key)
   ensure
-    cluster.call("DEL", key) rescue nil
+    begin
+      cluster.call("DEL", key)
+    rescue StandardError
+      nil
+    end
   end
 
   # Test: Concurrent operations from same client
@@ -204,12 +238,21 @@ class ClusterFailoverIntegrationTest < ClusterTestCase
     # Verify counters
     50.times do |i|
       count = cluster.call("GET", "#{prefix}:#{i}:counter")
+
       assert_equal "1", count
     end
   ensure
     50.times do |i|
-      cluster.call("DEL", "#{prefix}:#{i}") rescue nil
-      cluster.call("DEL", "#{prefix}:#{i}:counter") rescue nil
+      begin
+        cluster.call("DEL", "#{prefix}:#{i}")
+      rescue StandardError
+        nil
+      end
+      begin
+        cluster.call("DEL", "#{prefix}:#{i}:counter")
+      rescue StandardError
+        nil
+      end
     end
   end
 end

@@ -32,7 +32,7 @@ module TestContainerSupport
       @redis_container.with_exposed_port(6379)
 
       # Connect to devcontainer network for connectivity within the devcontainer
-      devcontainer_network = ENV["COMPOSE_PROJECT_NAME"]
+      devcontainer_network = ENV.fetch("COMPOSE_PROJECT_NAME", nil)
       if devcontainer_network
         network_name = "#{devcontainer_network}_redis-rb-dev"
         begin

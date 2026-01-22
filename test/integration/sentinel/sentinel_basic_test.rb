@@ -21,9 +21,10 @@ class SentinelBasicIntegrationTest < SentinelTestCase
 
     # After connecting, current_address should be set
     master = sentinel_client.current_address
-    assert_not_nil master
-    assert_not_nil master[:host]
-    assert_not_nil master[:port]
+
+    refute_nil master
+    refute_nil master[:host]
+    refute_nil master[:port]
     assert_kind_of Integer, master[:port]
   end
 
@@ -32,34 +33,43 @@ class SentinelBasicIntegrationTest < SentinelTestCase
     key = "sentinel:basic:key"
 
     result = sentinel_client.call("SET", key, "hello")
+
     assert_equal "OK", result
 
     result = sentinel_client.call("GET", key)
+
     assert_equal "hello", result
   ensure
-    sentinel_client.call("DEL", key) rescue nil
+    begin
+      sentinel_client.call("DEL", key)
+    rescue StandardError
+      nil
+    end
   end
 
   # Test: Multiple operations via Sentinel
   def test_multiple_operations
-    keys = 10.times.map { |i| "sentinel:multi:#{i}" }
+    keys = Array.new(10) { |i| "sentinel:multi:#{i}" }
 
     # Set all keys
     keys.each_with_index do |key, i|
       sentinel_client.call("SET", key, "value#{i}")
-    end
 
-    # Get all keys
-    keys.each_with_index do |key, i|
+      # Get all keys
       assert_equal "value#{i}", sentinel_client.call("GET", key)
     end
   ensure
-    keys&.each { |k| sentinel_client.call("DEL", k) rescue nil }
+    keys&.each do |k|
+      sentinel_client.call("DEL", k)
+    rescue StandardError
+      nil
+    end
   end
 
   # Test: PING works via Sentinel
   def test_ping
     result = sentinel_client.call("PING")
+
     assert_equal "PONG", result
   end
 
@@ -68,10 +78,15 @@ class SentinelBasicIntegrationTest < SentinelTestCase
     key = "sentinel:hash"
 
     sentinel_client.call("HSET", key, "field1", "value1", "field2", "value2")
+
     assert_equal "value1", sentinel_client.call("HGET", key, "field1")
     assert_equal "value2", sentinel_client.call("HGET", key, "field2")
   ensure
-    sentinel_client.call("DEL", key) rescue nil
+    begin
+      sentinel_client.call("DEL", key)
+    rescue StandardError
+      nil
+    end
   end
 
   # Test: List operations via Sentinel
@@ -79,10 +94,15 @@ class SentinelBasicIntegrationTest < SentinelTestCase
     key = "sentinel:list"
 
     sentinel_client.call("RPUSH", key, "a", "b", "c")
+
     assert_equal 3, sentinel_client.call("LLEN", key)
-    assert_equal ["a", "b", "c"], sentinel_client.call("LRANGE", key, 0, -1)
+    assert_equal %w[a b c], sentinel_client.call("LRANGE", key, 0, -1)
   ensure
-    sentinel_client.call("DEL", key) rescue nil
+    begin
+      sentinel_client.call("DEL", key)
+    rescue StandardError
+      nil
+    end
   end
 
   # Test: Set operations via Sentinel
@@ -90,9 +110,14 @@ class SentinelBasicIntegrationTest < SentinelTestCase
     key = "sentinel:set"
 
     sentinel_client.call("SADD", key, "a", "b", "c")
+
     assert_equal 3, sentinel_client.call("SCARD", key)
   ensure
-    sentinel_client.call("DEL", key) rescue nil
+    begin
+      sentinel_client.call("DEL", key)
+    rescue StandardError
+      nil
+    end
   end
 
   # Test: INCR/DECR via Sentinel
@@ -100,11 +125,16 @@ class SentinelBasicIntegrationTest < SentinelTestCase
     key = "sentinel:counter"
 
     sentinel_client.call("SET", key, "10")
+
     assert_equal 11, sentinel_client.call("INCR", key)
     assert_equal 12, sentinel_client.call("INCR", key)
     assert_equal 11, sentinel_client.call("DECR", key)
   ensure
-    sentinel_client.call("DEL", key) rescue nil
+    begin
+      sentinel_client.call("DEL", key)
+    rescue StandardError
+      nil
+    end
   end
 
   # Test: TTL operations via Sentinel
@@ -115,10 +145,15 @@ class SentinelBasicIntegrationTest < SentinelTestCase
     sentinel_client.call("EXPIRE", key, 100)
 
     ttl = sentinel_client.call("TTL", key)
+
     assert_operator ttl, :>, 0
     assert_operator ttl, :<=, 100
   ensure
-    sentinel_client.call("DEL", key) rescue nil
+    begin
+      sentinel_client.call("DEL", key)
+    rescue StandardError
+      nil
+    end
   end
 
   # Test: EXISTS operation via Sentinel
@@ -128,9 +163,14 @@ class SentinelBasicIntegrationTest < SentinelTestCase
     assert_equal 0, sentinel_client.call("EXISTS", key)
 
     sentinel_client.call("SET", key, "value")
+
     assert_equal 1, sentinel_client.call("EXISTS", key)
   ensure
-    sentinel_client.call("DEL", key) rescue nil
+    begin
+      sentinel_client.call("DEL", key)
+    rescue StandardError
+      nil
+    end
   end
 
   # Test: DEL operation via Sentinel
@@ -138,9 +178,11 @@ class SentinelBasicIntegrationTest < SentinelTestCase
     key = "sentinel:delete"
 
     sentinel_client.call("SET", key, "value")
+
     assert_equal "value", sentinel_client.call("GET", key)
 
     result = sentinel_client.call("DEL", key)
+
     assert_equal 1, result
 
     assert_nil sentinel_client.call("GET", key)
@@ -153,9 +195,14 @@ class SentinelBasicIntegrationTest < SentinelTestCase
 
     sentinel_client.call("SET", key, large_value)
     result = sentinel_client.call("GET", key)
+
     assert_equal large_value, result
   ensure
-    sentinel_client.call("DEL", key) rescue nil
+    begin
+      sentinel_client.call("DEL", key)
+    rescue StandardError
+      nil
+    end
   end
 
   # Test: Binary data via Sentinel
@@ -165,9 +212,14 @@ class SentinelBasicIntegrationTest < SentinelTestCase
 
     sentinel_client.call("SET", key, binary_value)
     result = sentinel_client.call("GET", key)
+
     assert_equal binary_value, result.b
   ensure
-    sentinel_client.call("DEL", key) rescue nil
+    begin
+      sentinel_client.call("DEL", key)
+    rescue StandardError
+      nil
+    end
   end
 
   # Test: Connection maintains after multiple operations
@@ -176,9 +228,14 @@ class SentinelBasicIntegrationTest < SentinelTestCase
 
     100.times do |i|
       sentinel_client.call("SET", key, "value#{i}")
+
       assert_equal "value#{i}", sentinel_client.call("GET", key)
     end
   ensure
-    sentinel_client.call("DEL", key) rescue nil
+    begin
+      sentinel_client.call("DEL", key)
+    rescue StandardError
+      nil
+    end
   end
 end

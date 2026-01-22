@@ -209,7 +209,7 @@ class HashesCommandsTest < RedisRubyTestCase
 
   def test_hscan_returns_field_value_pairs
     redis.hset("test:hash", "f1", "v1", "f2", "v2")
-    cursor, fields = redis.hscan("test:hash", 0)
+    _, fields = redis.hscan("test:hash", 0)
 
     # HSCAN returns field-value pairs flattened
     assert_kind_of Array, fields
@@ -223,19 +223,19 @@ class HashesCommandsTest < RedisRubyTestCase
 
     result = redis.hgetall("test:hash")
 
-    assert_equal({}, result)
+    assert_empty(result)
   end
 
   def test_hkeys_empty_hash
     redis.del("test:hash")
 
-    assert_equal [], redis.hkeys("test:hash")
+    assert_empty redis.hkeys("test:hash")
   end
 
   def test_hvals_empty_hash
     redis.del("test:hash")
 
-    assert_equal [], redis.hvals("test:hash")
+    assert_empty redis.hvals("test:hash")
   end
 
   def test_hlen_empty_hash
@@ -495,7 +495,7 @@ class HashesCommandsTest < RedisRubyTestCase
 
     assert_kind_of Array, result
     assert_equal 1, result.length
-    assert result[0] > 0 && result[0] <= 100
+    assert result[0].positive? && result[0] <= 100
   rescue RedisRuby::CommandError => e
     skip "HTTL not supported (requires Redis 7.4+)" if e.message.include?("unknown command")
     raise
@@ -539,7 +539,7 @@ class HashesCommandsTest < RedisRubyTestCase
 
     assert_kind_of Array, result
     assert_equal 1, result.length
-    assert result[0] > 0 && result[0] <= 100_000
+    assert result[0].positive? && result[0] <= 100_000
   rescue RedisRuby::CommandError => e
     skip "HPTTL not supported (requires Redis 7.4+)" if e.message.include?("unknown command")
     raise
@@ -593,6 +593,7 @@ class HashesCommandsTest < RedisRubyTestCase
 
     # Verify TTL is now -1 (no expiry)
     ttl_result = redis.httl("test:hash", "field1")
+
     assert_equal [-1], ttl_result
   rescue RedisRuby::CommandError => e
     skip "HPERSIST not supported (requires Redis 7.4+)" if e.message.include?("unknown command")
