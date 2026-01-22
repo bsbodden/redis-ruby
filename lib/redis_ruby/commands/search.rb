@@ -49,8 +49,8 @@ module RedisRuby
       #     "SCHEMA",
       #       "$.name", "AS", "name", "TEXT",
       #       "$.age", "AS", "age", "NUMERIC")
-      def ft_create(index_name, *args)
-        call("FT.CREATE", index_name, *args)
+      def ft_create(index_name, *)
+        call("FT.CREATE", index_name, *)
       end
 
       # Search the index
@@ -91,104 +91,14 @@ module RedisRuby
       def ft_search(index_name, query, **options)
         args = [index_name, query]
 
-        args << "NOCONTENT" if options[:nocontent]
-        args << "VERBATIM" if options[:verbatim]
-        args << "NOSTOPWORDS" if options[:nostopwords]
-        args << "WITHSCORES" if options[:withscores]
-        args << "WITHPAYLOADS" if options[:withpayloads]
-        args.push("WITHSORTKEYS") if options[:withsortkeys]
-
-        args.push("SCORER", options[:scorer]) if options[:scorer]
-        args << "EXPLAINSCORE" if options[:explainscore]
-
-        args.push("LANGUAGE", options[:language]) if options[:language]
-
-        args.push("SLOP", options[:slop]) if options[:slop]
-        args << "INORDER" if options[:inorder]
-
-        # Numeric filter
-        if options[:filter]
-          options[:filter].each do |field, (min, max)|
-            args.push("FILTER", field.to_s, min, max)
-          end
-        end
-
-        # Geo filter
-        if options[:geofilter]
-          options[:geofilter].each do |field, (lon, lat, radius, unit)|
-            args.push("GEOFILTER", field.to_s, lon, lat, radius, unit || "km")
-          end
-        end
-
-        # Limit to specific keys
-        if options[:inkeys]
-          args.push("INKEYS", options[:inkeys].size, *options[:inkeys])
-        end
-
-        # Limit to specific fields
-        if options[:infields]
-          args.push("INFIELDS", options[:infields].size, *options[:infields])
-        end
-
-        # Return specific fields
-        if options[:return]
-          fields = Array(options[:return])
-          args.push("RETURN", fields.size, *fields)
-        end
-
-        # Summarize
-        if options[:summarize]
-          args << "SUMMARIZE"
-          if options[:summarize].is_a?(Hash)
-            if options[:summarize][:fields]
-              fields = Array(options[:summarize][:fields])
-              args.push("FIELDS", fields.size, *fields)
-            end
-            args.push("FRAGS", options[:summarize][:frags]) if options[:summarize][:frags]
-            args.push("LEN", options[:summarize][:len]) if options[:summarize][:len]
-            args.push("SEPARATOR", options[:summarize][:separator]) if options[:summarize][:separator]
-          end
-        end
-
-        # Highlight
-        if options[:highlight]
-          args << "HIGHLIGHT"
-          if options[:highlight].is_a?(Hash)
-            if options[:highlight][:fields]
-              fields = Array(options[:highlight][:fields])
-              args.push("FIELDS", fields.size, *fields)
-            end
-            if options[:highlight][:tags]
-              args.push("TAGS", options[:highlight][:tags][0], options[:highlight][:tags][1])
-            end
-          end
-        end
-
-        # Sort by field
-        if options[:sortby]
-          args.push("SORTBY", options[:sortby])
-          args << (options[:sortasc] == false ? "DESC" : "ASC")
-        end
-
-        # Pagination
-        if options[:limit]
-          offset, count = options[:limit]
-          args.push("LIMIT", offset, count)
-        end
-
-        # Parameters
-        if options[:params]
-          args.push("PARAMS", options[:params].size * 2)
-          options[:params].each do |k, v|
-            args.push(k.to_s, v.to_s)
-          end
-        end
-
-        # Dialect
-        args.push("DIALECT", options[:dialect]) if options[:dialect]
-
-        # Timeout
-        args.push("TIMEOUT", options[:timeout]) if options[:timeout]
+        build_search_flags(args, options)
+        build_search_scorer_and_language(args, options)
+        build_search_filters(args, options)
+        build_search_field_limits(args, options)
+        build_search_summarize(args, options)
+        build_search_highlight(args, options)
+        build_search_sort_and_pagination(args, options)
+        build_search_params(args, options)
 
         call("FT.SEARCH", *args)
       end
@@ -209,8 +119,8 @@ module RedisRuby
       #   redis.ft_aggregate("idx", "*",
       #     "WITHCURSOR", "COUNT", 100,
       #     "GROUPBY", 1, "@category")
-      def ft_aggregate(index_name, query, *args)
-        call("FT.AGGREGATE", index_name, query, *args)
+      def ft_aggregate(index_name, query, *)
+        call("FT.AGGREGATE", index_name, query, *)
       end
 
       # Read next batch of cursor results
@@ -254,11 +164,11 @@ module RedisRuby
       # Drop an index
       #
       # @param index_name [String] Index name
-      # @param dd [Boolean] Delete indexed documents (default: false)
+      # @param delete_docs [Boolean] Delete indexed documents (default: false)
       # @return [String] "OK"
-      def ft_dropindex(index_name, dd: false)
+      def ft_dropindex(index_name, delete_docs: false)
         args = [index_name]
-        args << "DD" if dd
+        args << "DD" if delete_docs
         call("FT.DROPINDEX", *args)
       end
 
@@ -270,8 +180,8 @@ module RedisRuby
       #
       # @example Add a new field
       #   redis.ft_alter("idx", "SCHEMA", "ADD", "new_field", "TEXT")
-      def ft_alter(index_name, *args)
-        call("FT.ALTER", index_name, *args)
+      def ft_alter(index_name, *)
+        call("FT.ALTER", index_name, *)
       end
 
       # Add an alias to an index
@@ -332,10 +242,10 @@ module RedisRuby
       # @param query [String] Query to profile
       # @param args [Array] Additional query arguments
       # @return [Array] Profile results
-      def ft_profile(index_name, type, query, *args, limited: false)
+      def ft_profile(index_name, type, query, *, limited: false)
         cmd = [index_name, type.to_s.upcase]
         cmd << "LIMITED" if limited
-        cmd.push("QUERY", query, *args)
+        cmd.push("QUERY", query, *)
         call("FT.PROFILE", *cmd)
       end
 
@@ -481,6 +391,122 @@ module RedisRuby
       # @return [String] "OK"
       def ft_config_set(option, value)
         call("FT.CONFIG", "SET", option, value)
+      end
+
+      private
+
+      # Build boolean flag arguments for FT.SEARCH
+      def build_search_flags(args, options)
+        build_search_content_flags(args, options)
+        build_search_with_flags(args, options)
+      end
+
+      # Build content/behavior flags
+      def build_search_content_flags(args, options)
+        args << "NOCONTENT" if options[:nocontent]
+        args << "VERBATIM" if options[:verbatim]
+        args << "NOSTOPWORDS" if options[:nostopwords]
+        args << "INORDER" if options[:inorder]
+      end
+
+      # Build "with" modifier flags
+      def build_search_with_flags(args, options)
+        args << "WITHSCORES" if options[:withscores]
+        args << "WITHPAYLOADS" if options[:withpayloads]
+        args << "WITHSORTKEYS" if options[:withsortkeys]
+        args << "EXPLAINSCORE" if options[:explainscore]
+      end
+
+      # Build scorer, language, and slop arguments
+      def build_search_scorer_and_language(args, options)
+        args.push("SCORER", options[:scorer]) if options[:scorer]
+        args.push("LANGUAGE", options[:language]) if options[:language]
+        args.push("SLOP", options[:slop]) if options[:slop]
+      end
+
+      # Build numeric and geo filter arguments
+      def build_search_filters(args, options)
+        options[:filter]&.each do |field, (min, max)|
+          args.push("FILTER", field.to_s, min, max)
+        end
+
+        return unless options[:geofilter]
+
+        options[:geofilter].each do |field, (lon, lat, radius, unit)|
+          args.push("GEOFILTER", field.to_s, lon, lat, radius, unit || "km")
+        end
+      end
+
+      # Build field limiting arguments (inkeys, infields, return)
+      def build_search_field_limits(args, options)
+        args.push("INKEYS", options[:inkeys].size, *options[:inkeys]) if options[:inkeys]
+
+        args.push("INFIELDS", options[:infields].size, *options[:infields]) if options[:infields]
+
+        return unless options[:return]
+
+        fields = Array(options[:return])
+        args.push("RETURN", fields.size, *fields)
+      end
+
+      # Build summarize arguments
+      def build_search_summarize(args, options)
+        return unless options[:summarize]
+
+        args << "SUMMARIZE"
+        return unless options[:summarize].is_a?(Hash)
+
+        summarize = options[:summarize]
+        if summarize[:fields]
+          fields = Array(summarize[:fields])
+          args.push("FIELDS", fields.size, *fields)
+        end
+        args.push("FRAGS", summarize[:frags]) if summarize[:frags]
+        args.push("LEN", summarize[:len]) if summarize[:len]
+        args.push("SEPARATOR", summarize[:separator]) if summarize[:separator]
+      end
+
+      # Build highlight arguments
+      def build_search_highlight(args, options)
+        return unless options[:highlight]
+
+        args << "HIGHLIGHT"
+        return unless options[:highlight].is_a?(Hash)
+
+        highlight = options[:highlight]
+        if highlight[:fields]
+          fields = Array(highlight[:fields])
+          args.push("FIELDS", fields.size, *fields)
+        end
+        return unless highlight[:tags]
+
+        args.push("TAGS", highlight[:tags][0], highlight[:tags][1])
+      end
+
+      # Build sort and pagination arguments
+      def build_search_sort_and_pagination(args, options)
+        if options[:sortby]
+          args.push("SORTBY", options[:sortby])
+          args << (options[:sortasc] == false ? "DESC" : "ASC")
+        end
+
+        return unless options[:limit]
+
+        offset, count = options[:limit]
+        args.push("LIMIT", offset, count)
+      end
+
+      # Build params, dialect, and timeout arguments
+      def build_search_params(args, options)
+        if options[:params]
+          args.push("PARAMS", options[:params].size * 2)
+          options[:params].each do |k, v|
+            args.push(k.to_s, v.to_s)
+          end
+        end
+
+        args.push("DIALECT", options[:dialect]) if options[:dialect]
+        args.push("TIMEOUT", options[:timeout]) if options[:timeout]
       end
     end
   end

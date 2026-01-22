@@ -113,18 +113,10 @@ module RedisRuby
         args.push("ENCODING", encoding) if encoding
         args.push("CHUNK_SIZE", chunk_size) if chunk_size
         args.push("ON_DUPLICATE", on_duplicate) if on_duplicate
-
-        if ignore_max_time_diff || ignore_max_val_diff
-          args << "IGNORE"
-          args << ignore_max_time_diff if ignore_max_time_diff
-          args << ignore_max_val_diff if ignore_max_val_diff
-        end
-
-        if labels
-          args << "LABELS"
-          labels.each { |k, v| args.push(k.to_s, v.to_s) }
-        end
-
+        build_ts_ignore_and_labels(args,
+                                   ignore_max_time_diff: ignore_max_time_diff,
+                                   ignore_max_val_diff: ignore_max_val_diff,
+                                   labels: labels)
         call("TS.ADD", *args)
       end
 
@@ -154,22 +146,12 @@ module RedisRuby
       # @return [Integer] Timestamp of sample
       def ts_incrby(key, value, timestamp: nil, retention: nil, labels: nil,
                     chunk_size: nil, ignore_max_time_diff: nil, ignore_max_val_diff: nil)
-        args = [key, value]
-        args.push("TIMESTAMP", timestamp) if timestamp
-        args.push("RETENTION", retention) if retention
-        args.push("CHUNK_SIZE", chunk_size) if chunk_size
-
-        if ignore_max_time_diff || ignore_max_val_diff
-          args << "IGNORE"
-          args << ignore_max_time_diff if ignore_max_time_diff
-          args << ignore_max_val_diff if ignore_max_val_diff
-        end
-
-        if labels
-          args << "LABELS"
-          labels.each { |k, v| args.push(k.to_s, v.to_s) }
-        end
-
+        args = build_ts_incrby_decrby_args(key, value,
+                                           timestamp: timestamp, retention: retention,
+                                           chunk_size: chunk_size,
+                                           ignore_max_time_diff: ignore_max_time_diff,
+                                           ignore_max_val_diff: ignore_max_val_diff,
+                                           labels: labels)
         call("TS.INCRBY", *args)
       end
 
@@ -183,22 +165,12 @@ module RedisRuby
       # @return [Integer] Timestamp of sample
       def ts_decrby(key, value, timestamp: nil, retention: nil, labels: nil,
                     chunk_size: nil, ignore_max_time_diff: nil, ignore_max_val_diff: nil)
-        args = [key, value]
-        args.push("TIMESTAMP", timestamp) if timestamp
-        args.push("RETENTION", retention) if retention
-        args.push("CHUNK_SIZE", chunk_size) if chunk_size
-
-        if ignore_max_time_diff || ignore_max_val_diff
-          args << "IGNORE"
-          args << ignore_max_time_diff if ignore_max_time_diff
-          args << ignore_max_val_diff if ignore_max_val_diff
-        end
-
-        if labels
-          args << "LABELS"
-          labels.each { |k, v| args.push(k.to_s, v.to_s) }
-        end
-
+        args = build_ts_incrby_decrby_args(key, value,
+                                           timestamp: timestamp, retention: retention,
+                                           chunk_size: chunk_size,
+                                           ignore_max_time_diff: ignore_max_time_diff,
+                                           ignore_max_val_diff: ignore_max_val_diff,
+                                           labels: labels)
         call("TS.DECRBY", *args)
       end
 
@@ -440,6 +412,36 @@ module RedisRuby
         args.push("GROUPBY", groupby, "REDUCE", reduce) if groupby
 
         args
+      end
+
+      # Build arguments for TS.INCRBY/TS.DECRBY commands
+      # @private
+      def build_ts_incrby_decrby_args(key, value, timestamp:, retention:, chunk_size:,
+                                      ignore_max_time_diff:, ignore_max_val_diff:, labels:)
+        args = [key, value]
+        args.push("TIMESTAMP", timestamp) if timestamp
+        args.push("RETENTION", retention) if retention
+        args.push("CHUNK_SIZE", chunk_size) if chunk_size
+        build_ts_ignore_and_labels(args,
+                                   ignore_max_time_diff: ignore_max_time_diff,
+                                   ignore_max_val_diff: ignore_max_val_diff,
+                                   labels: labels)
+        args
+      end
+
+      # Build IGNORE and LABELS arguments common to multiple TS commands
+      # @private
+      def build_ts_ignore_and_labels(args, ignore_max_time_diff:, ignore_max_val_diff:, labels:)
+        if ignore_max_time_diff || ignore_max_val_diff
+          args << "IGNORE"
+          args << ignore_max_time_diff if ignore_max_time_diff
+          args << ignore_max_val_diff if ignore_max_val_diff
+        end
+
+        return unless labels
+
+        args << "LABELS"
+        labels.each { |k, v| args.push(k.to_s, v.to_s) }
       end
     end
   end

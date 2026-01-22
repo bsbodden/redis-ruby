@@ -7,10 +7,15 @@
 
 | Metric | Before | After | Improvement |
 |--------|--------|-------|-------------|
-| Flog Total | 3952.3 | 3851.3 | -2.6% |
-| Flog Average | 5.6 | 5.5 | -1.8% |
-| Flay Duplication | 6994 | 3358 | **-52%** |
+| Flog Total | 3952.3 | 3803.9 | **-3.8%** |
+| Flog Average | 5.6 | 5.3 | **-5.4%** |
+| Flay Duplication | 6994 | 3558 | **-49%** |
 | Performance Issues | 6 | 1 | **-83%** |
+
+### Completed Refactoring (Session 3)
+
+1. **Refactored `ft_search` method (170.6 → <30)** - Split into 8 focused helper methods
+2. **Extracted `ts_incrby`/`ts_decrby` helpers** - Created `build_ts_incrby_decrby_args` and `build_ts_ignore_and_labels`
 
 ### Completed Refactoring (Session 2)
 
@@ -27,7 +32,6 @@ These methods need refactoring due to high ABC complexity:
 ### Critical (>40 complexity)
 | Method | Score | Location |
 |--------|-------|----------|
-| `ft_search` | 170.6 | lib/redis_ruby/commands/search.rb:91-194 |
 | `subscription_loop` | 72.5 | lib/redis_ruby/commands/pubsub.rb:246-310 |
 | `parse_cluster_nodes` | 48.3 | lib/redis_ruby/commands/cluster.rb:247-277 |
 | `geosearch` | 45.4 | lib/redis_ruby/commands/geo.rb:113-152 |
@@ -38,10 +42,13 @@ These methods need refactoring due to high ABC complexity:
 |--------|-------|----------|
 | `handle_command_error` | 34.1 | lib/redis_ruby/cluster_client.rb:270-298 |
 | `execute_with_retry` | 34.0 | lib/redis_ruby/cluster_client.rb:223-267 |
+| `vsim` | 30.0 | lib/redis_ruby/commands/vector_set.rb:99-129 |
 | `fill_buffer` | 29.9 | lib/redis_ruby/protocol/buffered_io.rb:226-254 |
 | `encode_command` | 29.9 | lib/redis_ruby/protocol/resp3_encoder.rb:42-64 |
 
-**Recommendation:** Break these methods into smaller private methods with single responsibilities.
+**Note:** `ft_search` has been successfully refactored and is no longer a high-complexity method.
+
+**Recommendation:** Break remaining high-complexity methods into smaller private methods with single responsibilities.
 
 ## Priority 2: Code Duplication (Flay)
 
