@@ -3,13 +3,16 @@
 require "uri"
 
 module RedisRuby
-  # Asynchronous Redis client using Fiber Scheduler
+  # Asynchronous Redis client for single-fiber use
   #
-  # When used inside an `Async` block, all I/O operations automatically
-  # yield to the fiber scheduler, enabling concurrent command execution.
-  # When used outside an Async context, behaves like the synchronous client.
+  # Provides a single connection for use within one fiber. When used inside
+  # an `Async` block, I/O operations yield to the fiber scheduler.
   #
-  # @example Basic async usage
+  # IMPORTANT: This client is NOT safe for concurrent access from multiple
+  # fibers. For concurrent operations, use AsyncPooledClient instead which
+  # provides fiber-safe connection pooling.
+  #
+  # @example Basic async usage (single fiber)
   #   require "async"
   #
   #   Async do
@@ -18,13 +21,17 @@ module RedisRuby
   #     client.get("key") # => "value"
   #   end
   #
-  # @example Concurrent commands
+  # @example Concurrent commands (use AsyncPooledClient!)
   #   require "async"
   #
   #   Async do |task|
-  #     client = RedisRuby::AsyncClient.new(url: "redis://localhost:6379")
+  #     # For concurrent access, use AsyncPooledClient
+  #     client = RedisRuby::AsyncPooledClient.new(
+  #       url: "redis://localhost:6379",
+  #       pool: { limit: 10 }
+  #     )
   #
-  #     # Execute commands concurrently
+  #     # Now safe to run concurrent commands
   #     tasks = 10.times.map do |i|
   #       task.async { client.get("key:#{i}") }
   #     end
@@ -66,6 +73,9 @@ module RedisRuby
     # @param db [Integer] Redis database number
     # @param password [String, nil] Redis password
     # @param timeout [Float] Connection timeout in seconds
+    #
+    # @note This client is for single-fiber use only. For concurrent access
+    #   from multiple fibers, use AsyncPooledClient instead.
     def initialize(url: nil, host: DEFAULT_HOST, port: DEFAULT_PORT, db: DEFAULT_DB,
                    password: nil, timeout: DEFAULT_TIMEOUT)
       if url
@@ -78,26 +88,25 @@ module RedisRuby
       end
       @timeout = timeout
       @connection = nil
-      @mutex = Mutex.new
       ensure_connected
     end
 
     # Execute a Redis command
     #
-    # Thread-safe: uses mutex for connection access.
-    # Fiber-safe: yields to scheduler during I/O.
+    # Yields to fiber scheduler during I/O operations.
     #
     # @param command [String] Command name
     # @param args [Array] Command arguments
     # @return [Object] Command result
+    #
+    # @note Not safe for concurrent access. Use AsyncPooledClient for
+    #   concurrent operations from multiple fibers.
     def call(command, *args)
-      @mutex.synchronize do
-        ensure_connected
-        result = @connection.call(command, *args)
-        raise result if result.is_a?(CommandError)
+      ensure_connected
+      result = @connection.call(command, *args)
+      raise result if result.is_a?(CommandError)
 
-        result
-      end
+      result
     end
 
     # Ping the Redis server
@@ -138,13 +147,11 @@ module RedisRuby
     # @yield [Pipeline] pipeline object to queue commands
     # @return [Array] results from all commands
     def pipelined
-      @mutex.synchronize do
-        ensure_connected
-        pipeline = Pipeline.new(@connection)
-        yield pipeline
-        results = pipeline.execute
-        results.map { |r| r.is_a?(CommandError) ? raise(r) : r }
-      end
+      ensure_connected
+      pipeline = Pipeline.new(@connection)
+      yield pipeline
+      results = pipeline.execute
+      results.map { |r| r.is_a?(CommandError) ? raise(r) : r }
     end
 
     # Execute commands in a transaction (MULTI/EXEC)
@@ -152,15 +159,13 @@ module RedisRuby
     # @yield [Transaction] transaction object to queue commands
     # @return [Array, nil] results from all commands, or nil if aborted
     def multi
-      @mutex.synchronize do
-        ensure_connected
-        transaction = Transaction.new(@connection)
-        yield transaction
-        results = transaction.execute
-        return nil if results.nil?
+      ensure_connected
+      transaction = Transaction.new(@connection)
+      yield transaction
+      results = transaction.execute
+      return nil if results.nil?
 
-        results.map { |r| r.is_a?(CommandError) ? raise(r) : r }
-      end
+      results.map { |r| r.is_a?(CommandError) ? raise(r) : r }
     end
 
     # Watch keys for changes (optimistic locking)
@@ -169,16 +174,14 @@ module RedisRuby
     # @yield [optional] block to execute while watching
     # @return [Object] result of block, or "OK" if no block
     def watch(*keys, &block)
-      @mutex.synchronize do
-        ensure_connected
-        result = @connection.call("WATCH", *keys)
-        return result unless block
+      ensure_connected
+      result = @connection.call("WATCH", *keys)
+      return result unless block
 
-        begin
-          yield
-        ensure
-          @connection.call("UNWATCH")
-        end
+      begin
+        yield
+      ensure
+        @connection.call("UNWATCH")
       end
     end
 
@@ -191,10 +194,8 @@ module RedisRuby
 
     # Close the connection
     def close
-      @mutex.synchronize do
-        @connection&.close
-        @connection = nil
-      end
+      @connection&.close
+      @connection = nil
     end
 
     alias disconnect close
