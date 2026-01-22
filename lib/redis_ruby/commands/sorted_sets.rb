@@ -282,6 +282,132 @@ module RedisRuby
         args.push("AGGREGATE", aggregate.to_s.upcase) if aggregate
         call(*args)
       end
+
+      # Get the union of sorted sets (Redis 6.2+)
+      #
+      # @param keys [Array<String>]
+      # @param weights [Array<Numeric>, nil] multiplication factors
+      # @param aggregate [:sum, :min, :max, nil] aggregation function
+      # @param withscores [Boolean] include scores
+      # @return [Array] members (with scores if requested)
+      def zunion(keys, weights: nil, aggregate: nil, withscores: false)
+        args = ["ZUNION", keys.length, *keys]
+        args.push("WEIGHTS", *weights) if weights
+        args.push("AGGREGATE", aggregate.to_s.upcase) if aggregate
+        args.push("WITHSCORES") if withscores
+        result = call(*args)
+        return result unless withscores
+
+        result.each_slice(2).map { |m, s| [m, s.to_f] }
+      end
+
+      # Get the intersection of sorted sets (Redis 6.2+)
+      #
+      # @param keys [Array<String>]
+      # @param weights [Array<Numeric>, nil] multiplication factors
+      # @param aggregate [:sum, :min, :max, nil] aggregation function
+      # @param withscores [Boolean] include scores
+      # @return [Array] members (with scores if requested)
+      def zinter(keys, weights: nil, aggregate: nil, withscores: false)
+        args = ["ZINTER", keys.length, *keys]
+        args.push("WEIGHTS", *weights) if weights
+        args.push("AGGREGATE", aggregate.to_s.upcase) if aggregate
+        args.push("WITHSCORES") if withscores
+        result = call(*args)
+        return result unless withscores
+
+        result.each_slice(2).map { |m, s| [m, s.to_f] }
+      end
+
+      # Get the difference of sorted sets (Redis 6.2+)
+      #
+      # @param keys [Array<String>]
+      # @param withscores [Boolean] include scores
+      # @return [Array] members (with scores if requested)
+      def zdiff(keys, withscores: false)
+        args = ["ZDIFF", keys.length, *keys]
+        args.push("WITHSCORES") if withscores
+        result = call(*args)
+        return result unless withscores
+
+        result.each_slice(2).map { |m, s| [m, s.to_f] }
+      end
+
+      # Store the difference of sorted sets (Redis 6.2+)
+      #
+      # @param destination [String]
+      # @param keys [Array<String>]
+      # @return [Integer] number of members in result
+      def zdiffstore(destination, keys)
+        call("ZDIFFSTORE", destination, keys.length, *keys)
+      end
+
+      # Count members in a lexicographical range
+      #
+      # @param key [String]
+      # @param min [String] minimum value (use "-" for no min, "[a" for inclusive, "(a" for exclusive)
+      # @param max [String] maximum value (use "+" for no max, "[z" for inclusive, "(z" for exclusive)
+      # @return [Integer] count
+      def zlexcount(key, min, max)
+        call("ZLEXCOUNT", key, min, max)
+      end
+
+      # Get members in a lexicographical range (low to high)
+      #
+      # @param key [String]
+      # @param min [String] minimum value
+      # @param max [String] maximum value
+      # @param limit [Array, nil] [offset, count] for pagination
+      # @return [Array] members
+      def zrangebylex(key, min, max, limit: nil)
+        args = ["ZRANGEBYLEX", key, min, max]
+        args.push("LIMIT", *limit) if limit
+        call(*args)
+      end
+
+      # Get members in a lexicographical range (high to low)
+      #
+      # @param key [String]
+      # @param max [String] maximum value
+      # @param min [String] minimum value
+      # @param limit [Array, nil] [offset, count] for pagination
+      # @return [Array] members
+      def zrevrangebylex(key, max, min, limit: nil)
+        args = ["ZREVRANGEBYLEX", key, max, min]
+        args.push("LIMIT", *limit) if limit
+        call(*args)
+      end
+
+      # Remove members in a lexicographical range
+      #
+      # @param key [String]
+      # @param min [String] minimum value
+      # @param max [String] maximum value
+      # @return [Integer] number of members removed
+      def zremrangebylex(key, min, max)
+        call("ZREMRANGEBYLEX", key, min, max)
+      end
+
+      # Get random members from a sorted set
+      #
+      # @param key [String]
+      # @param count [Integer, nil] number of members to return
+      # @param withscores [Boolean] include scores
+      # @return [String, Array] single member or array of members (with scores if requested)
+      def zrandmember(key, count = nil, withscores: false)
+        args = ["ZRANDMEMBER", key]
+        args.push(count) if count
+        args.push("WITHSCORES") if withscores && count
+
+        result = call(*args)
+
+        # Handle withscores response
+        if withscores && count && result
+          result.each_slice(2).map { |m, s| [m, s.to_f] }
+        else
+          result
+        end
+      end
     end
   end
 end

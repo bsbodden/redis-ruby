@@ -222,4 +222,207 @@ class StringsCommandsTest < RedisRubyTestCase
   ensure
     redis.del("test:getex")
   end
+
+  # Binary data tests
+  def test_set_get_binary_data
+    binary_value = "\x00\x01\x02\xFF\xFE".b
+    redis.set("test:binary", binary_value)
+
+    result = redis.get("test:binary")
+
+    assert_equal binary_value.bytesize, result.bytesize
+    assert_equal binary_value, result
+  ensure
+    redis.del("test:binary")
+  end
+
+  def test_append_binary_data
+    binary_first = "\x00\x01".b
+    binary_second = "\x02\x03".b
+    redis.set("test:binary", binary_first)
+    redis.append("test:binary", binary_second)
+
+    result = redis.get("test:binary")
+
+    assert_equal (binary_first + binary_second), result
+  ensure
+    redis.del("test:binary")
+  end
+
+  def test_getrange_binary_data
+    binary_value = "\x00\x01\x02\x03\x04".b
+    redis.set("test:binary", binary_value)
+
+    result = redis.getrange("test:binary", 1, 3)
+
+    assert_equal "\x01\x02\x03".b, result
+  ensure
+    redis.del("test:binary")
+  end
+
+  def test_setrange_binary_data
+    binary_value = "\x00\x01\x02\x03\x04".b
+    redis.set("test:binary", binary_value)
+    redis.setrange("test:binary", 2, "\xFF\xFF".b)
+
+    result = redis.get("test:binary")
+
+    assert_equal "\x00\x01\xFF\xFF\x04".b, result
+  ensure
+    redis.del("test:binary")
+  end
+
+  def test_strlen_binary_data
+    binary_value = "\x00\x01\x02".b
+    redis.set("test:binary", binary_value)
+
+    assert_equal 3, redis.strlen("test:binary")
+  ensure
+    redis.del("test:binary")
+  end
+
+  # Type coercion tests
+  def test_set_get_integer
+    redis.set("test:int", 42)
+
+    result = redis.get("test:int")
+
+    assert_equal "42", result
+  ensure
+    redis.del("test:int")
+  end
+
+  def test_set_get_float
+    redis.set("test:float", 3.14159)
+
+    result = redis.get("test:float")
+
+    assert_equal "3.14159", result
+  ensure
+    redis.del("test:float")
+  end
+
+  def test_incr_string_representation_of_number
+    redis.set("test:incr", "100")
+
+    assert_equal 101, redis.incr("test:incr")
+  ensure
+    redis.del("test:incr")
+  end
+
+  def test_incrbyfloat_string_representation
+    redis.set("test:float", "10.5")
+
+    result = redis.incrbyfloat("test:float", "0.5")
+
+    assert_in_delta 11.0, result.to_f, 0.001
+  ensure
+    redis.del("test:float")
+  end
+
+  def test_incr_negative_number
+    redis.set("test:incr", "-10")
+
+    assert_equal(-9, redis.incr("test:incr"))
+  ensure
+    redis.del("test:incr")
+  end
+
+  def test_incrby_negative_increment
+    redis.set("test:incrby", "10")
+
+    assert_equal 5, redis.incrby("test:incrby", -5)
+  ensure
+    redis.del("test:incrby")
+  end
+
+  # Empty string tests
+  def test_set_empty_string
+    redis.set("test:empty", "")
+
+    assert_equal "", redis.get("test:empty")
+    assert_equal 0, redis.strlen("test:empty")
+  ensure
+    redis.del("test:empty")
+  end
+
+  def test_append_to_empty_string
+    redis.set("test:empty", "")
+    redis.append("test:empty", "value")
+
+    assert_equal "value", redis.get("test:empty")
+  ensure
+    redis.del("test:empty")
+  end
+
+  # Large value tests
+  def test_large_string_value
+    large_value = "x" * 100_000
+    redis.set("test:large", large_value)
+
+    result = redis.get("test:large")
+
+    assert_equal large_value.length, result.length
+    assert_equal large_value, result
+  ensure
+    redis.del("test:large")
+  end
+
+  # Unicode tests
+  def test_unicode_string
+    unicode_value = "こんにちは世界"
+    redis.set("test:unicode", unicode_value)
+
+    result = redis.get("test:unicode")
+
+    # Redis returns binary encoding, force to UTF-8 for comparison
+    assert_equal unicode_value, result.force_encoding("UTF-8")
+  ensure
+    redis.del("test:unicode")
+  end
+
+  def test_emoji_string
+    emoji_value = "Hello 👋 World 🌍"
+    redis.set("test:emoji", emoji_value)
+
+    result = redis.get("test:emoji")
+
+    # Redis returns binary encoding, force to UTF-8 for comparison
+    assert_equal emoji_value, result.force_encoding("UTF-8")
+  ensure
+    redis.del("test:emoji")
+  end
+
+  # Edge cases
+  def test_setrange_beyond_string_length
+    redis.set("test:setrange", "abc")
+    redis.setrange("test:setrange", 5, "xyz")
+
+    result = redis.get("test:setrange")
+
+    # Redis pads with null bytes
+    assert_equal "abc\x00\x00xyz", result
+  ensure
+    redis.del("test:setrange")
+  end
+
+  def test_getrange_out_of_bounds
+    redis.set("test:getrange", "Hello")
+
+    result = redis.getrange("test:getrange", 0, 100)
+
+    assert_equal "Hello", result
+  ensure
+    redis.del("test:getrange")
+  end
+
+  def test_incr_non_numeric_raises
+    redis.set("test:incr", "not_a_number")
+
+    assert_raises(RedisRuby::CommandError) do
+      redis.incr("test:incr")
+    end
+  ensure
+    redis.del("test:incr")
+  end
 end

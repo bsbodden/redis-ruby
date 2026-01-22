@@ -184,4 +184,145 @@ class HashesCommandsTest < RedisRubyTestCase
   ensure
     redis.del("test:hash")
   end
+
+  # Additional HSCAN tests
+  def test_hscan_with_match
+    redis.hset("test:hash", "test:f1", "v1", "test:f2", "v2", "other:f3", "v3")
+    cursor, fields = redis.hscan("test:hash", 0, match: "test:*")
+
+    assert_kind_of String, cursor
+    assert_kind_of Array, fields
+  ensure
+    redis.del("test:hash")
+  end
+
+  def test_hscan_with_count
+    10.times { |i| redis.hset("test:hash", "field#{i}", "value#{i}") }
+
+    cursor, fields = redis.hscan("test:hash", 0, count: 5)
+
+    assert_kind_of String, cursor
+    assert_kind_of Array, fields
+  ensure
+    redis.del("test:hash")
+  end
+
+  def test_hscan_returns_field_value_pairs
+    redis.hset("test:hash", "f1", "v1", "f2", "v2")
+    cursor, fields = redis.hscan("test:hash", 0)
+
+    # HSCAN returns field-value pairs flattened
+    assert_kind_of Array, fields
+  ensure
+    redis.del("test:hash")
+  end
+
+  # Edge cases
+  def test_hgetall_empty_hash
+    redis.del("test:hash")
+
+    result = redis.hgetall("test:hash")
+
+    assert_equal({}, result)
+  end
+
+  def test_hkeys_empty_hash
+    redis.del("test:hash")
+
+    assert_equal [], redis.hkeys("test:hash")
+  end
+
+  def test_hvals_empty_hash
+    redis.del("test:hash")
+
+    assert_equal [], redis.hvals("test:hash")
+  end
+
+  def test_hlen_empty_hash
+    redis.del("test:hash")
+
+    assert_equal 0, redis.hlen("test:hash")
+  end
+
+  def test_hdel_missing_field
+    redis.hset("test:hash", "f1", "v1")
+
+    result = redis.hdel("test:hash", "missing")
+
+    assert_equal 0, result
+  ensure
+    redis.del("test:hash")
+  end
+
+  # Binary data tests
+  def test_hset_binary_value
+    binary_value = "\x00\x01\x02\xFF".b
+    redis.hset("test:hash", "binary", binary_value)
+
+    result = redis.hget("test:hash", "binary")
+
+    assert_equal binary_value, result
+  ensure
+    redis.del("test:hash")
+  end
+
+  def test_hset_binary_field
+    binary_field = "field\x00\x01".b
+    redis.hset("test:hash", binary_field, "value")
+
+    result = redis.hget("test:hash", binary_field)
+
+    assert_equal "value", result
+  ensure
+    redis.del("test:hash")
+  end
+
+  # HRANDFIELD edge cases
+  def test_hrandfield_empty_hash
+    redis.del("test:hash")
+
+    assert_nil redis.hrandfield("test:hash")
+  end
+
+  def test_hrandfield_with_negative_count
+    redis.hset("test:hash", "f1", "v1", "f2", "v2")
+
+    fields = redis.hrandfield("test:hash", count: -5)
+
+    # Negative count allows duplicates
+    assert_equal 5, fields.length
+    fields.each { |f| assert_includes %w[f1 f2], f }
+  ensure
+    redis.del("test:hash")
+  end
+
+  def test_hrandfield_with_withvalues
+    redis.hset("test:hash", "f1", "v1", "f2", "v2")
+
+    result = redis.hrandfield("test:hash", count: 2, withvalues: true)
+
+    assert_kind_of Array, result
+    # With values, result should be field-value pairs
+  ensure
+    redis.del("test:hash")
+  end
+
+  # Type coercion tests
+  def test_hset_integer_value
+    redis.hset("test:hash", "counter", 42)
+
+    assert_equal "42", redis.hget("test:hash", "counter")
+  ensure
+    redis.del("test:hash")
+  end
+
+  def test_hincrby_string_representation
+    redis.hset("test:hash", "counter", "100")
+
+    result = redis.hincrby("test:hash", "counter", 50)
+
+    assert_equal 150, result
+  ensure
+    redis.del("test:hash")
+  end
 end

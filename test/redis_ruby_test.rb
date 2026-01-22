@@ -73,4 +73,124 @@ class RedisRubyTest < RedisRubyTestCase
   def test_get_nonexistent_key
     assert_nil redis.get("test:definitely:does:not:exist")
   end
+
+  # SET with EXAT option (absolute Unix timestamp in seconds, Redis 6.2+)
+  def test_set_exat
+    future_time = Time.now.to_i + 60
+    redis.set("test:exat", "value", exat: future_time)
+
+    assert_equal "value", redis.get("test:exat")
+    ttl = redis.ttl("test:exat")
+
+    assert ttl.positive? && ttl <= 60
+  ensure
+    redis.del("test:exat")
+  end
+
+  # SET with PXAT option (absolute Unix timestamp in milliseconds, Redis 6.2+)
+  def test_set_pxat
+    future_time = (Time.now.to_f * 1000).to_i + 60_000
+    redis.set("test:pxat", "value", pxat: future_time)
+
+    assert_equal "value", redis.get("test:pxat")
+    pttl = redis.pttl("test:pxat")
+
+    assert pttl.positive? && pttl <= 60_000
+  ensure
+    redis.del("test:pxat")
+  end
+
+  # SET with KEEPTTL option (Redis 6.0+)
+  def test_set_keepttl
+    redis.set("test:keepttl", "first", ex: 1000)
+    original_ttl = redis.ttl("test:keepttl")
+
+    redis.set("test:keepttl", "second", keepttl: true)
+
+    assert_equal "second", redis.get("test:keepttl")
+    new_ttl = redis.ttl("test:keepttl")
+
+    # TTL should be preserved (within tolerance)
+    assert new_ttl.positive?
+    assert new_ttl <= original_ttl
+  ensure
+    redis.del("test:keepttl")
+  end
+
+  def test_set_without_keepttl_removes_ttl
+    redis.set("test:keepttl", "first", ex: 1000)
+    redis.set("test:keepttl", "second")
+
+    assert_equal "second", redis.get("test:keepttl")
+    # Without KEEPTTL, TTL should be removed (-1 means no expiry)
+    assert_equal(-1, redis.ttl("test:keepttl"))
+  ensure
+    redis.del("test:keepttl")
+  end
+
+  # SET with GET option (Redis 6.2+)
+  def test_set_get_returns_old_value
+    redis.set("test:setget", "old_value")
+
+    result = redis.set("test:setget", "new_value", get: true)
+
+    assert_equal "old_value", result
+    assert_equal "new_value", redis.get("test:setget")
+  ensure
+    redis.del("test:setget")
+  end
+
+  def test_set_get_returns_nil_for_missing_key
+    redis.del("test:setget")
+
+    result = redis.set("test:setget", "value", get: true)
+
+    assert_nil result
+    assert_equal "value", redis.get("test:setget")
+  ensure
+    redis.del("test:setget")
+  end
+
+  def test_set_get_with_nx
+    redis.del("test:setget")
+
+    # First set with NX + GET should return nil and set the value
+    result = redis.set("test:setget", "first", nx: true, get: true)
+
+    assert_nil result
+    assert_equal "first", redis.get("test:setget")
+
+    # Second set with NX + GET should return old value but not update
+    result = redis.set("test:setget", "second", nx: true, get: true)
+
+    assert_equal "first", result
+    assert_equal "first", redis.get("test:setget")
+  ensure
+    redis.del("test:setget")
+  end
+
+  # SET with PX option (milliseconds)
+  def test_set_px
+    redis.set("test:px", "value", px: 10_000)
+
+    assert_equal "value", redis.get("test:px")
+    pttl = redis.pttl("test:px")
+
+    assert pttl.positive? && pttl <= 10_000
+  ensure
+    redis.del("test:px")
+  end
+
+  # Combined options
+  def test_set_xx_with_expiration
+    redis.set("test:combined", "first")
+    redis.set("test:combined", "second", xx: true, ex: 100)
+
+    assert_equal "second", redis.get("test:combined")
+    ttl = redis.ttl("test:combined")
+
+    assert ttl.positive? && ttl <= 100
+  ensure
+    redis.del("test:combined")
+  end
 end
