@@ -22,12 +22,33 @@ module RedisRuby
 
       # Pre-encoded command prefixes for ultra-fast path
       # Format: *{argc}\r\n${cmdlen}\r\n{CMD}\r\n
+      #
+      # String commands
       GET_PREFIX = "*2\r\n$3\r\nGET\r\n".b.freeze
       SET_PREFIX = "*3\r\n$3\r\nSET\r\n".b.freeze
       DEL_PREFIX = "*2\r\n$3\r\nDEL\r\n".b.freeze
       INCR_PREFIX = "*2\r\n$4\r\nINCR\r\n".b.freeze
       DECR_PREFIX = "*2\r\n$4\r\nDECR\r\n".b.freeze
       EXISTS_PREFIX = "*2\r\n$6\r\nEXISTS\r\n".b.freeze
+
+      # Hash commands
+      HGET_PREFIX = "*3\r\n$4\r\nHGET\r\n".b.freeze
+      HSET_PREFIX = "*4\r\n$4\r\nHSET\r\n".b.freeze
+      HDEL_PREFIX = "*3\r\n$4\r\nHDEL\r\n".b.freeze
+
+      # List commands
+      LPUSH_PREFIX = "*3\r\n$5\r\nLPUSH\r\n".b.freeze
+      RPUSH_PREFIX = "*3\r\n$5\r\nRPUSH\r\n".b.freeze
+      LPOP_PREFIX = "*2\r\n$4\r\nLPOP\r\n".b.freeze
+      RPOP_PREFIX = "*2\r\n$4\r\nRPOP\r\n".b.freeze
+
+      # Key commands
+      EXPIRE_PREFIX = "*3\r\n$6\r\nEXPIRE\r\n".b.freeze
+      TTL_PREFIX = "*2\r\n$3\r\nTTL\r\n".b.freeze
+
+      # Batch commands (variable length - just the command part)
+      MGET_CMD = "$4\r\nMGET\r\n".b.freeze
+      MSET_CMD = "$4\r\nMSET\r\n".b.freeze
 
       # Cache size strings 0-1024 to avoid allocations
       # Most Redis values are small, so this covers the common case
@@ -71,6 +92,54 @@ module RedisRuby
           return encode_set_fast(args[0], args[1])
         end
 
+        # Fast path for hash commands
+        if argc == 2 && command == "HGET"
+          return encode_hget_fast(args[0], args[1])
+        end
+
+        if argc == 3 && command == "HSET"
+          return encode_hset_fast(args[0], args[1], args[2])
+        end
+
+        if argc == 2 && command == "HDEL"
+          return encode_hdel_fast(args[0], args[1])
+        end
+
+        # Fast path for list commands (single value)
+        if argc == 2 && command == "LPUSH"
+          return encode_lpush_fast(args[0], args[1])
+        end
+
+        if argc == 2 && command == "RPUSH"
+          return encode_rpush_fast(args[0], args[1])
+        end
+
+        if argc == 1 && command == "LPOP"
+          return encode_lpop_fast(args[0])
+        end
+
+        if argc == 1 && command == "RPOP"
+          return encode_rpop_fast(args[0])
+        end
+
+        # Fast path for key commands
+        if argc == 2 && command == "EXPIRE"
+          return encode_expire_fast(args[0], args[1])
+        end
+
+        if argc == 1 && command == "TTL"
+          return encode_ttl_fast(args[0])
+        end
+
+        # Fast path for batch commands
+        if command == "MGET" && argc > 0
+          return encode_mget_fast(args)
+        end
+
+        if command == "MSET" && argc > 0 && argc.even?
+          return encode_mset_fast(args)
+        end
+
         # Fast path for 0-2 args: check directly instead of iterating
         has_hash = case argc
                    when 0 then false
@@ -105,6 +174,112 @@ module RedisRuby
         @buffer
       end
 
+      # Ultra-fast HGET encoding - hash + field
+      # @api private
+      def encode_hget_fast(hash, field)
+        @buffer.clear
+        @buffer << HGET_PREFIX
+        dump_bulk_string_fast(hash, @buffer)
+        dump_bulk_string_fast(field, @buffer)
+        @buffer
+      end
+
+      # Ultra-fast HSET encoding - hash + field + value
+      # @api private
+      def encode_hset_fast(hash, field, value)
+        @buffer.clear
+        @buffer << HSET_PREFIX
+        dump_bulk_string_fast(hash, @buffer)
+        dump_bulk_string_fast(field, @buffer)
+        dump_bulk_string_fast(value, @buffer)
+        @buffer
+      end
+
+      # Ultra-fast HDEL encoding - hash + field
+      # @api private
+      def encode_hdel_fast(hash, field)
+        @buffer.clear
+        @buffer << HDEL_PREFIX
+        dump_bulk_string_fast(hash, @buffer)
+        dump_bulk_string_fast(field, @buffer)
+        @buffer
+      end
+
+      # Ultra-fast LPUSH encoding - list + single value
+      # @api private
+      def encode_lpush_fast(list, value)
+        @buffer.clear
+        @buffer << LPUSH_PREFIX
+        dump_bulk_string_fast(list, @buffer)
+        dump_bulk_string_fast(value, @buffer)
+        @buffer
+      end
+
+      # Ultra-fast RPUSH encoding - list + single value
+      # @api private
+      def encode_rpush_fast(list, value)
+        @buffer.clear
+        @buffer << RPUSH_PREFIX
+        dump_bulk_string_fast(list, @buffer)
+        dump_bulk_string_fast(value, @buffer)
+        @buffer
+      end
+
+      # Ultra-fast LPOP encoding - list
+      # @api private
+      def encode_lpop_fast(list)
+        @buffer.clear
+        @buffer << LPOP_PREFIX
+        dump_bulk_string_fast(list, @buffer)
+        @buffer
+      end
+
+      # Ultra-fast RPOP encoding - list
+      # @api private
+      def encode_rpop_fast(list)
+        @buffer.clear
+        @buffer << RPOP_PREFIX
+        dump_bulk_string_fast(list, @buffer)
+        @buffer
+      end
+
+      # Ultra-fast EXPIRE encoding - key + seconds
+      # @api private
+      def encode_expire_fast(key, seconds)
+        @buffer.clear
+        @buffer << EXPIRE_PREFIX
+        dump_bulk_string_fast(key, @buffer)
+        dump_bulk_string_fast(seconds, @buffer)
+        @buffer
+      end
+
+      # Ultra-fast TTL encoding - key
+      # @api private
+      def encode_ttl_fast(key)
+        @buffer.clear
+        @buffer << TTL_PREFIX
+        dump_bulk_string_fast(key, @buffer)
+        @buffer
+      end
+
+      # Ultra-fast MGET encoding - multiple keys
+      # @api private
+      def encode_mget_fast(keys)
+        @buffer.clear
+        @buffer << ARRAY_PREFIX << int_to_s(keys.size + 1) << EOL << MGET_CMD
+        keys.each { |key| dump_bulk_string_fast(key, @buffer) }
+        @buffer
+      end
+
+      # Ultra-fast MSET encoding - key-value pairs
+      # @api private
+      def encode_mset_fast(args)
+        @buffer.clear
+        @buffer << ARRAY_PREFIX << int_to_s(args.size + 1) << EOL << MSET_CMD
+        args.each { |arg| dump_bulk_string_fast(arg, @buffer) }
+        @buffer
+      end
+
       # Encode multiple commands for pipelining
       # Uses separate pipeline buffer for larger capacity
       #
@@ -117,16 +292,102 @@ module RedisRuby
         commands.each do |cmd|
           # Fast path: check first element for common commands
           first = cmd[0]
-          if first == "GET" && cmd.size == 2
-            @buffer << GET_PREFIX
-            dump_bulk_string_fast(cmd[1], @buffer)
-          elsif first == "SET" && cmd.size == 3
-            @buffer << SET_PREFIX
-            dump_bulk_string_fast(cmd[1], @buffer)
-            dump_bulk_string_fast(cmd[2], @buffer)
-          else
-            dump_array(cmd, @buffer)
+          size = cmd.size
+          case first
+          when "GET"
+            if size == 2
+              @buffer << GET_PREFIX
+              dump_bulk_string_fast(cmd[1], @buffer)
+              next
+            end
+          when "SET"
+            if size == 3
+              @buffer << SET_PREFIX
+              dump_bulk_string_fast(cmd[1], @buffer)
+              dump_bulk_string_fast(cmd[2], @buffer)
+              next
+            end
+          when "HGET"
+            if size == 3
+              @buffer << HGET_PREFIX
+              dump_bulk_string_fast(cmd[1], @buffer)
+              dump_bulk_string_fast(cmd[2], @buffer)
+              next
+            end
+          when "HSET"
+            if size == 4
+              @buffer << HSET_PREFIX
+              dump_bulk_string_fast(cmd[1], @buffer)
+              dump_bulk_string_fast(cmd[2], @buffer)
+              dump_bulk_string_fast(cmd[3], @buffer)
+              next
+            end
+          when "LPUSH"
+            if size == 3
+              @buffer << LPUSH_PREFIX
+              dump_bulk_string_fast(cmd[1], @buffer)
+              dump_bulk_string_fast(cmd[2], @buffer)
+              next
+            end
+          when "RPUSH"
+            if size == 3
+              @buffer << RPUSH_PREFIX
+              dump_bulk_string_fast(cmd[1], @buffer)
+              dump_bulk_string_fast(cmd[2], @buffer)
+              next
+            end
+          when "LPOP"
+            if size == 2
+              @buffer << LPOP_PREFIX
+              dump_bulk_string_fast(cmd[1], @buffer)
+              next
+            end
+          when "RPOP"
+            if size == 2
+              @buffer << RPOP_PREFIX
+              dump_bulk_string_fast(cmd[1], @buffer)
+              next
+            end
+          when "EXPIRE"
+            if size == 3
+              @buffer << EXPIRE_PREFIX
+              dump_bulk_string_fast(cmd[1], @buffer)
+              dump_bulk_string_fast(cmd[2], @buffer)
+              next
+            end
+          when "TTL"
+            if size == 2
+              @buffer << TTL_PREFIX
+              dump_bulk_string_fast(cmd[1], @buffer)
+              next
+            end
+          when "INCR"
+            if size == 2
+              @buffer << INCR_PREFIX
+              dump_bulk_string_fast(cmd[1], @buffer)
+              next
+            end
+          when "DECR"
+            if size == 2
+              @buffer << DECR_PREFIX
+              dump_bulk_string_fast(cmd[1], @buffer)
+              next
+            end
+          when "DEL"
+            if size == 2
+              @buffer << DEL_PREFIX
+              dump_bulk_string_fast(cmd[1], @buffer)
+              next
+            end
+          when "EXISTS"
+            if size == 2
+              @buffer << EXISTS_PREFIX
+              dump_bulk_string_fast(cmd[1], @buffer)
+              next
+            end
           end
+          # Slow path for other commands
+          dump_array(cmd, @buffer)
         end
         @buffer
       end
