@@ -27,5 +27,8 @@ class SSLConnectionTest < Minitest::Test
     assert_includes methods, :pipeline
     assert_includes methods, :close
     assert_includes methods, :connected?
+    # Fork safety methods
+    assert_includes methods, :ensure_connected
+    assert_includes methods, :reconnect
   end
 end

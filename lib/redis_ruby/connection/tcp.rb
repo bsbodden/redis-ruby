@@ -38,6 +38,7 @@ module RedisRuby
         @port = port
         @timeout = timeout
         @encoder = Protocol::RESP3Encoder.new
+        @pid = nil  # Track process ID for fork safety
         connect
       end
 
@@ -47,8 +48,32 @@ module RedisRuby
       # @param args [Array] Command arguments
       # @return [Object] Command result
       def call(command, *)
+        ensure_connected
         write_command(command, *)
         read_response
+      end
+
+      # Ensure we have a valid connection, reconnecting if forked
+      #
+      # @return [void]
+      # @raise [ConnectionError] if reconnection fails
+      def ensure_connected
+        # Fork safety: detect if we're in a child process
+        if @pid && @pid != Process.pid
+          # We've forked - the socket is shared with parent, must reconnect
+          @socket = nil  # Don't close - parent owns this socket
+          reconnect
+        elsif !connected?
+          reconnect
+        end
+      end
+
+      # Reconnect to the server
+      #
+      # @return [void]
+      def reconnect
+        close rescue nil
+        connect
       end
 
       # Execute multiple commands in a pipeline
@@ -56,6 +81,7 @@ module RedisRuby
       # @param commands [Array<Array>] Array of command arrays
       # @return [Array] Array of results
       def pipeline(commands)
+        ensure_connected
         write_pipeline(commands)
         # Pre-allocate array to avoid map allocation
         count = commands.size
@@ -111,6 +137,7 @@ module RedisRuby
         configure_socket
         @buffered_io = Protocol::BufferedIO.new(@socket, read_timeout: @timeout, write_timeout: @timeout)
         @decoder = Protocol::RESP3Decoder.new(@buffered_io)
+        @pid = Process.pid  # Track PID for fork safety
       end
 
       # Configure socket options for performance

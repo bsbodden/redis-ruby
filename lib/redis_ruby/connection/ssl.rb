@@ -61,6 +61,7 @@ module RedisRuby
         @timeout = timeout
         @ssl_params = ssl_params
         @encoder = Protocol::RESP3Encoder.new
+        @pid = nil  # Track process ID for fork safety
         connect
       end
 
@@ -70,6 +71,7 @@ module RedisRuby
       # @param args [Array] Command arguments
       # @return [Object] Command result
       def call(command, *args)
+        ensure_connected
         write_command(command, *args)
         read_response
       end
@@ -79,10 +81,35 @@ module RedisRuby
       # @param commands [Array<Array>] Array of command arrays
       # @return [Array] Array of results
       def pipeline(commands)
+        ensure_connected
         write_pipeline(commands)
         # Pre-allocate array to avoid map allocation
         count = commands.size
         Array.new(count) { read_response }
+      end
+
+      # Ensure we have a valid connection, reconnecting if forked
+      #
+      # @return [void]
+      # @raise [ConnectionError] if reconnection fails
+      def ensure_connected
+        # Fork safety: detect if we're in a child process
+        if @pid && @pid != Process.pid
+          # We've forked - the socket is shared with parent, must reconnect
+          @ssl_socket = nil
+          @tcp_socket = nil
+          reconnect
+        elsif !connected?
+          reconnect
+        end
+      end
+
+      # Reconnect to the server
+      #
+      # @return [void]
+      def reconnect
+        close rescue nil
+        connect
       end
 
       # Close the connection
@@ -113,6 +140,7 @@ module RedisRuby
 
         @buffered_io = Protocol::BufferedIO.new(@ssl_socket, read_timeout: @timeout, write_timeout: @timeout)
         @decoder = Protocol::RESP3Decoder.new(@buffered_io)
+        @pid = Process.pid  # Track PID for fork safety
       end
 
       # Configure underlying TCP socket

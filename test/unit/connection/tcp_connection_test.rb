@@ -176,6 +176,76 @@ class TCPConnectionTest < Minitest::Test
     refute_predicate conn, :connected?
   end
 
+  # Fork safety
+  def test_has_fork_safety_methods
+    methods = RedisRuby::Connection::TCP.instance_methods(false)
+
+    assert_includes methods, :ensure_connected
+    assert_includes methods, :reconnect
+  end
+
+  def test_tracks_process_id_for_fork_detection
+    setup_connected_socket
+
+    conn = RedisRuby::Connection::TCP.new
+
+    # Verify the pid is tracked after connect
+    assert_equal Process.pid, conn.instance_variable_get(:@pid)
+  end
+
+  def test_reconnect_creates_new_socket
+    # First connection
+    @mock_socket.stubs(:setsockopt)
+    @mock_socket.stubs(:sync=)
+    @mock_socket.stubs(:closed?).returns(false)
+    @mock_socket.stubs(:close)
+    TCPSocket.stubs(:new).returns(@mock_socket)
+
+    conn = RedisRuby::Connection::TCP.new
+
+    # Second connection setup
+    @mock_socket2 = mock("socket2")
+    @mock_socket2.stubs(:setsockopt)
+    @mock_socket2.stubs(:sync=)
+    @mock_socket2.stubs(:closed?).returns(false)
+
+    # Reset TCPSocket to return new mock
+    TCPSocket.unstub(:new)
+    TCPSocket.stubs(:new).returns(@mock_socket2)
+
+    conn.reconnect
+
+    # Verify we have a new connection
+    assert conn.instance_variable_get(:@pid) == Process.pid
+  end
+
+  def test_ensure_connected_reconnects_if_not_connected
+    # First connection - will be "closed"
+    @mock_socket.stubs(:setsockopt)
+    @mock_socket.stubs(:sync=)
+    @mock_socket.stubs(:close)
+    TCPSocket.stubs(:new).returns(@mock_socket)
+
+    conn = RedisRuby::Connection::TCP.new
+
+    # Now make socket appear closed
+    @mock_socket.stubs(:closed?).returns(true)
+
+    # Second connection
+    @mock_socket2 = mock("socket2")
+    @mock_socket2.stubs(:setsockopt)
+    @mock_socket2.stubs(:sync=)
+    @mock_socket2.stubs(:closed?).returns(false)
+
+    TCPSocket.unstub(:new)
+    TCPSocket.stubs(:new).returns(@mock_socket2)
+
+    conn.ensure_connected
+
+    # Should have reconnected
+    assert conn.connected?
+  end
+
   private
 
   def setup_mock_socket_options
@@ -186,5 +256,7 @@ class TCPConnectionTest < Minitest::Test
   def setup_connected_socket
     TCPSocket.expects(:new).returns(@mock_socket)
     setup_mock_socket_options
+    # Stub closed? for ensure_connected checks
+    @mock_socket.stubs(:closed?).returns(false)
   end
 end
