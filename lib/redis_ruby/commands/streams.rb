@@ -26,6 +26,7 @@ module RedisRuby
       # @param minid [String] Minimum ID to keep
       # @param approximate [Boolean] Allow approximate trimming (~)
       # @param nomkstream [Boolean] Don't create stream if missing
+      # @param limit [Integer] Maximum entries to delete in a single call (Redis 6.2+)
       # @return [String, nil] Entry ID, or nil if NOMKSTREAM and stream missing
       #
       # @example Auto-generated ID
@@ -36,7 +37,10 @@ module RedisRuby
       #
       # @example With capping
       #   redis.xadd("stream", { "temp" => "23.5" }, maxlen: 1000)
-      def xadd(key, fields, id: "*", maxlen: nil, minid: nil, approximate: false, nomkstream: false)
+      #
+      # @example With approximate trimming and limit
+      #   redis.xadd("stream", { "temp" => "23.5" }, maxlen: 1000, approximate: true, limit: 100)
+      def xadd(key, fields, id: "*", maxlen: nil, minid: nil, approximate: false, nomkstream: false, limit: nil)
         cmd = ["XADD", key]
         cmd << "NOMKSTREAM" if nomkstream
 
@@ -44,10 +48,12 @@ module RedisRuby
           cmd << "MAXLEN"
           cmd << "~" if approximate
           cmd << maxlen
+          cmd << "LIMIT" << limit if limit && approximate
         elsif minid
           cmd << "MINID"
           cmd << "~" if approximate
           cmd << minid
+          cmd << "LIMIT" << limit if limit && approximate
         end
 
         cmd << id
@@ -131,10 +137,12 @@ module RedisRuby
       # @param group [String] Group name
       # @param id [String] Start ID ("$" for new, "0" for beginning)
       # @param mkstream [Boolean] Create stream if missing
+      # @param entriesread [Integer] Entries read counter for lag tracking (Redis 7.0+)
       # @return [String] "OK"
-      def xgroup_create(key, group, id, mkstream: false)
+      def xgroup_create(key, group, id, mkstream: false, entriesread: nil)
         cmd = ["XGROUP", "CREATE", key, group, id]
         cmd << "MKSTREAM" if mkstream
+        cmd << "ENTRIESREAD" << entriesread if entriesread
         call(*cmd)
       end
 
@@ -260,6 +268,39 @@ module RedisRuby
 
         result = call(*cmd)
         justid ? result : parse_entries(result)
+      end
+
+      # Auto-claim pending entries (Redis 6.2+)
+      #
+      # Automatically claims entries that have been idle for more than
+      # the specified time. More efficient than XPENDING + XCLAIM.
+      #
+      # @param key [String] Stream key
+      # @param group [String] Group name
+      # @param consumer [String] New owner
+      # @param min_idle_time [Integer] Minimum idle time in ms
+      # @param start [String] Start ID to scan from ("0-0" for beginning)
+      # @param count [Integer] Maximum entries to claim
+      # @param justid [Boolean] Return only IDs
+      # @return [Array] [next_start_id, claimed_entries, [deleted_ids]]
+      #
+      # @example Claim up to 10 idle entries
+      #   redis.xautoclaim("stream", "group", "consumer1", 60000, "0-0", count: 10)
+      #   # => ["1609459200000-0", [[id, {fields}], ...], []]
+      def xautoclaim(key, group, consumer, min_idle_time, start, count: nil, justid: false)
+        cmd = ["XAUTOCLAIM", key, group, consumer, min_idle_time, start]
+        cmd << "COUNT" << count if count
+        cmd << "JUSTID" if justid
+
+        result = call(*cmd)
+        return result if result.nil?
+
+        # Result is [next_start_id, entries, deleted_ids]
+        next_id = result[0]
+        entries = justid ? result[1] : parse_entries(result[1])
+        deleted = result[2] || []
+
+        [next_id, entries, deleted]
       end
 
       # Get stream info

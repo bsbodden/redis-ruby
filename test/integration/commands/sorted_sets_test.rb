@@ -899,4 +899,193 @@ class SortedSetsCommandsTest < RedisRubyTestCase
     skip "ZMPOP not supported (requires Redis 7.0+)" if e.message.include?("unknown command")
     raise
   end
+
+  # ============================================================
+  # Unified ZRANGE Interface Tests (Redis 6.2+)
+  # ============================================================
+
+  def test_zrange_by_index
+    redis.zadd("test:zset", 1, "one", 2, "two", 3, "three")
+
+    result = redis.zrange("test:zset", 0, -1)
+
+    assert_equal %w[one two three], result
+  ensure
+    redis.del("test:zset")
+  end
+
+  def test_zrange_by_index_with_withscores
+    redis.zadd("test:zset", 1, "one", 2, "two", 3, "three")
+
+    result = redis.zrange("test:zset", 0, -1, withscores: true)
+
+    assert_equal [["one", 1.0], ["two", 2.0], ["three", 3.0]], result
+  ensure
+    redis.del("test:zset")
+  end
+
+  def test_zrange_by_index_rev
+    redis.zadd("test:zset", 1, "one", 2, "two", 3, "three")
+
+    result = redis.zrange("test:zset", 0, -1, rev: true)
+
+    assert_equal %w[three two one], result
+  ensure
+    redis.del("test:zset")
+  end
+
+  def test_zrange_byscore
+    redis.zadd("test:zset", 1, "one", 2, "two", 3, "three", 4, "four", 5, "five")
+
+    result = redis.zrange("test:zset", 2, 4, byscore: true)
+
+    assert_equal %w[two three four], result
+  ensure
+    redis.del("test:zset")
+  end
+
+  def test_zrange_byscore_with_infinity
+    redis.zadd("test:zset", 1, "one", 2, "two", 3, "three")
+
+    result = redis.zrange("test:zset", "-inf", "+inf", byscore: true)
+
+    assert_equal %w[one two three], result
+  ensure
+    redis.del("test:zset")
+  end
+
+  def test_zrange_byscore_with_limit
+    redis.zadd("test:zset", 1, "one", 2, "two", 3, "three", 4, "four", 5, "five")
+
+    result = redis.zrange("test:zset", 1, 5, byscore: true, limit: [1, 2])
+
+    assert_equal %w[two three], result
+  ensure
+    redis.del("test:zset")
+  end
+
+  def test_zrange_byscore_rev
+    redis.zadd("test:zset", 1, "one", 2, "two", 3, "three")
+
+    # Note: with REV, the order of min/max is reversed
+    result = redis.zrange("test:zset", "+inf", "-inf", byscore: true, rev: true)
+
+    assert_equal %w[three two one], result
+  ensure
+    redis.del("test:zset")
+  end
+
+  def test_zrange_bylex
+    redis.zadd("test:zset", 0, "a", 0, "b", 0, "c", 0, "d", 0, "e")
+
+    result = redis.zrange("test:zset", "[b", "[d", bylex: true)
+
+    assert_equal %w[b c d], result
+  ensure
+    redis.del("test:zset")
+  end
+
+  def test_zrange_bylex_with_infinity
+    redis.zadd("test:zset", 0, "a", 0, "b", 0, "c")
+
+    result = redis.zrange("test:zset", "-", "+", bylex: true)
+
+    assert_equal %w[a b c], result
+  ensure
+    redis.del("test:zset")
+  end
+
+  def test_zrange_bylex_with_limit
+    redis.zadd("test:zset", 0, "a", 0, "b", 0, "c", 0, "d", 0, "e")
+
+    result = redis.zrange("test:zset", "-", "+", bylex: true, limit: [1, 2])
+
+    assert_equal %w[b c], result
+  ensure
+    redis.del("test:zset")
+  end
+
+  def test_zrange_bylex_rev
+    redis.zadd("test:zset", 0, "a", 0, "b", 0, "c", 0, "d", 0, "e")
+
+    # Note: with REV, the order of min/max is reversed
+    result = redis.zrange("test:zset", "[d", "[b", bylex: true, rev: true)
+
+    assert_equal %w[d c b], result
+  ensure
+    redis.del("test:zset")
+  end
+
+  # ZRANGESTORE tests (Redis 6.2+)
+  def test_zrangestore_by_index
+    redis.zadd("test:zset", 1, "one", 2, "two", 3, "three")
+
+    count = redis.zrangestore("test:result", "test:zset", 0, 1)
+
+    assert_equal 2, count
+    assert_equal %w[one two], redis.zrange("test:result", 0, -1)
+  ensure
+    redis.del("test:zset", "test:result")
+  end
+
+  def test_zrangestore_byscore
+    redis.zadd("test:zset", 1, "one", 2, "two", 3, "three", 4, "four", 5, "five")
+
+    count = redis.zrangestore("test:result", "test:zset", 2, 4, byscore: true)
+
+    assert_equal 3, count
+    assert_equal %w[two three four], redis.zrange("test:result", 0, -1)
+  ensure
+    redis.del("test:zset", "test:result")
+  end
+
+  def test_zrangestore_bylex
+    redis.zadd("test:zset", 0, "a", 0, "b", 0, "c", 0, "d", 0, "e")
+
+    count = redis.zrangestore("test:result", "test:zset", "[b", "[d", bylex: true)
+
+    assert_equal 3, count
+    assert_equal %w[b c d], redis.zrange("test:result", 0, -1)
+  ensure
+    redis.del("test:zset", "test:result")
+  end
+
+  def test_zrangestore_rev
+    redis.zadd("test:zset", 1, "one", 2, "two", 3, "three")
+
+    count = redis.zrangestore("test:result", "test:zset", 0, 1, rev: true)
+
+    # REV reverses the order, so we get the last 2 elements
+    assert_equal 2, count
+    result = redis.zrange("test:result", 0, -1, withscores: true)
+    # Should contain two and three with scores
+    members = result.map { |m, _s| m }
+
+    assert_includes members, "two"
+    assert_includes members, "three"
+  ensure
+    redis.del("test:zset", "test:result")
+  end
+
+  def test_zrangestore_with_limit
+    redis.zadd("test:zset", 1, "one", 2, "two", 3, "three", 4, "four", 5, "five")
+
+    count = redis.zrangestore("test:result", "test:zset", 1, 5, byscore: true, limit: [1, 2])
+
+    assert_equal 2, count
+    assert_equal %w[two three], redis.zrange("test:result", 0, -1)
+  ensure
+    redis.del("test:zset", "test:result")
+  end
+
+  def test_zrangestore_empty_result
+    redis.zadd("test:zset", 1, "one", 2, "two", 3, "three")
+
+    count = redis.zrangestore("test:result", "test:zset", 10, 20, byscore: true)
+
+    assert_equal 0, count
+    assert_equal 0, redis.zcard("test:result")
+  ensure
+    redis.del("test:zset", "test:result")
+  end
 end

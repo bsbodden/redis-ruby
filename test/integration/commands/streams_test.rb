@@ -343,4 +343,163 @@ class StreamsIntegrationTest < Minitest::Test
     result = @redis.xtrim("stream:test", minid: "2-0")
     assert_equal 1, result  # 1 entry deleted
   end
+
+  # ============================================================
+  # Stream Enhancements (Redis 6.2+/7.0+)
+  # ============================================================
+
+  # XADD with NOMKSTREAM tests
+  def test_xadd_nomkstream_when_stream_missing
+    @redis.del("stream:nomkstream")
+
+    result = @redis.xadd("stream:nomkstream", { "a" => "1" }, nomkstream: true)
+
+    assert_nil result
+    assert_equal 0, @redis.exists("stream:nomkstream")
+  end
+
+  def test_xadd_nomkstream_when_stream_exists
+    @redis.xadd("stream:test", { "init" => "data" })
+
+    result = @redis.xadd("stream:test", { "a" => "1" }, nomkstream: true)
+
+    refute_nil result
+    assert_equal 2, @redis.xlen("stream:test")
+  end
+
+  # XADD with LIMIT tests (Redis 6.2+)
+  def test_xadd_with_maxlen_approximate_and_limit
+    # Create a stream with some entries
+    20.times { @redis.xadd("stream:test", { "a" => "1" }) }
+
+    # Add with approximate trimming and limit
+    result = @redis.xadd("stream:test", { "b" => "2" }, maxlen: 10, approximate: true, limit: 5)
+
+    refute_nil result
+    # With LIMIT 5, at most 5 entries will be deleted per call
+    len = @redis.xlen("stream:test")
+    assert_operator len, :<=, 21  # Original 20 + 1 new
+    assert_operator len, :>=, 10  # At least target maxlen
+  end
+
+  # XGROUP CREATE with MKSTREAM tests
+  def test_xgroup_create_mkstream
+    @redis.del("stream:newstream")
+
+    result = @redis.xgroup_create("stream:newstream", "mygroup", "$", mkstream: true)
+
+    assert_equal "OK", result
+    assert_equal 1, @redis.exists("stream:newstream")
+  ensure
+    @redis.del("stream:newstream")
+  end
+
+  # XGROUP CREATE with ENTRIESREAD tests (Redis 7.0+)
+  def test_xgroup_create_entriesread
+    @redis.xadd("stream:test", { "a" => "1" })
+    @redis.xadd("stream:test", { "b" => "2" })
+
+    # Create group with entries_read for lag calculation
+    result = @redis.xgroup_create("stream:test", "mygroup", "$", entriesread: 1)
+
+    assert_equal "OK", result
+  rescue RedisRuby::CommandError => e
+    skip "ENTRIESREAD not supported (requires Redis 7.0+)" if e.message.include?("ENTRIESREAD")
+    raise
+  end
+
+  # XINFO STREAM with FULL tests
+  def test_xinfo_stream_full
+    @redis.xadd("stream:test", { "a" => "1" })
+    @redis.xadd("stream:test", { "b" => "2" })
+    @redis.xgroup_create("stream:test", "mygroup", "0")
+
+    result = @redis.xinfo_stream("stream:test", full: true)
+
+    assert_kind_of Hash, result
+    assert_equal 2, result["length"]
+    # Full output includes entries and groups
+    assert result.key?("entries") || result.key?("groups")
+  end
+
+  def test_xinfo_stream_full_with_count
+    10.times { |i| @redis.xadd("stream:test", { "i" => i.to_s }) }
+
+    result = @redis.xinfo_stream("stream:test", full: true, count: 3)
+
+    assert_kind_of Hash, result
+    # Should limit entries returned
+    if result.key?("entries")
+      assert_operator result["entries"].length, :<=, 3
+    end
+  end
+
+  # XAUTOCLAIM tests (Redis 6.2+)
+  def test_xautoclaim_basic
+    id = @redis.xadd("stream:test", { "a" => "1" })
+    @redis.xgroup_create("stream:test", "mygroup", "0")
+    @redis.xreadgroup("mygroup", "consumer1", "stream:test", ">")
+
+    # Claim with 0 min-idle-time (claim immediately)
+    result = @redis.xautoclaim("stream:test", "mygroup", "consumer2", 0, "0-0")
+
+    assert_kind_of Array, result
+    assert_equal 3, result.length
+    next_id, entries, deleted = result
+    assert_kind_of String, next_id
+    assert_kind_of Array, entries
+    assert_kind_of Array, deleted
+  rescue RedisRuby::CommandError => e
+    skip "XAUTOCLAIM not supported (requires Redis 6.2+)" if e.message.include?("unknown command")
+    raise
+  end
+
+  def test_xautoclaim_with_count
+    3.times { @redis.xadd("stream:test", { "a" => "1" }) }
+    @redis.xgroup_create("stream:test", "mygroup", "0")
+    @redis.xreadgroup("mygroup", "consumer1", "stream:test", ">")
+
+    result = @redis.xautoclaim("stream:test", "mygroup", "consumer2", 0, "0-0", count: 1)
+
+    assert_kind_of Array, result
+    _next_id, entries, _deleted = result
+    # Should claim at most 1 entry
+    assert_equal 1, entries.length
+  rescue RedisRuby::CommandError => e
+    skip "XAUTOCLAIM not supported (requires Redis 6.2+)" if e.message.include?("unknown command")
+    raise
+  end
+
+  def test_xautoclaim_justid
+    id = @redis.xadd("stream:test", { "a" => "1" })
+    @redis.xgroup_create("stream:test", "mygroup", "0")
+    @redis.xreadgroup("mygroup", "consumer1", "stream:test", ">")
+
+    result = @redis.xautoclaim("stream:test", "mygroup", "consumer2", 0, "0-0", justid: true)
+
+    assert_kind_of Array, result
+    _next_id, entries, _deleted = result
+    # With JUSTID, entries should be IDs only (strings), not [id, {fields}]
+    assert_equal 1, entries.length
+    assert_kind_of String, entries[0]
+    assert_equal id, entries[0]
+  rescue RedisRuby::CommandError => e
+    skip "XAUTOCLAIM not supported (requires Redis 6.2+)" if e.message.include?("unknown command")
+    raise
+  end
+
+  def test_xautoclaim_no_pending
+    @redis.xadd("stream:test", { "a" => "1" })
+    @redis.xgroup_create("stream:test", "mygroup", "0")
+    # Don't read anything, so nothing is pending
+
+    result = @redis.xautoclaim("stream:test", "mygroup", "consumer1", 0, "0-0")
+
+    assert_kind_of Array, result
+    _next_id, entries, _deleted = result
+    assert_empty entries
+  rescue RedisRuby::CommandError => e
+    skip "XAUTOCLAIM not supported (requires Redis 6.2+)" if e.message.include?("unknown command")
+    raise
+  end
 end

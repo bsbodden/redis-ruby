@@ -304,4 +304,251 @@ class PubSubIntegrationTest < Minitest::Test
     skip "PUBSUB SHARDCHANNELS not supported" if e.message.include?("unknown subcommand")
     raise
   end
+
+  # ============================================================
+  # Additional Comprehensive PubSub Tests
+  # ============================================================
+
+  # Unicode channel names test
+  def test_publish_unicode_channel
+    unicode_channel = "pubsub:test:unicodeチャンネル"
+    result = @redis.publish(unicode_channel, "hello")
+    assert_kind_of Integer, result
+  end
+
+  def test_subscribe_unicode_channel
+    messages = []
+    unicode_channel = "pubsub:test:unicodeチャンネル"
+
+    publisher_thread = Thread.new do
+      sleep 0.1
+      @publisher.publish(unicode_channel, "unicode message")
+      sleep 0.1
+    end
+
+    @redis.subscribe(unicode_channel) do |on|
+      on.message do |channel, message|
+        messages << [channel, message]
+        @redis.unsubscribe
+      end
+    end
+
+    publisher_thread.join
+
+    assert_equal 1, messages.size
+    # Redis returns binary encoding, force UTF-8 for comparison
+    assert_equal unicode_channel, messages[0][0].force_encoding("UTF-8")
+    assert_equal "unicode message", messages[0][1]
+  end
+
+  # Binary message test
+  def test_publish_binary_message
+    binary_message = "\x00\x01\x02\xFF".b
+    result = @redis.publish("pubsub:test:binary", binary_message)
+    assert_kind_of Integer, result
+  end
+
+  def test_subscribe_binary_message
+    messages = []
+    binary_message = "\x00\x01\x02\xFF".b
+
+    publisher_thread = Thread.new do
+      sleep 0.1
+      @publisher.publish("pubsub:test:binary", binary_message)
+      sleep 0.1
+    end
+
+    @redis.subscribe("pubsub:test:binary") do |on|
+      on.message do |channel, message|
+        messages << message
+        @redis.unsubscribe
+      end
+    end
+
+    publisher_thread.join
+
+    assert_equal 1, messages.size
+    assert_equal binary_message, messages[0]
+  end
+
+  # Pattern edge cases
+  def test_psubscribe_asterisk_pattern
+    messages = []
+
+    publisher_thread = Thread.new do
+      sleep 0.1
+      @publisher.publish("any:channel:here", "message1")
+      sleep 0.1
+    end
+
+    @redis.psubscribe("*") do |on|
+      on.pmessage do |pattern, channel, message|
+        messages << [pattern, channel, message]
+        @redis.punsubscribe if messages.size >= 1
+      end
+    end
+
+    publisher_thread.join
+
+    # Should match any channel
+    refute_empty messages
+  end
+
+  def test_psubscribe_question_mark_pattern
+    messages = []
+
+    publisher_thread = Thread.new do
+      sleep 0.1
+      @publisher.publish("pubsub:test:a", "message1")
+      @publisher.publish("pubsub:test:ab", "message2") # Should not match
+      sleep 0.1
+    end
+
+    @redis.psubscribe("pubsub:test:?") do |on|
+      on.pmessage do |pattern, channel, message|
+        messages << [pattern, channel, message]
+        @redis.punsubscribe if messages.size >= 1
+      end
+    end
+
+    publisher_thread.join
+
+    # Should only match single character channels
+    assert_equal 1, messages.size
+    assert_equal "pubsub:test:a", messages[0][1]
+  end
+
+  def test_psubscribe_bracket_pattern
+    messages = []
+
+    publisher_thread = Thread.new do
+      sleep 0.1
+      @publisher.publish("pubsub:test:x", "message1")
+      @publisher.publish("pubsub:test:y", "message2")
+      @publisher.publish("pubsub:test:z", "message3") # Should not match
+      sleep 0.1
+    end
+
+    @redis.psubscribe("pubsub:test:[xy]") do |on|
+      on.pmessage do |pattern, channel, message|
+        messages << [pattern, channel, message]
+        @redis.punsubscribe if messages.size >= 2
+      end
+    end
+
+    publisher_thread.join
+
+    # Should only match x and y
+    assert_equal 2, messages.size
+    channels = messages.map { |m| m[1] }
+    assert_includes channels, "pubsub:test:x"
+    assert_includes channels, "pubsub:test:y"
+  end
+
+  # Unsubscribe all channels
+  def test_unsubscribe_all
+    channels_unsubscribed = []
+
+    publisher_thread = Thread.new do
+      sleep 0.2
+    end
+
+    @redis.subscribe("pubsub:test:all1", "pubsub:test:all2", "pubsub:test:all3") do |on|
+      on.subscribe do |channel, count|
+        # Once we're subscribed to all 3, unsubscribe from all
+        @redis.unsubscribe if count == 3
+      end
+
+      on.unsubscribe do |channel, count|
+        channels_unsubscribed << channel
+      end
+    end
+
+    publisher_thread.join
+
+    # Should have unsubscribed from all 3 channels
+    assert_equal 3, channels_unsubscribed.size
+    assert_includes channels_unsubscribed, "pubsub:test:all1"
+    assert_includes channels_unsubscribed, "pubsub:test:all2"
+    assert_includes channels_unsubscribed, "pubsub:test:all3"
+  end
+
+  # Punsubscribe all patterns
+  def test_punsubscribe_all
+    patterns_unsubscribed = []
+
+    publisher_thread = Thread.new do
+      sleep 0.2
+    end
+
+    @redis.psubscribe("pubsub:test:p1*", "pubsub:test:p2*", "pubsub:test:p3*") do |on|
+      on.psubscribe do |pattern, count|
+        @redis.punsubscribe if count == 3
+      end
+
+      on.punsubscribe do |pattern, count|
+        patterns_unsubscribed << pattern
+      end
+    end
+
+    publisher_thread.join
+
+    assert_equal 3, patterns_unsubscribed.size
+    assert_includes patterns_unsubscribed, "pubsub:test:p1*"
+    assert_includes patterns_unsubscribed, "pubsub:test:p2*"
+    assert_includes patterns_unsubscribed, "pubsub:test:p3*"
+  end
+
+  # Message ordering test
+  def test_message_ordering
+    messages = []
+
+    publisher_thread = Thread.new do
+      sleep 0.1
+      (1..5).each do |i|
+        @publisher.publish("pubsub:test:order", "message#{i}")
+      end
+      sleep 0.1
+    end
+
+    @redis.subscribe("pubsub:test:order") do |on|
+      on.message do |channel, message|
+        messages << message
+        @redis.unsubscribe if messages.size >= 5
+      end
+    end
+
+    publisher_thread.join
+
+    # Messages should be received in order
+    assert_equal %w[message1 message2 message3 message4 message5], messages
+  end
+
+  # Publish returns correct subscriber count
+  def test_publish_to_subscribed_channel
+    subscriber_ready = false
+
+    subscriber_thread = Thread.new do
+      @redis.subscribe("pubsub:test:count") do |on|
+        on.subscribe do |channel, count|
+          subscriber_ready = true
+        end
+
+        on.message do |channel, message|
+          @redis.unsubscribe
+        end
+      end
+    end
+
+    # Wait for subscriber to be ready
+    sleep 0.1 until subscriber_ready
+    sleep 0.05
+
+    # Should return 1 (one subscriber)
+    result = @publisher.publish("pubsub:test:count", "hello")
+
+    subscriber_thread.join
+
+    assert_equal 1, result
+  end
 end

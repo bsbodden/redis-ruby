@@ -93,20 +93,65 @@ module RedisRuby
         call("ZCOUNT", key, min, max)
       end
 
-      # Get members in a range by index (low to high)
+      # Get members in a range (unified interface, Redis 6.2+)
+      #
+      # This is the unified ZRANGE command that can work with:
+      # - Index ranges (default)
+      # - Score ranges (with byscore: true)
+      # - Lexicographical ranges (with bylex: true)
       #
       # @param key [String]
-      # @param start [Integer] start index
-      # @param stop [Integer] stop index
-      # @param withscores [Boolean] include scores
-      # @return [Array] members, or [member, score, ...] if withscores
-      def zrange(key, start, stop, withscores: false)
+      # @param start [Integer, String, Numeric] start value
+      # @param stop [Integer, String, Numeric] stop value
+      # @param byscore [Boolean] interpret start/stop as scores
+      # @param bylex [Boolean] interpret start/stop as lexicographical values
+      # @param rev [Boolean] reverse the results (high to low)
+      # @param limit [Array, nil] [offset, count] for pagination (only with byscore or bylex)
+      # @param withscores [Boolean] include scores in result
+      # @return [Array] members, or [[member, score], ...] if withscores
+      #
+      # @example Get by index
+      #   redis.zrange("zset", 0, -1)
+      #
+      # @example Get by score
+      #   redis.zrange("zset", 0, 100, byscore: true)
+      #
+      # @example Get by lex in reverse with limit
+      #   redis.zrange("zset", "[c", "[a", bylex: true, rev: true, limit: [0, 5])
+      def zrange(key, start, stop, byscore: false, bylex: false, rev: false, limit: nil, withscores: false)
         args = ["ZRANGE", key, start, stop]
+        args.push("BYSCORE") if byscore
+        args.push("BYLEX") if bylex
+        args.push("REV") if rev
+        args.push("LIMIT", *limit) if limit && (byscore || bylex)
         args.push("WITHSCORES") if withscores
         result = call(*args)
         return result unless withscores
 
         result.each_slice(2).map { |m, s| [m, s.to_f] }
+      end
+
+      # Store range results in a destination key (Redis 6.2+)
+      #
+      # @param destination [String] destination key
+      # @param key [String] source key
+      # @param start [Integer, String, Numeric] start value
+      # @param stop [Integer, String, Numeric] stop value
+      # @param byscore [Boolean] interpret start/stop as scores
+      # @param bylex [Boolean] interpret start/stop as lexicographical values
+      # @param rev [Boolean] reverse the results
+      # @param limit [Array, nil] [offset, count] for pagination
+      # @return [Integer] number of elements in the resulting sorted set
+      #
+      # @example Store top 10 by score
+      #   redis.zrangestore("top10", "scores", 0, 9)
+      def zrangestore(destination, key, start, stop, byscore: false, bylex: false, rev: false, limit: nil)
+        args = ["ZRANGESTORE", destination, key, start, stop]
+        args.push("BYSCORE") if byscore
+        args.push("BYLEX") if bylex
+        args.push("REV") if rev
+        args.push("LIMIT", *limit) if limit && (byscore || bylex)
+        call(*args)
       end
 
       # Get members in a range by index (high to low)
