@@ -256,6 +256,8 @@ module RedisRuby
       rescue ConnectionError
         retries += 1
         if retries <= @retry_count
+          # Exponential backoff: 0.1s, 0.2s, 0.4s, 0.8s...
+          sleep(0.1 * (2**(retries - 1))) if retries > 1
           # Refresh topology and retry
           refresh_slots
           retry

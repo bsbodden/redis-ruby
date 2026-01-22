@@ -126,6 +126,8 @@ module RedisRuby
       rescue ConnectionError, ReadOnlyError, FailoverError
         attempts += 1
         if attempts <= @reconnect_attempts
+          # Exponential backoff: 0.1s, 0.2s, 0.4s, 0.8s...
+          sleep(0.1 * (2**(attempts - 1))) if attempts > 1
           reconnect
           retry
         end
