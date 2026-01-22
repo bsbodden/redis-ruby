@@ -6,12 +6,48 @@ module RedisRuby
     #
     # @see https://redis.io/commands/?group=generic
     module Keys
+      # Frozen command constants to avoid string allocations
+      CMD_DEL = "DEL"
+      CMD_EXISTS = "EXISTS"
+      CMD_EXPIRE = "EXPIRE"
+      CMD_PEXPIRE = "PEXPIRE"
+      CMD_EXPIREAT = "EXPIREAT"
+      CMD_PEXPIREAT = "PEXPIREAT"
+      CMD_TTL = "TTL"
+      CMD_PTTL = "PTTL"
+      CMD_PERSIST = "PERSIST"
+      CMD_EXPIRETIME = "EXPIRETIME"
+      CMD_PEXPIRETIME = "PEXPIRETIME"
+      CMD_KEYS = "KEYS"
+      CMD_SCAN = "SCAN"
+      CMD_TYPE = "TYPE"
+      CMD_RENAME = "RENAME"
+      CMD_RENAMENX = "RENAMENX"
+      CMD_RANDOMKEY = "RANDOMKEY"
+      CMD_UNLINK = "UNLINK"
+      CMD_RESTORE = "RESTORE"
+      CMD_DUMP = "DUMP"
+      CMD_TOUCH = "TOUCH"
+      CMD_MEMORY = "MEMORY"
+      CMD_COPY = "COPY"
+
+      # Frozen option strings
+      OPT_MATCH = "MATCH"
+      OPT_COUNT = "COUNT"
+      OPT_TYPE = "TYPE"
+      OPT_REPLACE = "REPLACE"
+      OPT_DB = "DB"
+      OPT_USAGE = "USAGE"
+      OPT_NX = "NX"
+      OPT_XX = "XX"
+      OPT_GT = "GT"
+      OPT_LT = "LT"
       # Delete one or more keys
       #
       # @param keys [Array<String>]
       # @return [Integer] number of keys deleted
       def del(*keys)
-        call("DEL", *keys)
+        call(CMD_DEL, *keys)
       end
 
       # Check if one or more keys exist
@@ -19,7 +55,7 @@ module RedisRuby
       # @param keys [Array<String>]
       # @return [Integer] number of keys that exist
       def exists(*keys)
-        call("EXISTS", *keys)
+        call(CMD_EXISTS, *keys)
       end
 
       # Set a key's time to live in seconds
@@ -32,7 +68,7 @@ module RedisRuby
       # @param lt [Boolean] only set if new TTL < current TTL (Redis 7.0+)
       # @return [Integer] 1 if timeout was set, 0 if not set
       def expire(key, seconds, nx: false, xx: false, gt: false, lt: false)
-        call(*build_expire_args("EXPIRE", key, seconds, nx: nx, xx: xx, gt: gt, lt: lt))
+        call(*build_expire_args(CMD_EXPIRE, key, seconds, nx: nx, xx: xx, gt: gt, lt: lt))
       end
 
       # Set a key's time to live in milliseconds
@@ -45,7 +81,7 @@ module RedisRuby
       # @param lt [Boolean] only set if new TTL < current TTL (Redis 7.0+)
       # @return [Integer] 1 if timeout was set, 0 if not set
       def pexpire(key, milliseconds, nx: false, xx: false, gt: false, lt: false)
-        call(*build_expire_args("PEXPIRE", key, milliseconds, nx: nx, xx: xx, gt: gt, lt: lt))
+        call(*build_expire_args(CMD_PEXPIRE, key, milliseconds, nx: nx, xx: xx, gt: gt, lt: lt))
       end
 
       # Set the expiration for a key as a Unix timestamp (seconds)
@@ -58,7 +94,7 @@ module RedisRuby
       # @param lt [Boolean] only set if new expiration < current (Redis 7.0+)
       # @return [Integer] 1 if timeout was set, 0 if not set
       def expireat(key, timestamp, nx: false, xx: false, gt: false, lt: false)
-        call(*build_expire_args("EXPIREAT", key, timestamp, nx: nx, xx: xx, gt: gt, lt: lt))
+        call(*build_expire_args(CMD_EXPIREAT, key, timestamp, nx: nx, xx: xx, gt: gt, lt: lt))
       end
 
       # Set the expiration for a key as a Unix timestamp (milliseconds)
@@ -71,7 +107,7 @@ module RedisRuby
       # @param lt [Boolean] only set if new expiration < current (Redis 7.0+)
       # @return [Integer] 1 if timeout was set, 0 if not set
       def pexpireat(key, timestamp, nx: false, xx: false, gt: false, lt: false)
-        call(*build_expire_args("PEXPIREAT", key, timestamp, nx: nx, xx: xx, gt: gt, lt: lt))
+        call(*build_expire_args(CMD_PEXPIREAT, key, timestamp, nx: nx, xx: xx, gt: gt, lt: lt))
       end
 
       # Get the time to live for a key in seconds
@@ -79,7 +115,7 @@ module RedisRuby
       # @param key [String]
       # @return [Integer] TTL in seconds, -1 if no TTL, -2 if key doesn't exist
       def ttl(key)
-        call("TTL", key)
+        call(CMD_TTL, key)
       end
 
       # Get the time to live for a key in milliseconds
@@ -87,7 +123,7 @@ module RedisRuby
       # @param key [String]
       # @return [Integer] TTL in milliseconds, -1 if no TTL, -2 if key doesn't exist
       def pttl(key)
-        call("PTTL", key)
+        call(CMD_PTTL, key)
       end
 
       # Remove the expiration from a key
@@ -95,7 +131,7 @@ module RedisRuby
       # @param key [String]
       # @return [Integer] 1 if timeout was removed, 0 if key doesn't exist or has no TTL
       def persist(key)
-        call("PERSIST", key)
+        call(CMD_PERSIST, key)
       end
 
       # Get the expiration Unix timestamp for a key (seconds)
@@ -103,7 +139,7 @@ module RedisRuby
       # @param key [String]
       # @return [Integer] timestamp, -1 if no TTL, -2 if key doesn't exist
       def expiretime(key)
-        call("EXPIRETIME", key)
+        call(CMD_EXPIRETIME, key)
       end
 
       # Get the expiration Unix timestamp for a key (milliseconds)
@@ -111,7 +147,7 @@ module RedisRuby
       # @param key [String]
       # @return [Integer] timestamp, -1 if no TTL, -2 if key doesn't exist
       def pexpiretime(key)
-        call("PEXPIRETIME", key)
+        call(CMD_PEXPIRETIME, key)
       end
 
       # Find all keys matching the given pattern
@@ -120,7 +156,7 @@ module RedisRuby
       # @return [Array<String>] matching keys
       # @note Use SCAN in production for large datasets
       def keys(pattern)
-        call("KEYS", pattern)
+        call(CMD_KEYS, pattern)
       end
 
       # Incrementally iterate over keys
@@ -131,10 +167,10 @@ module RedisRuby
       # @param type [String, nil] filter by key type
       # @return [Array] [next_cursor, keys]
       def scan(cursor, match: nil, count: nil, type: nil)
-        args = ["SCAN", cursor]
-        args.push("MATCH", match) if match
-        args.push("COUNT", count) if count
-        args.push("TYPE", type) if type
+        args = [CMD_SCAN, cursor]
+        args.push(OPT_MATCH, match) if match
+        args.push(OPT_COUNT, count) if count
+        args.push(OPT_TYPE, type) if type
         call(*args)
       end
 
@@ -143,7 +179,7 @@ module RedisRuby
       # @param key [String]
       # @return [String] type (string, list, set, zset, hash, stream, none)
       def type(key)
-        call("TYPE", key)
+        call(CMD_TYPE, key)
       end
 
       # Rename a key
@@ -153,7 +189,7 @@ module RedisRuby
       # @return [String] "OK"
       # @raise [CommandError] if key doesn't exist
       def rename(key, newkey)
-        call("RENAME", key, newkey)
+        call(CMD_RENAME, key, newkey)
       end
 
       # Rename a key, only if the new key does not exist
@@ -162,14 +198,14 @@ module RedisRuby
       # @param newkey [String] new name
       # @return [Integer] 1 if renamed, 0 if newkey already exists
       def renamenx(key, newkey)
-        call("RENAMENX", key, newkey)
+        call(CMD_RENAMENX, key, newkey)
       end
 
       # Return a random key from the database
       #
       # @return [String, nil] random key or nil if database is empty
       def randomkey
-        call("RANDOMKEY")
+        call(CMD_RANDOMKEY)
       end
 
       # Unlink one or more keys (async delete)
@@ -177,7 +213,7 @@ module RedisRuby
       # @param keys [Array<String>]
       # @return [Integer] number of keys unlinked
       def unlink(*keys)
-        call("UNLINK", *keys)
+        call(CMD_UNLINK, *keys)
       end
 
       # Create a key using the provided serialized value
@@ -188,8 +224,8 @@ module RedisRuby
       # @param replace [Boolean] replace existing key
       # @return [String] "OK"
       def restore(key, ttl, serialized_value, replace: false)
-        args = ["RESTORE", key, ttl, serialized_value]
-        args.push("REPLACE") if replace
+        args = [CMD_RESTORE, key, ttl, serialized_value]
+        args.push(OPT_REPLACE) if replace
         call(*args)
       end
 
@@ -198,7 +234,7 @@ module RedisRuby
       # @param key [String]
       # @return [String, nil] serialized value or nil if key doesn't exist
       def dump(key)
-        call("DUMP", key)
+        call(CMD_DUMP, key)
       end
 
       # Touch one or more keys (update last access time)
@@ -206,7 +242,7 @@ module RedisRuby
       # @param keys [Array<String>]
       # @return [Integer] number of keys touched
       def touch(*keys)
-        call("TOUCH", *keys)
+        call(CMD_TOUCH, *keys)
       end
 
       # Get the number of bytes that a key and its value require in RAM
@@ -214,7 +250,7 @@ module RedisRuby
       # @param key [String]
       # @return [Integer, nil] bytes or nil if key doesn't exist
       def memory_usage(key)
-        call("MEMORY", "USAGE", key)
+        call(CMD_MEMORY, OPT_USAGE, key)
       end
 
       # Copy a key
@@ -225,9 +261,9 @@ module RedisRuby
       # @param replace [Boolean] replace existing key
       # @return [Integer] 1 if copied, 0 if not copied
       def copy(source, destination, db: nil, replace: false)
-        args = ["COPY", source, destination]
-        args.push("DB", db) if db
-        args.push("REPLACE") if replace
+        args = [CMD_COPY, source, destination]
+        args.push(OPT_DB, db) if db
+        args.push(OPT_REPLACE) if replace
         call(*args)
       end
 
@@ -237,10 +273,10 @@ module RedisRuby
       # @private
       def build_expire_args(command, key, value, nx:, xx:, gt:, lt:)
         args = [command, key, value]
-        args.push("NX") if nx
-        args.push("XX") if xx
-        args.push("GT") if gt
-        args.push("LT") if lt
+        args.push(OPT_NX) if nx
+        args.push(OPT_XX) if xx
+        args.push(OPT_GT) if gt
+        args.push(OPT_LT) if lt
         args
       end
     end

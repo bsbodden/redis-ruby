@@ -58,18 +58,45 @@ module RedisRuby
 
       # Decode the next RESP3 value from the stream
       #
+      # Optimized: Most common types (BULK_STRING, INTEGER, SIMPLE_STRING) are
+      # checked first and inlined for better performance.
+      #
       # @return [Object] Decoded Ruby value
-      # rubocop:disable Metrics/CyclomaticComplexity, Metrics/MethodLength
+      # rubocop:disable Metrics/CyclomaticComplexity
+      # rubocop:disable Metrics/PerceivedComplexity
       def decode
         type_byte = @stream.getbyte
         return nil if type_byte.nil?
 
+        # Fast path: BULK_STRING is most common (GET responses)
+        if type_byte == BULK_STRING
+          length = read_integer
+          return nil if length == -1
+
+          return read_bytes_chomp(length)
+        end
+
+        # Fast path: INTEGER is very common (INCR, EXISTS, etc.)
+        if type_byte == INTEGER
+          return read_integer
+        end
+
+        # Fast path: SIMPLE_STRING (OK response from SET)
+        if type_byte == SIMPLE_STRING
+          return read_line
+        end
+
+        # Fast path: ARRAY (pipeline responses, MGET, etc.)
+        if type_byte == ARRAY
+          count = read_integer
+          return nil if count == -1
+
+          return Array.new(count) { decode }
+        end
+
+        # Less common types use case statement
         case type_byte
-        when SIMPLE_STRING then decode_simple_string
         when SIMPLE_ERROR  then decode_simple_error
-        when INTEGER       then decode_integer
-        when BULK_STRING   then decode_bulk_string
-        when ARRAY         then decode_array
         when NULL          then decode_null
         when BOOLEAN       then decode_boolean
         when DOUBLE        then decode_double
@@ -83,7 +110,8 @@ module RedisRuby
           raise ProtocolError, "Unknown RESP3 type: #{type_byte.chr}"
         end
       end
-      # rubocop:enable Metrics/CyclomaticComplexity, Metrics/MethodLength
+      # rubocop:enable Metrics/PerceivedComplexity
+      # rubocop:enable Metrics/CyclomaticComplexity
 
       private
 
@@ -95,6 +123,7 @@ module RedisRuby
         else
           line = @stream.gets("\r\n")
           return nil if line.nil?
+
           line.chomp!("\r\n")
           line
         end
@@ -113,10 +142,8 @@ module RedisRuby
       # Read exactly count bytes
       def read_bytes(count)
         if @buffered
-          @stream.read(count)
-        else
-          @stream.read(count)
         end
+        @stream.read(count)
       end
 
       # Read bytes and skip trailing CRLF

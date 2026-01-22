@@ -25,9 +25,9 @@ module RedisRuby
       SIZE_CACHE_LIMIT = 1024
       SIZE_CACHE = Array.new(SIZE_CACHE_LIMIT + 1) { |i| i.to_s.b.freeze }.freeze
 
-      # Default buffer capacity - sized for typical pipeline of 100 commands
-      # (100 commands * ~50 bytes per command = 5000 bytes typical)
-      DEFAULT_BUFFER_CAPACITY = 16_384
+      # Default buffer capacity - sized for typical commands
+      # Smaller initial size reduces allocation overhead
+      DEFAULT_BUFFER_CAPACITY = 4096
 
       def initialize
         # Reusable buffer for encoding - avoids allocations
@@ -41,7 +41,7 @@ module RedisRuby
       # @return [String] RESP3 encoded command (binary encoding)
       def encode_command(command, *args)
         # Fast path for common case: no hash arguments
-        if args.none? { |a| a.is_a?(Hash) }
+        if args.none?(Hash)
           dump_array_fast(command, args)
         else
           # Slow path: flatten hash arguments, reuse buffer

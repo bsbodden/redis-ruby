@@ -68,20 +68,20 @@ class GateVerifier
     rb_ips = nil
     ruby_ips = nil
 
-    Benchmark.ips do |x|
+    report = Benchmark.ips do |x|
       x.config(**CONFIG)
       x.report("redis-rb") { redis_rb_block.call }
       x.report("redis-ruby") { redis_ruby_block.call }
       x.compare!
+    end
 
-      # Capture IPS values
-      x.entries.each do |entry|
-        case entry.label
-        when "redis-rb"
-          rb_ips = entry.stats.central_tendency
-        when "redis-ruby"
-          ruby_ips = entry.stats.central_tendency
-        end
+    # Capture IPS values from the report
+    report.entries.each do |entry|
+      case entry.label
+      when "redis-rb"
+        rb_ips = entry.stats.central_tendency
+      when "redis-ruby"
+        ruby_ips = entry.stats.central_tendency
       end
     end
 

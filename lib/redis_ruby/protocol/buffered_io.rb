@@ -18,7 +18,9 @@ module RedisRuby
     class BufferedIO
       EOL = "\r\n".b.freeze
       EOL_SIZE = EOL.bytesize
-      DEFAULT_CHUNK_SIZE = 16_384
+      # Reduced from 16KB to 4KB - smaller initial allocation
+      # Buffer grows as needed but most ops are small
+      DEFAULT_CHUNK_SIZE = 4096
 
       # Use byteindex on Ruby 3.2+ (faster), fall back to index
       USE_BYTEINDEX = String.method_defined?(:byteindex)
@@ -27,7 +29,8 @@ module RedisRuby
 
       def initialize(io, read_timeout: 5.0, write_timeout: 5.0, chunk_size: DEFAULT_CHUNK_SIZE)
         @io = io
-        @buffer = String.new(encoding: Encoding::BINARY, capacity: chunk_size * 2)
+        # Start with smaller buffer, grows as needed
+        @buffer = String.new(encoding: Encoding::BINARY, capacity: chunk_size)
         @offset = 0
         @chunk_size = chunk_size
         @read_timeout = read_timeout
@@ -52,7 +55,7 @@ module RedisRuby
           fill_buffer(1) if @offset >= @buffer.bytesize
 
           # Look for EOL in buffer using fast byteindex
-          until eol_index = @buffer.byteindex(EOL, @offset)
+          until (eol_index = @buffer.byteindex(EOL, @offset))
             fill_buffer(1)
           end
 
@@ -68,7 +71,7 @@ module RedisRuby
           fill_buffer(1) if @offset >= @buffer.bytesize
 
           # Look for EOL in buffer
-          until eol_index = @buffer.index(EOL, @offset)
+          until (eol_index = @buffer.index(EOL, @offset))
             fill_buffer(1)
           end
 
@@ -99,7 +102,7 @@ module RedisRuby
           offset += 1
         end
 
-        while true
+        loop do
           chr = @buffer.getbyte(offset)
 
           if chr.nil?
@@ -159,11 +162,11 @@ module RedisRuby
       # @return [Integer] bytes written
       def write(data)
         total = remaining = data.bytesize
-        while remaining > 0
+        while remaining.positive?
           case bytes_written = @io.write_nonblock(data, exception: false)
           when Integer
             remaining -= bytes_written
-            data = data.byteslice(bytes_written..-1) if remaining > 0
+            data = data.byteslice(bytes_written..-1) if remaining.positive?
           when :wait_readable
             @io.wait_readable(@read_timeout) or raise(TimeoutError, "Read timeout after #{@read_timeout}s")
           when :wait_writable
@@ -217,7 +220,7 @@ module RedisRuby
       # Ensure at least `bytes` bytes are available in the buffer
       def ensure_remaining(bytes)
         needed = bytes - (@buffer.bytesize - @offset)
-        fill_buffer(needed) if needed > 0
+        fill_buffer(needed) if needed.positive?
       end
 
       # Fill the buffer with more data from the underlying IO
@@ -226,13 +229,13 @@ module RedisRuby
       def fill_buffer(min_bytes)
         # Compact buffer if offset is past halfway point
         # Use slice! to modify in place and avoid allocation
-        if @offset > 0 && @offset > @buffer.bytesize / 2
+        if @offset.positive? && @offset > @buffer.bytesize / 2
           @buffer.slice!(0, @offset)
           @offset = 0
         end
 
         remaining = min_bytes
-        while remaining > 0
+        while remaining.positive?
           begin
             chunk = @io.read_nonblock(@chunk_size, exception: false)
           rescue IOError, Errno::ECONNRESET => e

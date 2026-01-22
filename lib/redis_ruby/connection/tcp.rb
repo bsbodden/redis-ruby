@@ -38,7 +38,7 @@ module RedisRuby
         @port = port
         @timeout = timeout
         @encoder = Protocol::RESP3Encoder.new
-        @pid = nil  # Track process ID for fork safety
+        @pid = nil # Track process ID for fork safety
         connect
       end
 
@@ -54,25 +54,33 @@ module RedisRuby
       end
 
       # Ensure we have a valid connection, reconnecting if forked
+      # Optimized: only check Process.pid when socket exists (avoids syscall on every call)
       #
       # @return [void]
       # @raise [ConnectionError] if reconnection fails
       def ensure_connected
-        # Fork safety: detect if we're in a child process
-        if @pid && @pid != Process.pid
-          # We've forked - the socket is shared with parent, must reconnect
-          @socket = nil  # Don't close - parent owns this socket
-          reconnect
-        elsif !connected?
-          reconnect
+        return if @socket && !@socket.closed?
+
+        # Only check for fork when we thought we had a connection
+        if @pid
+          current_pid = Process.pid
+          if @pid != current_pid
+            # We've forked - the socket is shared with parent, must reconnect
+            @socket = nil # Don't close - parent owns this socket
+          end
         end
+        reconnect unless connected?
       end
 
       # Reconnect to the server
       #
       # @return [void]
       def reconnect
-        close rescue nil
+        begin
+          close
+        rescue StandardError
+          nil
+        end
         connect
       end
 
@@ -105,12 +113,12 @@ module RedisRuby
       # @param command [String, Array] Command (can be pre-built array)
       # @param args [Array] Command arguments
       # @return [void]
-      def write_command(command, *args)
-        if command.is_a?(Array)
-          encoded = @encoder.encode_pipeline([command])
-        else
-          encoded = @encoder.encode_command(command, *args)
-        end
+      def write_command(command, *)
+        encoded = if command.is_a?(Array)
+                    @encoder.encode_pipeline([command])
+                  else
+                    @encoder.encode_command(command, *)
+                  end
         @socket.write(encoded)
         @socket.flush
       end
@@ -137,7 +145,7 @@ module RedisRuby
         configure_socket
         @buffered_io = Protocol::BufferedIO.new(@socket, read_timeout: @timeout, write_timeout: @timeout)
         @decoder = Protocol::RESP3Decoder.new(@buffered_io)
-        @pid = Process.pid  # Track PID for fork safety
+        @pid = Process.pid # Track PID for fork safety
       end
 
       # Configure socket options for performance

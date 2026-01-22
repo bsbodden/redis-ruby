@@ -28,6 +28,26 @@ module RedisRuby
     include Commands::Scripting
     include Commands::Streams
 
+    # Frozen command constants for pipeline-specific commands
+    CMD_PING = "PING"
+    CMD_HGETALL = "HGETALL"
+    CMD_ZSCORE = "ZSCORE"
+    CMD_ZMSCORE = "ZMSCORE"
+    CMD_ZRANGE = "ZRANGE"
+    CMD_ZREVRANGE = "ZREVRANGE"
+    CMD_ZRANGEBYSCORE = "ZRANGEBYSCORE"
+    CMD_ZREVRANGEBYSCORE = "ZREVRANGEBYSCORE"
+    CMD_ZINCRBY = "ZINCRBY"
+    CMD_ZPOPMIN = "ZPOPMIN"
+    CMD_ZPOPMAX = "ZPOPMAX"
+    CMD_BZPOPMIN = "BZPOPMIN"
+    CMD_BZPOPMAX = "BZPOPMAX"
+    CMD_ZSCAN = "ZSCAN"
+    OPT_WITHSCORES = "WITHSCORES"
+    OPT_LIMIT = "LIMIT"
+    OPT_MATCH = "MATCH"
+    OPT_COUNT = "COUNT"
+
     def initialize(connection)
       @connection = connection
       @commands = []
@@ -72,7 +92,7 @@ module RedisRuby
 
     # Ping (override to not raise on error in pipeline)
     def ping
-      call("PING")
+      call(CMD_PING)
     end
 
     # Override commands that do post-processing
@@ -80,79 +100,79 @@ module RedisRuby
 
     # HGETALL - don't convert to hash
     def hgetall(key)
-      call("HGETALL", key)
+      call(CMD_HGETALL, key)
     end
 
     # ZSCORE - don't convert to float
     def zscore(key, member)
-      call("ZSCORE", key, member)
+      call(CMD_ZSCORE, key, member)
     end
 
     # ZMSCORE - don't convert to floats
     def zmscore(key, *members)
-      call("ZMSCORE", key, *members)
+      call(CMD_ZMSCORE, key, *members)
     end
 
     # ZRANGE with scores - don't convert
     def zrange(key, start, stop, withscores: false)
-      args = ["ZRANGE", key, start, stop]
-      args.push("WITHSCORES") if withscores
+      args = [CMD_ZRANGE, key, start, stop]
+      args.push(OPT_WITHSCORES) if withscores
       call(*args)
     end
 
     # ZREVRANGE with scores - don't convert
     def zrevrange(key, start, stop, withscores: false)
-      args = ["ZREVRANGE", key, start, stop]
-      args.push("WITHSCORES") if withscores
+      args = [CMD_ZREVRANGE, key, start, stop]
+      args.push(OPT_WITHSCORES) if withscores
       call(*args)
     end
 
     # ZRANGEBYSCORE - don't convert
     def zrangebyscore(key, min, max, withscores: false, limit: nil)
-      args = ["ZRANGEBYSCORE", key, min, max]
-      args.push("WITHSCORES") if withscores
-      args.push("LIMIT", *limit) if limit
+      args = [CMD_ZRANGEBYSCORE, key, min, max]
+      args.push(OPT_WITHSCORES) if withscores
+      args.push(OPT_LIMIT, *limit) if limit
       call(*args)
     end
 
     # ZREVRANGEBYSCORE - don't convert
     def zrevrangebyscore(key, max, min, withscores: false, limit: nil)
-      args = ["ZREVRANGEBYSCORE", key, max, min]
-      args.push("WITHSCORES") if withscores
-      args.push("LIMIT", *limit) if limit
+      args = [CMD_ZREVRANGEBYSCORE, key, max, min]
+      args.push(OPT_WITHSCORES) if withscores
+      args.push(OPT_LIMIT, *limit) if limit
       call(*args)
     end
 
     # ZINCRBY - don't convert to float
     def zincrby(key, increment, member)
-      call("ZINCRBY", key, increment, member)
+      call(CMD_ZINCRBY, key, increment, member)
     end
 
     # ZPOPMIN - don't convert
     def zpopmin(key, count = nil)
-      count ? call("ZPOPMIN", key, count) : call("ZPOPMIN", key)
+      count ? call(CMD_ZPOPMIN, key, count) : call(CMD_ZPOPMIN, key)
     end
 
     # ZPOPMAX - don't convert
     def zpopmax(key, count = nil)
-      count ? call("ZPOPMAX", key, count) : call("ZPOPMAX", key)
+      count ? call(CMD_ZPOPMAX, key, count) : call(CMD_ZPOPMAX, key)
     end
 
     # BZPOPMIN - don't convert
     def bzpopmin(*keys, timeout: 0)
-      call("BZPOPMIN", *keys, timeout)
+      call(CMD_BZPOPMIN, *keys, timeout)
     end
 
     # BZPOPMAX - don't convert
     def bzpopmax(*keys, timeout: 0)
-      call("BZPOPMAX", *keys, timeout)
+      call(CMD_BZPOPMAX, *keys, timeout)
     end
 
     # ZSCAN - don't convert
     def zscan(key, cursor, match: nil, count: nil)
-      args = ["ZSCAN", key, cursor]
-      args.push("MATCH", match) if match
-      args.push("COUNT", count) if count
+      args = [CMD_ZSCAN, key, cursor]
+      args.push(OPT_MATCH, match) if match
+      args.push(OPT_COUNT, count) if count
       call(*args)
     end
   end

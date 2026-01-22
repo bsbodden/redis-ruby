@@ -54,6 +54,14 @@ module RedisRuby
     DEFAULT_DB = 0
     DEFAULT_TIMEOUT = 5.0
 
+    # Frozen command constants to avoid string allocations
+    CMD_PING = "PING"
+    CMD_WATCH = "WATCH"
+    CMD_UNWATCH = "UNWATCH"
+    CMD_DISCARD = "DISCARD"
+    CMD_AUTH = "AUTH"
+    CMD_SELECT = "SELECT"
+
     # Initialize a new Redis client
     #
     # @param url [String, nil] Redis URL (redis://, rediss://, unix://)
@@ -88,9 +96,9 @@ module RedisRuby
     # @param command [String] Command name
     # @param args [Array] Command arguments
     # @return [Object] Command result
-    def call(command, *args)
+    def call(command, *)
       ensure_connected
-      result = @connection.call(command, *args)
+      result = @connection.call(command, *)
       raise result if result.is_a?(CommandError)
 
       result
@@ -100,7 +108,7 @@ module RedisRuby
     #
     # @return [String] "PONG"
     def ping
-      call("PING")
+      call(CMD_PING)
     end
 
     # Execute commands in a pipeline
@@ -164,13 +172,13 @@ module RedisRuby
     #   client.unwatch
     def watch(*keys, &block)
       ensure_connected
-      result = @connection.call("WATCH", *keys)
+      result = @connection.call(CMD_WATCH, *keys)
       return result unless block
 
       begin
         yield
       ensure
-        @connection.call("UNWATCH")
+        @connection.call(CMD_UNWATCH)
       end
     end
 
@@ -179,7 +187,7 @@ module RedisRuby
     # @return [String] "OK"
     def discard
       ensure_connected
-      call("DISCARD")
+      call(CMD_DISCARD)
     end
 
     # Unwatch all watched keys
@@ -187,7 +195,7 @@ module RedisRuby
     # @return [String] "OK"
     def unwatch
       ensure_connected
-      call("UNWATCH")
+      call(CMD_UNWATCH)
     end
 
     # Close the connection
@@ -289,12 +297,12 @@ module RedisRuby
 
     # Authenticate with password
     def authenticate
-      @connection.call("AUTH", @password)
+      @connection.call(CMD_AUTH, @password)
     end
 
     # Select database
     def select_db
-      @connection.call("SELECT", @db.to_s)
+      @connection.call(CMD_SELECT, @db.to_s)
     end
   end
 end
