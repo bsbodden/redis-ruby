@@ -137,3 +137,153 @@ end
 
 desc "Run code quality checks"
 task quality: "quality:all"
+
+# Benchmarking Tasks - Comprehensive performance evaluation framework
+# Inspired by Lettuce (gold standard), Jedis JMH patterns, and redis-py benchmarks
+namespace :benchmark do
+  desc "Run all benchmarks (micro + integration + gates)"
+  task all: %i[micro integration gates]
+
+  desc "Run micro-benchmarks (basic operations: PING, GET, SET, etc.)"
+  task :micro do
+    puts "\n" + "=" * 70
+    puts "MICRO-BENCHMARKS: Basic Redis Operations"
+    puts "=" * 70
+    sh "RUBYOPT='#{ENV.fetch('RUBYOPT', '')} --yjit' bundle exec ruby benchmarks/compare_basic.rb"
+  end
+
+  desc "Run integration benchmarks (pipelines, mixed workloads)"
+  task :integration do
+    puts "\n" + "=" * 70
+    puts "INTEGRATION BENCHMARKS: Pipelines and Mixed Workloads"
+    puts "=" * 70
+    sh "RUBYOPT='#{ENV.fetch('RUBYOPT', '')} --yjit' bundle exec ruby benchmarks/compare_comprehensive.rb"
+  end
+
+  desc "Run RESP3 parser benchmarks (protocol layer)"
+  task :resp3 do
+    puts "\n" + "=" * 70
+    puts "RESP3 PARSER BENCHMARKS"
+    puts "=" * 70
+    sh "RUBYOPT='#{ENV.fetch('RUBYOPT', '')} --yjit' bundle exec ruby benchmarks/compare_resp3_parser.rb"
+  end
+
+  desc "Run async benchmarks (fiber-based async client)"
+  task :async do
+    puts "\n" + "=" * 70
+    puts "ASYNC BENCHMARKS"
+    puts "=" * 70
+    sh "RUBYOPT='#{ENV.fetch('RUBYOPT', '')} --yjit' bundle exec ruby benchmarks/compare_async.rb"
+  end
+
+  desc "Compare redis-ruby vs hiredis directly"
+  task :hiredis do
+    puts "\n" + "=" * 70
+    puts "HIREDIS COMPARISON BENCHMARKS"
+    puts "=" * 70
+    sh "RUBYOPT='#{ENV.fetch('RUBYOPT', '')} --yjit' bundle exec ruby benchmarks/compare_vs_hiredis.rb"
+  end
+
+  desc "Verify performance gates from CLAUDE.md (CI/CD compatible)"
+  task :gates do
+    puts "\n" + "=" * 70
+    puts "PERFORMANCE GATE VERIFICATION"
+    puts "Gates from CLAUDE.md:"
+    puts "  - Single GET/SET: 1.3x faster than redis-rb"
+    puts "  - Pipeline (10 cmds): 1.5x faster"
+    puts "  - Pipeline (100 cmds): 2x faster"
+    puts "  - Connection setup: Equal or faster"
+    puts "=" * 70
+    sh "RUBYOPT='#{ENV.fetch('RUBYOPT', '')} --yjit' bundle exec ruby benchmarks/verify_gates.rb"
+  end
+
+  desc "Run CPU profiler (StackProf) and generate flamegraph data"
+  task :profile_cpu do
+    puts "\n" + "=" * 70
+    puts "CPU PROFILING (StackProf)"
+    puts "=" * 70
+    sh "RUBYOPT='#{ENV.fetch('RUBYOPT', '')} --yjit' bundle exec ruby benchmarks/profile_hotspots.rb stackprof"
+    puts "\nProfile saved to tmp/stackprof_*.json"
+    puts "View with: bundle exec stackprof --flamegraph tmp/stackprof_*.json > tmp/flamegraph.html"
+  end
+
+  desc "Run memory profiler and show allocation sites"
+  task :profile_memory do
+    puts "\n" + "=" * 70
+    puts "MEMORY PROFILING"
+    puts "=" * 70
+    sh "bundle exec ruby benchmarks/profile_hotspots.rb memory"
+    puts "\nProfile saved to tmp/memory_profile.txt"
+  end
+
+  desc "Run modern profiler (Vernier) with YJIT awareness"
+  task :profile_vernier do
+    puts "\n" + "=" * 70
+    puts "VERNIER PROFILING (YJIT-aware)"
+    puts "=" * 70
+    sh "RUBYOPT='#{ENV.fetch('RUBYOPT', '')} --yjit' bundle exec ruby benchmarks/profile_hotspots.rb vernier"
+    puts "\nProfile saved to tmp/vernier_*.json"
+    puts "View at: https://vernier.prof/ or with: vernier view tmp/vernier_*.json"
+  end
+
+  desc "Generate JSON benchmark report"
+  task :report_json do
+    puts "\n" + "=" * 70
+    puts "GENERATING JSON BENCHMARK REPORT"
+    puts "=" * 70
+    sh "RUBYOPT='#{ENV.fetch('RUBYOPT', '')} --yjit' bundle exec ruby benchmarks/generate_report.rb json"
+    puts "\nReport saved to tmp/benchmark_report.json"
+  end
+
+  desc "Generate HTML benchmark report with charts"
+  task :report_html do
+    puts "\n" + "=" * 70
+    puts "GENERATING HTML BENCHMARK REPORT"
+    puts "=" * 70
+    sh "RUBYOPT='#{ENV.fetch('RUBYOPT', '')} --yjit' bundle exec ruby benchmarks/generate_report.rb html"
+    puts "\nReport saved to tmp/benchmark_report.html"
+  end
+
+  desc "Generate full benchmark report (JSON + HTML)"
+  task report: %i[report_json report_html]
+
+  desc "Quick benchmark (fast feedback, reduced iterations)"
+  task :quick do
+    puts "\n" + "=" * 70
+    puts "QUICK BENCHMARK (reduced warmup/iterations for fast feedback)"
+    puts "=" * 70
+    ENV["BENCHMARK_QUICK"] = "1"
+    sh "RUBYOPT='#{ENV.fetch('RUBYOPT', '')} --yjit' bundle exec ruby benchmarks/compare_basic.rb"
+  end
+
+  desc "Run with YJIT explicitly enabled"
+  task :yjit do
+    puts "\n" + "=" * 70
+    puts "YJIT-ENABLED BENCHMARKS"
+    puts "=" * 70
+    sh "RUBYOPT='--yjit' bundle exec ruby benchmarks/compare_comprehensive.rb"
+  end
+
+  desc "Run without YJIT (comparison baseline)"
+  task :no_yjit do
+    puts "\n" + "=" * 70
+    puts "NON-YJIT BENCHMARKS (baseline comparison)"
+    puts "=" * 70
+    sh "RUBYOPT='--disable-yjit' bundle exec ruby benchmarks/compare_comprehensive.rb"
+  end
+
+  desc "Compare YJIT vs non-YJIT performance"
+  task :yjit_comparison do
+    puts "\n" + "=" * 70
+    puts "YJIT vs NON-YJIT COMPARISON"
+    puts "=" * 70
+    puts "\n--- Running WITHOUT YJIT ---"
+    sh "RUBYOPT='--disable-yjit' bundle exec ruby benchmarks/compare_basic.rb 2>&1 | tee tmp/benchmark_no_yjit.txt"
+    puts "\n--- Running WITH YJIT ---"
+    sh "RUBYOPT='--yjit' bundle exec ruby benchmarks/compare_basic.rb 2>&1 | tee tmp/benchmark_yjit.txt"
+    puts "\nResults saved to tmp/benchmark_no_yjit.txt and tmp/benchmark_yjit.txt"
+  end
+end
+
+desc "Run benchmarks (alias for benchmark:all)"
+task benchmark: "benchmark:all"
