@@ -27,6 +27,34 @@ namespace :test do
     ENV["REDIS_URL"] ||= "redis://localhost:6379"
     Rake::Task["test"].invoke
   end
+
+  Rake::TestTask.new(:unit) do |t|
+    t.libs << "test"
+    t.libs << "lib"
+    t.test_files = FileList["test/unit/**/*_test.rb"]
+    t.warning = true
+  end
+
+  Rake::TestTask.new(:integration) do |t|
+    t.libs << "test"
+    t.libs << "lib"
+    t.test_files = FileList["test/integration/**/*_test.rb"]
+    t.warning = true
+  end
+
+  Rake::TestTask.new(:cluster) do |t|
+    t.libs << "test"
+    t.libs << "lib"
+    t.test_files = FileList["test/integration/cluster/**/*_test.rb"]
+    t.warning = true
+  end
+
+  Rake::TestTask.new(:sentinel) do |t|
+    t.libs << "test"
+    t.libs << "lib"
+    t.test_files = FileList["test/integration/sentinel/**/*_test.rb"]
+    t.warning = true
+  end
 end
 
 desc "Generate YARD documentation"
