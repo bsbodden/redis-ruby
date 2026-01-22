@@ -407,4 +407,93 @@ class ListsCommandsTest < RedisRubyTestCase
   ensure
     redis.del("test:src", "test:dst")
   end
+
+  # ============================================================
+  # LMPOP Tests (Redis 7.0+)
+  # ============================================================
+
+  def test_lmpop_left
+    redis.rpush("test:list", "a", "b", "c")
+
+    result = redis.lmpop("test:list", direction: :left)
+
+    assert_equal "test:list", result[0]
+    assert_equal ["a"], result[1]
+    assert_equal %w[b c], redis.lrange("test:list", 0, -1)
+  rescue RedisRuby::CommandError => e
+    skip "LMPOP not supported (requires Redis 7.0+)" if e.message.include?("unknown command")
+    raise
+  ensure
+    redis.del("test:list")
+  end
+
+  def test_lmpop_right
+    redis.rpush("test:list", "a", "b", "c")
+
+    result = redis.lmpop("test:list", direction: :right)
+
+    assert_equal "test:list", result[0]
+    assert_equal ["c"], result[1]
+    assert_equal %w[a b], redis.lrange("test:list", 0, -1)
+  rescue RedisRuby::CommandError => e
+    skip "LMPOP not supported (requires Redis 7.0+)" if e.message.include?("unknown command")
+    raise
+  ensure
+    redis.del("test:list")
+  end
+
+  def test_lmpop_with_count
+    redis.rpush("test:list", "a", "b", "c", "d", "e")
+
+    result = redis.lmpop("test:list", direction: :left, count: 3)
+
+    assert_equal "test:list", result[0]
+    assert_equal %w[a b c], result[1]
+    assert_equal %w[d e], redis.lrange("test:list", 0, -1)
+  rescue RedisRuby::CommandError => e
+    skip "LMPOP not supported (requires Redis 7.0+)" if e.message.include?("unknown command")
+    raise
+  ensure
+    redis.del("test:list")
+  end
+
+  def test_lmpop_multiple_lists
+    redis.rpush("test:list2", "x", "y")
+
+    result = redis.lmpop("test:list1", "test:list2", direction: :left)
+
+    # Pops from first non-empty list
+    assert_equal "test:list2", result[0]
+    assert_equal ["x"], result[1]
+  rescue RedisRuby::CommandError => e
+    skip "LMPOP not supported (requires Redis 7.0+)" if e.message.include?("unknown command")
+    raise
+  ensure
+    redis.del("test:list1", "test:list2")
+  end
+
+  def test_lmpop_empty_lists
+    redis.del("test:list1", "test:list2")
+
+    result = redis.lmpop("test:list1", "test:list2", direction: :left)
+
+    assert_nil result
+  rescue RedisRuby::CommandError => e
+    skip "LMPOP not supported (requires Redis 7.0+)" if e.message.include?("unknown command")
+    raise
+  end
+
+  def test_lmpop_default_direction_is_left
+    redis.rpush("test:list", "a", "b", "c")
+
+    result = redis.lmpop("test:list")
+
+    assert_equal "test:list", result[0]
+    assert_equal ["a"], result[1]  # Left pop = first element
+  rescue RedisRuby::CommandError => e
+    skip "LMPOP not supported (requires Redis 7.0+)" if e.message.include?("unknown command")
+    raise
+  ensure
+    redis.del("test:list")
+  end
 end

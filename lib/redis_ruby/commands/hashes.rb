@@ -162,6 +162,131 @@ module RedisRuby
         args.push("WITHVALUES") if withvalues
         call(*args)
       end
+
+      # Set expiration (seconds) on hash fields (Redis 7.4+)
+      #
+      # @param key [String]
+      # @param seconds [Integer] TTL in seconds
+      # @param fields [Array<String>] fields to set expiration on
+      # @param nx [Boolean] only set if field has no expiration
+      # @param xx [Boolean] only set if field already has expiration
+      # @param gt [Boolean] only set if new TTL > current TTL
+      # @param lt [Boolean] only set if new TTL < current TTL
+      # @return [Array<Integer>] status for each field (1=set, 0=not set, -2=no field)
+      def hexpire(key, seconds, *fields, nx: false, xx: false, gt: false, lt: false)
+        args = ["HEXPIRE", key, seconds]
+        args.push("NX") if nx
+        args.push("XX") if xx
+        args.push("GT") if gt
+        args.push("LT") if lt
+        args.push("FIELDS", fields.length, *fields)
+        call(*args)
+      end
+
+      # Set expiration (milliseconds) on hash fields (Redis 7.4+)
+      #
+      # @param key [String]
+      # @param milliseconds [Integer] TTL in milliseconds
+      # @param fields [Array<String>] fields to set expiration on
+      # @param nx [Boolean] only set if field has no expiration
+      # @param xx [Boolean] only set if field already has expiration
+      # @param gt [Boolean] only set if new TTL > current TTL
+      # @param lt [Boolean] only set if new TTL < current TTL
+      # @return [Array<Integer>] status for each field
+      def hpexpire(key, milliseconds, *fields, nx: false, xx: false, gt: false, lt: false)
+        args = ["HPEXPIRE", key, milliseconds]
+        args.push("NX") if nx
+        args.push("XX") if xx
+        args.push("GT") if gt
+        args.push("LT") if lt
+        args.push("FIELDS", fields.length, *fields)
+        call(*args)
+      end
+
+      # Set expiration (unix timestamp seconds) on hash fields (Redis 7.4+)
+      #
+      # @param key [String]
+      # @param unix_time [Integer] Unix timestamp in seconds
+      # @param fields [Array<String>] fields to set expiration on
+      # @param nx [Boolean] only set if field has no expiration
+      # @param xx [Boolean] only set if field already has expiration
+      # @param gt [Boolean] only set if new expiration > current
+      # @param lt [Boolean] only set if new expiration < current
+      # @return [Array<Integer>] status for each field
+      def hexpireat(key, unix_time, *fields, nx: false, xx: false, gt: false, lt: false)
+        args = ["HEXPIREAT", key, unix_time]
+        args.push("NX") if nx
+        args.push("XX") if xx
+        args.push("GT") if gt
+        args.push("LT") if lt
+        args.push("FIELDS", fields.length, *fields)
+        call(*args)
+      end
+
+      # Set expiration (unix timestamp milliseconds) on hash fields (Redis 7.4+)
+      #
+      # @param key [String]
+      # @param unix_time_ms [Integer] Unix timestamp in milliseconds
+      # @param fields [Array<String>] fields to set expiration on
+      # @param nx [Boolean] only set if field has no expiration
+      # @param xx [Boolean] only set if field already has expiration
+      # @param gt [Boolean] only set if new expiration > current
+      # @param lt [Boolean] only set if new expiration < current
+      # @return [Array<Integer>] status for each field
+      def hpexpireat(key, unix_time_ms, *fields, nx: false, xx: false, gt: false, lt: false)
+        args = ["HPEXPIREAT", key, unix_time_ms]
+        args.push("NX") if nx
+        args.push("XX") if xx
+        args.push("GT") if gt
+        args.push("LT") if lt
+        args.push("FIELDS", fields.length, *fields)
+        call(*args)
+      end
+
+      # Get TTL (seconds) for hash fields (Redis 7.4+)
+      #
+      # @param key [String]
+      # @param fields [Array<String>] fields to get TTL for
+      # @return [Array<Integer>] TTL for each field (-1=no expiry, -2=no field)
+      def httl(key, *fields)
+        call("HTTL", key, "FIELDS", fields.length, *fields)
+      end
+
+      # Get TTL (milliseconds) for hash fields (Redis 7.4+)
+      #
+      # @param key [String]
+      # @param fields [Array<String>] fields to get TTL for
+      # @return [Array<Integer>] TTL in ms for each field (-1=no expiry, -2=no field)
+      def hpttl(key, *fields)
+        call("HPTTL", key, "FIELDS", fields.length, *fields)
+      end
+
+      # Get expiration time (unix timestamp seconds) for hash fields (Redis 7.4+)
+      #
+      # @param key [String]
+      # @param fields [Array<String>] fields to get expiration for
+      # @return [Array<Integer>] Unix timestamp for each field (-1=no expiry, -2=no field)
+      def hexpiretime(key, *fields)
+        call("HEXPIRETIME", key, "FIELDS", fields.length, *fields)
+      end
+
+      # Get expiration time (unix timestamp ms) for hash fields (Redis 7.4+)
+      #
+      # @param key [String]
+      # @param fields [Array<String>] fields to get expiration for
+      # @return [Array<Integer>] Unix timestamp (ms) for each field (-1=no expiry, -2=no field)
+      def hpexpiretime(key, *fields)
+        call("HPEXPIRETIME", key, "FIELDS", fields.length, *fields)
+      end
+
+      # Remove expiration from hash fields (Redis 7.4+)
+      #
+      # @param key [String]
+      # @param fields [Array<String>] fields to persist
+      # @return [Array<Integer>] status for each field (1=removed, -1=no expiry, -2=no field)
+      def hpersist(key, *fields)
+        call("HPERSIST", key, "FIELDS", fields.length, *fields)
+      end
     end
   end
 end

@@ -185,4 +185,123 @@ class PubSubIntegrationTest < Minitest::Test
     skip "PUBSUB SHARDNUMSUB not supported" if e.message.include?("unknown subcommand")
     raise
   end
+
+  # ============================================================
+  # Sharded PubSub Tests (Redis 7.0+)
+  # ============================================================
+
+  # SPUBLISH tests
+  def test_spublish_returns_subscriber_count
+    # When no subscribers, returns 0
+    result = @redis.spublish("shard:test:channel", "hello")
+    assert_equal 0, result
+  rescue RedisRuby::CommandError => e
+    skip "SPUBLISH not supported (requires Redis 7.0+)" if e.message.include?("unknown command")
+    raise
+  end
+
+  def test_spublish_with_message
+    result = @redis.spublish("shard:test:channel", "test message")
+    assert_kind_of Integer, result
+  rescue RedisRuby::CommandError => e
+    skip "SPUBLISH not supported (requires Redis 7.0+)" if e.message.include?("unknown command")
+    raise
+  end
+
+  # SSUBSCRIBE tests
+  def test_ssubscribe_with_block
+    messages = []
+    subscribe_count = 0
+    unsubscribe_count = 0
+
+    publisher_thread = Thread.new do
+      sleep 0.1
+      @publisher.spublish("shard:test:block", "message1")
+      @publisher.spublish("shard:test:block", "message2")
+      sleep 0.1
+    end
+
+    @redis.ssubscribe("shard:test:block") do |on|
+      on.ssubscribe do |channel, subscriptions|
+        subscribe_count += 1
+      end
+
+      on.smessage do |channel, message|
+        messages << [channel, message]
+        @redis.sunsubscribe if messages.size >= 2
+      end
+
+      on.sunsubscribe do |channel, subscriptions|
+        unsubscribe_count += 1
+      end
+    end
+
+    publisher_thread.join
+
+    assert_equal 1, subscribe_count
+    assert_equal 1, unsubscribe_count
+    assert_equal 2, messages.size
+    assert_equal ["shard:test:block", "message1"], messages[0]
+    assert_equal ["shard:test:block", "message2"], messages[1]
+  rescue RedisRuby::CommandError => e
+    skip "SSUBSCRIBE not supported (requires Redis 7.0+)" if e.message.include?("unknown command")
+    raise
+  end
+
+  def test_ssubscribe_multiple_channels
+    channels_subscribed = []
+    messages = []
+
+    publisher_thread = Thread.new do
+      sleep 0.1
+      @publisher.spublish("shard:test:multi1", "msg1")
+      @publisher.spublish("shard:test:multi2", "msg2")
+      sleep 0.1
+    end
+
+    @redis.ssubscribe("shard:test:multi1", "shard:test:multi2") do |on|
+      on.ssubscribe do |channel, count|
+        channels_subscribed << channel
+      end
+
+      on.smessage do |channel, message|
+        messages << [channel, message]
+        @redis.sunsubscribe if messages.size >= 2
+      end
+    end
+
+    publisher_thread.join
+
+    assert_includes channels_subscribed, "shard:test:multi1"
+    assert_includes channels_subscribed, "shard:test:multi2"
+    assert_equal 2, messages.size
+  rescue RedisRuby::CommandError => e
+    skip "SSUBSCRIBE not supported (requires Redis 7.0+)" if e.message.include?("unknown command")
+    raise
+  end
+
+  def test_ssubscribe_timeout
+    start_time = Time.now
+
+    @redis.ssubscribe_with_timeout(0.5, "shard:test:timeout") do |on|
+      on.smessage do |channel, message|
+        # Should not receive anything
+      end
+    end
+
+    elapsed = Time.now - start_time
+    assert_operator elapsed, :>=, 0.4
+    assert_operator elapsed, :<, 2.0
+  rescue RedisRuby::CommandError => e
+    skip "SSUBSCRIBE not supported (requires Redis 7.0+)" if e.message.include?("unknown command")
+    raise
+  end
+
+  def test_pubsub_shardchannels_with_pattern
+    result = @redis.pubsub_shardchannels("shard:test:*")
+    assert_kind_of Array, result
+  rescue RedisRuby::CommandError => e
+    skip "PUBSUB SHARDCHANNELS not supported" if e.message.include?("unknown subcommand")
+    raise
+  end
 end

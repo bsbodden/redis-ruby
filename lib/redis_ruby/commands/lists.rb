@@ -156,13 +156,37 @@ module RedisRuby
         call("LMOVE", source, destination, wherefrom.to_s.upcase, whereto.to_s.upcase)
       end
 
-      # Get the element at index and delete it
+      # Pop elements from multiple lists (Redis 7.0+)
       #
-      # @param key [String]
-      # @param index [Integer]
-      # @return [String, nil] element or nil
-      def lmpop(key, index)
-        call("LMPOP", key, index)
+      # @param keys [Array<String>] keys to pop from
+      # @param direction [:left, :right] which end to pop from
+      # @param count [Integer, nil] number of elements to pop
+      # @return [Array, nil] [key, [elements]] or nil if all lists are empty
+      #
+      # @example Pop one element from the left
+      #   redis.lmpop("list1", "list2", direction: :left)
+      #   # => ["list1", ["element"]]
+      #
+      # @example Pop multiple elements
+      #   redis.lmpop("list1", "list2", direction: :right, count: 3)
+      #   # => ["list1", ["e1", "e2", "e3"]]
+      def lmpop(*keys, direction: :left, count: nil)
+        args = ["LMPOP", keys.length, *keys, direction.to_s.upcase]
+        args.push("COUNT", count) if count
+        call(*args)
+      end
+
+      # Blocking pop from multiple lists (Redis 7.0+)
+      #
+      # @param keys [Array<String>] keys to pop from
+      # @param direction [:left, :right] which end to pop from
+      # @param timeout [Numeric] timeout in seconds (0 = block forever)
+      # @param count [Integer, nil] number of elements to pop
+      # @return [Array, nil] [key, [elements]] or nil on timeout
+      def blmpop(timeout, *keys, direction: :left, count: nil)
+        args = ["BLMPOP", timeout, keys.length, *keys, direction.to_s.upcase]
+        args.push("COUNT", count) if count
+        call(*args)
       end
 
       # Return the index of matching elements

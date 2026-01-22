@@ -342,6 +342,73 @@ module RedisRuby
         call("ZDIFFSTORE", destination, keys.length, *keys)
       end
 
+      # Get the cardinality of the intersection (Redis 7.0+)
+      #
+      # Returns the number of members that would be in the intersection
+      # without actually computing the full intersection.
+      #
+      # @param keys [Array<String>] sorted sets to intersect
+      # @param limit [Integer, nil] stop counting after this many
+      # @return [Integer] cardinality of intersection
+      #
+      # @example
+      #   redis.zintercard("zset1", "zset2")
+      #   # => 5
+      #
+      # @example With limit
+      #   redis.zintercard("zset1", "zset2", limit: 10)
+      #   # => 5 (or up to 10)
+      def zintercard(*keys, limit: nil)
+        args = ["ZINTERCARD", keys.length, *keys]
+        args.push("LIMIT", limit) if limit
+        call(*args)
+      end
+
+      # Pop members from multiple sorted sets (Redis 7.0+)
+      #
+      # @param keys [Array<String>] sorted sets to pop from
+      # @param modifier [:min, :max] pop lowest or highest scores
+      # @param count [Integer, nil] number of members to pop
+      # @return [Array, nil] [key, [[member, score], ...]] or nil if all sets are empty
+      #
+      # @example Pop one member with lowest score
+      #   redis.zmpop("zset1", "zset2", modifier: :min)
+      #   # => ["zset1", [["member", 1.0]]]
+      #
+      # @example Pop multiple members with highest scores
+      #   redis.zmpop("zset1", "zset2", modifier: :max, count: 3)
+      #   # => ["zset1", [["m1", 10.0], ["m2", 9.0], ["m3", 8.0]]]
+      def zmpop(*keys, modifier: :min, count: nil)
+        args = ["ZMPOP", keys.length, *keys, modifier.to_s.upcase]
+        args.push("COUNT", count) if count
+        result = call(*args)
+        return nil if result.nil?
+
+        # Response format is [key, [[member, score], [member, score], ...]]
+        key = result[0]
+        members = result[1].map { |pair| [pair[0], pair[1].to_f] }
+        [key, members]
+      end
+
+      # Blocking pop from multiple sorted sets (Redis 7.0+)
+      #
+      # @param timeout [Numeric] timeout in seconds (0 = block forever)
+      # @param keys [Array<String>] sorted sets to pop from
+      # @param modifier [:min, :max] pop lowest or highest scores
+      # @param count [Integer, nil] number of members to pop
+      # @return [Array, nil] [key, [[member, score], ...]] or nil on timeout
+      def bzmpop(timeout, *keys, modifier: :min, count: nil)
+        args = ["BZMPOP", timeout, keys.length, *keys, modifier.to_s.upcase]
+        args.push("COUNT", count) if count
+        result = call(*args)
+        return nil if result.nil?
+
+        # Response format is [key, [[member, score], [member, score], ...]]
+        key = result[0]
+        members = result[1].map { |pair| [pair[0], pair[1].to_f] }
+        [key, members]
+      end
+
       # Count members in a lexicographical range
       #
       # @param key [String]

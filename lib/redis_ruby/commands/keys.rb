@@ -26,36 +26,72 @@ module RedisRuby
       #
       # @param key [String]
       # @param seconds [Integer]
-      # @return [Integer] 1 if timeout was set, 0 if key doesn't exist
-      def expire(key, seconds)
-        call("EXPIRE", key, seconds)
+      # @param nx [Boolean] only set if key has no expiration (Redis 7.0+)
+      # @param xx [Boolean] only set if key already has expiration (Redis 7.0+)
+      # @param gt [Boolean] only set if new TTL > current TTL (Redis 7.0+)
+      # @param lt [Boolean] only set if new TTL < current TTL (Redis 7.0+)
+      # @return [Integer] 1 if timeout was set, 0 if not set
+      def expire(key, seconds, nx: false, xx: false, gt: false, lt: false)
+        args = ["EXPIRE", key, seconds]
+        args.push("NX") if nx
+        args.push("XX") if xx
+        args.push("GT") if gt
+        args.push("LT") if lt
+        call(*args)
       end
 
       # Set a key's time to live in milliseconds
       #
       # @param key [String]
       # @param milliseconds [Integer]
-      # @return [Integer] 1 if timeout was set, 0 if key doesn't exist
-      def pexpire(key, milliseconds)
-        call("PEXPIRE", key, milliseconds)
+      # @param nx [Boolean] only set if key has no expiration (Redis 7.0+)
+      # @param xx [Boolean] only set if key already has expiration (Redis 7.0+)
+      # @param gt [Boolean] only set if new TTL > current TTL (Redis 7.0+)
+      # @param lt [Boolean] only set if new TTL < current TTL (Redis 7.0+)
+      # @return [Integer] 1 if timeout was set, 0 if not set
+      def pexpire(key, milliseconds, nx: false, xx: false, gt: false, lt: false)
+        args = ["PEXPIRE", key, milliseconds]
+        args.push("NX") if nx
+        args.push("XX") if xx
+        args.push("GT") if gt
+        args.push("LT") if lt
+        call(*args)
       end
 
       # Set the expiration for a key as a Unix timestamp (seconds)
       #
       # @param key [String]
       # @param timestamp [Integer]
-      # @return [Integer] 1 if timeout was set, 0 if key doesn't exist
-      def expireat(key, timestamp)
-        call("EXPIREAT", key, timestamp)
+      # @param nx [Boolean] only set if key has no expiration (Redis 7.0+)
+      # @param xx [Boolean] only set if key already has expiration (Redis 7.0+)
+      # @param gt [Boolean] only set if new expiration > current (Redis 7.0+)
+      # @param lt [Boolean] only set if new expiration < current (Redis 7.0+)
+      # @return [Integer] 1 if timeout was set, 0 if not set
+      def expireat(key, timestamp, nx: false, xx: false, gt: false, lt: false)
+        args = ["EXPIREAT", key, timestamp]
+        args.push("NX") if nx
+        args.push("XX") if xx
+        args.push("GT") if gt
+        args.push("LT") if lt
+        call(*args)
       end
 
       # Set the expiration for a key as a Unix timestamp (milliseconds)
       #
       # @param key [String]
       # @param timestamp [Integer]
-      # @return [Integer] 1 if timeout was set, 0 if key doesn't exist
-      def pexpireat(key, timestamp)
-        call("PEXPIREAT", key, timestamp)
+      # @param nx [Boolean] only set if key has no expiration (Redis 7.0+)
+      # @param xx [Boolean] only set if key already has expiration (Redis 7.0+)
+      # @param gt [Boolean] only set if new expiration > current (Redis 7.0+)
+      # @param lt [Boolean] only set if new expiration < current (Redis 7.0+)
+      # @return [Integer] 1 if timeout was set, 0 if not set
+      def pexpireat(key, timestamp, nx: false, xx: false, gt: false, lt: false)
+        args = ["PEXPIREAT", key, timestamp]
+        args.push("NX") if nx
+        args.push("XX") if xx
+        args.push("GT") if gt
+        args.push("LT") if lt
+        call(*args)
       end
 
       # Get the time to live for a key in seconds

@@ -783,4 +783,120 @@ class SortedSetsCommandsTest < RedisRubyTestCase
   ensure
     redis.del("test:zset1", "test:zset2", "test:result")
   end
+
+  # ============================================================
+  # Redis 7.0+ Commands
+  # ============================================================
+
+  # ZINTERCARD tests (Redis 7.0+)
+  def test_zintercard_basic
+    redis.zadd("test:zset1", 1, "one", 2, "two", 3, "three")
+    redis.zadd("test:zset2", 2, "two", 3, "three", 4, "four")
+
+    count = redis.zintercard("test:zset1", "test:zset2")
+
+    assert_equal 2, count  # "two" and "three"
+  rescue RedisRuby::CommandError => e
+    skip "ZINTERCARD not supported (requires Redis 7.0+)" if e.message.include?("unknown command")
+    raise
+  ensure
+    redis.del("test:zset1", "test:zset2")
+  end
+
+  def test_zintercard_with_limit
+    redis.zadd("test:zset1", 1, "a", 2, "b", 3, "c", 4, "d", 5, "e")
+    redis.zadd("test:zset2", 1, "a", 2, "b", 3, "c", 4, "d", 5, "e")
+
+    count = redis.zintercard("test:zset1", "test:zset2", limit: 3)
+
+    assert_equal 3, count  # Stops counting at 3
+  rescue RedisRuby::CommandError => e
+    skip "ZINTERCARD not supported (requires Redis 7.0+)" if e.message.include?("unknown command")
+    raise
+  ensure
+    redis.del("test:zset1", "test:zset2")
+  end
+
+  def test_zintercard_no_intersection
+    redis.zadd("test:zset1", 1, "one", 2, "two")
+    redis.zadd("test:zset2", 3, "three", 4, "four")
+
+    count = redis.zintercard("test:zset1", "test:zset2")
+
+    assert_equal 0, count
+  rescue RedisRuby::CommandError => e
+    skip "ZINTERCARD not supported (requires Redis 7.0+)" if e.message.include?("unknown command")
+    raise
+  ensure
+    redis.del("test:zset1", "test:zset2")
+  end
+
+  # ZMPOP tests (Redis 7.0+)
+  def test_zmpop_min
+    redis.zadd("test:zset", 1, "one", 2, "two", 3, "three")
+
+    result = redis.zmpop("test:zset", modifier: :min)
+
+    assert_equal "test:zset", result[0]
+    assert_equal [["one", 1.0]], result[1]
+  rescue RedisRuby::CommandError => e
+    skip "ZMPOP not supported (requires Redis 7.0+)" if e.message.include?("unknown command")
+    raise
+  ensure
+    redis.del("test:zset")
+  end
+
+  def test_zmpop_max
+    redis.zadd("test:zset", 1, "one", 2, "two", 3, "three")
+
+    result = redis.zmpop("test:zset", modifier: :max)
+
+    assert_equal "test:zset", result[0]
+    assert_equal [["three", 3.0]], result[1]
+  rescue RedisRuby::CommandError => e
+    skip "ZMPOP not supported (requires Redis 7.0+)" if e.message.include?("unknown command")
+    raise
+  ensure
+    redis.del("test:zset")
+  end
+
+  def test_zmpop_with_count
+    redis.zadd("test:zset", 1, "one", 2, "two", 3, "three")
+
+    result = redis.zmpop("test:zset", modifier: :min, count: 2)
+
+    assert_equal "test:zset", result[0]
+    assert_equal [["one", 1.0], ["two", 2.0]], result[1]
+  rescue RedisRuby::CommandError => e
+    skip "ZMPOP not supported (requires Redis 7.0+)" if e.message.include?("unknown command")
+    raise
+  ensure
+    redis.del("test:zset")
+  end
+
+  def test_zmpop_multiple_sets
+    redis.zadd("test:zset2", 5, "five")
+
+    result = redis.zmpop("test:zset1", "test:zset2", modifier: :min)
+
+    # Pops from first non-empty set
+    assert_equal "test:zset2", result[0]
+    assert_equal [["five", 5.0]], result[1]
+  rescue RedisRuby::CommandError => e
+    skip "ZMPOP not supported (requires Redis 7.0+)" if e.message.include?("unknown command")
+    raise
+  ensure
+    redis.del("test:zset1", "test:zset2")
+  end
+
+  def test_zmpop_empty_sets
+    redis.del("test:zset1", "test:zset2")
+
+    result = redis.zmpop("test:zset1", "test:zset2", modifier: :min)
+
+    assert_nil result
+  rescue RedisRuby::CommandError => e
+    skip "ZMPOP not supported (requires Redis 7.0+)" if e.message.include?("unknown command")
+    raise
+  end
 end

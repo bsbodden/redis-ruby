@@ -128,6 +128,109 @@ class KeysCommandsTest < RedisRubyTestCase
     assert_equal 0, redis.expire("test:nonexistent", 100)
   end
 
+  # EXPIRE with conditional options (Redis 7.0+)
+  def test_expire_with_nx_no_existing_expiry
+    redis.set("test:key", "value")
+
+    # NX: only set if no expiry exists - should succeed
+    assert_equal 1, redis.expire("test:key", 100, nx: true)
+    ttl = redis.ttl("test:key")
+
+    assert_operator ttl, :>, 0
+    assert_operator ttl, :<=, 100
+  ensure
+    redis.del("test:key")
+  end
+
+  def test_expire_with_nx_existing_expiry
+    redis.set("test:key", "value")
+    redis.expire("test:key", 200)
+
+    # NX: only set if no expiry exists - should fail because expiry exists
+    assert_equal 0, redis.expire("test:key", 100, nx: true)
+    ttl = redis.ttl("test:key")
+
+    # TTL should still be around 200
+    assert_operator ttl, :>, 100
+  ensure
+    redis.del("test:key")
+  end
+
+  def test_expire_with_xx_no_existing_expiry
+    redis.set("test:key", "value")
+
+    # XX: only set if expiry already exists - should fail
+    assert_equal 0, redis.expire("test:key", 100, xx: true)
+    assert_equal(-1, redis.ttl("test:key"))
+  ensure
+    redis.del("test:key")
+  end
+
+  def test_expire_with_xx_existing_expiry
+    redis.set("test:key", "value")
+    redis.expire("test:key", 200)
+
+    # XX: only set if expiry already exists - should succeed
+    assert_equal 1, redis.expire("test:key", 100, xx: true)
+    ttl = redis.ttl("test:key")
+
+    assert_operator ttl, :<=, 100
+  ensure
+    redis.del("test:key")
+  end
+
+  def test_expire_with_gt_new_ttl_greater
+    redis.set("test:key", "value")
+    redis.expire("test:key", 100)
+
+    # GT: only set if new TTL > current TTL - should succeed
+    assert_equal 1, redis.expire("test:key", 200, gt: true)
+    ttl = redis.ttl("test:key")
+
+    assert_operator ttl, :>, 100
+  ensure
+    redis.del("test:key")
+  end
+
+  def test_expire_with_gt_new_ttl_smaller
+    redis.set("test:key", "value")
+    redis.expire("test:key", 200)
+
+    # GT: only set if new TTL > current TTL - should fail
+    assert_equal 0, redis.expire("test:key", 100, gt: true)
+    ttl = redis.ttl("test:key")
+
+    assert_operator ttl, :>, 100
+  ensure
+    redis.del("test:key")
+  end
+
+  def test_expire_with_lt_new_ttl_smaller
+    redis.set("test:key", "value")
+    redis.expire("test:key", 200)
+
+    # LT: only set if new TTL < current TTL - should succeed
+    assert_equal 1, redis.expire("test:key", 100, lt: true)
+    ttl = redis.ttl("test:key")
+
+    assert_operator ttl, :<=, 100
+  ensure
+    redis.del("test:key")
+  end
+
+  def test_expire_with_lt_new_ttl_greater
+    redis.set("test:key", "value")
+    redis.expire("test:key", 100)
+
+    # LT: only set if new TTL < current TTL - should fail
+    assert_equal 0, redis.expire("test:key", 200, lt: true)
+    ttl = redis.ttl("test:key")
+
+    assert_operator ttl, :<=, 100
+  ensure
+    redis.del("test:key")
+  end
+
   # PEXPIRE tests
   def test_pexpire_sets_ttl
     redis.set("test:key", "value")
@@ -137,6 +240,49 @@ class KeysCommandsTest < RedisRubyTestCase
 
     assert_operator pttl, :>, 0
     assert_operator pttl, :<=, 100_000
+  ensure
+    redis.del("test:key")
+  end
+
+  def test_pexpire_with_nx
+    redis.set("test:key", "value")
+    redis.pexpire("test:key", 200_000)
+
+    # NX should fail since expiry exists
+    assert_equal 0, redis.pexpire("test:key", 100_000, nx: true)
+  ensure
+    redis.del("test:key")
+  end
+
+  def test_pexpire_with_xx
+    redis.set("test:key", "value")
+    redis.pexpire("test:key", 100_000)
+
+    # XX should succeed since expiry exists
+    assert_equal 1, redis.pexpire("test:key", 200_000, xx: true)
+    pttl = redis.pttl("test:key")
+
+    assert_operator pttl, :>, 100_000
+  ensure
+    redis.del("test:key")
+  end
+
+  def test_pexpire_with_gt
+    redis.set("test:key", "value")
+    redis.pexpire("test:key", 100_000)
+
+    # GT should succeed since new TTL > current
+    assert_equal 1, redis.pexpire("test:key", 200_000, gt: true)
+  ensure
+    redis.del("test:key")
+  end
+
+  def test_pexpire_with_lt
+    redis.set("test:key", "value")
+    redis.pexpire("test:key", 200_000)
+
+    # LT should succeed since new TTL < current
+    assert_equal 1, redis.pexpire("test:key", 100_000, lt: true)
   ensure
     redis.del("test:key")
   end
@@ -155,6 +301,62 @@ class KeysCommandsTest < RedisRubyTestCase
     redis.del("test:key")
   end
 
+  def test_expireat_with_nx
+    redis.set("test:key", "value")
+
+    # NX should succeed since no expiry
+    future_time = Time.now.to_i + 100
+    assert_equal 1, redis.expireat("test:key", future_time, nx: true)
+
+    # NX should fail since expiry now exists
+    new_future_time = Time.now.to_i + 200
+    assert_equal 0, redis.expireat("test:key", new_future_time, nx: true)
+  ensure
+    redis.del("test:key")
+  end
+
+  def test_expireat_with_xx
+    redis.set("test:key", "value")
+    future_time = Time.now.to_i + 100
+
+    # XX should fail since no expiry
+    assert_equal 0, redis.expireat("test:key", future_time, xx: true)
+
+    # Set an expiry first
+    redis.expire("test:key", 50)
+
+    # XX should now succeed
+    assert_equal 1, redis.expireat("test:key", future_time, xx: true)
+  ensure
+    redis.del("test:key")
+  end
+
+  def test_expireat_with_gt
+    redis.set("test:key", "value")
+    smaller_time = Time.now.to_i + 50
+    larger_time = Time.now.to_i + 100
+
+    redis.expireat("test:key", smaller_time)
+
+    # GT should succeed since new time > current
+    assert_equal 1, redis.expireat("test:key", larger_time, gt: true)
+  ensure
+    redis.del("test:key")
+  end
+
+  def test_expireat_with_lt
+    redis.set("test:key", "value")
+    larger_time = Time.now.to_i + 100
+    smaller_time = Time.now.to_i + 50
+
+    redis.expireat("test:key", larger_time)
+
+    # LT should succeed since new time < current
+    assert_equal 1, redis.expireat("test:key", smaller_time, lt: true)
+  ensure
+    redis.del("test:key")
+  end
+
   # PEXPIREAT tests
   def test_pexpireat_sets_ttl
     redis.set("test:key", "value")
@@ -165,6 +367,62 @@ class KeysCommandsTest < RedisRubyTestCase
 
     assert_operator pttl, :>, 0
     assert_operator pttl, :<=, 100_000
+  ensure
+    redis.del("test:key")
+  end
+
+  def test_pexpireat_with_nx
+    redis.set("test:key", "value")
+    future_time = (Time.now.to_f * 1000).to_i + 100_000
+
+    # NX should succeed since no expiry
+    assert_equal 1, redis.pexpireat("test:key", future_time, nx: true)
+
+    # NX should fail since expiry now exists
+    new_future_time = (Time.now.to_f * 1000).to_i + 200_000
+    assert_equal 0, redis.pexpireat("test:key", new_future_time, nx: true)
+  ensure
+    redis.del("test:key")
+  end
+
+  def test_pexpireat_with_xx
+    redis.set("test:key", "value")
+    future_time = (Time.now.to_f * 1000).to_i + 100_000
+
+    # XX should fail since no expiry
+    assert_equal 0, redis.pexpireat("test:key", future_time, xx: true)
+
+    # Set an expiry first
+    redis.pexpire("test:key", 50_000)
+
+    # XX should now succeed
+    assert_equal 1, redis.pexpireat("test:key", future_time, xx: true)
+  ensure
+    redis.del("test:key")
+  end
+
+  def test_pexpireat_with_gt
+    redis.set("test:key", "value")
+    smaller_time = (Time.now.to_f * 1000).to_i + 50_000
+    larger_time = (Time.now.to_f * 1000).to_i + 100_000
+
+    redis.pexpireat("test:key", smaller_time)
+
+    # GT should succeed since new time > current
+    assert_equal 1, redis.pexpireat("test:key", larger_time, gt: true)
+  ensure
+    redis.del("test:key")
+  end
+
+  def test_pexpireat_with_lt
+    redis.set("test:key", "value")
+    larger_time = (Time.now.to_f * 1000).to_i + 100_000
+    smaller_time = (Time.now.to_f * 1000).to_i + 50_000
+
+    redis.pexpireat("test:key", larger_time)
+
+    # LT should succeed since new time < current
+    assert_equal 1, redis.pexpireat("test:key", smaller_time, lt: true)
   ensure
     redis.del("test:key")
   end

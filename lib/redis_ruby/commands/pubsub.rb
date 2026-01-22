@@ -179,10 +179,71 @@ module RedisRuby
         Hash[*result]
       end
 
+      # Publish to a shard channel (Redis 7.0+)
+      #
+      # Sharded pubsub routes messages based on the channel's key slot,
+      # ensuring that messages are delivered to clients connected to the
+      # node responsible for that slot.
+      #
+      # @param shardchannel [String] Shard channel name
+      # @param message [String] Message to publish
+      # @return [Integer] Number of subscribers that received the message
+      #
+      # @example
+      #   redis.spublish("user:{123}:updates", "profile_updated")
+      def spublish(shardchannel, message)
+        call("SPUBLISH", shardchannel, message)
+      end
+
+      # Subscribe to shard channels (Redis 7.0+)
+      #
+      # Subscribes to the given shard channels and enters subscription mode.
+      # Sharded channels are distributed to specific nodes based on key slot.
+      #
+      # @param shardchannels [Array<String>] Shard channel names to subscribe to
+      # @yield [SubscriptionHandler] Handler for setting up callbacks
+      #
+      # @example
+      #   redis.ssubscribe("user:{123}:updates") do |on|
+      #     on.ssubscribe do |channel, count|
+      #       puts "Subscribed to shard channel #{channel}"
+      #     end
+      #
+      #     on.smessage do |channel, message|
+      #       puts "#{channel}: #{message}"
+      #     end
+      #   end
+      def ssubscribe(*shardchannels, &block)
+        subscription_loop("SSUBSCRIBE", shardchannels, sharded: true, &block)
+      end
+
+      # Shard subscribe with timeout (Redis 7.0+)
+      #
+      # @param timeout [Float] Timeout in seconds
+      # @param shardchannels [Array<String>] Shard channel names
+      # @yield [SubscriptionHandler] Handler for setting up callbacks
+      def ssubscribe_with_timeout(timeout, *shardchannels, &block)
+        subscription_loop("SSUBSCRIBE", shardchannels, timeout: timeout, sharded: true, &block)
+      end
+
+      # Unsubscribe from shard channels (Redis 7.0+)
+      #
+      # @param shardchannels [Array<String>] Shard channels to unsubscribe from (empty = all)
+      # @return [void]
+      def sunsubscribe(*shardchannels)
+        if @subscription_connection
+          if shardchannels.empty?
+            @subscription_connection.write_command(["SUNSUBSCRIBE"])
+          else
+            @subscription_connection.write_command(["SUNSUBSCRIBE", *shardchannels])
+          end
+        end
+      end
+
       private
 
       # Main subscription loop
-      def subscription_loop(command, targets, timeout: nil)
+      def subscription_loop(command, targets, timeout: nil, sharded: false)
         handler = SubscriptionHandler.new
 
         # Let caller set up callbacks
@@ -200,16 +261,19 @@ module RedisRuby
         subscriptions = 0
         deadline = timeout ? Time.now + timeout : nil
 
+        # Determine unsubscribe command based on type
+        unsubscribe_command = case command
+                              when "SUBSCRIBE" then "UNSUBSCRIBE"
+                              when "PSUBSCRIBE" then "PUNSUBSCRIBE"
+                              when "SSUBSCRIBE" then "SUNSUBSCRIBE"
+                              end
+
         # Read messages until we're fully unsubscribed
         loop do
           # Check timeout
           if deadline && Time.now >= deadline
             # Timeout - unsubscribe from everything
-            if command == "SUBSCRIBE"
-              @subscription_connection.write_command(["UNSUBSCRIBE"])
-            else
-              @subscription_connection.write_command(["PUNSUBSCRIBE"])
-            end
+            @subscription_connection.write_command([unsubscribe_command])
           end
 
           # Read next message
@@ -226,10 +290,10 @@ module RedisRuby
           type = message[0]
 
           case type
-          when "subscribe", "psubscribe"
+          when "subscribe", "psubscribe", "ssubscribe"
             subscriptions = message[2].to_i
             handler.call_subscribe(type.to_sym, message[1], subscriptions)
-          when "unsubscribe", "punsubscribe"
+          when "unsubscribe", "punsubscribe", "sunsubscribe"
             subscriptions = message[2].to_i
             handler.call_unsubscribe(type.to_sym, message[1], subscriptions)
             break if subscriptions.zero?
@@ -237,6 +301,8 @@ module RedisRuby
             handler.call_message(message[1], message[2])
           when "pmessage"
             handler.call_pmessage(message[1], message[2], message[3])
+          when "smessage"
+            handler.call_smessage(message[1], message[2])
           end
         end
       ensure
@@ -259,6 +325,11 @@ module RedisRuby
           @callbacks[:psubscribe] = block
         end
 
+        # Set callback for ssubscribe events (Redis 7.0+)
+        def ssubscribe(&block)
+          @callbacks[:ssubscribe] = block
+        end
+
         # Set callback for unsubscribe events
         def unsubscribe(&block)
           @callbacks[:unsubscribe] = block
@@ -269,6 +340,11 @@ module RedisRuby
           @callbacks[:punsubscribe] = block
         end
 
+        # Set callback for sunsubscribe events (Redis 7.0+)
+        def sunsubscribe(&block)
+          @callbacks[:sunsubscribe] = block
+        end
+
         # Set callback for message events
         def message(&block)
           @callbacks[:message] = block
@@ -277,6 +353,11 @@ module RedisRuby
         # Set callback for pmessage events
         def pmessage(&block)
           @callbacks[:pmessage] = block
+        end
+
+        # Set callback for smessage events (Redis 7.0+, sharded pubsub)
+        def smessage(&block)
+          @callbacks[:smessage] = block
         end
 
         # @private
@@ -297,6 +378,11 @@ module RedisRuby
         # @private
         def call_pmessage(pattern, channel, message)
           @callbacks[:pmessage]&.call(pattern, channel, message)
+        end
+
+        # @private
+        def call_smessage(channel, message)
+          @callbacks[:smessage]&.call(channel, message)
         end
       end
     end
