@@ -57,6 +57,7 @@ module RedisRuby
     include Commands::VectorSet
     include Commands::Streams
     include Commands::PubSub
+    include Commands::Functions
 
     attr_reader :host, :port, :db, :timeout
 
