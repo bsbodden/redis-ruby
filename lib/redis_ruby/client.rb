@@ -79,9 +79,12 @@ module RedisRuby
     # @param ssl_params [Hash] SSL parameters for OpenSSL::SSL::SSLContext
     # @param retry_policy [RedisRuby::Retry, nil] Retry policy for transient failures
     # @param reconnect_attempts [Integer] Shorthand for retry count (creates default policy)
+    # @param decode_responses [Boolean] Auto-decode binary responses to the specified encoding
+    # @param encoding [String] Encoding for decoded responses (default: "UTF-8")
     def initialize(url: nil, host: DEFAULT_HOST, port: DEFAULT_PORT, path: nil,
                    db: DEFAULT_DB, password: nil, username: nil, timeout: DEFAULT_TIMEOUT,
-                   ssl: false, ssl_params: {}, retry_policy: nil, reconnect_attempts: 0)
+                   ssl: false, ssl_params: {}, retry_policy: nil, reconnect_attempts: 0,
+                   decode_responses: false, encoding: "UTF-8")
       if url
         parse_url(url)
       else
@@ -97,6 +100,8 @@ module RedisRuby
       @ssl_params = ssl_params
       @connection = nil
       @retry_policy = retry_policy || build_default_retry_policy(reconnect_attempts)
+      @decode_responses = decode_responses
+      @encoding = encoding
     end
 
     # Execute a Redis command
@@ -113,7 +118,7 @@ module RedisRuby
         result = @connection.call_direct(command, *)
         raise result if result.is_a?(CommandError)
 
-        result
+        @decode_responses ? decode_result(result) : result
       end
     end
 
@@ -324,6 +329,24 @@ module RedisRuby
     # Select database
     def select_db
       @connection.call(CMD_SELECT, @db.to_s)
+    end
+
+    # Decode a result to the configured encoding
+    def decode_result(result)
+      case result
+      when String
+        if result.frozen?
+          result.encode(@encoding)
+        else
+          result.force_encoding(@encoding)
+        end
+      when Array
+        result.map { |v| decode_result(v) }
+      when Hash
+        result.each_with_object({}) { |(k, v), h| h[decode_result(k)] = decode_result(v) }
+      else
+        result
+      end
     end
 
     # Build a default retry policy from reconnect_attempts count
