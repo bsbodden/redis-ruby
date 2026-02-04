@@ -174,6 +174,7 @@ require_relative "redis_ruby/commands/sentinel"
 require_relative "redis_ruby/commands/pubsub"
 require_relative "redis_ruby/commands/functions"
 require_relative "redis_ruby/commands/acl"
+require_relative "redis_ruby/commands/server"
 require_relative "redis_ruby/commands/cluster"
 
 # Client layer

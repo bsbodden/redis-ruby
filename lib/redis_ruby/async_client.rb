@@ -59,6 +59,7 @@ module RedisRuby
     include Commands::PubSub
     include Commands::Functions
     include Commands::ACL
+    include Commands::Server
 
     attr_reader :host, :port, :db, :timeout
 
