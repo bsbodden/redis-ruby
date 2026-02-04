@@ -178,6 +178,7 @@ require_relative "redis_ruby/commands/server"
 require_relative "redis_ruby/commands/cluster"
 
 # Client layer
+require_relative "redis_ruby/script"
 require_relative "redis_ruby/pipeline"
 require_relative "redis_ruby/transaction"
 require_relative "redis_ruby/client"

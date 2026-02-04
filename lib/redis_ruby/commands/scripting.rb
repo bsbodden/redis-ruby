@@ -139,6 +139,23 @@ module RedisRuby
         call("SCRIPT", "DEBUG", mode.to_s.upcase)
       end
 
+      # Register a script for efficient repeated execution
+      #
+      # Returns a Script object that automatically handles EVALSHA/EVAL
+      # fallback. On first call, the script is sent via EVAL and cached
+      # on the server. Subsequent calls use EVALSHA.
+      #
+      # @param script [String] Lua script source
+      # @return [Script] Callable script object
+      #
+      # @example
+      #   incr = redis.register_script("return redis.call('INCR', KEYS[1])")
+      #   incr.call(keys: ["counter"])  # => 1
+      #   incr.call(keys: ["counter"])  # => 2
+      def register_script(script)
+        Script.new(script, self)
+      end
+
       # Execute a script with automatic EVALSHA/EVAL fallback
       #
       # Tries EVALSHA first, falls back to EVAL if script not cached.
