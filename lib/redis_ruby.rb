@@ -151,6 +151,7 @@ require_relative "redis_ruby/sentinel_manager"
 
 # Utilities
 require_relative "redis_ruby/utils/url_parser"
+require_relative "redis_ruby/retry"
 
 # Commands layer (shared by sync/async clients)
 require_relative "redis_ruby/commands/strings"

@@ -70,12 +70,15 @@ module RedisRuby
     # @param path [String, nil] Unix socket path
     # @param db [Integer] Redis database number
     # @param password [String, nil] Redis password
+    # @param username [String, nil] Redis username (ACL, Redis 6+)
     # @param timeout [Float] Connection timeout in seconds
     # @param ssl [Boolean] Enable SSL/TLS
     # @param ssl_params [Hash] SSL parameters for OpenSSL::SSL::SSLContext
+    # @param retry_policy [RedisRuby::Retry, nil] Retry policy for transient failures
+    # @param reconnect_attempts [Integer] Shorthand for retry count (creates default policy)
     def initialize(url: nil, host: DEFAULT_HOST, port: DEFAULT_PORT, path: nil,
-                   db: DEFAULT_DB, password: nil, timeout: DEFAULT_TIMEOUT,
-                   ssl: false, ssl_params: {})
+                   db: DEFAULT_DB, password: nil, username: nil, timeout: DEFAULT_TIMEOUT,
+                   ssl: false, ssl_params: {}, retry_policy: nil, reconnect_attempts: 0)
       if url
         parse_url(url)
       else
@@ -84,25 +87,31 @@ module RedisRuby
         @path = path
         @db = db
         @password = password
+        @username = username
         @ssl = ssl
       end
       @timeout = timeout
       @ssl_params = ssl_params
       @connection = nil
+      @retry_policy = retry_policy || build_default_retry_policy(reconnect_attempts)
     end
 
     # Execute a Redis command
+    #
+    # Automatically retries on transient connection/timeout errors
+    # when a retry policy is configured.
     #
     # @param command [String] Command name
     # @param args [Array] Command arguments
     # @return [Object] Command result
     def call(command, *)
-      ensure_connected
-      # Use call_direct to skip redundant ensure_connected in TCP
-      result = @connection.call_direct(command, *)
-      raise result if result.is_a?(CommandError)
+      @retry_policy.call do
+        ensure_connected
+        result = @connection.call_direct(command, *)
+        raise result if result.is_a?(CommandError)
 
-      result
+        result
+      end
     end
 
     # Ping the Redis server
@@ -256,6 +265,9 @@ module RedisRuby
       @port = uri.port || DEFAULT_PORT
       @db = uri.path&.delete_prefix("/")&.to_i || DEFAULT_DB
       @password = uri.password
+      @username = uri.user == "" ? nil : uri.user
+      # When only password is provided (redis://:password@host), user is empty string
+      @username = nil if @username && @password && @username == @password
       @path = nil
     end
 
@@ -297,14 +309,32 @@ module RedisRuby
       end
     end
 
-    # Authenticate with password
+    # Authenticate with password (and optional username for ACL)
     def authenticate
-      @connection.call(CMD_AUTH, @password)
+      if @username
+        @connection.call(CMD_AUTH, @username, @password)
+      else
+        @connection.call(CMD_AUTH, @password)
+      end
     end
 
     # Select database
     def select_db
       @connection.call(CMD_SELECT, @db.to_s)
+    end
+
+    # Build a default retry policy from reconnect_attempts count
+    def build_default_retry_policy(reconnect_attempts)
+      if reconnect_attempts.positive?
+        Retry.new(
+          retries: reconnect_attempts,
+          backoff: ExponentialWithJitterBackoff.new(base: 0.025, cap: 2.0),
+          on_retry: ->(_error, _attempt) { @connection = nil }
+        )
+      else
+        # No-op retry policy (zero retries, just executes once)
+        Retry.new(retries: 0)
+      end
     end
   end
 end
