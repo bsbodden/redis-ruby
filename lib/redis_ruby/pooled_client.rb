@@ -58,15 +58,16 @@ module RedisRuby
     # @param pool [Hash] Pool options (:size, :timeout)
     def initialize(url: nil, host: DEFAULT_HOST, port: DEFAULT_PORT, db: DEFAULT_DB,
                    password: nil, timeout: DEFAULT_TIMEOUT, pool: {})
-      if url
-        parse_url(url)
-      else
-        @host = host
-        @port = port
-        @db = db
-        @password = password
-      end
+      # Initialize ALL instance variables upfront for consistent object shapes (YJIT optimization)
+      @host = host
+      @port = port
+      @db = db
+      @password = password
       @timeout = timeout
+      @pool = nil
+
+      # Override from URL if provided
+      parse_url(url) if url
 
       pool_size = pool.fetch(:size) { DEFAULT_POOL_SIZE }
       pool_timeout = pool.fetch(:timeout) { DEFAULT_POOL_TIMEOUT }

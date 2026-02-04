@@ -81,16 +81,17 @@ module RedisRuby
     #   from multiple fibers, use AsyncPooledClient instead.
     def initialize(url: nil, host: DEFAULT_HOST, port: DEFAULT_PORT, db: DEFAULT_DB,
                    password: nil, timeout: DEFAULT_TIMEOUT)
-      if url
-        parse_url(url)
-      else
-        @host = host
-        @port = port
-        @db = db
-        @password = password
-      end
+      # Initialize ALL instance variables upfront for consistent object shapes (YJIT optimization)
+      @host = host
+      @port = port
+      @db = db
+      @password = password
       @timeout = timeout
       @connection = nil
+
+      # Override from URL if provided
+      parse_url(url) if url
+
       ensure_connected
     end
 

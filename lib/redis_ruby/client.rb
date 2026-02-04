@@ -85,23 +85,24 @@ module RedisRuby
                    db: DEFAULT_DB, password: nil, username: nil, timeout: DEFAULT_TIMEOUT,
                    ssl: false, ssl_params: {}, retry_policy: nil, reconnect_attempts: 0,
                    decode_responses: false, encoding: "UTF-8")
-      if url
-        parse_url(url)
-      else
-        @host = host
-        @port = port
-        @path = path
-        @db = db
-        @password = password
-        @username = username
-        @ssl = ssl
-      end
+      # Initialize ALL instance variables upfront for consistent object shapes (YJIT optimization)
+      @host = host
+      @port = port
+      @path = path
+      @db = db
+      @password = password
+      @username = username
+      @ssl = ssl
       @timeout = timeout
       @ssl_params = ssl_params
       @connection = nil
-      @retry_policy = retry_policy || build_default_retry_policy(reconnect_attempts)
       @decode_responses = decode_responses
       @encoding = encoding
+
+      # Override from URL if provided
+      parse_url(url) if url
+
+      @retry_policy = retry_policy || build_default_retry_policy(reconnect_attempts)
     end
 
     # Execute a Redis command

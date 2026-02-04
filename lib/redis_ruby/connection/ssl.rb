@@ -56,12 +56,17 @@ module RedisRuby
       # @option ssl_params [String] :ciphers Allowed cipher suites
       # @option ssl_params [Integer] :min_version Minimum SSL/TLS version
       def initialize(host: DEFAULT_HOST, port: DEFAULT_PORT, timeout: DEFAULT_TIMEOUT, ssl_params: {})
+        # Initialize ALL instance variables upfront for consistent object shapes (YJIT optimization)
         @host = host
         @port = port
         @timeout = timeout
         @ssl_params = ssl_params
         @encoder = Protocol::RESP3Encoder.new
-        @pid = nil # Track process ID for fork safety
+        @tcp_socket = nil
+        @ssl_socket = nil
+        @buffered_io = nil
+        @decoder = nil
+        @pid = nil
         connect
       end
 

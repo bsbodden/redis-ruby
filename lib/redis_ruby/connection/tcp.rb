@@ -34,11 +34,15 @@ module RedisRuby
       # @param port [Integer] Redis server port
       # @param timeout [Float] Connection timeout in seconds
       def initialize(host: DEFAULT_HOST, port: DEFAULT_PORT, timeout: DEFAULT_TIMEOUT)
+        # Initialize ALL instance variables upfront for consistent object shapes (YJIT optimization)
         @host = host
         @port = port
         @timeout = timeout
         @encoder = Protocol::RESP3Encoder.new
-        @pid = nil # Track process ID for fork safety
+        @socket = nil
+        @buffered_io = nil
+        @decoder = nil
+        @pid = nil
         connect
       end
 

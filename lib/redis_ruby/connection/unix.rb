@@ -27,9 +27,13 @@ module RedisRuby
       # @param path [String] Path to Unix socket file
       # @param timeout [Float] Connection timeout in seconds
       def initialize(path: DEFAULT_PATH, timeout: DEFAULT_TIMEOUT)
+        # Initialize ALL instance variables upfront for consistent object shapes (YJIT optimization)
         @path = path
         @timeout = timeout
         @encoder = Protocol::RESP3Encoder.new
+        @socket = nil
+        @buffered_io = nil
+        @decoder = nil
         connect
       end
 
