@@ -178,10 +178,17 @@ require_relative "redis_ruby/commands/acl"
 require_relative "redis_ruby/commands/server"
 require_relative "redis_ruby/commands/cluster"
 
+# Search utilities
+require_relative "redis_ruby/search/query"
+
 # Client layer
 require_relative "redis_ruby/script"
 require_relative "redis_ruby/pipeline"
 require_relative "redis_ruby/transaction"
+require_relative "redis_ruby/lock"
+require_relative "redis_ruby/cache"
+require_relative "redis_ruby/callbacks"
+require_relative "redis_ruby/subscriber"
 require_relative "redis_ruby/client"
 require_relative "redis_ruby/async_client"
 require_relative "redis_ruby/pooled_client"
