@@ -44,41 +44,37 @@ class AsyncClientIntegrationTest < RedisRubyTestCase
     @async_client.del("async:test")
   end
 
-  def test_async_client_concurrent_operations
-    # Set up test data
-    10.times { |i| @async_client.set("async:concurrent:#{i}", "value#{i}") }
+  def test_async_client_sequential_operations_in_async_block
+    # NOTE: AsyncClient is NOT safe for concurrent fiber access.
+    # For concurrent operations, use AsyncPooledClient.
+    # This test verifies sequential operations within an Async block work correctly.
+    10.times { |i| @async_client.set("async:seq:#{i}", "value#{i}") }
 
     results = []
 
-    Async do |task|
-      # Execute 10 concurrent GET operations
-      tasks = Array.new(10) do |i|
-        task.async { @async_client.get("async:concurrent:#{i}") }
+    Async do
+      # Execute 10 sequential GET operations (safe for AsyncClient)
+      10.times do |i|
+        results << @async_client.get("async:seq:#{i}")
       end
-
-      results = tasks.map(&:wait)
     end
 
-    # Verify all results were retrieved
+    # Verify all results were retrieved in order
     assert_equal 10, results.size
     10.times do |i|
       assert_equal "value#{i}", results[i]
     end
   ensure
-    10.times { |i| @async_client.del("async:concurrent:#{i}") }
+    10.times { |i| @async_client.del("async:seq:#{i}") }
   end
 
   def test_async_client_mixed_operations
-    Async do |task|
-      # Run different operations concurrently
-      set_task = task.async { @async_client.set("async:mix:key", "value") }
-      incr_task = task.async do
-        @async_client.set("async:mix:counter", "0")
-        @async_client.incr("async:mix:counter")
-      end
-
-      set_task.wait
-      incr_task.wait
+    # NOTE: Running these sequentially because AsyncClient is NOT safe for
+    # concurrent fiber access. For concurrent operations, use AsyncPooledClient.
+    Async do
+      @async_client.set("async:mix:key", "value")
+      @async_client.set("async:mix:counter", "0")
+      @async_client.incr("async:mix:counter")
 
       assert_equal "value", @async_client.get("async:mix:key")
       assert_equal "1", @async_client.get("async:mix:counter")
@@ -170,30 +166,26 @@ class AsyncClientIntegrationTest < RedisRubyTestCase
     client2&.close
   end
 
-  def test_async_client_performance_concurrent_vs_sequential
+  def test_async_client_performance_inside_async_block
+    # NOTE: This test verifies that AsyncClient works efficiently inside an
+    # Async block with sequential operations. For concurrent operations,
+    # use AsyncPooledClient.
     n = 50
     key_prefix = "async:perf"
 
     # Setup
     n.times { |i| @async_client.set("#{key_prefix}:#{i}", "value#{i}") }
 
-    # Sequential timing
-    sequential_start = Time.now
-    n.times { |i| @async_client.get("#{key_prefix}:#{i}") }
-    sequential_time = Time.now - sequential_start
-
-    # Concurrent timing (inside Async)
-    concurrent_start = Time.now
-    Async do |task|
-      tasks = Array.new(n) { |i| task.async { @async_client.get("#{key_prefix}:#{i}") } }
-      tasks.map(&:wait)
+    # Timing operations inside Async block
+    start_time = Time.now
+    Async do
+      n.times { |i| @async_client.get("#{key_prefix}:#{i}") }
     end
-    concurrent_time = Time.now - concurrent_start
+    async_time = Time.now - start_time
 
-    # Concurrent should generally be faster or similar (depends on scheduler overhead)
-    # At minimum, it shouldn't be significantly slower (allow 3x for CI variance)
-    assert_operator concurrent_time, :<=, sequential_time * 3.0,
-                    "Concurrent (#{concurrent_time}s) too slow vs sequential (#{sequential_time}s)"
+    # Should complete in reasonable time (< 5 seconds for 50 ops)
+    assert_operator async_time, :<, 5.0,
+                    "Async operations too slow: #{async_time}s for #{n} operations"
   ensure
     n.times { |i| @async_client.del("#{key_prefix}:#{i}") }
   end
