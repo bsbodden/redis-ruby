@@ -23,7 +23,8 @@ class ScriptTest < Minitest::Test
 
   def test_script_call_tries_evalsha_first
     script = @client.register_script("return 1")
-    @connection.expects(:call_direct).with("EVALSHA", script.sha, 0).returns(1)
+    # No keys/args uses call_2args fast path
+    @connection.expects(:call_2args).with("EVALSHA", script.sha, 0).returns(1)
     result = script.call
     assert_equal 1, result
   end
@@ -31,14 +32,16 @@ class ScriptTest < Minitest::Test
   def test_script_call_falls_back_to_eval_on_noscript
     script = @client.register_script("return 1")
     error = RedisRuby::CommandError.new("NOSCRIPT No matching script")
-    @connection.expects(:call_direct).with("EVALSHA", script.sha, 0).raises(error)
-    @connection.expects(:call_direct).with("EVAL", "return 1", 0).returns(1)
+    # No keys/args uses call_2args fast path
+    @connection.expects(:call_2args).with("EVALSHA", script.sha, 0).raises(error)
+    @connection.expects(:call_2args).with("EVAL", "return 1", 0).returns(1)
     result = script.call
     assert_equal 1, result
   end
 
   def test_script_call_with_keys
     script = @client.register_script("return redis.call('GET', KEYS[1])")
+    # With keys/args uses call_direct (varargs)
     @connection.expects(:call_direct).with("EVALSHA", script.sha, 1, "mykey").returns("value")
     result = script.call(keys: ["mykey"])
     assert_equal "value", result
@@ -46,6 +49,7 @@ class ScriptTest < Minitest::Test
 
   def test_script_call_with_args
     script = @client.register_script("return ARGV[1]")
+    # With args uses call_direct (varargs)
     @connection.expects(:call_direct).with("EVALSHA", script.sha, 0, "hello").returns("hello")
     result = script.call(args: ["hello"])
     assert_equal "hello", result
@@ -53,6 +57,7 @@ class ScriptTest < Minitest::Test
 
   def test_script_call_with_keys_and_args
     script = @client.register_script("return redis.call('SET', KEYS[1], ARGV[1])")
+    # With keys and args uses call_direct (varargs)
     @connection.expects(:call_direct).with("EVALSHA", script.sha, 1, "mykey", "myval").returns("OK")
     result = script.call(keys: ["mykey"], args: ["myval"])
     assert_equal "OK", result
@@ -60,6 +65,7 @@ class ScriptTest < Minitest::Test
 
   def test_script_call_multiple_keys_and_args
     script = @client.register_script("return 1")
+    # With multiple keys/args uses call_direct (varargs)
     @connection.expects(:call_direct).with("EVALSHA", script.sha, 2, "k1", "k2", "a1", "a2").returns(1)
     result = script.call(keys: ["k1", "k2"], args: ["a1", "a2"])
     assert_equal 1, result
@@ -68,7 +74,8 @@ class ScriptTest < Minitest::Test
   def test_script_does_not_catch_other_command_errors
     script = @client.register_script("return invalid")
     error = RedisRuby::CommandError.new("ERR Error compiling script")
-    @connection.expects(:call_direct).with("EVALSHA", script.sha, 0).raises(error)
+    # No keys/args uses call_2args fast path
+    @connection.expects(:call_2args).with("EVALSHA", script.sha, 0).raises(error)
     assert_raises(RedisRuby::CommandError) { script.call }
   end
 

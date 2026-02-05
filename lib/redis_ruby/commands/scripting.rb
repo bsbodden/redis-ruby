@@ -22,6 +22,20 @@ module RedisRuby
     #
     # @see https://redis.io/commands/?group=scripting
     module Scripting
+      # Frozen command constants to avoid string allocations
+      CMD_EVAL = "EVAL"
+      CMD_EVALSHA = "EVALSHA"
+      CMD_EVAL_RO = "EVAL_RO"
+      CMD_EVALSHA_RO = "EVALSHA_RO"
+      CMD_SCRIPT = "SCRIPT"
+
+      # Frozen subcommands
+      SUBCMD_LOAD = "LOAD"
+      SUBCMD_EXISTS = "EXISTS"
+      SUBCMD_FLUSH = "FLUSH"
+      SUBCMD_KILL = "KILL"
+      SUBCMD_DEBUG = "DEBUG"
+
       # Execute a Lua script
       #
       # @param script [String] Lua script to execute
@@ -35,7 +49,12 @@ module RedisRuby
       # @example With keys and args
       #   redis.eval("return redis.call('SET', KEYS[1], ARGV[1])", 1, "key", "value")
       def eval(script, numkeys, *keys_and_args)
-        call("EVAL", script, numkeys, *keys_and_args)
+        # Fast path: no keys or args
+        if keys_and_args.empty?
+          return call_2args(CMD_EVAL, script, numkeys)
+        end
+
+        call(CMD_EVAL, script, numkeys, *keys_and_args)
       end
 
       # Execute a cached Lua script by SHA1 hash
@@ -52,7 +71,12 @@ module RedisRuby
       #   sha = redis.script_load("return redis.call('GET', KEYS[1])")
       #   redis.evalsha(sha, 1, "mykey")
       def evalsha(sha, numkeys, *keys_and_args)
-        call("EVALSHA", sha, numkeys, *keys_and_args)
+        # Fast path: no keys or args
+        if keys_and_args.empty?
+          return call_2args(CMD_EVALSHA, sha, numkeys)
+        end
+
+        call(CMD_EVALSHA, sha, numkeys, *keys_and_args)
       end
 
       # Execute a Lua script in read-only mode (Redis 7.0+)
@@ -65,7 +89,12 @@ module RedisRuby
       # @param keys_and_args [Array] Keys followed by arguments
       # @return [Object] Script return value
       def eval_ro(script, numkeys, *keys_and_args)
-        call("EVAL_RO", script, numkeys, *keys_and_args)
+        # Fast path: no keys or args
+        if keys_and_args.empty?
+          return call_2args(CMD_EVAL_RO, script, numkeys)
+        end
+
+        call(CMD_EVAL_RO, script, numkeys, *keys_and_args)
       end
 
       # Execute a cached Lua script in read-only mode (Redis 7.0+)
@@ -77,7 +106,12 @@ module RedisRuby
       # @param keys_and_args [Array] Keys followed by arguments
       # @return [Object] Script return value
       def evalsha_ro(sha, numkeys, *keys_and_args)
-        call("EVALSHA_RO", sha, numkeys, *keys_and_args)
+        # Fast path: no keys or args
+        if keys_and_args.empty?
+          return call_2args(CMD_EVALSHA_RO, sha, numkeys)
+        end
+
+        call(CMD_EVALSHA_RO, sha, numkeys, *keys_and_args)
       end
 
       # Load a script into the script cache
@@ -89,7 +123,7 @@ module RedisRuby
       #   sha = redis.script_load("return 'cached'")
       #   # => "a42059b356c875f0717db19a51f6aaa9161e77a2"
       def script_load(script)
-        call("SCRIPT", "LOAD", script)
+        call_3args(CMD_SCRIPT, SUBCMD_LOAD, script)
       end
 
       # Check if scripts exist in the cache
@@ -101,7 +135,12 @@ module RedisRuby
       #   redis.script_exists(sha1, sha2)
       #   # => [true, false]
       def script_exists(*shas)
-        result = call("SCRIPT", "EXISTS", *shas)
+        # Fast path for single SHA
+        result = if shas.size == 1
+                   call_3args(CMD_SCRIPT, SUBCMD_EXISTS, shas[0])
+                 else
+                   call(CMD_SCRIPT, SUBCMD_EXISTS, *shas)
+                 end
         result.map { |v| v == 1 }
       end
 
@@ -115,9 +154,9 @@ module RedisRuby
       #   redis.script_flush(:async)
       def script_flush(mode = nil)
         if mode
-          call("SCRIPT", "FLUSH", mode.to_s.upcase)
+          call_3args(CMD_SCRIPT, SUBCMD_FLUSH, mode.to_s.upcase)
         else
-          call("SCRIPT", "FLUSH")
+          call_2args(CMD_SCRIPT, SUBCMD_FLUSH)
         end
       end
 
@@ -127,7 +166,7 @@ module RedisRuby
       #
       # @return [String] "OK"
       def script_kill
-        call("SCRIPT", "KILL")
+        call_2args(CMD_SCRIPT, SUBCMD_KILL)
       end
 
       # Get debugging info about a script
@@ -136,7 +175,7 @@ module RedisRuby
       # @param args [Array] Subcommand arguments
       # @return [Object] Debug information
       def script_debug(mode)
-        call("SCRIPT", "DEBUG", mode.to_s.upcase)
+        call_3args(CMD_SCRIPT, SUBCMD_DEBUG, mode.to_s.upcase)
       end
 
       # Register a script for efficient repeated execution

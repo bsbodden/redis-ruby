@@ -15,6 +15,33 @@ module RedisRuby
     #
     # @see https://redis.io/commands/?group=geo
     module Geo
+      # Frozen command constants to avoid string allocations
+      CMD_GEOADD = "GEOADD"
+      CMD_GEOPOS = "GEOPOS"
+      CMD_GEODIST = "GEODIST"
+      CMD_GEOHASH = "GEOHASH"
+      CMD_GEOSEARCH = "GEOSEARCH"
+      CMD_GEOSEARCHSTORE = "GEOSEARCHSTORE"
+      CMD_GEORADIUSBYMEMBER = "GEORADIUSBYMEMBER"
+      CMD_GEORADIUS = "GEORADIUS"
+
+      # Frozen option strings
+      OPT_NX = "NX"
+      OPT_XX = "XX"
+      OPT_CH = "CH"
+      OPT_FROMMEMBER = "FROMMEMBER"
+      OPT_FROMLONLAT = "FROMLONLAT"
+      OPT_BYRADIUS = "BYRADIUS"
+      OPT_BYBOX = "BYBOX"
+      OPT_COUNT = "COUNT"
+      OPT_ANY = "ANY"
+      OPT_ASC = "ASC"
+      OPT_DESC = "DESC"
+      OPT_WITHCOORD = "WITHCOORD"
+      OPT_WITHDIST = "WITHDIST"
+      OPT_WITHHASH = "WITHHASH"
+      OPT_STOREDIST = "STOREDIST"
+
       # Add geospatial items (longitude, latitude, name) to a sorted set
       #
       # @param key [String] Key name
@@ -36,10 +63,10 @@ module RedisRuby
       #     -118.2437, 34.0522, "Los Angeles"
       #   )
       def geoadd(key, longitude, latitude, member, *args, nx: false, xx: false, ch: false)
-        cmd = ["GEOADD", key]
-        cmd << "NX" if nx
-        cmd << "XX" if xx
-        cmd << "CH" if ch
+        cmd = [CMD_GEOADD, key]
+        cmd << OPT_NX if nx
+        cmd << OPT_XX if xx
+        cmd << OPT_CH if ch
         cmd << longitude << latitude << member
         cmd.concat(args)
         call(*cmd)
@@ -55,7 +82,12 @@ module RedisRuby
       #   redis.geopos("cities", "San Francisco", "Los Angeles")
       #   # => [[-122.4194, 37.7749], [-118.2437, 34.0522]]
       def geopos(key, *members)
-        result = call("GEOPOS", key, *members)
+        # Fast path for single member
+        result = if members.size == 1
+                   call_2args(CMD_GEOPOS, key, members[0])
+                 else
+                   call(CMD_GEOPOS, key, *members)
+                 end
         result.map do |pos|
           pos.nil? ? nil : [pos[0].to_f, pos[1].to_f]
         end
@@ -73,7 +105,7 @@ module RedisRuby
       #   redis.geodist("cities", "San Francisco", "Los Angeles", "km")
       #   # => "559.1185"
       def geodist(key, member1, member2, unit = "m")
-        call("GEODIST", key, member1, member2, unit.to_s.upcase)
+        call(CMD_GEODIST, key, member1, member2, unit.to_s.upcase)
       end
 
       # Get geohash strings for members
@@ -86,7 +118,12 @@ module RedisRuby
       #   redis.geohash("cities", "San Francisco")
       #   # => ["9q8yyk8yutp"]
       def geohash(key, *members)
-        call("GEOHASH", key, *members)
+        # Fast path for single member
+        if members.size == 1
+          return call_2args(CMD_GEOHASH, key, members[0])
+        end
+
+        call(CMD_GEOHASH, key, *members)
       end
 
       # Search for members within a radius or box
@@ -113,40 +150,40 @@ module RedisRuby
       def geosearch(key, frommember: nil, fromlonlat: nil, byradius: nil, bybox: nil,
                     unit: "m", count: nil, any: false, sort: nil,
                     withcoord: false, withdist: false, withhash: false)
-        cmd = ["GEOSEARCH", key]
+        cmd = [CMD_GEOSEARCH, key]
 
         # From position
         if frommember
-          cmd << "FROMMEMBER" << frommember
+          cmd << OPT_FROMMEMBER << frommember
         elsif fromlonlat
-          cmd << "FROMLONLAT" << fromlonlat[0] << fromlonlat[1]
+          cmd << OPT_FROMLONLAT << fromlonlat[0] << fromlonlat[1]
         else
           raise ArgumentError, "Must specify frommember or fromlonlat"
         end
 
         # Search shape
         if byradius
-          cmd << "BYRADIUS" << byradius << unit.to_s.upcase
+          cmd << OPT_BYRADIUS << byradius << unit.to_s.upcase
         elsif bybox
-          cmd << "BYBOX" << bybox[0] << bybox[1] << unit.to_s.upcase
+          cmd << OPT_BYBOX << bybox[0] << bybox[1] << unit.to_s.upcase
         else
           raise ArgumentError, "Must specify byradius or bybox"
         end
 
         # Options
-        cmd << "COUNT" << count << ("ANY" if any) if count
+        cmd << OPT_COUNT << count << (OPT_ANY if any) if count
         cmd.compact!
 
         case sort
         when :asc, "ASC", "asc"
-          cmd << "ASC"
+          cmd << OPT_ASC
         when :desc, "DESC", "desc"
-          cmd << "DESC"
+          cmd << OPT_DESC
         end
 
-        cmd << "WITHCOORD" if withcoord
-        cmd << "WITHDIST" if withdist
-        cmd << "WITHHASH" if withhash
+        cmd << OPT_WITHCOORD if withcoord
+        cmd << OPT_WITHDIST if withdist
+        cmd << OPT_WITHHASH if withhash
 
         call(*cmd)
       end
@@ -165,38 +202,38 @@ module RedisRuby
       def geosearchstore(destination, source, frommember: nil, fromlonlat: nil,
                          byradius: nil, bybox: nil, unit: "m", count: nil, any: false,
                          sort: nil, storedist: false)
-        cmd = ["GEOSEARCHSTORE", destination, source]
+        cmd = [CMD_GEOSEARCHSTORE, destination, source]
 
         # From position
         if frommember
-          cmd << "FROMMEMBER" << frommember
+          cmd << OPT_FROMMEMBER << frommember
         elsif fromlonlat
-          cmd << "FROMLONLAT" << fromlonlat[0] << fromlonlat[1]
+          cmd << OPT_FROMLONLAT << fromlonlat[0] << fromlonlat[1]
         else
           raise ArgumentError, "Must specify frommember or fromlonlat"
         end
 
         # Search shape
         if byradius
-          cmd << "BYRADIUS" << byradius << unit.to_s.upcase
+          cmd << OPT_BYRADIUS << byradius << unit.to_s.upcase
         elsif bybox
-          cmd << "BYBOX" << bybox[0] << bybox[1] << unit.to_s.upcase
+          cmd << OPT_BYBOX << bybox[0] << bybox[1] << unit.to_s.upcase
         else
           raise ArgumentError, "Must specify byradius or bybox"
         end
 
         # Options
-        cmd << "COUNT" << count << ("ANY" if any) if count
+        cmd << OPT_COUNT << count << (OPT_ANY if any) if count
         cmd.compact!
 
         case sort
         when :asc, "ASC", "asc"
-          cmd << "ASC"
+          cmd << OPT_ASC
         when :desc, "DESC", "desc"
-          cmd << "DESC"
+          cmd << OPT_DESC
         end
 
-        cmd << "STOREDIST" if storedist
+        cmd << OPT_STOREDIST if storedist
 
         call(*cmd)
       end
@@ -209,7 +246,7 @@ module RedisRuby
       # @param unit [String] Unit: m, km, mi, ft
       # @return [Array] Matching members
       def georadiusbymember(key, member, radius, unit = "m", **options)
-        cmd = ["GEORADIUSBYMEMBER", key, member, radius, unit.to_s.upcase]
+        cmd = [CMD_GEORADIUSBYMEMBER, key, member, radius, unit.to_s.upcase]
         add_geo_options(cmd, options)
         call(*cmd)
       end
@@ -223,7 +260,7 @@ module RedisRuby
       # @param unit [String] Unit: m, km, mi, ft
       # @return [Array] Matching members
       def georadius(key, longitude, latitude, radius, unit = "m", **options)
-        cmd = ["GEORADIUS", key, longitude, latitude, radius, unit.to_s.upcase]
+        cmd = [CMD_GEORADIUS, key, longitude, latitude, radius, unit.to_s.upcase]
         add_geo_options(cmd, options)
         call(*cmd)
       end
@@ -231,12 +268,12 @@ module RedisRuby
       private
 
       def add_geo_options(cmd, options)
-        cmd << "COUNT" << options[:count] if options[:count]
-        cmd << "ASC" if options[:sort] == :asc
-        cmd << "DESC" if options[:sort] == :desc
-        cmd << "WITHCOORD" if options[:withcoord]
-        cmd << "WITHDIST" if options[:withdist]
-        cmd << "WITHHASH" if options[:withhash]
+        cmd << OPT_COUNT << options[:count] if options[:count]
+        cmd << OPT_ASC if options[:sort] == :asc
+        cmd << OPT_DESC if options[:sort] == :desc
+        cmd << OPT_WITHCOORD if options[:withcoord]
+        cmd << OPT_WITHDIST if options[:withdist]
+        cmd << OPT_WITHHASH if options[:withhash]
       end
     end
   end

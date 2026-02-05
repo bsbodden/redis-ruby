@@ -17,6 +17,11 @@ module RedisRuby
     #
     # @see https://redis.io/commands/?group=hyperloglog
     module HyperLogLog
+      # Frozen command constants to avoid string allocations
+      CMD_PFADD = "PFADD"
+      CMD_PFCOUNT = "PFCOUNT"
+      CMD_PFMERGE = "PFMERGE"
+
       # Add elements to a HyperLogLog data structure
       #
       # @param key [String] Key name
@@ -31,7 +36,12 @@ module RedisRuby
       #   redis.pfadd("hll", "a", "b", "c")
       #   # => 1
       def pfadd(key, *elements)
-        call("PFADD", key, *elements)
+        # Fast path for single element (most common)
+        if elements.size == 1
+          return call_2args(CMD_PFADD, key, elements[0])
+        end
+
+        call(CMD_PFADD, key, *elements)
       end
 
       # Get the approximate cardinality of set(s)
@@ -54,7 +64,12 @@ module RedisRuby
       #   redis.pfcount("hll1", "hll2")
       #   # => 3 (unique: a, b, c)
       def pfcount(*keys)
-        call("PFCOUNT", *keys)
+        # Fast path for single key (most common)
+        if keys.size == 1
+          return call_1arg(CMD_PFCOUNT, keys[0])
+        end
+
+        call(CMD_PFCOUNT, *keys)
       end
 
       # Merge multiple HyperLogLog structures into one
@@ -73,7 +88,12 @@ module RedisRuby
       #   redis.pfcount("merged")
       #   # => 3
       def pfmerge(destkey, *sourcekeys)
-        call("PFMERGE", destkey, *sourcekeys)
+        # Fast path for single source key
+        if sourcekeys.size == 1
+          return call_2args(CMD_PFMERGE, destkey, sourcekeys[0])
+        end
+
+        call(CMD_PFMERGE, destkey, *sourcekeys)
       end
     end
   end

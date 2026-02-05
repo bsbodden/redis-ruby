@@ -14,6 +14,15 @@ module RedisRuby
     #
     # @see https://redis.io/commands/?group=bitmap
     module Bitmap
+      # Frozen command constants to avoid string allocations
+      CMD_SETBIT = "SETBIT"
+      CMD_GETBIT = "GETBIT"
+      CMD_BITCOUNT = "BITCOUNT"
+      CMD_BITPOS = "BITPOS"
+      CMD_BITOP = "BITOP"
+      CMD_BITFIELD = "BITFIELD"
+      CMD_BITFIELD_RO = "BITFIELD_RO"
+
       # Set or clear the bit at offset in the string value
       #
       # @param key [String] Key name
@@ -24,7 +33,7 @@ module RedisRuby
       # @example
       #   redis.setbit("mykey", 7, 1)  # => 0
       def setbit(key, offset, value)
-        call("SETBIT", key, offset, value)
+        call_3args(CMD_SETBIT, key, offset, value)
       end
 
       # Get the bit value at offset in the string
@@ -36,7 +45,7 @@ module RedisRuby
       # @example
       #   redis.getbit("mykey", 7)  # => 1
       def getbit(key, offset)
-        call("GETBIT", key, offset)
+        call_2args(CMD_GETBIT, key, offset)
       end
 
       # Count set bits (1s) in a string
@@ -56,14 +65,21 @@ module RedisRuby
       # @example Count bits in bit range (Redis 7.0+)
       #   redis.bitcount("mykey", 0, 7, "BIT")
       def bitcount(key, start = nil, stop = nil, mode = nil)
-        if start && stop
-          if mode
-            call("BITCOUNT", key, start, stop, mode.to_s.upcase)
-          else
-            call("BITCOUNT", key, start, stop)
-          end
+        # Fast path: just key (most common)
+        if start.nil? && stop.nil?
+          return call_1arg(CMD_BITCOUNT, key)
+        end
+
+        # Fast path: key with byte range, no mode
+        if start && stop && mode.nil?
+          return call_3args(CMD_BITCOUNT, key, start, stop)
+        end
+
+        # Full path with mode
+        if mode
+          call(CMD_BITCOUNT, key, start, stop, mode.to_s.upcase)
         else
-          call("BITCOUNT", key)
+          call_3args(CMD_BITCOUNT, key, start, stop)
         end
       end
 
@@ -82,7 +98,17 @@ module RedisRuby
       # @example Find first 0 bit in range
       #   redis.bitpos("mykey", 0, 2, 4)
       def bitpos(key, bit, start = nil, stop = nil, mode = nil)
-        cmd = ["BITPOS", key, bit]
+        # Fast path: no range
+        if start.nil? && stop.nil?
+          return call_2args(CMD_BITPOS, key, bit)
+        end
+
+        # Fast path: range without mode
+        if start && stop && mode.nil?
+          return call(CMD_BITPOS, key, bit, start, stop)
+        end
+
+        cmd = [CMD_BITPOS, key, bit]
         cmd << start if start
         cmd << stop if stop
         cmd << mode.to_s.upcase if mode
@@ -102,7 +128,12 @@ module RedisRuby
       # @example NOT operation
       #   redis.bitop("NOT", "result", "key1")
       def bitop(operation, destkey, *keys)
-        call("BITOP", operation.to_s.upcase, destkey, *keys)
+        # Fast path for NOT (single key)
+        if keys.size == 1
+          return call_3args(CMD_BITOP, operation.to_s.upcase, destkey, keys[0])
+        end
+
+        call(CMD_BITOP, operation.to_s.upcase, destkey, *keys)
       end
 
       # Perform arbitrary bitfield operations
@@ -129,7 +160,7 @@ module RedisRuby
       #     "INCRBY", "u8", 0, 100
       #   )
       def bitfield(key, *subcommands)
-        call("BITFIELD", key, *subcommands)
+        call(CMD_BITFIELD, key, *subcommands)
       end
 
       # Read-only variant of BITFIELD
@@ -143,7 +174,7 @@ module RedisRuby
       # @example
       #   redis.bitfield_ro("mykey", "GET", "u8", 0, "GET", "u4", 8)
       def bitfield_ro(key, *subcommands)
-        call("BITFIELD_RO", key, *subcommands)
+        call(CMD_BITFIELD_RO, key, *subcommands)
       end
     end
   end
