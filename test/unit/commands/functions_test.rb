@@ -14,7 +14,7 @@ class FunctionsCommandsTest < Minitest::Test
   # --- FUNCTION LOAD ---
 
   def test_function_load
-    @connection.expects(:call_direct).with("FUNCTION", "LOAD", "#!lua name=mylib\nredis.register_function('myfunc', function() return 1 end)")
+    @connection.expects(:call_2args).with("FUNCTION", "LOAD", "#!lua name=mylib\nredis.register_function('myfunc', function() return 1 end)")
       .returns("mylib")
     result = @client.function_load("#!lua name=mylib\nredis.register_function('myfunc', function() return 1 end)")
     assert_equal "mylib", result
@@ -31,7 +31,7 @@ class FunctionsCommandsTest < Minitest::Test
 
   def test_function_list
     expected = [{ "library_name" => "mylib", "functions" => [] }]
-    @connection.expects(:call_direct).with("FUNCTION", "LIST").returns(expected)
+    @connection.expects(:call_1arg).with("FUNCTION", "LIST").returns(expected)
     result = @client.function_list
     assert_equal expected, result
   end
@@ -53,7 +53,7 @@ class FunctionsCommandsTest < Minitest::Test
   # --- FUNCTION DELETE ---
 
   def test_function_delete
-    @connection.expects(:call_direct).with("FUNCTION", "DELETE", "mylib").returns("OK")
+    @connection.expects(:call_2args).with("FUNCTION", "DELETE", "mylib").returns("OK")
     result = @client.function_delete("mylib")
     assert_equal "OK", result
   end
@@ -61,13 +61,13 @@ class FunctionsCommandsTest < Minitest::Test
   # --- FUNCTION FLUSH ---
 
   def test_function_flush
-    @connection.expects(:call_direct).with("FUNCTION", "FLUSH").returns("OK")
+    @connection.expects(:call_1arg).with("FUNCTION", "FLUSH").returns("OK")
     result = @client.function_flush
     assert_equal "OK", result
   end
 
   def test_function_flush_async
-    @connection.expects(:call_direct).with("FUNCTION", "FLUSH", "ASYNC").returns("OK")
+    @connection.expects(:call_2args).with("FUNCTION", "FLUSH", "ASYNC").returns("OK")
     result = @client.function_flush(:async)
     assert_equal "OK", result
   end
@@ -75,13 +75,13 @@ class FunctionsCommandsTest < Minitest::Test
   # --- FUNCTION DUMP / RESTORE ---
 
   def test_function_dump
-    @connection.expects(:call_direct).with("FUNCTION", "DUMP").returns("binary_data")
+    @connection.expects(:call_1arg).with("FUNCTION", "DUMP").returns("binary_data")
     result = @client.function_dump
     assert_equal "binary_data", result
   end
 
   def test_function_restore
-    @connection.expects(:call_direct).with("FUNCTION", "RESTORE", "binary_data").returns("OK")
+    @connection.expects(:call_2args).with("FUNCTION", "RESTORE", "binary_data").returns("OK")
     result = @client.function_restore("binary_data")
     assert_equal "OK", result
   end
@@ -96,7 +96,7 @@ class FunctionsCommandsTest < Minitest::Test
 
   def test_function_stats
     expected = { "running_script" => nil, "engines" => {} }
-    @connection.expects(:call_direct).with("FUNCTION", "STATS").returns(expected)
+    @connection.expects(:call_1arg).with("FUNCTION", "STATS").returns(expected)
     result = @client.function_stats
     assert_equal expected, result
   end
@@ -121,6 +121,12 @@ class FunctionsCommandsTest < Minitest::Test
     assert_equal "result", result
   end
 
+  def test_fcall_no_keys_no_args
+    @connection.expects(:call_2args).with("FCALL", "myfunc", 0).returns("result")
+    result = @client.fcall("myfunc")
+    assert_equal "result", result
+  end
+
   # --- FCALL_RO ---
 
   def test_fcall_ro
@@ -130,7 +136,7 @@ class FunctionsCommandsTest < Minitest::Test
   end
 
   def test_fcall_ro_no_keys
-    @connection.expects(:call_direct).with("FCALL_RO", "myfunc", 0).returns("result")
+    @connection.expects(:call_2args).with("FCALL_RO", "myfunc", 0).returns("result")
     result = @client.fcall_ro("myfunc")
     assert_equal "result", result
   end

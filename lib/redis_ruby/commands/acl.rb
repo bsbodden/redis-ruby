@@ -14,6 +14,24 @@ module RedisRuby
     #
     # @see https://redis.io/commands/?group=server
     module ACL
+      # Frozen command constants to avoid string allocations
+      CMD_ACL = "ACL"
+
+      # Frozen subcommands
+      SUBCMD_SETUSER = "SETUSER"
+      SUBCMD_GETUSER = "GETUSER"
+      SUBCMD_DELUSER = "DELUSER"
+      SUBCMD_LIST = "LIST"
+      SUBCMD_USERS = "USERS"
+      SUBCMD_WHOAMI = "WHOAMI"
+      SUBCMD_CAT = "CAT"
+      SUBCMD_GENPASS = "GENPASS"
+      SUBCMD_LOG = "LOG"
+      SUBCMD_SAVE = "SAVE"
+      SUBCMD_LOAD = "LOAD"
+      SUBCMD_DRYRUN = "DRYRUN"
+      OPT_RESET = "RESET"
+
       # Create or modify a user with ACL rules
       #
       # @param username [String] Username to create or modify
@@ -26,7 +44,7 @@ module RedisRuby
       # @example Create read-only user
       #   redis.acl_setuser("reader", "on", ">pass", "~*", "+@read")
       def acl_setuser(username, *rules)
-        call("ACL", "SETUSER", username, *rules)
+        call(CMD_ACL, SUBCMD_SETUSER, username, *rules)
       end
 
       # Get user details
@@ -34,7 +52,7 @@ module RedisRuby
       # @param username [String] Username to query
       # @return [Hash, nil] User details or nil if user doesn't exist
       def acl_getuser(username)
-        call("ACL", "GETUSER", username)
+        call_2args(CMD_ACL, SUBCMD_GETUSER, username)
       end
 
       # Delete one or more users
@@ -42,28 +60,33 @@ module RedisRuby
       # @param usernames [Array<String>] Usernames to delete
       # @return [Integer] Number of users deleted
       def acl_deluser(*usernames)
-        call("ACL", "DELUSER", *usernames)
+        # Fast path for single user
+        if usernames.size == 1
+          return call_2args(CMD_ACL, SUBCMD_DELUSER, usernames[0])
+        end
+
+        call(CMD_ACL, SUBCMD_DELUSER, *usernames)
       end
 
       # List all ACL rules
       #
       # @return [Array<String>] ACL rules for all users
       def acl_list
-        call("ACL", "LIST")
+        call_1arg(CMD_ACL, SUBCMD_LIST)
       end
 
       # List all usernames
       #
       # @return [Array<String>] All usernames
       def acl_users
-        call("ACL", "USERS")
+        call_1arg(CMD_ACL, SUBCMD_USERS)
       end
 
       # Get the current connection's username
       #
       # @return [String] Current username
       def acl_whoami
-        call("ACL", "WHOAMI")
+        call_1arg(CMD_ACL, SUBCMD_WHOAMI)
       end
 
       # List available ACL categories or commands in a category
@@ -78,9 +101,9 @@ module RedisRuby
       #   redis.acl_cat("string")
       def acl_cat(category = nil)
         if category
-          call("ACL", "CAT", category)
+          call_2args(CMD_ACL, SUBCMD_CAT, category)
         else
-          call("ACL", "CAT")
+          call_1arg(CMD_ACL, SUBCMD_CAT)
         end
       end
 
@@ -90,9 +113,9 @@ module RedisRuby
       # @return [String] Random hex string
       def acl_genpass(bits = nil)
         if bits
-          call("ACL", "GENPASS", bits)
+          call_2args(CMD_ACL, SUBCMD_GENPASS, bits)
         else
-          call("ACL", "GENPASS")
+          call_1arg(CMD_ACL, SUBCMD_GENPASS)
         end
       end
 
@@ -102,9 +125,9 @@ module RedisRuby
       # @return [Array<Hash>] Log entries
       def acl_log(count = nil)
         if count
-          call("ACL", "LOG", count)
+          call_2args(CMD_ACL, SUBCMD_LOG, count)
         else
-          call("ACL", "LOG")
+          call_1arg(CMD_ACL, SUBCMD_LOG)
         end
       end
 
@@ -112,21 +135,21 @@ module RedisRuby
       #
       # @return [String] "OK"
       def acl_log_reset
-        call("ACL", "LOG", "RESET")
+        call_2args(CMD_ACL, SUBCMD_LOG, OPT_RESET)
       end
 
       # Save the current ACL rules to the configured ACL file
       #
       # @return [String] "OK"
       def acl_save
-        call("ACL", "SAVE")
+        call_1arg(CMD_ACL, SUBCMD_SAVE)
       end
 
       # Load ACL rules from the configured ACL file
       #
       # @return [String] "OK"
       def acl_load
-        call("ACL", "LOAD")
+        call_1arg(CMD_ACL, SUBCMD_LOAD)
       end
 
       # Test a command against a user's permissions without executing it
@@ -138,7 +161,7 @@ module RedisRuby
       # @example
       #   redis.acl_dryrun("testuser", "SET", "foo", "bar")
       def acl_dryrun(username, *args)
-        call("ACL", "DRYRUN", username, *args)
+        call(CMD_ACL, SUBCMD_DRYRUN, username, *args)
       end
     end
   end

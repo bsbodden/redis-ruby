@@ -16,6 +16,34 @@ module RedisRuby
     #   client.json_get("user:1", "$.name")  # => ["Alice"]
     #
     module JSON
+      # Frozen command constants to avoid string allocations
+      CMD_JSON_SET = "JSON.SET"
+      CMD_JSON_GET = "JSON.GET"
+      CMD_JSON_MGET = "JSON.MGET"
+      CMD_JSON_DEL = "JSON.DEL"
+      CMD_JSON_TYPE = "JSON.TYPE"
+      CMD_JSON_NUMINCRBY = "JSON.NUMINCRBY"
+      CMD_JSON_NUMMULTBY = "JSON.NUMMULTBY"
+      CMD_JSON_STRAPPEND = "JSON.STRAPPEND"
+      CMD_JSON_STRLEN = "JSON.STRLEN"
+      CMD_JSON_ARRAPPEND = "JSON.ARRAPPEND"
+      CMD_JSON_ARRLEN = "JSON.ARRLEN"
+      CMD_JSON_ARRINDEX = "JSON.ARRINDEX"
+      CMD_JSON_ARRINSERT = "JSON.ARRINSERT"
+      CMD_JSON_ARRPOP = "JSON.ARRPOP"
+      CMD_JSON_ARRTRIM = "JSON.ARRTRIM"
+      CMD_JSON_OBJKEYS = "JSON.OBJKEYS"
+      CMD_JSON_OBJLEN = "JSON.OBJLEN"
+      CMD_JSON_CLEAR = "JSON.CLEAR"
+      CMD_JSON_TOGGLE = "JSON.TOGGLE"
+      CMD_JSON_DEBUG = "JSON.DEBUG"
+
+      # Frozen options
+      OPT_NX = "NX"
+      OPT_XX = "XX"
+      OPT_MEMORY = "MEMORY"
+      DEFAULT_PATH = "$"
+
       # Set JSON value at path
       #
       # @param key [String] Redis key
@@ -28,10 +56,16 @@ module RedisRuby
       #   client.json_set("doc", "$", { name: "test" })
       #   client.json_set("doc", "$.age", 30)
       def json_set(key, path, value, nx: false, xx: false)
-        args = [key, path, ::JSON.generate(value)]
-        args.push("NX") if nx
-        args.push("XX") if xx
-        call("JSON.SET", *args)
+        json_val = ::JSON.generate(value)
+        # Fast path: no options
+        if !nx && !xx
+          return call_3args(CMD_JSON_SET, key, path, json_val)
+        end
+
+        args = [key, path, json_val]
+        args << OPT_NX if nx
+        args << OPT_XX if xx
+        call(CMD_JSON_SET, *args)
       end
 
       # Get JSON value at path(s)
@@ -43,8 +77,14 @@ module RedisRuby
       #   client.json_get("doc", "$.name")  # => ["test"]
       #   client.json_get("doc", "$.name", "$.age")  # => { "$.name" => [...], "$.age" => [...] }
       def json_get(key, *paths)
-        paths = ["$"] if paths.empty?
-        result = call("JSON.GET", key, *paths)
+        # Fast path: default path
+        result = if paths.empty?
+                   call_2args(CMD_JSON_GET, key, DEFAULT_PATH)
+                 elsif paths.size == 1
+                   call_2args(CMD_JSON_GET, key, paths[0])
+                 else
+                   call(CMD_JSON_GET, key, *paths)
+                 end
         return nil if result.nil?
 
         ::JSON.parse(result)
@@ -58,7 +98,7 @@ module RedisRuby
       # @example
       #   client.json_mget("doc1", "doc2", path: "$.name")
       def json_mget(*keys, path: "$")
-        results = call("JSON.MGET", *keys, path)
+        results = call(CMD_JSON_MGET, *keys, path)
         results.map { |r| r.nil? ? nil : ::JSON.parse(r) }
       end
 
@@ -70,7 +110,7 @@ module RedisRuby
       # @example
       #   client.json_del("doc", "$.age")
       def json_del(key, path = "$")
-        call("JSON.DEL", key, path)
+        call_2args(CMD_JSON_DEL, key, path)
       end
 
       # Get JSON value type at path
@@ -81,7 +121,7 @@ module RedisRuby
       # @example
       #   client.json_type("doc", "$.name")  # => ["string"]
       def json_type(key, path = "$")
-        call("JSON.TYPE", key, path)
+        call_2args(CMD_JSON_TYPE, key, path)
       end
 
       # Increment numeric value at path
@@ -93,7 +133,7 @@ module RedisRuby
       # @example
       #   client.json_numincrby("doc", "$.age", 1)  # => [31]
       def json_numincrby(key, path, value)
-        result = call("JSON.NUMINCRBY", key, path, value.to_s)
+        result = call_3args(CMD_JSON_NUMINCRBY, key, path, value.to_s)
         ::JSON.parse(result)
       end
 
@@ -106,7 +146,7 @@ module RedisRuby
       # @example
       #   client.json_nummultby("doc", "$.score", 2)  # => [200]
       def json_nummultby(key, path, value)
-        result = call("JSON.NUMMULTBY", key, path, value.to_s)
+        result = call_3args(CMD_JSON_NUMMULTBY, key, path, value.to_s)
         ::JSON.parse(result)
       end
 
@@ -119,7 +159,7 @@ module RedisRuby
       # @example
       #   client.json_strappend("doc", "$.name", " Smith")
       def json_strappend(key, path, value)
-        call("JSON.STRAPPEND", key, path, ::JSON.generate(value))
+        call_3args(CMD_JSON_STRAPPEND, key, path, ::JSON.generate(value))
       end
 
       # Get string length at path
@@ -130,7 +170,7 @@ module RedisRuby
       # @example
       #   client.json_strlen("doc", "$.name")  # => [5]
       def json_strlen(key, path = "$")
-        call("JSON.STRLEN", key, path)
+        call_2args(CMD_JSON_STRLEN, key, path)
       end
 
       # Append values to array at path
@@ -143,7 +183,7 @@ module RedisRuby
       #   client.json_arrappend("doc", "$.tags", "ruby", "redis")
       def json_arrappend(key, path, *values)
         json_values = values.map { |v| ::JSON.generate(v) }
-        call("JSON.ARRAPPEND", key, path, *json_values)
+        call(CMD_JSON_ARRAPPEND, key, path, *json_values)
       end
 
       # Get array length at path
@@ -154,7 +194,7 @@ module RedisRuby
       # @example
       #   client.json_arrlen("doc", "$.tags")  # => [3]
       def json_arrlen(key, path = "$")
-        call("JSON.ARRLEN", key, path)
+        call_2args(CMD_JSON_ARRLEN, key, path)
       end
 
       # Get index of value in array
@@ -168,7 +208,7 @@ module RedisRuby
       # @example
       #   client.json_arrindex("doc", "$.tags", "ruby")  # => [0]
       def json_arrindex(key, path, value, start: 0, stop: 0)
-        call("JSON.ARRINDEX", key, path, ::JSON.generate(value), start, stop)
+        call(CMD_JSON_ARRINDEX, key, path, ::JSON.generate(value), start, stop)
       end
 
       # Insert values into array at index
@@ -182,7 +222,7 @@ module RedisRuby
       #   client.json_arrinsert("doc", "$.tags", 1, "new_tag")
       def json_arrinsert(key, path, index, *values)
         json_values = values.map { |v| ::JSON.generate(v) }
-        call("JSON.ARRINSERT", key, path, index, *json_values)
+        call(CMD_JSON_ARRINSERT, key, path, index, *json_values)
       end
 
       # Pop value from array
@@ -194,7 +234,7 @@ module RedisRuby
       # @example
       #   client.json_arrpop("doc", "$.tags")  # => ["last_tag"]
       def json_arrpop(key, path = "$", index = -1)
-        result = call("JSON.ARRPOP", key, path, index)
+        result = call_3args(CMD_JSON_ARRPOP, key, path, index)
         return nil if result.nil?
 
         if result.is_a?(Array)
@@ -214,7 +254,7 @@ module RedisRuby
       # @example
       #   client.json_arrtrim("doc", "$.tags", 0, 2)
       def json_arrtrim(key, path, start, stop)
-        call("JSON.ARRTRIM", key, path, start, stop)
+        call(CMD_JSON_ARRTRIM, key, path, start, stop)
       end
 
       # Get object keys at path
@@ -225,7 +265,7 @@ module RedisRuby
       # @example
       #   client.json_objkeys("doc")  # => [["name", "age"]]
       def json_objkeys(key, path = "$")
-        call("JSON.OBJKEYS", key, path)
+        call_2args(CMD_JSON_OBJKEYS, key, path)
       end
 
       # Get object length at path
@@ -236,7 +276,7 @@ module RedisRuby
       # @example
       #   client.json_objlen("doc")  # => [2]
       def json_objlen(key, path = "$")
-        call("JSON.OBJLEN", key, path)
+        call_2args(CMD_JSON_OBJLEN, key, path)
       end
 
       # Clear container value (array/object) at path
@@ -247,7 +287,7 @@ module RedisRuby
       # @example
       #   client.json_clear("doc", "$.tags")
       def json_clear(key, path = "$")
-        call("JSON.CLEAR", key, path)
+        call_2args(CMD_JSON_CLEAR, key, path)
       end
 
       # Toggle boolean value at path
@@ -258,7 +298,7 @@ module RedisRuby
       # @example
       #   client.json_toggle("doc", "$.active")  # => [false]
       def json_toggle(key, path)
-        result = call("JSON.TOGGLE", key, path)
+        result = call_2args(CMD_JSON_TOGGLE, key, path)
         result.map { |v| v == 1 }
       end
 
@@ -270,7 +310,7 @@ module RedisRuby
       # @example
       #   client.json_debug_memory("doc")  # => 256
       def json_debug_memory(key, path = "$")
-        call("JSON.DEBUG", "MEMORY", key, path)
+        call(CMD_JSON_DEBUG, OPT_MEMORY, key, path)
       end
     end
   end

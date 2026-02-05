@@ -20,6 +20,18 @@ module RedisRuby
     #
     # @see https://redis.io/commands/?group=pubsub
     module PubSub
+      # Frozen command constants to avoid string allocations
+      CMD_PUBLISH = "PUBLISH"
+      CMD_SPUBLISH = "SPUBLISH"
+      CMD_PUBSUB = "PUBSUB"
+
+      # Frozen subcommands
+      SUBCMD_CHANNELS = "CHANNELS"
+      SUBCMD_NUMSUB = "NUMSUB"
+      SUBCMD_NUMPAT = "NUMPAT"
+      SUBCMD_SHARDCHANNELS = "SHARDCHANNELS"
+      SUBCMD_SHARDNUMSUB = "SHARDNUMSUB"
+
       # Publish a message to a channel
       #
       # @param channel [String] Channel name
@@ -29,7 +41,7 @@ module RedisRuby
       # @example
       #   redis.publish("news", "Breaking news!")
       def publish(channel, message)
-        call("PUBLISH", channel, message)
+        call_2args(CMD_PUBLISH, channel, message)
       end
 
       # Subscribe to channels
@@ -132,9 +144,9 @@ module RedisRuby
       # @return [Array<String>] List of active channels
       def pubsub_channels(pattern = nil)
         if pattern
-          call("PUBSUB", "CHANNELS", pattern)
+          call_2args(CMD_PUBSUB, SUBCMD_CHANNELS, pattern)
         else
-          call("PUBSUB", "CHANNELS")
+          call_1arg(CMD_PUBSUB, SUBCMD_CHANNELS)
         end
       end
 
@@ -145,7 +157,12 @@ module RedisRuby
       def pubsub_numsub(*channels)
         return {} if channels.empty?
 
-        result = call("PUBSUB", "NUMSUB", *channels)
+        # Fast path for single channel
+        result = if channels.size == 1
+                   call_2args(CMD_PUBSUB, SUBCMD_NUMSUB, channels[0])
+                 else
+                   call(CMD_PUBSUB, SUBCMD_NUMSUB, *channels)
+                 end
         Hash[*result]
       end
 
@@ -153,7 +170,7 @@ module RedisRuby
       #
       # @return [Integer] Number of pattern subscriptions
       def pubsub_numpat
-        call("PUBSUB", "NUMPAT")
+        call_1arg(CMD_PUBSUB, SUBCMD_NUMPAT)
       end
 
       # List active shard channels (Redis 7+)
@@ -162,9 +179,9 @@ module RedisRuby
       # @return [Array<String>] List of active shard channels
       def pubsub_shardchannels(pattern = nil)
         if pattern
-          call("PUBSUB", "SHARDCHANNELS", pattern)
+          call_2args(CMD_PUBSUB, SUBCMD_SHARDCHANNELS, pattern)
         else
-          call("PUBSUB", "SHARDCHANNELS")
+          call_1arg(CMD_PUBSUB, SUBCMD_SHARDCHANNELS)
         end
       end
 
@@ -175,7 +192,12 @@ module RedisRuby
       def pubsub_shardnumsub(*channels)
         return {} if channels.empty?
 
-        result = call("PUBSUB", "SHARDNUMSUB", *channels)
+        # Fast path for single channel
+        result = if channels.size == 1
+                   call_2args(CMD_PUBSUB, SUBCMD_SHARDNUMSUB, channels[0])
+                 else
+                   call(CMD_PUBSUB, SUBCMD_SHARDNUMSUB, *channels)
+                 end
         Hash[*result]
       end
 
@@ -192,7 +214,7 @@ module RedisRuby
       # @example
       #   redis.spublish("user:{123}:updates", "profile_updated")
       def spublish(shardchannel, message)
-        call("SPUBLISH", shardchannel, message)
+        call_2args(CMD_SPUBLISH, shardchannel, message)
       end
 
       # Subscribe to shard channels (Redis 7.0+)

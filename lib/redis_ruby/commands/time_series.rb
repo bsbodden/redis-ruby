@@ -12,6 +12,48 @@ module RedisRuby
     #
     # @see https://redis.io/docs/data-types/timeseries/
     module TimeSeries
+      # Frozen command constants to avoid string allocations
+      CMD_TS_CREATE = "TS.CREATE"
+      CMD_TS_DEL = "TS.DEL"
+      CMD_TS_ALTER = "TS.ALTER"
+      CMD_TS_ADD = "TS.ADD"
+      CMD_TS_MADD = "TS.MADD"
+      CMD_TS_INCRBY = "TS.INCRBY"
+      CMD_TS_DECRBY = "TS.DECRBY"
+      CMD_TS_CREATERULE = "TS.CREATERULE"
+      CMD_TS_DELETERULE = "TS.DELETERULE"
+      CMD_TS_RANGE = "TS.RANGE"
+      CMD_TS_REVRANGE = "TS.REVRANGE"
+      CMD_TS_MRANGE = "TS.MRANGE"
+      CMD_TS_MREVRANGE = "TS.MREVRANGE"
+      CMD_TS_GET = "TS.GET"
+      CMD_TS_MGET = "TS.MGET"
+      CMD_TS_INFO = "TS.INFO"
+      CMD_TS_QUERYINDEX = "TS.QUERYINDEX"
+
+      # Frozen options
+      OPT_RETENTION = "RETENTION"
+      OPT_ENCODING = "ENCODING"
+      OPT_CHUNK_SIZE = "CHUNK_SIZE"
+      OPT_DUPLICATE_POLICY = "DUPLICATE_POLICY"
+      OPT_ON_DUPLICATE = "ON_DUPLICATE"
+      OPT_LABELS = "LABELS"
+      OPT_IGNORE = "IGNORE"
+      OPT_AGGREGATION = "AGGREGATION"
+      OPT_LATEST = "LATEST"
+      OPT_WITHLABELS = "WITHLABELS"
+      OPT_SELECTED_LABELS = "SELECTED_LABELS"
+      OPT_FILTER = "FILTER"
+      OPT_FILTER_BY_TS = "FILTER_BY_TS"
+      OPT_FILTER_BY_VALUE = "FILTER_BY_VALUE"
+      OPT_COUNT = "COUNT"
+      OPT_ALIGN = "ALIGN"
+      OPT_BUCKETTIMESTAMP = "BUCKETTIMESTAMP"
+      OPT_EMPTY = "EMPTY"
+      OPT_GROUPBY = "GROUPBY"
+      OPT_REDUCE = "REDUCE"
+      OPT_TIMESTAMP = "TIMESTAMP"
+      OPT_DEBUG = "DEBUG"
       # Create a new time series
       #
       # @param key [String] Time series key
@@ -29,24 +71,30 @@ module RedisRuby
       def ts_create(key, retention: nil, encoding: nil, chunk_size: nil,
                     duplicate_policy: nil, labels: nil, ignore_max_time_diff: nil,
                     ignore_max_val_diff: nil)
+        # Fast path: no options
+        if retention.nil? && encoding.nil? && chunk_size.nil? && duplicate_policy.nil? &&
+           labels.nil? && ignore_max_time_diff.nil? && ignore_max_val_diff.nil?
+          return call_1arg(CMD_TS_CREATE, key)
+        end
+
         args = [key]
-        args.push("RETENTION", retention) if retention
-        args.push("ENCODING", encoding) if encoding
-        args.push("CHUNK_SIZE", chunk_size) if chunk_size
-        args.push("DUPLICATE_POLICY", duplicate_policy) if duplicate_policy
+        args.push(OPT_RETENTION, retention) if retention
+        args.push(OPT_ENCODING, encoding) if encoding
+        args.push(OPT_CHUNK_SIZE, chunk_size) if chunk_size
+        args.push(OPT_DUPLICATE_POLICY, duplicate_policy) if duplicate_policy
 
         if ignore_max_time_diff || ignore_max_val_diff
-          args << "IGNORE"
+          args << OPT_IGNORE
           args << ignore_max_time_diff if ignore_max_time_diff
           args << ignore_max_val_diff if ignore_max_val_diff
         end
 
         if labels
-          args << "LABELS"
+          args << OPT_LABELS
           labels.each { |k, v| args.push(k.to_s, v.to_s) }
         end
 
-        call("TS.CREATE", *args)
+        call(CMD_TS_CREATE, *args)
       end
 
       # Delete a time series
@@ -56,7 +104,7 @@ module RedisRuby
       # @param to_ts [Integer] End timestamp
       # @return [Integer] Number of samples deleted
       def ts_del(key, from_ts, to_ts)
-        call("TS.DEL", key, from_ts, to_ts)
+        call_3args(CMD_TS_DEL, key, from_ts, to_ts)
       end
 
       # Alter a time series
@@ -70,22 +118,22 @@ module RedisRuby
       def ts_alter(key, retention: nil, chunk_size: nil, duplicate_policy: nil, labels: nil,
                    ignore_max_time_diff: nil, ignore_max_val_diff: nil)
         args = [key]
-        args.push("RETENTION", retention) if retention
-        args.push("CHUNK_SIZE", chunk_size) if chunk_size
-        args.push("DUPLICATE_POLICY", duplicate_policy) if duplicate_policy
+        args.push(OPT_RETENTION, retention) if retention
+        args.push(OPT_CHUNK_SIZE, chunk_size) if chunk_size
+        args.push(OPT_DUPLICATE_POLICY, duplicate_policy) if duplicate_policy
 
         if ignore_max_time_diff || ignore_max_val_diff
-          args << "IGNORE"
+          args << OPT_IGNORE
           args << ignore_max_time_diff if ignore_max_time_diff
           args << ignore_max_val_diff if ignore_max_val_diff
         end
 
         if labels
-          args << "LABELS"
+          args << OPT_LABELS
           labels.each { |k, v| args.push(k.to_s, v.to_s) }
         end
 
-        call("TS.ALTER", *args)
+        call(CMD_TS_ALTER, *args)
       end
 
       # Add a sample to time series
@@ -108,16 +156,22 @@ module RedisRuby
       def ts_add(key, timestamp, value, retention: nil, encoding: nil,
                  chunk_size: nil, on_duplicate: nil, labels: nil,
                  ignore_max_time_diff: nil, ignore_max_val_diff: nil)
+        # Fast path: no options
+        if retention.nil? && encoding.nil? && chunk_size.nil? && on_duplicate.nil? &&
+           labels.nil? && ignore_max_time_diff.nil? && ignore_max_val_diff.nil?
+          return call_3args(CMD_TS_ADD, key, timestamp, value)
+        end
+
         args = [key, timestamp, value]
-        args.push("RETENTION", retention) if retention
-        args.push("ENCODING", encoding) if encoding
-        args.push("CHUNK_SIZE", chunk_size) if chunk_size
-        args.push("ON_DUPLICATE", on_duplicate) if on_duplicate
+        args.push(OPT_RETENTION, retention) if retention
+        args.push(OPT_ENCODING, encoding) if encoding
+        args.push(OPT_CHUNK_SIZE, chunk_size) if chunk_size
+        args.push(OPT_ON_DUPLICATE, on_duplicate) if on_duplicate
         build_ts_ignore_and_labels(args,
                                    ignore_max_time_diff: ignore_max_time_diff,
                                    ignore_max_val_diff: ignore_max_val_diff,
                                    labels: labels)
-        call("TS.ADD", *args)
+        call(CMD_TS_ADD, *args)
       end
 
       # Add multiple samples atomically
@@ -133,7 +187,7 @@ module RedisRuby
       #   )
       def ts_madd(*samples)
         args = samples.flatten
-        call("TS.MADD", *args)
+        call(CMD_TS_MADD, *args)
       end
 
       # Increment the latest value
@@ -146,13 +200,19 @@ module RedisRuby
       # @return [Integer] Timestamp of sample
       def ts_incrby(key, value, timestamp: nil, retention: nil, labels: nil,
                     chunk_size: nil, ignore_max_time_diff: nil, ignore_max_val_diff: nil)
+        # Fast path: no options
+        if timestamp.nil? && retention.nil? && labels.nil? && chunk_size.nil? &&
+           ignore_max_time_diff.nil? && ignore_max_val_diff.nil?
+          return call_2args(CMD_TS_INCRBY, key, value)
+        end
+
         args = build_ts_incrby_decrby_args(key, value,
                                            timestamp: timestamp, retention: retention,
                                            chunk_size: chunk_size,
                                            ignore_max_time_diff: ignore_max_time_diff,
                                            ignore_max_val_diff: ignore_max_val_diff,
                                            labels: labels)
-        call("TS.INCRBY", *args)
+        call(CMD_TS_INCRBY, *args)
       end
 
       # Decrement the latest value
@@ -165,13 +225,19 @@ module RedisRuby
       # @return [Integer] Timestamp of sample
       def ts_decrby(key, value, timestamp: nil, retention: nil, labels: nil,
                     chunk_size: nil, ignore_max_time_diff: nil, ignore_max_val_diff: nil)
+        # Fast path: no options
+        if timestamp.nil? && retention.nil? && labels.nil? && chunk_size.nil? &&
+           ignore_max_time_diff.nil? && ignore_max_val_diff.nil?
+          return call_2args(CMD_TS_DECRBY, key, value)
+        end
+
         args = build_ts_incrby_decrby_args(key, value,
                                            timestamp: timestamp, retention: retention,
                                            chunk_size: chunk_size,
                                            ignore_max_time_diff: ignore_max_time_diff,
                                            ignore_max_val_diff: ignore_max_val_diff,
                                            labels: labels)
-        call("TS.DECRBY", *args)
+        call(CMD_TS_DECRBY, *args)
       end
 
       # Create a compaction rule
@@ -186,9 +252,9 @@ module RedisRuby
       # @example Create hourly average compaction
       #   redis.ts_createrule("temp:raw", "temp:hourly", "avg", 3600000)
       def ts_createrule(source_key, dest_key, aggregation, bucket_duration, align_timestamp: nil)
-        args = [source_key, dest_key, "AGGREGATION", aggregation, bucket_duration]
+        args = [source_key, dest_key, OPT_AGGREGATION, aggregation, bucket_duration]
         args.push(align_timestamp) if align_timestamp
-        call("TS.CREATERULE", *args)
+        call(CMD_TS_CREATERULE, *args)
       end
 
       # Delete a compaction rule
@@ -197,7 +263,7 @@ module RedisRuby
       # @param dest_key [String] Destination time series
       # @return [String] "OK"
       def ts_deleterule(source_key, dest_key)
-        call("TS.DELETERULE", source_key, dest_key)
+        call_2args(CMD_TS_DELETERULE, source_key, dest_key)
       end
 
       # Query a range of samples
@@ -226,13 +292,19 @@ module RedisRuby
                    filter_by_value: nil, count: nil, align: nil,
                    aggregation: nil, bucket_duration: nil, bucket_timestamp: nil,
                    empty: false)
+        # Fast path: no options
+        if !latest && filter_by_ts.nil? && filter_by_value.nil? && count.nil? &&
+           align.nil? && aggregation.nil?
+          return call_3args(CMD_TS_RANGE, key, from_ts, to_ts)
+        end
+
         args = build_range_args(key, from_ts, to_ts,
                                 latest: latest, filter_by_ts: filter_by_ts,
                                 filter_by_value: filter_by_value, count: count,
                                 align: align, aggregation: aggregation,
                                 bucket_duration: bucket_duration,
                                 bucket_timestamp: bucket_timestamp, empty: empty)
-        call("TS.RANGE", *args)
+        call(CMD_TS_RANGE, *args)
       end
 
       # Query range in reverse order
@@ -246,13 +318,19 @@ module RedisRuby
                       filter_by_value: nil, count: nil, align: nil,
                       aggregation: nil, bucket_duration: nil, bucket_timestamp: nil,
                       empty: false)
+        # Fast path: no options
+        if !latest && filter_by_ts.nil? && filter_by_value.nil? && count.nil? &&
+           align.nil? && aggregation.nil?
+          return call_3args(CMD_TS_REVRANGE, key, from_ts, to_ts)
+        end
+
         args = build_range_args(key, from_ts, to_ts,
                                 latest: latest, filter_by_ts: filter_by_ts,
                                 filter_by_value: filter_by_value, count: count,
                                 align: align, aggregation: aggregation,
                                 bucket_duration: bucket_duration,
                                 bucket_timestamp: bucket_timestamp, empty: empty)
-        call("TS.REVRANGE", *args)
+        call(CMD_TS_REVRANGE, *args)
       end
 
       # Query range across multiple time series
@@ -289,7 +367,7 @@ module RedisRuby
                                  bucket_duration: bucket_duration,
                                  bucket_timestamp: bucket_timestamp, empty: empty,
                                  groupby: groupby, reduce: reduce)
-        call("TS.MRANGE", *args)
+        call(CMD_TS_MRANGE, *args)
       end
 
       # Query range in reverse across multiple series
@@ -311,7 +389,7 @@ module RedisRuby
                                  bucket_duration: bucket_duration,
                                  bucket_timestamp: bucket_timestamp, empty: empty,
                                  groupby: groupby, reduce: reduce)
-        call("TS.MREVRANGE", *args)
+        call(CMD_TS_MREVRANGE, *args)
       end
 
       # Get the latest sample
@@ -320,9 +398,10 @@ module RedisRuby
       # @param latest [Boolean] Return latest even if replicated
       # @return [Array] [timestamp, value] or nil
       def ts_get(key, latest: false)
-        args = [key]
-        args << "LATEST" if latest
-        call("TS.GET", *args)
+        # Fast path: no options
+        return call_1arg(CMD_TS_GET, key) unless latest
+
+        call(CMD_TS_GET, key, OPT_LATEST)
       end
 
       # Get latest samples from multiple series
@@ -334,11 +413,11 @@ module RedisRuby
       # @return [Array] Array of [key, labels, [timestamp, value]]
       def ts_mget(filters, latest: false, withlabels: false, selected_labels: nil)
         args = []
-        args << "LATEST" if latest
-        args << "WITHLABELS" if withlabels
-        args.push("SELECTED_LABELS", *selected_labels) if selected_labels
-        args.push("FILTER", *filters)
-        call("TS.MGET", *args)
+        args << OPT_LATEST if latest
+        args << OPT_WITHLABELS if withlabels
+        args.push(OPT_SELECTED_LABELS, *selected_labels) if selected_labels
+        args.push(OPT_FILTER, *filters)
+        call(CMD_TS_MGET, *args)
       end
 
       # Get time series information
@@ -347,9 +426,12 @@ module RedisRuby
       # @param debug [Boolean] Include debug info
       # @return [Hash] Time series metadata
       def ts_info(key, debug: false)
-        args = [key]
-        args << "DEBUG" if debug
-        result = call("TS.INFO", *args)
+        # Fast path: no options
+        if debug
+          result = call(CMD_TS_INFO, key, OPT_DEBUG)
+        else
+          result = call_1arg(CMD_TS_INFO, key)
+        end
         result.each_slice(2).to_h
       end
 
@@ -361,7 +443,7 @@ module RedisRuby
       # @example Find all temperature sensors
       #   redis.ts_queryindex("sensor=temp")
       def ts_queryindex(*filters)
-        call("TS.QUERYINDEX", *filters)
+        call(CMD_TS_QUERYINDEX, *filters)
       end
 
       private
@@ -372,16 +454,16 @@ module RedisRuby
                            count:, align:, aggregation:, bucket_duration:,
                            bucket_timestamp:, empty:)
         args = [key, from_ts, to_ts]
-        args << "LATEST" if latest
-        args.push("FILTER_BY_TS", *filter_by_ts) if filter_by_ts
-        args.push("FILTER_BY_VALUE", filter_by_value[0], filter_by_value[1]) if filter_by_value
-        args.push("COUNT", count) if count
-        args.push("ALIGN", align) if align
+        args << OPT_LATEST if latest
+        args.push(OPT_FILTER_BY_TS, *filter_by_ts) if filter_by_ts
+        args.push(OPT_FILTER_BY_VALUE, filter_by_value[0], filter_by_value[1]) if filter_by_value
+        args.push(OPT_COUNT, count) if count
+        args.push(OPT_ALIGN, align) if align
 
         if aggregation
-          args.push("AGGREGATION", aggregation, bucket_duration)
-          args.push("BUCKETTIMESTAMP", bucket_timestamp) if bucket_timestamp
-          args << "EMPTY" if empty
+          args.push(OPT_AGGREGATION, aggregation, bucket_duration)
+          args.push(OPT_BUCKETTIMESTAMP, bucket_timestamp) if bucket_timestamp
+          args << OPT_EMPTY if empty
         end
 
         args
@@ -394,22 +476,22 @@ module RedisRuby
                             count:, align:, aggregation:, bucket_duration:,
                             bucket_timestamp:, empty:, groupby:, reduce:)
         args = [from_ts, to_ts]
-        args << "LATEST" if latest
-        args.push("FILTER_BY_TS", *filter_by_ts) if filter_by_ts
-        args.push("FILTER_BY_VALUE", filter_by_value[0], filter_by_value[1]) if filter_by_value
-        args << "WITHLABELS" if withlabels
-        args.push("SELECTED_LABELS", *selected_labels) if selected_labels
-        args.push("COUNT", count) if count
-        args.push("ALIGN", align) if align
+        args << OPT_LATEST if latest
+        args.push(OPT_FILTER_BY_TS, *filter_by_ts) if filter_by_ts
+        args.push(OPT_FILTER_BY_VALUE, filter_by_value[0], filter_by_value[1]) if filter_by_value
+        args << OPT_WITHLABELS if withlabels
+        args.push(OPT_SELECTED_LABELS, *selected_labels) if selected_labels
+        args.push(OPT_COUNT, count) if count
+        args.push(OPT_ALIGN, align) if align
 
         if aggregation
-          args.push("AGGREGATION", aggregation, bucket_duration)
-          args.push("BUCKETTIMESTAMP", bucket_timestamp) if bucket_timestamp
-          args << "EMPTY" if empty
+          args.push(OPT_AGGREGATION, aggregation, bucket_duration)
+          args.push(OPT_BUCKETTIMESTAMP, bucket_timestamp) if bucket_timestamp
+          args << OPT_EMPTY if empty
         end
 
-        args.push("FILTER", *filters)
-        args.push("GROUPBY", groupby, "REDUCE", reduce) if groupby
+        args.push(OPT_FILTER, *filters)
+        args.push(OPT_GROUPBY, groupby, OPT_REDUCE, reduce) if groupby
 
         args
       end
@@ -419,9 +501,9 @@ module RedisRuby
       def build_ts_incrby_decrby_args(key, value, timestamp:, retention:, chunk_size:,
                                       ignore_max_time_diff:, ignore_max_val_diff:, labels:)
         args = [key, value]
-        args.push("TIMESTAMP", timestamp) if timestamp
-        args.push("RETENTION", retention) if retention
-        args.push("CHUNK_SIZE", chunk_size) if chunk_size
+        args.push(OPT_TIMESTAMP, timestamp) if timestamp
+        args.push(OPT_RETENTION, retention) if retention
+        args.push(OPT_CHUNK_SIZE, chunk_size) if chunk_size
         build_ts_ignore_and_labels(args,
                                    ignore_max_time_diff: ignore_max_time_diff,
                                    ignore_max_val_diff: ignore_max_val_diff,
@@ -433,14 +515,14 @@ module RedisRuby
       # @private
       def build_ts_ignore_and_labels(args, ignore_max_time_diff:, ignore_max_val_diff:, labels:)
         if ignore_max_time_diff || ignore_max_val_diff
-          args << "IGNORE"
+          args << OPT_IGNORE
           args << ignore_max_time_diff if ignore_max_time_diff
           args << ignore_max_val_diff if ignore_max_val_diff
         end
 
         return unless labels
 
-        args << "LABELS"
+        args << OPT_LABELS
         labels.each { |k, v| args.push(k.to_s, v.to_s) }
       end
     end

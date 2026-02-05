@@ -17,6 +17,25 @@ module RedisRuby
     #
     # @see https://redis.io/commands/?group=scripting
     module Functions
+      # Frozen command constants to avoid string allocations
+      CMD_FUNCTION = "FUNCTION"
+      CMD_FCALL = "FCALL"
+      CMD_FCALL_RO = "FCALL_RO"
+
+      # Frozen subcommands
+      SUBCMD_LOAD = "LOAD"
+      SUBCMD_LIST = "LIST"
+      SUBCMD_DELETE = "DELETE"
+      SUBCMD_FLUSH = "FLUSH"
+      SUBCMD_DUMP = "DUMP"
+      SUBCMD_RESTORE = "RESTORE"
+      SUBCMD_STATS = "STATS"
+
+      # Frozen options
+      OPT_REPLACE = "REPLACE"
+      OPT_LIBRARYNAME = "LIBRARYNAME"
+      OPT_WITHCODE = "WITHCODE"
+
       # Load a function library into Redis
       #
       # @param code [String] Library code (must start with engine/name header)
@@ -31,9 +50,9 @@ module RedisRuby
       #   redis.function_load(code, replace: true)
       def function_load(code, replace: false)
         if replace
-          call("FUNCTION", "LOAD", "REPLACE", code)
+          call(CMD_FUNCTION, SUBCMD_LOAD, OPT_REPLACE, code)
         else
-          call("FUNCTION", "LOAD", code)
+          call_2args(CMD_FUNCTION, SUBCMD_LOAD, code)
         end
       end
 
@@ -49,9 +68,14 @@ module RedisRuby
       # @example Filter by name with code
       #   redis.function_list(library_name: "mylib", with_code: true)
       def function_list(library_name: nil, with_code: false)
-        args = ["FUNCTION", "LIST"]
-        args.push("LIBRARYNAME", library_name) if library_name
-        args.push("WITHCODE") if with_code
+        # Fast path: no filters
+        if library_name.nil? && !with_code
+          return call_1arg(CMD_FUNCTION, SUBCMD_LIST)
+        end
+
+        args = [CMD_FUNCTION, SUBCMD_LIST]
+        args.push(OPT_LIBRARYNAME, library_name) if library_name
+        args.push(OPT_WITHCODE) if with_code
         call(*args)
       end
 
@@ -60,7 +84,7 @@ module RedisRuby
       # @param library_name [String] Name of the library to delete
       # @return [String] "OK"
       def function_delete(library_name)
-        call("FUNCTION", "DELETE", library_name)
+        call_2args(CMD_FUNCTION, SUBCMD_DELETE, library_name)
       end
 
       # Flush all function libraries
@@ -69,9 +93,9 @@ module RedisRuby
       # @return [String] "OK"
       def function_flush(mode = nil)
         if mode
-          call("FUNCTION", "FLUSH", mode.to_s.upcase)
+          call_2args(CMD_FUNCTION, SUBCMD_FLUSH, mode.to_s.upcase)
         else
-          call("FUNCTION", "FLUSH")
+          call_1arg(CMD_FUNCTION, SUBCMD_FLUSH)
         end
       end
 
@@ -79,7 +103,7 @@ module RedisRuby
       #
       # @return [String] Serialized binary data
       def function_dump
-        call("FUNCTION", "DUMP")
+        call_1arg(CMD_FUNCTION, SUBCMD_DUMP)
       end
 
       # Restore function libraries from serialized binary
@@ -89,9 +113,9 @@ module RedisRuby
       # @return [String] "OK"
       def function_restore(data, policy: nil)
         if policy
-          call("FUNCTION", "RESTORE", data, policy.to_s.upcase)
+          call(CMD_FUNCTION, SUBCMD_RESTORE, data, policy.to_s.upcase)
         else
-          call("FUNCTION", "RESTORE", data)
+          call_2args(CMD_FUNCTION, SUBCMD_RESTORE, data)
         end
       end
 
@@ -99,7 +123,7 @@ module RedisRuby
       #
       # @return [Hash] Statistics about running scripts and engines
       def function_stats
-        call("FUNCTION", "STATS")
+        call_1arg(CMD_FUNCTION, SUBCMD_STATS)
       end
 
       # Call a function
@@ -112,7 +136,12 @@ module RedisRuby
       # @example
       #   redis.fcall("myfunc", keys: ["key1"], args: ["arg1"])
       def fcall(name, keys: [], args: [])
-        call("FCALL", name, keys.size, *keys, *args)
+        # Fast path: no keys or args
+        if keys.empty? && args.empty?
+          return call_2args(CMD_FCALL, name, 0)
+        end
+
+        call(CMD_FCALL, name, keys.size, *keys, *args)
       end
 
       # Call a function in read-only mode
@@ -125,7 +154,12 @@ module RedisRuby
       # @param args [Array] Additional arguments
       # @return [Object] Function return value
       def fcall_ro(name, keys: [], args: [])
-        call("FCALL_RO", name, keys.size, *keys, *args)
+        # Fast path: no keys or args
+        if keys.empty? && args.empty?
+          return call_2args(CMD_FCALL_RO, name, 0)
+        end
+
+        call(CMD_FCALL_RO, name, keys.size, *keys, *args)
       end
     end
   end
