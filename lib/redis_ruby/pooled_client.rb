@@ -141,6 +141,9 @@ module RedisRuby
         results = transaction.execute
         return nil if results.nil?
 
+        # Handle case where transaction itself failed (e.g., MISCONF)
+        raise results if results.is_a?(CommandError)
+
         results.map { |r| r.is_a?(CommandError) ? raise(r) : r }
       end
     end
