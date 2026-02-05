@@ -113,6 +113,33 @@ module RedisRuby
       result
     end
 
+    # Fast-path method for single-argument commands (avoids splat allocation)
+    def call_1arg(command, arg)
+      ensure_connected
+      result = @connection.call_1arg(command, arg)
+      raise result if result.is_a?(CommandError)
+
+      result
+    end
+
+    # Fast-path method for two-argument commands (avoids splat allocation)
+    def call_2args(command, arg1, arg2)
+      ensure_connected
+      result = @connection.call_2args(command, arg1, arg2)
+      raise result if result.is_a?(CommandError)
+
+      result
+    end
+
+    # Fast-path method for three-argument commands (avoids splat allocation)
+    def call_3args(command, arg1, arg2, arg3)
+      ensure_connected
+      result = @connection.call_3args(command, arg1, arg2, arg3)
+      raise result if result.is_a?(CommandError)
+
+      result
+    end
+
     # Ping the Redis server
     #
     # @return [String] "PONG"

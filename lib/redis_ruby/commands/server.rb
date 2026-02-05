@@ -11,6 +11,79 @@ module RedisRuby
     # @see https://redis.io/commands/?group=connection
     # @see https://redis.io/commands/?group=generic
     module Server
+      # Frozen command constants to avoid string allocations
+      CMD_INFO = "INFO"
+      CMD_DBSIZE = "DBSIZE"
+      CMD_FLUSHDB = "FLUSHDB"
+      CMD_FLUSHALL = "FLUSHALL"
+      CMD_SELECT = "SELECT"
+      CMD_SWAPDB = "SWAPDB"
+      CMD_SAVE = "SAVE"
+      CMD_BGSAVE = "BGSAVE"
+      CMD_BGREWRITEAOF = "BGREWRITEAOF"
+      CMD_LASTSAVE = "LASTSAVE"
+      CMD_SHUTDOWN = "SHUTDOWN"
+      CMD_TIME = "TIME"
+      CMD_CONFIG = "CONFIG"
+      CMD_CLIENT = "CLIENT"
+      CMD_SLOWLOG = "SLOWLOG"
+      CMD_MEMORY = "MEMORY"
+      CMD_OBJECT = "OBJECT"
+      CMD_COMMAND = "COMMAND"
+      CMD_LATENCY = "LATENCY"
+      CMD_MODULE = "MODULE"
+      CMD_REPLICAOF = "REPLICAOF"
+      CMD_WAIT = "WAIT"
+      CMD_WAITAOF = "WAITAOF"
+      CMD_ECHO = "ECHO"
+      CMD_DEBUG = "DEBUG"
+      CMD_LOLWUT = "LOLWUT"
+
+      # Frozen subcommands
+      SUBCMD_GET = "GET"
+      SUBCMD_SET = "SET"
+      SUBCMD_REWRITE = "REWRITE"
+      SUBCMD_RESETSTAT = "RESETSTAT"
+      SUBCMD_LIST = "LIST"
+      SUBCMD_GETNAME = "GETNAME"
+      SUBCMD_SETNAME = "SETNAME"
+      SUBCMD_ID = "ID"
+      SUBCMD_INFO = "INFO"
+      SUBCMD_KILL = "KILL"
+      SUBCMD_PAUSE = "PAUSE"
+      SUBCMD_UNPAUSE = "UNPAUSE"
+      SUBCMD_NO_EVICT = "NO-EVICT"
+      SUBCMD_LEN = "LEN"
+      SUBCMD_RESET = "RESET"
+      SUBCMD_DOCTOR = "DOCTOR"
+      SUBCMD_STATS = "STATS"
+      SUBCMD_PURGE = "PURGE"
+      SUBCMD_MALLOC_STATS = "MALLOC-STATS"
+      SUBCMD_ENCODING = "ENCODING"
+      SUBCMD_FREQ = "FREQ"
+      SUBCMD_IDLETIME = "IDLETIME"
+      SUBCMD_REFCOUNT = "REFCOUNT"
+      SUBCMD_COUNT = "COUNT"
+      SUBCMD_DOCS = "DOCS"
+      SUBCMD_LATEST = "LATEST"
+      SUBCMD_HISTORY = "HISTORY"
+      SUBCMD_LOAD = "LOAD"
+      SUBCMD_UNLOAD = "UNLOAD"
+      SUBCMD_OBJECT = "OBJECT"
+
+      # Frozen options
+      OPT_TYPE = "TYPE"
+      OPT_ADDR = "ADDR"
+      OPT_ON = "ON"
+      OPT_OFF = "OFF"
+      OPT_NO = "NO"
+      OPT_ONE = "ONE"
+      OPT_SCHEDULE = "SCHEDULE"
+      OPT_ASYNC = "ASYNC"
+      OPT_SYNC = "SYNC"
+      OPT_NOSAVE = "NOSAVE"
+      OPT_VERSION = "VERSION"
+
       # --- INFO ---
 
       # Get server information and statistics
@@ -19,9 +92,9 @@ module RedisRuby
       # @return [String] Info output
       def info(section = nil)
         if section
-          call("INFO", section)
+          call_1arg(CMD_INFO, section)
         else
-          call("INFO")
+          call(CMD_INFO)
         end
       end
 
@@ -31,7 +104,7 @@ module RedisRuby
       #
       # @return [Integer] Number of keys
       def dbsize
-        call("DBSIZE")
+        call(CMD_DBSIZE)
       end
 
       # Remove all keys from the current database
@@ -40,9 +113,9 @@ module RedisRuby
       # @return [String] "OK"
       def flushdb(mode = nil)
         if mode
-          call("FLUSHDB", mode.to_s.upcase)
+          call_1arg(CMD_FLUSHDB, mode == :async ? OPT_ASYNC : OPT_SYNC)
         else
-          call("FLUSHDB")
+          call(CMD_FLUSHDB)
         end
       end
 
@@ -52,9 +125,9 @@ module RedisRuby
       # @return [String] "OK"
       def flushall(mode = nil)
         if mode
-          call("FLUSHALL", mode.to_s.upcase)
+          call_1arg(CMD_FLUSHALL, mode == :async ? OPT_ASYNC : OPT_SYNC)
         else
-          call("FLUSHALL")
+          call(CMD_FLUSHALL)
         end
       end
 
@@ -63,7 +136,7 @@ module RedisRuby
       # @param db [Integer] Database index
       # @return [String] "OK"
       def select(db)
-        call("SELECT", db)
+        call_1arg(CMD_SELECT, db)
       end
 
       # Swap two Redis databases
@@ -72,7 +145,7 @@ module RedisRuby
       # @param db2 [Integer] Second database index
       # @return [String] "OK"
       def swapdb(db1, db2)
-        call("SWAPDB", db1, db2)
+        call_2args(CMD_SWAPDB, db1, db2)
       end
 
       # --- PERSISTENCE ---
@@ -81,7 +154,7 @@ module RedisRuby
       #
       # @return [String] "OK"
       def save
-        call("SAVE")
+        call(CMD_SAVE)
       end
 
       # Asynchronously save the dataset to disk
@@ -90,9 +163,9 @@ module RedisRuby
       # @return [String] Status message
       def bgsave(schedule: false)
         if schedule
-          call("BGSAVE", "SCHEDULE")
+          call_1arg(CMD_BGSAVE, OPT_SCHEDULE)
         else
-          call("BGSAVE")
+          call(CMD_BGSAVE)
         end
       end
 
@@ -100,14 +173,14 @@ module RedisRuby
       #
       # @return [String] Status message
       def bgrewriteaof
-        call("BGREWRITEAOF")
+        call(CMD_BGREWRITEAOF)
       end
 
       # Get the UNIX timestamp of the last successful save
       #
       # @return [Integer] UNIX timestamp
       def lastsave
-        call("LASTSAVE")
+        call(CMD_LASTSAVE)
       end
 
       # Shut down the server
@@ -116,9 +189,9 @@ module RedisRuby
       # @return [nil]
       def shutdown(mode = nil)
         if mode
-          call("SHUTDOWN", mode.to_s.upcase)
+          call_1arg(CMD_SHUTDOWN, mode == :nosave ? OPT_NOSAVE : CMD_SAVE)
         else
-          call("SHUTDOWN")
+          call(CMD_SHUTDOWN)
         end
       end
 
@@ -128,7 +201,7 @@ module RedisRuby
       #
       # @return [Array] [unix_timestamp, microseconds]
       def time
-        call("TIME")
+        call(CMD_TIME)
       end
 
       # --- CONFIG ---
@@ -138,7 +211,7 @@ module RedisRuby
       # @param pattern [String] Glob-style pattern
       # @return [Hash] Parameter name => value pairs
       def config_get(pattern)
-        call("CONFIG", "GET", pattern)
+        call_2args(CMD_CONFIG, SUBCMD_GET, pattern)
       end
 
       # Set a configuration parameter
@@ -147,21 +220,21 @@ module RedisRuby
       # @param value [String] Parameter value
       # @return [String] "OK"
       def config_set(parameter, value)
-        call("CONFIG", "SET", parameter, value)
+        call(CMD_CONFIG, SUBCMD_SET, parameter, value)
       end
 
       # Rewrite the redis.conf file with in-memory configuration
       #
       # @return [String] "OK"
       def config_rewrite
-        call("CONFIG", "REWRITE")
+        call_1arg(CMD_CONFIG, SUBCMD_REWRITE)
       end
 
       # Reset the stats returned by INFO
       #
       # @return [String] "OK"
       def config_resetstat
-        call("CONFIG", "RESETSTAT")
+        call_1arg(CMD_CONFIG, SUBCMD_RESETSTAT)
       end
 
       # --- CLIENT ---
@@ -172,9 +245,9 @@ module RedisRuby
       # @return [String] Client list output
       def client_list(type: nil)
         if type
-          call("CLIENT", "LIST", "TYPE", type)
+          call(CMD_CLIENT, SUBCMD_LIST, OPT_TYPE, type)
         else
-          call("CLIENT", "LIST")
+          call_1arg(CMD_CLIENT, SUBCMD_LIST)
         end
       end
 
@@ -182,7 +255,7 @@ module RedisRuby
       #
       # @return [String, nil] Connection name
       def client_getname
-        call("CLIENT", "GETNAME")
+        call_1arg(CMD_CLIENT, SUBCMD_GETNAME)
       end
 
       # Set the current connection name
@@ -190,21 +263,21 @@ module RedisRuby
       # @param name [String] Connection name
       # @return [String] "OK"
       def client_setname(name)
-        call("CLIENT", "SETNAME", name)
+        call_2args(CMD_CLIENT, SUBCMD_SETNAME, name)
       end
 
       # Get the current connection ID
       #
       # @return [Integer] Client ID
       def client_id
-        call("CLIENT", "ID")
+        call_1arg(CMD_CLIENT, SUBCMD_ID)
       end
 
       # Get info about the current connection
       #
       # @return [Hash] Client info
       def client_info
-        call("CLIENT", "INFO")
+        call_1arg(CMD_CLIENT, SUBCMD_INFO)
       end
 
       # Kill client connections
@@ -213,13 +286,13 @@ module RedisRuby
       # @param addr [String, nil] Client address (ip:port) to kill
       # @return [Integer] Number of clients killed
       def client_kill(id: nil, addr: nil)
-        args = ["CLIENT", "KILL"]
         if id
-          args.push("ID", id)
+          call(CMD_CLIENT, SUBCMD_KILL, SUBCMD_ID, id)
         elsif addr
-          args.push("ADDR", addr)
+          call(CMD_CLIENT, SUBCMD_KILL, OPT_ADDR, addr)
+        else
+          call_1arg(CMD_CLIENT, SUBCMD_KILL)
         end
-        call(*args)
       end
 
       # Suspend all clients for the specified time
@@ -227,14 +300,14 @@ module RedisRuby
       # @param timeout_ms [Integer] Pause duration in milliseconds
       # @return [String] "OK"
       def client_pause(timeout_ms)
-        call("CLIENT", "PAUSE", timeout_ms)
+        call_2args(CMD_CLIENT, SUBCMD_PAUSE, timeout_ms)
       end
 
       # Resume clients paused by CLIENT PAUSE
       #
       # @return [String] "OK"
       def client_unpause
-        call("CLIENT", "UNPAUSE")
+        call_1arg(CMD_CLIENT, SUBCMD_UNPAUSE)
       end
 
       # Set client eviction mode
@@ -242,7 +315,7 @@ module RedisRuby
       # @param enabled [Boolean] Enable or disable no-evict
       # @return [String] "OK"
       def client_no_evict(enabled)
-        call("CLIENT", "NO-EVICT", enabled ? "ON" : "OFF")
+        call_2args(CMD_CLIENT, SUBCMD_NO_EVICT, enabled ? OPT_ON : OPT_OFF)
       end
 
       # --- SLOWLOG ---
@@ -253,9 +326,9 @@ module RedisRuby
       # @return [Array] Slow log entries
       def slowlog_get(count = nil)
         if count
-          call("SLOWLOG", "GET", count)
+          call_2args(CMD_SLOWLOG, SUBCMD_GET, count)
         else
-          call("SLOWLOG", "GET")
+          call_1arg(CMD_SLOWLOG, SUBCMD_GET)
         end
       end
 
@@ -263,14 +336,14 @@ module RedisRuby
       #
       # @return [Integer] Number of entries
       def slowlog_len
-        call("SLOWLOG", "LEN")
+        call_1arg(CMD_SLOWLOG, SUBCMD_LEN)
       end
 
       # Reset the slow log
       #
       # @return [String] "OK"
       def slowlog_reset
-        call("SLOWLOG", "RESET")
+        call_1arg(CMD_SLOWLOG, SUBCMD_RESET)
       end
 
       # --- MEMORY ---
@@ -279,28 +352,28 @@ module RedisRuby
       #
       # @return [String] Diagnostic report
       def memory_doctor
-        call("MEMORY", "DOCTOR")
+        call_1arg(CMD_MEMORY, SUBCMD_DOCTOR)
       end
 
       # Get memory allocator statistics
       #
       # @return [Hash] Memory statistics
       def memory_stats
-        call("MEMORY", "STATS")
+        call_1arg(CMD_MEMORY, SUBCMD_STATS)
       end
 
       # Ask the allocator to release memory
       #
       # @return [String] "OK"
       def memory_purge
-        call("MEMORY", "PURGE")
+        call_1arg(CMD_MEMORY, SUBCMD_PURGE)
       end
 
       # Get allocator internal stats
       #
       # @return [String] Allocator stats
       def memory_malloc_stats
-        call("MEMORY", "MALLOC-STATS")
+        call_1arg(CMD_MEMORY, SUBCMD_MALLOC_STATS)
       end
 
       # --- OBJECT ---
@@ -310,7 +383,7 @@ module RedisRuby
       # @param key [String] Key name
       # @return [String] Encoding name
       def object_encoding(key)
-        call("OBJECT", "ENCODING", key)
+        call_2args(CMD_OBJECT, SUBCMD_ENCODING, key)
       end
 
       # Get the access frequency of a key (LFU policy)
@@ -318,7 +391,7 @@ module RedisRuby
       # @param key [String] Key name
       # @return [Integer] Access frequency
       def object_freq(key)
-        call("OBJECT", "FREQ", key)
+        call_2args(CMD_OBJECT, SUBCMD_FREQ, key)
       end
 
       # Get the idle time of a key in seconds
@@ -326,7 +399,7 @@ module RedisRuby
       # @param key [String] Key name
       # @return [Integer] Idle time in seconds
       def object_idletime(key)
-        call("OBJECT", "IDLETIME", key)
+        call_2args(CMD_OBJECT, SUBCMD_IDLETIME, key)
       end
 
       # Get the reference count of a key's value
@@ -334,7 +407,7 @@ module RedisRuby
       # @param key [String] Key name
       # @return [Integer] Reference count
       def object_refcount(key)
-        call("OBJECT", "REFCOUNT", key)
+        call_2args(CMD_OBJECT, SUBCMD_REFCOUNT, key)
       end
 
       # --- COMMAND ---
@@ -343,7 +416,7 @@ module RedisRuby
       #
       # @return [Integer] Command count
       def command_count
-        call("COMMAND", "COUNT")
+        call_1arg(CMD_COMMAND, SUBCMD_COUNT)
       end
 
       # Get command documentation
@@ -351,7 +424,12 @@ module RedisRuby
       # @param command_names [Array<String>] Command names
       # @return [Hash] Command documentation
       def command_docs(*command_names)
-        call("COMMAND", "DOCS", *command_names)
+        # Fast path for single command
+        if command_names.size == 1
+          return call_2args(CMD_COMMAND, SUBCMD_DOCS, command_names[0])
+        end
+
+        call(CMD_COMMAND, SUBCMD_DOCS, *command_names)
       end
 
       # Get command info
@@ -359,14 +437,19 @@ module RedisRuby
       # @param command_names [Array<String>] Command names
       # @return [Hash] Command info
       def command_info(*command_names)
-        call("COMMAND", "INFO", *command_names)
+        # Fast path for single command
+        if command_names.size == 1
+          return call_2args(CMD_COMMAND, SUBCMD_INFO, command_names[0])
+        end
+
+        call(CMD_COMMAND, SUBCMD_INFO, *command_names)
       end
 
       # List all command names
       #
       # @return [Array<String>] Command names
       def command_list
-        call("COMMAND", "LIST")
+        call_1arg(CMD_COMMAND, SUBCMD_LIST)
       end
 
       # --- LATENCY ---
@@ -375,7 +458,7 @@ module RedisRuby
       #
       # @return [Array] Latest latency events
       def latency_latest
-        call("LATENCY", "LATEST")
+        call_1arg(CMD_LATENCY, SUBCMD_LATEST)
       end
 
       # Get latency history for an event
@@ -383,7 +466,7 @@ module RedisRuby
       # @param event [String] Event name
       # @return [Array] Latency history entries
       def latency_history(event)
-        call("LATENCY", "HISTORY", event)
+        call_2args(CMD_LATENCY, SUBCMD_HISTORY, event)
       end
 
       # Reset latency data for events
@@ -391,7 +474,17 @@ module RedisRuby
       # @param events [Array<String>] Event names (empty = reset all)
       # @return [Integer] Number of events reset
       def latency_reset(*events)
-        call("LATENCY", "RESET", *events)
+        # Fast path for no events
+        if events.empty?
+          return call_1arg(CMD_LATENCY, SUBCMD_RESET)
+        end
+
+        # Fast path for single event
+        if events.size == 1
+          return call_2args(CMD_LATENCY, SUBCMD_RESET, events[0])
+        end
+
+        call(CMD_LATENCY, SUBCMD_RESET, *events)
       end
 
       # --- MODULE ---
@@ -400,7 +493,7 @@ module RedisRuby
       #
       # @return [Array<Hash>] Module info
       def module_list
-        call("MODULE", "LIST")
+        call_1arg(CMD_MODULE, SUBCMD_LIST)
       end
 
       # Load a module
@@ -409,7 +502,12 @@ module RedisRuby
       # @param args [Array<String>] Module arguments
       # @return [String] "OK"
       def module_load(path, *args)
-        call("MODULE", "LOAD", path, *args)
+        # Fast path for no args
+        if args.empty?
+          return call_2args(CMD_MODULE, SUBCMD_LOAD, path)
+        end
+
+        call(CMD_MODULE, SUBCMD_LOAD, path, *args)
       end
 
       # Unload a module
@@ -417,7 +515,7 @@ module RedisRuby
       # @param name [String] Module name
       # @return [String] "OK"
       def module_unload(name)
-        call("MODULE", "UNLOAD", name)
+        call_2args(CMD_MODULE, SUBCMD_UNLOAD, name)
       end
 
       # --- REPLICATION ---
@@ -428,14 +526,14 @@ module RedisRuby
       # @param port [Integer] Master port
       # @return [String] "OK"
       def replicaof(host, port)
-        call("REPLICAOF", host, port)
+        call_2args(CMD_REPLICAOF, host, port)
       end
 
       # Promote replica to master
       #
       # @return [String] "OK"
       def replicaof_no_one
-        call("REPLICAOF", "NO", "ONE")
+        call_2args(CMD_REPLICAOF, OPT_NO, OPT_ONE)
       end
 
       # Wait for replicas to acknowledge writes
@@ -444,7 +542,7 @@ module RedisRuby
       # @param timeout_ms [Integer] Timeout in milliseconds
       # @return [Integer] Number of replicas that acknowledged
       def wait(numreplicas, timeout_ms)
-        call("WAIT", numreplicas, timeout_ms)
+        call_2args(CMD_WAIT, numreplicas, timeout_ms)
       end
 
       # Wait for AOF sync on replicas (Redis 7.2+)
@@ -454,7 +552,7 @@ module RedisRuby
       # @param timeout_ms [Integer] Timeout in milliseconds
       # @return [Array<Integer>] [local_syncs, replica_syncs]
       def waitaof(numlocal, numreplicas, timeout_ms)
-        call("WAITAOF", numlocal, numreplicas, timeout_ms)
+        call_3args(CMD_WAITAOF, numlocal, numreplicas, timeout_ms)
       end
 
       # --- MISC ---
@@ -464,7 +562,7 @@ module RedisRuby
       # @param message [String] Message to echo
       # @return [String] The echoed message
       def echo(message)
-        call("ECHO", message)
+        call_1arg(CMD_ECHO, message)
       end
 
       # Get debugging information about a key
@@ -472,7 +570,7 @@ module RedisRuby
       # @param key [String] Key name
       # @return [String] Debug info
       def debug_object(key)
-        call("DEBUG", "OBJECT", key)
+        call_2args(CMD_DEBUG, SUBCMD_OBJECT, key)
       end
 
       # Display server version art
@@ -481,9 +579,9 @@ module RedisRuby
       # @return [String] ASCII art
       def lolwut(version: nil)
         if version
-          call("LOLWUT", "VERSION", version)
+          call_2args(CMD_LOLWUT, OPT_VERSION, version)
         else
-          call("LOLWUT")
+          call(CMD_LOLWUT)
         end
       end
     end
