@@ -6,13 +6,42 @@ module RedisRuby
     #
     # @see https://redis.io/commands/?group=set
     module Sets
+      # Frozen command constants to avoid string allocations
+      CMD_SADD = "SADD"
+      CMD_SREM = "SREM"
+      CMD_SISMEMBER = "SISMEMBER"
+      CMD_SMISMEMBER = "SMISMEMBER"
+      CMD_SMEMBERS = "SMEMBERS"
+      CMD_SCARD = "SCARD"
+      CMD_SPOP = "SPOP"
+      CMD_SRANDMEMBER = "SRANDMEMBER"
+      CMD_SMOVE = "SMOVE"
+      CMD_SINTER = "SINTER"
+      CMD_SINTERSTORE = "SINTERSTORE"
+      CMD_SINTERCARD = "SINTERCARD"
+      CMD_SUNION = "SUNION"
+      CMD_SUNIONSTORE = "SUNIONSTORE"
+      CMD_SDIFF = "SDIFF"
+      CMD_SDIFFSTORE = "SDIFFSTORE"
+      CMD_SSCAN = "SSCAN"
+
+      # Frozen option strings
+      OPT_MATCH = "MATCH"
+      OPT_COUNT = "COUNT"
+      OPT_LIMIT = "LIMIT"
+
       # Add one or more members to a set
       #
       # @param key [String]
       # @param members [Array<String>]
       # @return [Integer] number of members added (not already present)
       def sadd(key, *members)
-        call("SADD", key, *members)
+        # Fast path for single member (most common)
+        if members.size == 1
+          return call_2args(CMD_SADD, key, members[0])
+        end
+
+        call(CMD_SADD, key, *members)
       end
 
       # Remove one or more members from a set
@@ -21,7 +50,12 @@ module RedisRuby
       # @param members [Array<String>]
       # @return [Integer] number of members removed
       def srem(key, *members)
-        call("SREM", key, *members)
+        # Fast path for single member (most common)
+        if members.size == 1
+          return call_2args(CMD_SREM, key, members[0])
+        end
+
+        call(CMD_SREM, key, *members)
       end
 
       # Check if a member is in a set
@@ -30,7 +64,7 @@ module RedisRuby
       # @param member [String]
       # @return [Integer] 1 if member exists, 0 otherwise
       def sismember(key, member)
-        call("SISMEMBER", key, member)
+        call_2args(CMD_SISMEMBER, key, member)
       end
 
       # Check if multiple members are in a set
@@ -39,7 +73,7 @@ module RedisRuby
       # @param members [Array<String>]
       # @return [Array<Integer>] 1 or 0 for each member
       def smismember(key, *members)
-        call("SMISMEMBER", key, *members)
+        call(CMD_SMISMEMBER, key, *members)
       end
 
       # Get all members of a set
@@ -47,7 +81,7 @@ module RedisRuby
       # @param key [String]
       # @return [Array<String>] members
       def smembers(key)
-        call("SMEMBERS", key)
+        call_1arg(CMD_SMEMBERS, key)
       end
 
       # Get the number of members in a set
@@ -55,7 +89,7 @@ module RedisRuby
       # @param key [String]
       # @return [Integer] cardinality
       def scard(key)
-        call("SCARD", key)
+        call_1arg(CMD_SCARD, key)
       end
 
       # Remove and return a random member from a set
@@ -65,9 +99,9 @@ module RedisRuby
       # @return [String, Array, nil] member(s) or nil
       def spop(key, count = nil)
         if count
-          call("SPOP", key, count)
+          call_2args(CMD_SPOP, key, count)
         else
-          call("SPOP", key)
+          call_1arg(CMD_SPOP, key)
         end
       end
 
@@ -78,9 +112,9 @@ module RedisRuby
       # @return [String, Array, nil] member(s) or nil
       def srandmember(key, count = nil)
         if count
-          call("SRANDMEMBER", key, count)
+          call_2args(CMD_SRANDMEMBER, key, count)
         else
-          call("SRANDMEMBER", key)
+          call_1arg(CMD_SRANDMEMBER, key)
         end
       end
 
@@ -91,7 +125,7 @@ module RedisRuby
       # @param member [String]
       # @return [Integer] 1 if moved, 0 if not in source
       def smove(source, destination, member)
-        call("SMOVE", source, destination, member)
+        call_3args(CMD_SMOVE, source, destination, member)
       end
 
       # Get the intersection of multiple sets
@@ -99,7 +133,7 @@ module RedisRuby
       # @param keys [Array<String>]
       # @return [Array<String>] members in all sets
       def sinter(*keys)
-        call("SINTER", *keys)
+        call(CMD_SINTER, *keys)
       end
 
       # Get the intersection and store in a new set
@@ -108,7 +142,7 @@ module RedisRuby
       # @param keys [Array<String>]
       # @return [Integer] number of members in result
       def sinterstore(destination, *keys)
-        call("SINTERSTORE", destination, *keys)
+        call(CMD_SINTERSTORE, destination, *keys)
       end
 
       # Get the cardinality of the intersection
@@ -117,8 +151,8 @@ module RedisRuby
       # @param limit [Integer, nil] stop counting after this many
       # @return [Integer] cardinality of intersection
       def sintercard(*keys, limit: nil)
-        args = ["SINTERCARD", keys.length, *keys]
-        args.push("LIMIT", limit) if limit
+        args = [CMD_SINTERCARD, keys.length, *keys]
+        args.push(OPT_LIMIT, limit) if limit
         call(*args)
       end
 
@@ -127,7 +161,7 @@ module RedisRuby
       # @param keys [Array<String>]
       # @return [Array<String>] members in any set
       def sunion(*keys)
-        call("SUNION", *keys)
+        call(CMD_SUNION, *keys)
       end
 
       # Get the union and store in a new set
@@ -136,7 +170,7 @@ module RedisRuby
       # @param keys [Array<String>]
       # @return [Integer] number of members in result
       def sunionstore(destination, *keys)
-        call("SUNIONSTORE", destination, *keys)
+        call(CMD_SUNIONSTORE, destination, *keys)
       end
 
       # Get the difference between sets
@@ -144,7 +178,7 @@ module RedisRuby
       # @param keys [Array<String>]
       # @return [Array<String>] members in first set but not others
       def sdiff(*keys)
-        call("SDIFF", *keys)
+        call(CMD_SDIFF, *keys)
       end
 
       # Get the difference and store in a new set
@@ -153,7 +187,7 @@ module RedisRuby
       # @param keys [Array<String>]
       # @return [Integer] number of members in result
       def sdiffstore(destination, *keys)
-        call("SDIFFSTORE", destination, *keys)
+        call(CMD_SDIFFSTORE, destination, *keys)
       end
 
       # Incrementally iterate set members
@@ -164,9 +198,14 @@ module RedisRuby
       # @param count [Integer, nil] hint for number of elements
       # @return [Array] [next_cursor, members]
       def sscan(key, cursor, match: nil, count: nil)
-        args = ["SSCAN", key, cursor]
-        args.push("MATCH", match) if match
-        args.push("COUNT", count) if count
+        # Fast path: no options
+        if match.nil? && count.nil?
+          return call_2args(CMD_SSCAN, key, cursor)
+        end
+
+        args = [CMD_SSCAN, key, cursor]
+        args.push(OPT_MATCH, match) if match
+        args.push(OPT_COUNT, count) if count
         call(*args)
       end
 

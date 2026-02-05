@@ -117,6 +117,39 @@ module RedisRuby
       end
     end
 
+    # Fast path for single-argument commands (GET, DEL, EXISTS, etc.)
+    # @api private
+    def call_1arg(command, arg)
+      @pool.acquire do |conn|
+        result = conn.call_1arg(command, arg)
+        raise result if result.is_a?(CommandError)
+
+        result
+      end
+    end
+
+    # Fast path for two-argument commands (SET without options, HGET, etc.)
+    # @api private
+    def call_2args(command, arg1, arg2)
+      @pool.acquire do |conn|
+        result = conn.call_2args(command, arg1, arg2)
+        raise result if result.is_a?(CommandError)
+
+        result
+      end
+    end
+
+    # Fast path for three-argument commands (HSET, LRANGE, etc.)
+    # @api private
+    def call_3args(command, arg1, arg2, arg3)
+      @pool.acquire do |conn|
+        result = conn.call_3args(command, arg1, arg2, arg3)
+        raise result if result.is_a?(CommandError)
+
+        result
+      end
+    end
+
     # Execute a block with a connection from the pool
     #
     # Use this for batch operations or when you need to ensure

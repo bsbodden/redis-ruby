@@ -53,6 +53,27 @@ module RedisRuby
           @connection.call(...)
         end
 
+        # Fast path for single-argument commands
+        # @api private
+        def call_1arg(command, arg)
+          @count += 1
+          @connection.call_1arg(command, arg)
+        end
+
+        # Fast path for two-argument commands
+        # @api private
+        def call_2args(command, arg1, arg2)
+          @count += 1
+          @connection.call_2args(command, arg1, arg2)
+        end
+
+        # Fast path for three-argument commands
+        # @api private
+        def call_3args(command, arg1, arg2, arg3)
+          @count += 1
+          @connection.call_3args(command, arg1, arg2, arg3)
+        end
+
         # Delegate pipeline to the underlying connection
         def pipeline(...)
           @count += 1

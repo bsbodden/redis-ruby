@@ -6,6 +6,59 @@ module RedisRuby
     #
     # @see https://redis.io/commands/?group=sorted-set
     module SortedSets
+      # Frozen command constants to avoid string allocations
+      CMD_ZADD = "ZADD"
+      CMD_ZREM = "ZREM"
+      CMD_ZSCORE = "ZSCORE"
+      CMD_ZMSCORE = "ZMSCORE"
+      CMD_ZRANK = "ZRANK"
+      CMD_ZREVRANK = "ZREVRANK"
+      CMD_ZCARD = "ZCARD"
+      CMD_ZCOUNT = "ZCOUNT"
+      CMD_ZRANGE = "ZRANGE"
+      CMD_ZRANGESTORE = "ZRANGESTORE"
+      CMD_ZREVRANGE = "ZREVRANGE"
+      CMD_ZRANGEBYSCORE = "ZRANGEBYSCORE"
+      CMD_ZREVRANGEBYSCORE = "ZREVRANGEBYSCORE"
+      CMD_ZINCRBY = "ZINCRBY"
+      CMD_ZREMRANGEBYRANK = "ZREMRANGEBYRANK"
+      CMD_ZREMRANGEBYSCORE = "ZREMRANGEBYSCORE"
+      CMD_ZPOPMIN = "ZPOPMIN"
+      CMD_ZPOPMAX = "ZPOPMAX"
+      CMD_BZPOPMIN = "BZPOPMIN"
+      CMD_BZPOPMAX = "BZPOPMAX"
+      CMD_ZSCAN = "ZSCAN"
+      CMD_ZINTERSTORE = "ZINTERSTORE"
+      CMD_ZUNIONSTORE = "ZUNIONSTORE"
+      CMD_ZUNION = "ZUNION"
+      CMD_ZINTER = "ZINTER"
+      CMD_ZDIFF = "ZDIFF"
+      CMD_ZDIFFSTORE = "ZDIFFSTORE"
+      CMD_ZINTERCARD = "ZINTERCARD"
+      CMD_ZMPOP = "ZMPOP"
+      CMD_BZMPOP = "BZMPOP"
+      CMD_ZLEXCOUNT = "ZLEXCOUNT"
+      CMD_ZRANGEBYLEX = "ZRANGEBYLEX"
+      CMD_ZREVRANGEBYLEX = "ZREVRANGEBYLEX"
+      CMD_ZREMRANGEBYLEX = "ZREMRANGEBYLEX"
+      CMD_ZRANDMEMBER = "ZRANDMEMBER"
+
+      # Frozen option strings
+      OPT_NX = "NX"
+      OPT_XX = "XX"
+      OPT_GT = "GT"
+      OPT_LT = "LT"
+      OPT_CH = "CH"
+      OPT_BYSCORE = "BYSCORE"
+      OPT_BYLEX = "BYLEX"
+      OPT_REV = "REV"
+      OPT_LIMIT = "LIMIT"
+      OPT_WITHSCORES = "WITHSCORES"
+      OPT_MATCH = "MATCH"
+      OPT_COUNT = "COUNT"
+      OPT_WEIGHTS = "WEIGHTS"
+      OPT_AGGREGATE = "AGGREGATE"
+
       # Add one or more members to a sorted set
       #
       # @param key [String]
@@ -18,12 +71,12 @@ module RedisRuby
       # @param ch [Boolean] return number of changed elements
       # @return [Integer] number of elements added (or changed if ch)
       def zadd(key, *score_members, nx: false, xx: false, gt: false, lt: false, ch: false)
-        args = ["ZADD", key]
-        args.push("NX") if nx
-        args.push("XX") if xx
-        args.push("GT") if gt
-        args.push("LT") if lt
-        args.push("CH") if ch
+        args = [CMD_ZADD, key]
+        args.push(OPT_NX) if nx
+        args.push(OPT_XX) if xx
+        args.push(OPT_GT) if gt
+        args.push(OPT_LT) if lt
+        args.push(OPT_CH) if ch
         args.push(*score_members.flatten)
         call(*args)
       end
@@ -34,7 +87,12 @@ module RedisRuby
       # @param members [Array<String>]
       # @return [Integer] number of members removed
       def zrem(key, *members)
-        call("ZREM", key, *members)
+        # Fast path for single member (most common)
+        if members.size == 1
+          return call_2args(CMD_ZREM, key, members[0])
+        end
+
+        call(CMD_ZREM, key, *members)
       end
 
       # Get the score of a member
@@ -43,7 +101,7 @@ module RedisRuby
       # @param member [String]
       # @return [Float, nil] score or nil if member doesn't exist
       def zscore(key, member)
-        result = call("ZSCORE", key, member)
+        result = call_2args(CMD_ZSCORE, key, member)
         result&.to_f
       end
 
@@ -53,7 +111,7 @@ module RedisRuby
       # @param members [Array<String>]
       # @return [Array<Float, nil>] scores
       def zmscore(key, *members)
-        result = call("ZMSCORE", key, *members)
+        result = call(CMD_ZMSCORE, key, *members)
         result.map { |s| s&.to_f }
       end
 
@@ -63,7 +121,7 @@ module RedisRuby
       # @param member [String]
       # @return [Integer, nil] rank or nil if member doesn't exist
       def zrank(key, member)
-        call("ZRANK", key, member)
+        call_2args(CMD_ZRANK, key, member)
       end
 
       # Get the rank of a member (0-based, high to low)
@@ -72,7 +130,7 @@ module RedisRuby
       # @param member [String]
       # @return [Integer, nil] rank or nil if member doesn't exist
       def zrevrank(key, member)
-        call("ZREVRANK", key, member)
+        call_2args(CMD_ZREVRANK, key, member)
       end
 
       # Get the number of members in a sorted set
@@ -80,7 +138,7 @@ module RedisRuby
       # @param key [String]
       # @return [Integer] cardinality
       def zcard(key)
-        call("ZCARD", key)
+        call_1arg(CMD_ZCARD, key)
       end
 
       # Count members in a score range
@@ -90,7 +148,7 @@ module RedisRuby
       # @param max [String, Numeric] maximum score (use "+inf" for no max)
       # @return [Integer] count
       def zcount(key, min, max)
-        call("ZCOUNT", key, min, max)
+        call_3args(CMD_ZCOUNT, key, min, max)
       end
 
       # Get members in a range (unified interface, Redis 6.2+)
@@ -119,12 +177,17 @@ module RedisRuby
       # @example Get by lex in reverse with limit
       #   redis.zrange("zset", "[c", "[a", bylex: true, rev: true, limit: [0, 5])
       def zrange(key, start, stop, byscore: false, bylex: false, rev: false, limit: nil, withscores: false)
-        args = ["ZRANGE", key, start, stop]
-        args.push("BYSCORE") if byscore
-        args.push("BYLEX") if bylex
-        args.push("REV") if rev
-        args.push("LIMIT", *limit) if limit && (byscore || bylex)
-        args.push("WITHSCORES") if withscores
+        # Fast path: simple index range without options
+        if !byscore && !bylex && !rev && limit.nil? && !withscores
+          return call_3args(CMD_ZRANGE, key, start, stop)
+        end
+
+        args = [CMD_ZRANGE, key, start, stop]
+        args.push(OPT_BYSCORE) if byscore
+        args.push(OPT_BYLEX) if bylex
+        args.push(OPT_REV) if rev
+        args.push(OPT_LIMIT, *limit) if limit && (byscore || bylex)
+        args.push(OPT_WITHSCORES) if withscores
         result = call(*args)
         return result unless withscores
 
@@ -146,11 +209,11 @@ module RedisRuby
       # @example Store top 10 by score
       #   redis.zrangestore("top10", "scores", 0, 9)
       def zrangestore(destination, key, start, stop, byscore: false, bylex: false, rev: false, limit: nil)
-        args = ["ZRANGESTORE", destination, key, start, stop]
-        args.push("BYSCORE") if byscore
-        args.push("BYLEX") if bylex
-        args.push("REV") if rev
-        args.push("LIMIT", *limit) if limit && (byscore || bylex)
+        args = [CMD_ZRANGESTORE, destination, key, start, stop]
+        args.push(OPT_BYSCORE) if byscore
+        args.push(OPT_BYLEX) if bylex
+        args.push(OPT_REV) if rev
+        args.push(OPT_LIMIT, *limit) if limit && (byscore || bylex)
         call(*args)
       end
 
@@ -162,8 +225,13 @@ module RedisRuby
       # @param withscores [Boolean] include scores
       # @return [Array] members, or [[member, score], ...] if withscores
       def zrevrange(key, start, stop, withscores: false)
-        args = ["ZREVRANGE", key, start, stop]
-        args.push("WITHSCORES") if withscores
+        # Fast path: no withscores
+        unless withscores
+          return call_3args(CMD_ZREVRANGE, key, start, stop)
+        end
+
+        args = [CMD_ZREVRANGE, key, start, stop]
+        args.push(OPT_WITHSCORES) if withscores
         result = call(*args)
         return result unless withscores
 
@@ -179,9 +247,14 @@ module RedisRuby
       # @param limit [Array, nil] [offset, count] for pagination
       # @return [Array] members
       def zrangebyscore(key, min, max, withscores: false, limit: nil)
-        args = ["ZRANGEBYSCORE", key, min, max]
-        args.push("WITHSCORES") if withscores
-        args.push("LIMIT", *limit) if limit
+        # Fast path: no options
+        if !withscores && limit.nil?
+          return call_3args(CMD_ZRANGEBYSCORE, key, min, max)
+        end
+
+        args = [CMD_ZRANGEBYSCORE, key, min, max]
+        args.push(OPT_WITHSCORES) if withscores
+        args.push(OPT_LIMIT, *limit) if limit
         result = call(*args)
         return result unless withscores
 
@@ -197,9 +270,14 @@ module RedisRuby
       # @param limit [Array, nil] [offset, count] for pagination
       # @return [Array] members
       def zrevrangebyscore(key, max, min, withscores: false, limit: nil)
-        args = ["ZREVRANGEBYSCORE", key, max, min]
-        args.push("WITHSCORES") if withscores
-        args.push("LIMIT", *limit) if limit
+        # Fast path: no options
+        if !withscores && limit.nil?
+          return call_3args(CMD_ZREVRANGEBYSCORE, key, max, min)
+        end
+
+        args = [CMD_ZREVRANGEBYSCORE, key, max, min]
+        args.push(OPT_WITHSCORES) if withscores
+        args.push(OPT_LIMIT, *limit) if limit
         result = call(*args)
         return result unless withscores
 
@@ -213,7 +291,7 @@ module RedisRuby
       # @param member [String]
       # @return [Float] new score
       def zincrby(key, increment, member)
-        call("ZINCRBY", key, increment, member).to_f
+        call_3args(CMD_ZINCRBY, key, increment, member).to_f
       end
 
       # Remove members in a rank range
@@ -223,7 +301,7 @@ module RedisRuby
       # @param stop [Integer] stop rank
       # @return [Integer] number of members removed
       def zremrangebyrank(key, start, stop)
-        call("ZREMRANGEBYRANK", key, start, stop)
+        call_3args(CMD_ZREMRANGEBYRANK, key, start, stop)
       end
 
       # Remove members in a score range
@@ -233,7 +311,7 @@ module RedisRuby
       # @param max [String, Numeric] maximum score
       # @return [Integer] number of members removed
       def zremrangebyscore(key, min, max)
-        call("ZREMRANGEBYSCORE", key, min, max)
+        call_3args(CMD_ZREMRANGEBYSCORE, key, min, max)
       end
 
       # Remove and return members with lowest scores
@@ -242,7 +320,11 @@ module RedisRuby
       # @param count [Integer] number of members to pop
       # @return [Array] [[member, score], ...] or nil
       def zpopmin(key, count = nil)
-        result = count ? call("ZPOPMIN", key, count) : call("ZPOPMIN", key)
+        result = if count
+                   call_2args(CMD_ZPOPMIN, key, count)
+                 else
+                   call_1arg(CMD_ZPOPMIN, key)
+                 end
         return nil if result.nil? || result.empty?
 
         result.each_slice(2).map { |m, s| [m, s.to_f] }
@@ -254,7 +336,11 @@ module RedisRuby
       # @param count [Integer] number of members to pop
       # @return [Array] [[member, score], ...] or nil
       def zpopmax(key, count = nil)
-        result = count ? call("ZPOPMAX", key, count) : call("ZPOPMAX", key)
+        result = if count
+                   call_2args(CMD_ZPOPMAX, key, count)
+                 else
+                   call_1arg(CMD_ZPOPMAX, key)
+                 end
         return nil if result.nil? || result.empty?
 
         result.each_slice(2).map { |m, s| [m, s.to_f] }
@@ -266,7 +352,7 @@ module RedisRuby
       # @param timeout [Numeric] timeout in seconds
       # @return [Array, nil] [key, member, score] or nil
       def bzpopmin(*keys, timeout: 0)
-        result = call("BZPOPMIN", *keys, timeout)
+        result = call(CMD_BZPOPMIN, *keys, timeout)
         return nil if result.nil?
 
         [result[0], result[1], result[2].to_f]
@@ -278,7 +364,7 @@ module RedisRuby
       # @param timeout [Numeric] timeout in seconds
       # @return [Array, nil] [key, member, score] or nil
       def bzpopmax(*keys, timeout: 0)
-        result = call("BZPOPMAX", *keys, timeout)
+        result = call(CMD_BZPOPMAX, *keys, timeout)
         return nil if result.nil?
 
         [result[0], result[1], result[2].to_f]
@@ -292,12 +378,19 @@ module RedisRuby
       # @param count [Integer, nil] hint for count
       # @return [Array] [next_cursor, [[member, score], ...]]
       def zscan(key, cursor, match: nil, count: nil)
-        args = ["ZSCAN", key, cursor]
-        args.push("MATCH", match) if match
-        args.push("COUNT", count) if count
-        cursor, pairs = call(*args)
+        # Fast path: no options
+        if match.nil? && count.nil?
+          cursor_result, pairs = call_2args(CMD_ZSCAN, key, cursor)
+          members = pairs.each_slice(2).map { |m, s| [m, s.to_f] }
+          return [cursor_result, members]
+        end
+
+        args = [CMD_ZSCAN, key, cursor]
+        args.push(OPT_MATCH, match) if match
+        args.push(OPT_COUNT, count) if count
+        cursor_result, pairs = call(*args)
         members = pairs.each_slice(2).map { |m, s| [m, s.to_f] }
-        [cursor, members]
+        [cursor_result, members]
       end
 
       # Iterate over sorted set members with scores
@@ -331,9 +424,9 @@ module RedisRuby
       # @param aggregate [:sum, :min, :max, nil] aggregation function
       # @return [Integer] number of members in result
       def zinterstore(destination, keys, weights: nil, aggregate: nil)
-        args = ["ZINTERSTORE", destination, keys.length, *keys]
-        args.push("WEIGHTS", *weights) if weights
-        args.push("AGGREGATE", aggregate.to_s.upcase) if aggregate
+        args = [CMD_ZINTERSTORE, destination, keys.length, *keys]
+        args.push(OPT_WEIGHTS, *weights) if weights
+        args.push(OPT_AGGREGATE, aggregate.to_s.upcase) if aggregate
         call(*args)
       end
 
@@ -345,9 +438,9 @@ module RedisRuby
       # @param aggregate [:sum, :min, :max, nil] aggregation function
       # @return [Integer] number of members in result
       def zunionstore(destination, keys, weights: nil, aggregate: nil)
-        args = ["ZUNIONSTORE", destination, keys.length, *keys]
-        args.push("WEIGHTS", *weights) if weights
-        args.push("AGGREGATE", aggregate.to_s.upcase) if aggregate
+        args = [CMD_ZUNIONSTORE, destination, keys.length, *keys]
+        args.push(OPT_WEIGHTS, *weights) if weights
+        args.push(OPT_AGGREGATE, aggregate.to_s.upcase) if aggregate
         call(*args)
       end
 
@@ -359,10 +452,10 @@ module RedisRuby
       # @param withscores [Boolean] include scores
       # @return [Array] members (with scores if requested)
       def zunion(keys, weights: nil, aggregate: nil, withscores: false)
-        args = ["ZUNION", keys.length, *keys]
-        args.push("WEIGHTS", *weights) if weights
-        args.push("AGGREGATE", aggregate.to_s.upcase) if aggregate
-        args.push("WITHSCORES") if withscores
+        args = [CMD_ZUNION, keys.length, *keys]
+        args.push(OPT_WEIGHTS, *weights) if weights
+        args.push(OPT_AGGREGATE, aggregate.to_s.upcase) if aggregate
+        args.push(OPT_WITHSCORES) if withscores
         result = call(*args)
         return result unless withscores
 
@@ -377,10 +470,10 @@ module RedisRuby
       # @param withscores [Boolean] include scores
       # @return [Array] members (with scores if requested)
       def zinter(keys, weights: nil, aggregate: nil, withscores: false)
-        args = ["ZINTER", keys.length, *keys]
-        args.push("WEIGHTS", *weights) if weights
-        args.push("AGGREGATE", aggregate.to_s.upcase) if aggregate
-        args.push("WITHSCORES") if withscores
+        args = [CMD_ZINTER, keys.length, *keys]
+        args.push(OPT_WEIGHTS, *weights) if weights
+        args.push(OPT_AGGREGATE, aggregate.to_s.upcase) if aggregate
+        args.push(OPT_WITHSCORES) if withscores
         result = call(*args)
         return result unless withscores
 
@@ -393,8 +486,8 @@ module RedisRuby
       # @param withscores [Boolean] include scores
       # @return [Array] members (with scores if requested)
       def zdiff(keys, withscores: false)
-        args = ["ZDIFF", keys.length, *keys]
-        args.push("WITHSCORES") if withscores
+        args = [CMD_ZDIFF, keys.length, *keys]
+        args.push(OPT_WITHSCORES) if withscores
         result = call(*args)
         return result unless withscores
 
@@ -407,7 +500,7 @@ module RedisRuby
       # @param keys [Array<String>]
       # @return [Integer] number of members in result
       def zdiffstore(destination, keys)
-        call("ZDIFFSTORE", destination, keys.length, *keys)
+        call(CMD_ZDIFFSTORE, destination, keys.length, *keys)
       end
 
       # Get the cardinality of the intersection (Redis 7.0+)
@@ -427,8 +520,8 @@ module RedisRuby
       #   redis.zintercard("zset1", "zset2", limit: 10)
       #   # => 5 (or up to 10)
       def zintercard(*keys, limit: nil)
-        args = ["ZINTERCARD", keys.length, *keys]
-        args.push("LIMIT", limit) if limit
+        args = [CMD_ZINTERCARD, keys.length, *keys]
+        args.push(OPT_LIMIT, limit) if limit
         call(*args)
       end
 
@@ -447,8 +540,8 @@ module RedisRuby
       #   redis.zmpop("zset1", "zset2", modifier: :max, count: 3)
       #   # => ["zset1", [["m1", 10.0], ["m2", 9.0], ["m3", 8.0]]]
       def zmpop(*keys, modifier: :min, count: nil)
-        args = ["ZMPOP", keys.length, *keys, modifier.to_s.upcase]
-        args.push("COUNT", count) if count
+        args = [CMD_ZMPOP, keys.length, *keys, modifier.to_s.upcase]
+        args.push(OPT_COUNT, count) if count
         result = call(*args)
         return nil if result.nil?
 
@@ -466,8 +559,8 @@ module RedisRuby
       # @param count [Integer, nil] number of members to pop
       # @return [Array, nil] [key, [[member, score], ...]] or nil on timeout
       def bzmpop(timeout, *keys, modifier: :min, count: nil)
-        args = ["BZMPOP", timeout, keys.length, *keys, modifier.to_s.upcase]
-        args.push("COUNT", count) if count
+        args = [CMD_BZMPOP, timeout, keys.length, *keys, modifier.to_s.upcase]
+        args.push(OPT_COUNT, count) if count
         result = call(*args)
         return nil if result.nil?
 
@@ -484,7 +577,7 @@ module RedisRuby
       # @param max [String] maximum value (use "+" for no max, "[z" for inclusive, "(z" for exclusive)
       # @return [Integer] count
       def zlexcount(key, min, max)
-        call("ZLEXCOUNT", key, min, max)
+        call_3args(CMD_ZLEXCOUNT, key, min, max)
       end
 
       # Get members in a lexicographical range (low to high)
@@ -495,8 +588,13 @@ module RedisRuby
       # @param limit [Array, nil] [offset, count] for pagination
       # @return [Array] members
       def zrangebylex(key, min, max, limit: nil)
-        args = ["ZRANGEBYLEX", key, min, max]
-        args.push("LIMIT", *limit) if limit
+        # Fast path: no limit
+        if limit.nil?
+          return call_3args(CMD_ZRANGEBYLEX, key, min, max)
+        end
+
+        args = [CMD_ZRANGEBYLEX, key, min, max]
+        args.push(OPT_LIMIT, *limit) if limit
         call(*args)
       end
 
@@ -508,8 +606,13 @@ module RedisRuby
       # @param limit [Array, nil] [offset, count] for pagination
       # @return [Array] members
       def zrevrangebylex(key, max, min, limit: nil)
-        args = ["ZREVRANGEBYLEX", key, max, min]
-        args.push("LIMIT", *limit) if limit
+        # Fast path: no limit
+        if limit.nil?
+          return call_3args(CMD_ZREVRANGEBYLEX, key, max, min)
+        end
+
+        args = [CMD_ZREVRANGEBYLEX, key, max, min]
+        args.push(OPT_LIMIT, *limit) if limit
         call(*args)
       end
 
@@ -520,7 +623,7 @@ module RedisRuby
       # @param max [String] maximum value
       # @return [Integer] number of members removed
       def zremrangebylex(key, min, max)
-        call("ZREMRANGEBYLEX", key, min, max)
+        call_3args(CMD_ZREMRANGEBYLEX, key, min, max)
       end
 
       # Get random members from a sorted set
@@ -530,9 +633,19 @@ module RedisRuby
       # @param withscores [Boolean] include scores
       # @return [String, Array] single member or array of members (with scores if requested)
       def zrandmember(key, count = nil, withscores: false)
-        args = ["ZRANDMEMBER", key]
+        # Fast path: just key
+        if count.nil? && !withscores
+          return call_1arg(CMD_ZRANDMEMBER, key)
+        end
+
+        # Fast path: key + count, no withscores
+        if count && !withscores
+          return call_2args(CMD_ZRANDMEMBER, key, count)
+        end
+
+        args = [CMD_ZRANDMEMBER, key]
         args.push(count) if count
-        args.push("WITHSCORES") if withscores && count
+        args.push(OPT_WITHSCORES) if withscores && count
 
         result = call(*args)
 
