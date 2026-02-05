@@ -8,11 +8,14 @@ class SentinelCommandsTest < Minitest::Test
     @client = Object.new
     @client.extend(RedisRuby::Commands::Sentinel)
     @client.define_singleton_method(:call) { |*args| @mock_connection.call(*args) }
+    @client.define_singleton_method(:call_1arg) { |cmd, arg| @mock_connection.call_1arg(cmd, arg) }
+    @client.define_singleton_method(:call_2args) { |cmd, arg1, arg2| @mock_connection.call_2args(cmd, arg1, arg2) }
+    @client.define_singleton_method(:call_3args) { |cmd, arg1, arg2, arg3| @mock_connection.call_3args(cmd, arg1, arg2, arg3) }
     @client.instance_variable_set(:@mock_connection, @mock_connection)
   end
 
   def test_sentinel_masters
-    @mock_connection.expects(:call).with("SENTINEL", "MASTERS").returns([
+    @mock_connection.expects(:call_1arg).with("SENTINEL", "MASTERS").returns([
       ["name", "master1", "ip", "192.168.1.1", "port", "6379"],
       ["name", "master2", "ip", "192.168.1.2", "port", "6380"],
     ])
@@ -25,7 +28,7 @@ class SentinelCommandsTest < Minitest::Test
   end
 
   def test_sentinel_master
-    @mock_connection.expects(:call).with("SENTINEL", "MASTER", "mymaster").returns(
+    @mock_connection.expects(:call_2args).with("SENTINEL", "MASTER", "mymaster").returns(
       ["name", "mymaster", "ip", "192.168.1.1", "port", "6379"]
     )
 
@@ -36,7 +39,7 @@ class SentinelCommandsTest < Minitest::Test
   end
 
   def test_sentinel_replicas
-    @mock_connection.expects(:call).with("SENTINEL", "REPLICAS", "mymaster").returns([
+    @mock_connection.expects(:call_2args).with("SENTINEL", "REPLICAS", "mymaster").returns([
       ["ip", "192.168.1.2", "port", "6380", "flags", "slave"],
       ["ip", "192.168.1.3", "port", "6381", "flags", "slave"],
     ])
@@ -48,7 +51,7 @@ class SentinelCommandsTest < Minitest::Test
   end
 
   def test_sentinel_slaves_alias
-    @mock_connection.expects(:call).with("SENTINEL", "REPLICAS", "mymaster").returns([])
+    @mock_connection.expects(:call_2args).with("SENTINEL", "REPLICAS", "mymaster").returns([])
 
     result = @client.sentinel_slaves("mymaster")
 
@@ -56,7 +59,7 @@ class SentinelCommandsTest < Minitest::Test
   end
 
   def test_sentinel_sentinels
-    @mock_connection.expects(:call).with("SENTINEL", "SENTINELS", "mymaster").returns([
+    @mock_connection.expects(:call_2args).with("SENTINEL", "SENTINELS", "mymaster").returns([
       ["ip", "192.168.1.10", "port", "26379"],
       ["ip", "192.168.1.11", "port", "26379"],
     ])
@@ -67,7 +70,7 @@ class SentinelCommandsTest < Minitest::Test
   end
 
   def test_sentinel_get_master_addr_by_name
-    @mock_connection.expects(:call).with("SENTINEL", "GET-MASTER-ADDR-BY-NAME", "mymaster").returns(
+    @mock_connection.expects(:call_2args).with("SENTINEL", "GET-MASTER-ADDR-BY-NAME", "mymaster").returns(
       ["192.168.1.1", "6379"]
     )
 
@@ -77,7 +80,7 @@ class SentinelCommandsTest < Minitest::Test
   end
 
   def test_sentinel_reset
-    @mock_connection.expects(:call).with("SENTINEL", "RESET", "*").returns(1)
+    @mock_connection.expects(:call_2args).with("SENTINEL", "RESET", "*").returns(1)
 
     result = @client.sentinel_reset("*")
 
@@ -85,7 +88,7 @@ class SentinelCommandsTest < Minitest::Test
   end
 
   def test_sentinel_failover
-    @mock_connection.expects(:call).with("SENTINEL", "FAILOVER", "mymaster").returns("OK")
+    @mock_connection.expects(:call_2args).with("SENTINEL", "FAILOVER", "mymaster").returns("OK")
 
     result = @client.sentinel_failover("mymaster")
 
@@ -93,7 +96,7 @@ class SentinelCommandsTest < Minitest::Test
   end
 
   def test_sentinel_ckquorum
-    @mock_connection.expects(:call).with("SENTINEL", "CKQUORUM", "mymaster").returns("OK 3 usable Sentinels.")
+    @mock_connection.expects(:call_2args).with("SENTINEL", "CKQUORUM", "mymaster").returns("OK 3 usable Sentinels.")
 
     result = @client.sentinel_ckquorum("mymaster")
 
@@ -101,7 +104,7 @@ class SentinelCommandsTest < Minitest::Test
   end
 
   def test_sentinel_flushconfig
-    @mock_connection.expects(:call).with("SENTINEL", "FLUSHCONFIG").returns("OK")
+    @mock_connection.expects(:call_1arg).with("SENTINEL", "FLUSHCONFIG").returns("OK")
 
     result = @client.sentinel_flushconfig
 
@@ -117,7 +120,7 @@ class SentinelCommandsTest < Minitest::Test
   end
 
   def test_sentinel_remove
-    @mock_connection.expects(:call).with("SENTINEL", "REMOVE", "mymaster").returns("OK")
+    @mock_connection.expects(:call_2args).with("SENTINEL", "REMOVE", "mymaster").returns("OK")
 
     result = @client.sentinel_remove("mymaster")
 
@@ -133,7 +136,7 @@ class SentinelCommandsTest < Minitest::Test
   end
 
   def test_sentinel_myid
-    @mock_connection.expects(:call).with("SENTINEL", "MYID").returns("abc123")
+    @mock_connection.expects(:call_1arg).with("SENTINEL", "MYID").returns("abc123")
 
     result = @client.sentinel_myid
 

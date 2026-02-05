@@ -14,6 +14,37 @@ module RedisRuby
     #
     # @see https://redis.io/docs/data-types/vector-sets/
     module VectorSet
+      # Frozen command constants to avoid string allocations
+      CMD_VADD = "VADD"
+      CMD_VSIM = "VSIM"
+      CMD_VDIM = "VDIM"
+      CMD_VCARD = "VCARD"
+      CMD_VREM = "VREM"
+      CMD_VEMB = "VEMB"
+      CMD_VLINKS = "VLINKS"
+      CMD_VINFO = "VINFO"
+      CMD_VSETATTR = "VSETATTR"
+      CMD_VGETATTR = "VGETATTR"
+      CMD_VRANDMEMBER = "VRANDMEMBER"
+
+      # Frozen options
+      OPT_REDUCE = "REDUCE"
+      OPT_FP32 = "FP32"
+      OPT_VALUES = "VALUES"
+      OPT_ELE = "ELE"
+      OPT_CAS = "CAS"
+      OPT_EF = "EF"
+      OPT_SETATTR = "SETATTR"
+      OPT_M = "M"
+      OPT_WITHSCORES = "WITHSCORES"
+      OPT_WITHATTRIBS = "WITHATTRIBS"
+      OPT_COUNT = "COUNT"
+      OPT_EPSILON = "EPSILON"
+      OPT_FILTER = "FILTER"
+      OPT_FILTER_EF = "FILTER-EF"
+      OPT_TRUTH = "TRUTH"
+      OPT_NOTHREAD = "NOTHREAD"
+      OPT_RAW = "RAW"
       # Add a vector to a vector set
       #
       # @param key [String] Vector set key
@@ -38,13 +69,13 @@ module RedisRuby
         args = [key]
 
         # Add REDUCE option
-        args.push("REDUCE", reduce_dim) if reduce_dim
+        args.push(OPT_REDUCE, reduce_dim) if reduce_dim
 
         # Add vector in FP32 or VALUES format
         if vector.is_a?(String) && vector.encoding == Encoding::BINARY
-          args.push("FP32", vector)
+          args.push(OPT_FP32, vector)
         elsif vector.is_a?(Array)
-          args.push("VALUES", vector.length, *vector)
+          args.push(OPT_VALUES, vector.length, *vector)
         else
           raise ArgumentError, "Vector must be a binary String (FP32) or an Array of floats"
         end
@@ -53,24 +84,24 @@ module RedisRuby
         args << element
 
         # CAS option
-        args << "CAS" if cas
+        args << OPT_CAS if cas
 
         # Quantization
         args << quantization.to_s.upcase if quantization
 
         # EF option
-        args.push("EF", ef) if ef
+        args.push(OPT_EF, ef) if ef
 
         # Attributes
         if attributes
           attrs_json = attributes.is_a?(Hash) ? ::JSON.generate(attributes) : attributes
-          args.push("SETATTR", attrs_json)
+          args.push(OPT_SETATTR, attrs_json)
         end
 
         # M parameter (numlinks)
-        args.push("M", numlinks) if numlinks
+        args.push(OPT_M, numlinks) if numlinks
 
-        call("VADD", *args)
+        call(CMD_VADD, *args)
       end
 
       # Find similar vectors in a vector set
@@ -103,26 +134,26 @@ module RedisRuby
 
         # Add input in FP32, VALUES, or ELE format
         if input.is_a?(String) && input.encoding == Encoding::BINARY
-          args.push("FP32", input)
+          args.push(OPT_FP32, input)
         elsif input.is_a?(Array)
-          args.push("VALUES", input.length, *input)
+          args.push(OPT_VALUES, input.length, *input)
         elsif input.is_a?(String)
-          args.push("ELE", input)
+          args.push(OPT_ELE, input)
         else
           raise ArgumentError, "Input must be Array, FP32 binary String, or element name String"
         end
 
-        args << "WITHSCORES" if with_scores
-        args << "WITHATTRIBS" if with_attribs
-        args.push("COUNT", count) if count
-        args.push("EPSILON", epsilon) if epsilon
-        args.push("EF", ef) if ef
-        args.push("FILTER", filter) if filter
-        args.push("FILTER-EF", filter_ef) if filter_ef
-        args << "TRUTH" if truth
-        args << "NOTHREAD" if no_thread
+        args << OPT_WITHSCORES if with_scores
+        args << OPT_WITHATTRIBS if with_attribs
+        args.push(OPT_COUNT, count) if count
+        args.push(OPT_EPSILON, epsilon) if epsilon
+        args.push(OPT_EF, ef) if ef
+        args.push(OPT_FILTER, filter) if filter
+        args.push(OPT_FILTER_EF, filter_ef) if filter_ef
+        args << OPT_TRUTH if truth
+        args << OPT_NOTHREAD if no_thread
 
-        result = call("VSIM", *args)
+        result = call(CMD_VSIM, *args)
 
         # Parse response based on options
         parse_vsim_response(result, with_scores, with_attribs)
@@ -133,7 +164,7 @@ module RedisRuby
       # @param key [String] Vector set key
       # @return [Integer] Vector dimension
       def vdim(key)
-        call("VDIM", key)
+        call_1arg(CMD_VDIM, key)
       end
 
       # Get the cardinality (number of elements) of a vector set
@@ -141,7 +172,7 @@ module RedisRuby
       # @param key [String] Vector set key
       # @return [Integer] Number of elements
       def vcard(key)
-        call("VCARD", key)
+        call_1arg(CMD_VCARD, key)
       end
 
       # Remove an element from a vector set
@@ -150,7 +181,7 @@ module RedisRuby
       # @param element [String] Element name
       # @return [Integer] 1 if removed, 0 if not found
       def vrem(key, element)
-        call("VREM", key, element)
+        call_2args(CMD_VREM, key, element)
       end
 
       # Get the approximated vector of an element
@@ -160,10 +191,12 @@ module RedisRuby
       # @param raw [Boolean] Return internal representation
       # @return [Array<Float>, Hash, nil] Vector or nil if not found
       def vemb(key, element, raw: false)
-        args = [key, element]
-        args << "RAW" if raw
-
-        result = call("VEMB", *args)
+        # Fast path: no raw option
+        result = if raw
+                   call(CMD_VEMB, key, element, OPT_RAW)
+                 else
+                   call_2args(CMD_VEMB, key, element)
+                 end
 
         return nil unless result
 
@@ -188,10 +221,12 @@ module RedisRuby
       # @param with_scores [Boolean] Return scores
       # @return [Array<Array>, Array<Hash>, nil] Neighbors per level
       def vlinks(key, element, with_scores: false)
-        args = [key, element]
-        args << "WITHSCORES" if with_scores
-
-        result = call("VLINKS", *args)
+        # Fast path: no with_scores option
+        result = if with_scores
+                   call(CMD_VLINKS, key, element, OPT_WITHSCORES)
+                 else
+                   call_2args(CMD_VLINKS, key, element)
+                 end
 
         return nil unless result
 
@@ -213,7 +248,7 @@ module RedisRuby
       # @param key [String] Vector set key
       # @return [Hash] Vector set information
       def vinfo(key)
-        result = call("VINFO", key)
+        result = call_1arg(CMD_VINFO, key)
         result.each_slice(2).to_h
       end
 
@@ -230,7 +265,7 @@ module RedisRuby
                        attributes
                      end
 
-        call("VSETATTR", key, element, attrs_json)
+        call_3args(CMD_VSETATTR, key, element, attrs_json)
       end
 
       # Get the JSON attributes of an element
@@ -239,7 +274,7 @@ module RedisRuby
       # @param element [String] Element name
       # @return [Hash, nil] Attributes or nil if not found
       def vgetattr(key, element)
-        result = call("VGETATTR", key, element)
+        result = call_2args(CMD_VGETATTR, key, element)
         return nil unless result
 
         attrs = ::JSON.parse(result)
@@ -254,9 +289,10 @@ module RedisRuby
       # @param count [Integer] Number of elements (optional)
       # @return [String, Array<String>, nil] Random element(s)
       def vrandmember(key, count = nil)
-        args = [key]
-        args << count if count
-        call("VRANDMEMBER", *args)
+        # Fast path: no count
+        return call_1arg(CMD_VRANDMEMBER, key) unless count
+
+        call(CMD_VRANDMEMBER, key, count)
       end
 
       private

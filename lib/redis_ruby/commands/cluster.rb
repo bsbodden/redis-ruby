@@ -8,11 +8,49 @@ module RedisRuby
     #
     # @see https://redis.io/commands/?group=cluster
     module Cluster
+      # Frozen command constants to avoid string allocations
+      CMD_CLUSTER = "CLUSTER"
+      CMD_READONLY = "READONLY"
+      CMD_READWRITE = "READWRITE"
+      CMD_ASKING = "ASKING"
+
+      # Frozen subcommands
+      SUBCMD_INFO = "INFO"
+      SUBCMD_NODES = "NODES"
+      SUBCMD_SLOTS = "SLOTS"
+      SUBCMD_SHARDS = "SHARDS"
+      SUBCMD_KEYSLOT = "KEYSLOT"
+      SUBCMD_COUNTKEYSINSLOT = "COUNTKEYSINSLOT"
+      SUBCMD_GETKEYSINSLOT = "GETKEYSINSLOT"
+      SUBCMD_MYID = "MYID"
+      SUBCMD_MYSHARDID = "MYSHARDID"
+      SUBCMD_REPLICATE = "REPLICATE"
+      SUBCMD_ADDSLOTS = "ADDSLOTS"
+      SUBCMD_DELSLOTS = "DELSLOTS"
+      SUBCMD_SETSLOT = "SETSLOT"
+      SUBCMD_MEET = "MEET"
+      SUBCMD_FORGET = "FORGET"
+      SUBCMD_FAILOVER = "FAILOVER"
+      SUBCMD_RESET = "RESET"
+      SUBCMD_SAVECONFIG = "SAVECONFIG"
+      SUBCMD_SET_CONFIG_EPOCH = "SET-CONFIG-EPOCH"
+      SUBCMD_BUMPEPOCH = "BUMPEPOCH"
+      SUBCMD_COUNT_FAILURE_REPORTS = "COUNT-FAILURE-REPORTS"
+
+      # Frozen options
+      OPT_IMPORTING = "IMPORTING"
+      OPT_MIGRATING = "MIGRATING"
+      OPT_STABLE = "STABLE"
+      OPT_NODE = "NODE"
+      OPT_FORCE = "FORCE"
+      OPT_TAKEOVER = "TAKEOVER"
+      OPT_HARD = "HARD"
+      OPT_SOFT = "SOFT"
       # Get cluster information
       #
       # @return [Hash] Cluster state information
       def cluster_info
-        result = call("CLUSTER", "INFO")
+        result = call_1arg(CMD_CLUSTER, SUBCMD_INFO)
         parse_cluster_info(result)
       end
 
@@ -20,7 +58,7 @@ module RedisRuby
       #
       # @return [Array<Hash>] List of cluster nodes with their details
       def cluster_nodes
-        result = call("CLUSTER", "NODES")
+        result = call_1arg(CMD_CLUSTER, SUBCMD_NODES)
         parse_cluster_nodes(result)
       end
 
@@ -28,7 +66,7 @@ module RedisRuby
       #
       # @return [Array<Hash>] Slot ranges with node assignments
       def cluster_slots
-        result = call("CLUSTER", "SLOTS")
+        result = call_1arg(CMD_CLUSTER, SUBCMD_SLOTS)
         parse_cluster_slots(result)
       end
 
@@ -36,7 +74,7 @@ module RedisRuby
       #
       # @return [Array<Hash>] Shard information
       def cluster_shards
-        call("CLUSTER", "SHARDS")
+        call_1arg(CMD_CLUSTER, SUBCMD_SHARDS)
       end
 
       # Get the hash slot for a key
@@ -44,7 +82,7 @@ module RedisRuby
       # @param key [String] Key to check
       # @return [Integer] Hash slot (0-16383)
       def cluster_keyslot(key)
-        call("CLUSTER", "KEYSLOT", key)
+        call_2args(CMD_CLUSTER, SUBCMD_KEYSLOT, key)
       end
 
       # Count keys in a hash slot
@@ -52,7 +90,7 @@ module RedisRuby
       # @param slot [Integer] Hash slot
       # @return [Integer] Number of keys in slot
       def cluster_countkeysinslot(slot)
-        call("CLUSTER", "COUNTKEYSINSLOT", slot)
+        call_2args(CMD_CLUSTER, SUBCMD_COUNTKEYSINSLOT, slot)
       end
 
       # Get keys in a hash slot
@@ -61,21 +99,21 @@ module RedisRuby
       # @param count [Integer] Maximum keys to return
       # @return [Array<String>] Keys in the slot
       def cluster_getkeysinslot(slot, count)
-        call("CLUSTER", "GETKEYSINSLOT", slot, count)
+        call_3args(CMD_CLUSTER, SUBCMD_GETKEYSINSLOT, slot, count)
       end
 
       # Get my node ID
       #
       # @return [String] Current node's ID
       def cluster_myid
-        call("CLUSTER", "MYID")
+        call_1arg(CMD_CLUSTER, SUBCMD_MYID)
       end
 
       # Get my shard ID (Redis 7.2+)
       #
       # @return [String] Current node's shard ID
       def cluster_myshardid
-        call("CLUSTER", "MYSHARDID")
+        call_1arg(CMD_CLUSTER, SUBCMD_MYSHARDID)
       end
 
       # Reconfigure a node as replica of another
@@ -83,7 +121,7 @@ module RedisRuby
       # @param node_id [String] Node ID to replicate
       # @return [String] "OK"
       def cluster_replicate(node_id)
-        call("CLUSTER", "REPLICATE", node_id)
+        call_2args(CMD_CLUSTER, SUBCMD_REPLICATE, node_id)
       end
 
       # Add slots to this node
@@ -91,7 +129,7 @@ module RedisRuby
       # @param slots [Array<Integer>] Slots to add
       # @return [String] "OK"
       def cluster_addslots(*slots)
-        call("CLUSTER", "ADDSLOTS", *slots)
+        call(CMD_CLUSTER, SUBCMD_ADDSLOTS, *slots)
       end
 
       # Remove slots from this node
@@ -99,7 +137,7 @@ module RedisRuby
       # @param slots [Array<Integer>] Slots to remove
       # @return [String] "OK"
       def cluster_delslots(*slots)
-        call("CLUSTER", "DELSLOTS", *slots)
+        call(CMD_CLUSTER, SUBCMD_DELSLOTS, *slots)
       end
 
       # Set slot state
@@ -111,13 +149,13 @@ module RedisRuby
       def cluster_setslot(slot, state, node_id = nil)
         case state
         when :importing
-          call("CLUSTER", "SETSLOT", slot, "IMPORTING", node_id)
+          call(CMD_CLUSTER, SUBCMD_SETSLOT, slot, OPT_IMPORTING, node_id)
         when :migrating
-          call("CLUSTER", "SETSLOT", slot, "MIGRATING", node_id)
+          call(CMD_CLUSTER, SUBCMD_SETSLOT, slot, OPT_MIGRATING, node_id)
         when :stable
-          call("CLUSTER", "SETSLOT", slot, "STABLE")
+          call_3args(CMD_CLUSTER, SUBCMD_SETSLOT, slot, OPT_STABLE)
         when :node
-          call("CLUSTER", "SETSLOT", slot, "NODE", node_id)
+          call(CMD_CLUSTER, SUBCMD_SETSLOT, slot, OPT_NODE, node_id)
         else
           raise ArgumentError, "Invalid state: #{state}"
         end
@@ -130,9 +168,10 @@ module RedisRuby
       # @param cluster_bus_port [Integer] Optional cluster bus port
       # @return [String] "OK"
       def cluster_meet(ip, port, cluster_bus_port = nil)
-        args = ["CLUSTER", "MEET", ip, port]
-        args << cluster_bus_port if cluster_bus_port
-        call(*args)
+        # Fast path: no cluster bus port
+        return call_3args(CMD_CLUSTER, SUBCMD_MEET, ip, port) unless cluster_bus_port
+
+        call(CMD_CLUSTER, SUBCMD_MEET, ip, port, cluster_bus_port)
       end
 
       # Remove a node from the cluster
@@ -140,7 +179,7 @@ module RedisRuby
       # @param node_id [String] Node ID to forget
       # @return [String] "OK"
       def cluster_forget(node_id)
-        call("CLUSTER", "FORGET", node_id)
+        call_2args(CMD_CLUSTER, SUBCMD_FORGET, node_id)
       end
 
       # Force a failover
@@ -150,11 +189,11 @@ module RedisRuby
       def cluster_failover(option = nil)
         case option
         when :force
-          call("CLUSTER", "FAILOVER", "FORCE")
+          call_2args(CMD_CLUSTER, SUBCMD_FAILOVER, OPT_FORCE)
         when :takeover
-          call("CLUSTER", "FAILOVER", "TAKEOVER")
+          call_2args(CMD_CLUSTER, SUBCMD_FAILOVER, OPT_TAKEOVER)
         when nil
-          call("CLUSTER", "FAILOVER")
+          call_1arg(CMD_CLUSTER, SUBCMD_FAILOVER)
         else
           raise ArgumentError, "Invalid option: #{option}"
         end
@@ -166,9 +205,9 @@ module RedisRuby
       # @return [String] "OK"
       def cluster_reset(hard: false)
         if hard
-          call("CLUSTER", "RESET", "HARD")
+          call_2args(CMD_CLUSTER, SUBCMD_RESET, OPT_HARD)
         else
-          call("CLUSTER", "RESET", "SOFT")
+          call_2args(CMD_CLUSTER, SUBCMD_RESET, OPT_SOFT)
         end
       end
 
@@ -176,7 +215,7 @@ module RedisRuby
       #
       # @return [String] "OK"
       def cluster_saveconfig
-        call("CLUSTER", "SAVECONFIG")
+        call_1arg(CMD_CLUSTER, SUBCMD_SAVECONFIG)
       end
 
       # Set cluster config epoch
@@ -184,14 +223,14 @@ module RedisRuby
       # @param epoch [Integer] Config epoch
       # @return [String] "OK"
       def cluster_set_config_epoch(epoch)
-        call("CLUSTER", "SET-CONFIG-EPOCH", epoch)
+        call_2args(CMD_CLUSTER, SUBCMD_SET_CONFIG_EPOCH, epoch)
       end
 
       # Bump the cluster config epoch
       #
       # @return [String] "BUMPED" or "STILL"
       def cluster_bumpepoch
-        call("CLUSTER", "BUMPEPOCH")
+        call_1arg(CMD_CLUSTER, SUBCMD_BUMPEPOCH)
       end
 
       # Get cluster replica count
@@ -199,21 +238,21 @@ module RedisRuby
       # @param node_id [String] Node ID
       # @return [Integer] Number of replicas
       def cluster_count_failure_reports(node_id)
-        call("CLUSTER", "COUNT-FAILURE-REPORTS", node_id)
+        call_2args(CMD_CLUSTER, SUBCMD_COUNT_FAILURE_REPORTS, node_id)
       end
 
       # Perform a read-only query on a replica
       #
       # @return [String] "OK"
       def readonly
-        call("READONLY")
+        call(CMD_READONLY)
       end
 
       # Disable read-only mode
       #
       # @return [String] "OK"
       def readwrite
-        call("READWRITE")
+        call(CMD_READWRITE)
       end
 
       # Ask for redirection
@@ -222,7 +261,7 @@ module RedisRuby
       #
       # @return [String] "OK"
       def asking
-        call("ASKING")
+        call(CMD_ASKING)
       end
 
       private

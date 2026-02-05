@@ -19,6 +19,84 @@ module RedisRuby
     #
     # @see https://redis.io/docs/interact/search-and-query/
     module Search
+      # Frozen command constants to avoid string allocations
+      CMD_FT_CREATE = "FT.CREATE"
+      CMD_FT_SEARCH = "FT.SEARCH"
+      CMD_FT_AGGREGATE = "FT.AGGREGATE"
+      CMD_FT_CURSOR = "FT.CURSOR"
+      CMD_FT_INFO = "FT.INFO"
+      CMD_FT_LIST = "FT._LIST"
+      CMD_FT_DROPINDEX = "FT.DROPINDEX"
+      CMD_FT_ALTER = "FT.ALTER"
+      CMD_FT_ALIASADD = "FT.ALIASADD"
+      CMD_FT_ALIASUPDATE = "FT.ALIASUPDATE"
+      CMD_FT_ALIASDEL = "FT.ALIASDEL"
+      CMD_FT_EXPLAIN = "FT.EXPLAIN"
+      CMD_FT_EXPLAINCLI = "FT.EXPLAINCLI"
+      CMD_FT_PROFILE = "FT.PROFILE"
+      CMD_FT_SPELLCHECK = "FT.SPELLCHECK"
+      CMD_FT_TAGVALS = "FT.TAGVALS"
+      CMD_FT_SYNUPDATE = "FT.SYNUPDATE"
+      CMD_FT_SYNDUMP = "FT.SYNDUMP"
+      CMD_FT_DICTADD = "FT.DICTADD"
+      CMD_FT_DICTDEL = "FT.DICTDEL"
+      CMD_FT_DICTDUMP = "FT.DICTDUMP"
+      CMD_FT_SUGADD = "FT.SUGADD"
+      CMD_FT_SUGGET = "FT.SUGGET"
+      CMD_FT_SUGLEN = "FT.SUGLEN"
+      CMD_FT_SUGDEL = "FT.SUGDEL"
+      CMD_FT_CONFIG = "FT.CONFIG"
+
+      # Frozen subcommands
+      SUBCMD_READ = "READ"
+      SUBCMD_DEL = "DEL"
+      SUBCMD_GET = "GET"
+      SUBCMD_SET = "SET"
+
+      # Frozen options
+      OPT_DD = "DD"
+      OPT_NOCONTENT = "NOCONTENT"
+      OPT_VERBATIM = "VERBATIM"
+      OPT_NOSTOPWORDS = "NOSTOPWORDS"
+      OPT_INORDER = "INORDER"
+      OPT_WITHSCORES = "WITHSCORES"
+      OPT_WITHPAYLOADS = "WITHPAYLOADS"
+      OPT_WITHSORTKEYS = "WITHSORTKEYS"
+      OPT_EXPLAINSCORE = "EXPLAINSCORE"
+      OPT_SCORER = "SCORER"
+      OPT_LANGUAGE = "LANGUAGE"
+      OPT_SLOP = "SLOP"
+      OPT_FILTER = "FILTER"
+      OPT_GEOFILTER = "GEOFILTER"
+      OPT_INKEYS = "INKEYS"
+      OPT_INFIELDS = "INFIELDS"
+      OPT_RETURN = "RETURN"
+      OPT_SUMMARIZE = "SUMMARIZE"
+      OPT_FIELDS = "FIELDS"
+      OPT_FRAGS = "FRAGS"
+      OPT_LEN = "LEN"
+      OPT_SEPARATOR = "SEPARATOR"
+      OPT_HIGHLIGHT = "HIGHLIGHT"
+      OPT_TAGS = "TAGS"
+      OPT_SORTBY = "SORTBY"
+      OPT_ASC = "ASC"
+      OPT_DESC = "DESC"
+      OPT_LIMIT = "LIMIT"
+      OPT_PARAMS = "PARAMS"
+      OPT_DIALECT = "DIALECT"
+      OPT_TIMEOUT = "TIMEOUT"
+      OPT_COUNT = "COUNT"
+      OPT_LIMITED = "LIMITED"
+      OPT_QUERY = "QUERY"
+      OPT_DISTANCE = "DISTANCE"
+      OPT_TERMS = "TERMS"
+      OPT_INCLUDE = "INCLUDE"
+      OPT_EXCLUDE = "EXCLUDE"
+      OPT_SKIPINITIALSCAN = "SKIPINITIALSCAN"
+      OPT_INCR = "INCR"
+      OPT_PAYLOAD = "PAYLOAD"
+      OPT_FUZZY = "FUZZY"
+      OPT_MAX = "MAX"
       # Create a new search index
       #
       # @param index_name [String] Name of the index
@@ -50,7 +128,7 @@ module RedisRuby
       #       "$.name", "AS", "name", "TEXT",
       #       "$.age", "AS", "age", "NUMERIC")
       def ft_create(index_name, *)
-        call("FT.CREATE", index_name, *)
+        call(CMD_FT_CREATE, index_name, *)
       end
 
       # Search the index
@@ -100,7 +178,7 @@ module RedisRuby
         build_search_sort_and_pagination(args, options)
         build_search_params(args, options)
 
-        call("FT.SEARCH", *args)
+        call(CMD_FT_SEARCH, *args)
       end
 
       # Run an aggregation query
@@ -120,7 +198,7 @@ module RedisRuby
       #     "WITHCURSOR", "COUNT", 100,
       #     "GROUPBY", 1, "@category")
       def ft_aggregate(index_name, query, *)
-        call("FT.AGGREGATE", index_name, query, *)
+        call(CMD_FT_AGGREGATE, index_name, query, *)
       end
 
       # Read next batch of cursor results
@@ -130,9 +208,12 @@ module RedisRuby
       # @param count [Integer] Number of results to fetch
       # @return [Array] [results, cursor_id]
       def ft_cursor_read(index_name, cursor_id, count: nil)
-        args = [index_name, cursor_id]
-        args.push("COUNT", count) if count
-        call("FT.CURSOR", "READ", *args)
+        # Fast path: no count
+        unless count
+          return call_3args(CMD_FT_CURSOR, SUBCMD_READ, index_name, cursor_id)
+        end
+
+        call(CMD_FT_CURSOR, SUBCMD_READ, index_name, cursor_id, OPT_COUNT, count)
       end
 
       # Delete a cursor
@@ -141,7 +222,7 @@ module RedisRuby
       # @param cursor_id [Integer] Cursor ID
       # @return [String] "OK"
       def ft_cursor_del(index_name, cursor_id)
-        call("FT.CURSOR", "DEL", index_name, cursor_id)
+        call_3args(CMD_FT_CURSOR, SUBCMD_DEL, index_name, cursor_id)
       end
 
       # Get index information
@@ -149,7 +230,7 @@ module RedisRuby
       # @param index_name [String] Index name
       # @return [Hash] Index metadata
       def ft_info(index_name)
-        result = call("FT.INFO", index_name)
+        result = call_1arg(CMD_FT_INFO, index_name)
         # Convert array to hash (pairs of key, value)
         result.each_slice(2).to_h
       end
@@ -158,7 +239,7 @@ module RedisRuby
       #
       # @return [Array<String>] Index names
       def ft_list
-        call("FT._LIST")
+        call(CMD_FT_LIST)
       end
 
       # Drop an index
@@ -167,9 +248,10 @@ module RedisRuby
       # @param delete_docs [Boolean] Delete indexed documents (default: false)
       # @return [String] "OK"
       def ft_dropindex(index_name, delete_docs: false)
-        args = [index_name]
-        args << "DD" if delete_docs
-        call("FT.DROPINDEX", *args)
+        # Fast path: no delete docs
+        return call_1arg(CMD_FT_DROPINDEX, index_name) unless delete_docs
+
+        call(CMD_FT_DROPINDEX, index_name, OPT_DD)
       end
 
       # Alter an index schema
@@ -181,7 +263,7 @@ module RedisRuby
       # @example Add a new field
       #   redis.ft_alter("idx", "SCHEMA", "ADD", "new_field", "TEXT")
       def ft_alter(index_name, *)
-        call("FT.ALTER", index_name, *)
+        call(CMD_FT_ALTER, index_name, *)
       end
 
       # Add an alias to an index
@@ -190,7 +272,7 @@ module RedisRuby
       # @param index_name [String] Index name
       # @return [String] "OK"
       def ft_aliasadd(alias_name, index_name)
-        call("FT.ALIASADD", alias_name, index_name)
+        call_2args(CMD_FT_ALIASADD, alias_name, index_name)
       end
 
       # Update an alias to point to a different index
@@ -199,7 +281,7 @@ module RedisRuby
       # @param index_name [String] Index name
       # @return [String] "OK"
       def ft_aliasupdate(alias_name, index_name)
-        call("FT.ALIASUPDATE", alias_name, index_name)
+        call_2args(CMD_FT_ALIASUPDATE, alias_name, index_name)
       end
 
       # Remove an alias
@@ -207,7 +289,7 @@ module RedisRuby
       # @param alias_name [String] Alias name
       # @return [String] "OK"
       def ft_aliasdel(alias_name)
-        call("FT.ALIASDEL", alias_name)
+        call_1arg(CMD_FT_ALIASDEL, alias_name)
       end
 
       # Explain a search query
@@ -217,9 +299,10 @@ module RedisRuby
       # @param dialect [Integer] Dialect version
       # @return [String] Query execution plan
       def ft_explain(index_name, query, dialect: nil)
-        args = [index_name, query]
-        args.push("DIALECT", dialect) if dialect
-        call("FT.EXPLAIN", *args)
+        # Fast path: no dialect
+        return call_2args(CMD_FT_EXPLAIN, index_name, query) unless dialect
+
+        call(CMD_FT_EXPLAIN, index_name, query, OPT_DIALECT, dialect)
       end
 
       # Explain query with CLI-friendly output
@@ -229,9 +312,10 @@ module RedisRuby
       # @param dialect [Integer] Dialect version
       # @return [Array] Query execution plan
       def ft_explaincli(index_name, query, dialect: nil)
-        args = [index_name, query]
-        args.push("DIALECT", dialect) if dialect
-        call("FT.EXPLAINCLI", *args)
+        # Fast path: no dialect
+        return call_2args(CMD_FT_EXPLAINCLI, index_name, query) unless dialect
+
+        call(CMD_FT_EXPLAINCLI, index_name, query, OPT_DIALECT, dialect)
       end
 
       # Profile a search or aggregate command
@@ -244,9 +328,9 @@ module RedisRuby
       # @return [Array] Profile results
       def ft_profile(index_name, type, query, *, limited: false)
         cmd = [index_name, type.to_s.upcase]
-        cmd << "LIMITED" if limited
-        cmd.push("QUERY", query, *)
-        call("FT.PROFILE", *cmd)
+        cmd << OPT_LIMITED if limited
+        cmd.push(OPT_QUERY, query, *)
+        call(CMD_FT_PROFILE, *cmd)
       end
 
       # Perform spell checking on a query
@@ -259,12 +343,17 @@ module RedisRuby
       # @param dialect [Integer] Dialect version
       # @return [Array] Spelling suggestions
       def ft_spellcheck(index_name, query, distance: nil, include: nil, exclude: nil, dialect: nil)
+        # Fast path: no options
+        if distance.nil? && include.nil? && exclude.nil? && dialect.nil?
+          return call_2args(CMD_FT_SPELLCHECK, index_name, query)
+        end
+
         args = [index_name, query]
-        args.push("DISTANCE", distance) if distance
-        args.push("TERMS", "INCLUDE", include) if include
-        args.push("TERMS", "EXCLUDE", exclude) if exclude
-        args.push("DIALECT", dialect) if dialect
-        call("FT.SPELLCHECK", *args)
+        args.push(OPT_DISTANCE, distance) if distance
+        args.push(OPT_TERMS, OPT_INCLUDE, include) if include
+        args.push(OPT_TERMS, OPT_EXCLUDE, exclude) if exclude
+        args.push(OPT_DIALECT, dialect) if dialect
+        call(CMD_FT_SPELLCHECK, *args)
       end
 
       # Get all distinct tag values
@@ -273,7 +362,7 @@ module RedisRuby
       # @param field_name [String] Tag field name
       # @return [Array<String>] Distinct tag values
       def ft_tagvals(index_name, field_name)
-        call("FT.TAGVALS", index_name, field_name)
+        call_2args(CMD_FT_TAGVALS, index_name, field_name)
       end
 
       # Update synonym group
@@ -285,9 +374,9 @@ module RedisRuby
       # @return [String] "OK"
       def ft_synupdate(index_name, group_id, *terms, skipinitialscan: false)
         args = [index_name, group_id]
-        args << "SKIPINITIALSCAN" if skipinitialscan
+        args << OPT_SKIPINITIALSCAN if skipinitialscan
         args.concat(terms)
-        call("FT.SYNUPDATE", *args)
+        call(CMD_FT_SYNUPDATE, *args)
       end
 
       # Dump synonym groups
@@ -295,7 +384,7 @@ module RedisRuby
       # @param index_name [String] Index name
       # @return [Hash] Synonym groups
       def ft_syndump(index_name)
-        result = call("FT.SYNDUMP", index_name)
+        result = call_1arg(CMD_FT_SYNDUMP, index_name)
         Hash[*result]
       end
 
@@ -305,7 +394,7 @@ module RedisRuby
       # @param terms [Array<String>] Terms to add
       # @return [Integer] Number of terms added
       def ft_dictadd(dict_name, *terms)
-        call("FT.DICTADD", dict_name, *terms)
+        call(CMD_FT_DICTADD, dict_name, *terms)
       end
 
       # Delete terms from a dictionary
@@ -314,7 +403,7 @@ module RedisRuby
       # @param terms [Array<String>] Terms to delete
       # @return [Integer] Number of terms deleted
       def ft_dictdel(dict_name, *terms)
-        call("FT.DICTDEL", dict_name, *terms)
+        call(CMD_FT_DICTDEL, dict_name, *terms)
       end
 
       # Dump dictionary contents
@@ -322,7 +411,7 @@ module RedisRuby
       # @param dict_name [String] Dictionary name
       # @return [Array<String>] Dictionary terms
       def ft_dictdump(dict_name)
-        call("FT.DICTDUMP", dict_name)
+        call_1arg(CMD_FT_DICTDUMP, dict_name)
       end
 
       # Add a suggestion to an autocomplete dictionary
@@ -334,10 +423,15 @@ module RedisRuby
       # @param payload [String] Optional payload
       # @return [Integer] Current dictionary size
       def ft_sugadd(key, string, score, incr: false, payload: nil)
+        # Fast path: no options
+        if !incr && payload.nil?
+          return call_3args(CMD_FT_SUGADD, key, string, score)
+        end
+
         args = [key, string, score]
-        args << "INCR" if incr
-        args.push("PAYLOAD", payload) if payload
-        call("FT.SUGADD", *args)
+        args << OPT_INCR if incr
+        args.push(OPT_PAYLOAD, payload) if payload
+        call(CMD_FT_SUGADD, *args)
       end
 
       # Get autocomplete suggestions
@@ -350,12 +444,17 @@ module RedisRuby
       # @param max [Integer] Maximum suggestions
       # @return [Array] Suggestions
       def ft_sugget(key, prefix, fuzzy: false, withscores: false, withpayloads: false, max: nil)
+        # Fast path: no options
+        if !fuzzy && !withscores && !withpayloads && max.nil?
+          return call_2args(CMD_FT_SUGGET, key, prefix)
+        end
+
         args = [key, prefix]
-        args << "FUZZY" if fuzzy
-        args << "WITHSCORES" if withscores
-        args << "WITHPAYLOADS" if withpayloads
-        args.push("MAX", max) if max
-        call("FT.SUGGET", *args)
+        args << OPT_FUZZY if fuzzy
+        args << OPT_WITHSCORES if withscores
+        args << OPT_WITHPAYLOADS if withpayloads
+        args.push(OPT_MAX, max) if max
+        call(CMD_FT_SUGGET, *args)
       end
 
       # Get suggestion dictionary size
@@ -363,7 +462,7 @@ module RedisRuby
       # @param key [String] Suggestion dictionary key
       # @return [Integer] Number of suggestions
       def ft_suglen(key)
-        call("FT.SUGLEN", key)
+        call_1arg(CMD_FT_SUGLEN, key)
       end
 
       # Delete a suggestion
@@ -372,7 +471,7 @@ module RedisRuby
       # @param string [String] Suggestion to delete
       # @return [Integer] 1 if deleted, 0 otherwise
       def ft_sugdel(key, string)
-        call("FT.SUGDEL", key, string)
+        call_2args(CMD_FT_SUGDEL, key, string)
       end
 
       # Get RediSearch configuration
@@ -380,7 +479,7 @@ module RedisRuby
       # @param option [String] Configuration option (or "*" for all)
       # @return [Hash] Configuration values
       def ft_config_get(option = "*")
-        result = call("FT.CONFIG", "GET", option)
+        result = call_2args(CMD_FT_CONFIG, SUBCMD_GET, option)
         result.to_h
       end
 
@@ -390,7 +489,7 @@ module RedisRuby
       # @param value [String] Configuration value
       # @return [String] "OK"
       def ft_config_set(option, value)
-        call("FT.CONFIG", "SET", option, value)
+        call_3args(CMD_FT_CONFIG, SUBCMD_SET, option, value)
       end
 
       private
@@ -403,110 +502,110 @@ module RedisRuby
 
       # Build content/behavior flags
       def build_search_content_flags(args, options)
-        args << "NOCONTENT" if options[:nocontent]
-        args << "VERBATIM" if options[:verbatim]
-        args << "NOSTOPWORDS" if options[:nostopwords]
-        args << "INORDER" if options[:inorder]
+        args << OPT_NOCONTENT if options[:nocontent]
+        args << OPT_VERBATIM if options[:verbatim]
+        args << OPT_NOSTOPWORDS if options[:nostopwords]
+        args << OPT_INORDER if options[:inorder]
       end
 
       # Build "with" modifier flags
       def build_search_with_flags(args, options)
-        args << "WITHSCORES" if options[:withscores]
-        args << "WITHPAYLOADS" if options[:withpayloads]
-        args << "WITHSORTKEYS" if options[:withsortkeys]
-        args << "EXPLAINSCORE" if options[:explainscore]
+        args << OPT_WITHSCORES if options[:withscores]
+        args << OPT_WITHPAYLOADS if options[:withpayloads]
+        args << OPT_WITHSORTKEYS if options[:withsortkeys]
+        args << OPT_EXPLAINSCORE if options[:explainscore]
       end
 
       # Build scorer, language, and slop arguments
       def build_search_scorer_and_language(args, options)
-        args.push("SCORER", options[:scorer]) if options[:scorer]
-        args.push("LANGUAGE", options[:language]) if options[:language]
-        args.push("SLOP", options[:slop]) if options[:slop]
+        args.push(OPT_SCORER, options[:scorer]) if options[:scorer]
+        args.push(OPT_LANGUAGE, options[:language]) if options[:language]
+        args.push(OPT_SLOP, options[:slop]) if options[:slop]
       end
 
       # Build numeric and geo filter arguments
       def build_search_filters(args, options)
         options[:filter]&.each do |field, (min, max)|
-          args.push("FILTER", field.to_s, min, max)
+          args.push(OPT_FILTER, field.to_s, min, max)
         end
 
         return unless options[:geofilter]
 
         options[:geofilter].each do |field, (lon, lat, radius, unit)|
-          args.push("GEOFILTER", field.to_s, lon, lat, radius, unit || "km")
+          args.push(OPT_GEOFILTER, field.to_s, lon, lat, radius, unit || "km")
         end
       end
 
       # Build field limiting arguments (inkeys, infields, return)
       def build_search_field_limits(args, options)
-        args.push("INKEYS", options[:inkeys].size, *options[:inkeys]) if options[:inkeys]
+        args.push(OPT_INKEYS, options[:inkeys].size, *options[:inkeys]) if options[:inkeys]
 
-        args.push("INFIELDS", options[:infields].size, *options[:infields]) if options[:infields]
+        args.push(OPT_INFIELDS, options[:infields].size, *options[:infields]) if options[:infields]
 
         return unless options[:return]
 
         fields = Array(options[:return])
-        args.push("RETURN", fields.size, *fields)
+        args.push(OPT_RETURN, fields.size, *fields)
       end
 
       # Build summarize arguments
       def build_search_summarize(args, options)
         return unless options[:summarize]
 
-        args << "SUMMARIZE"
+        args << OPT_SUMMARIZE
         return unless options[:summarize].is_a?(Hash)
 
         summarize = options[:summarize]
         if summarize[:fields]
           fields = Array(summarize[:fields])
-          args.push("FIELDS", fields.size, *fields)
+          args.push(OPT_FIELDS, fields.size, *fields)
         end
-        args.push("FRAGS", summarize[:frags]) if summarize[:frags]
-        args.push("LEN", summarize[:len]) if summarize[:len]
-        args.push("SEPARATOR", summarize[:separator]) if summarize[:separator]
+        args.push(OPT_FRAGS, summarize[:frags]) if summarize[:frags]
+        args.push(OPT_LEN, summarize[:len]) if summarize[:len]
+        args.push(OPT_SEPARATOR, summarize[:separator]) if summarize[:separator]
       end
 
       # Build highlight arguments
       def build_search_highlight(args, options)
         return unless options[:highlight]
 
-        args << "HIGHLIGHT"
+        args << OPT_HIGHLIGHT
         return unless options[:highlight].is_a?(Hash)
 
         highlight = options[:highlight]
         if highlight[:fields]
           fields = Array(highlight[:fields])
-          args.push("FIELDS", fields.size, *fields)
+          args.push(OPT_FIELDS, fields.size, *fields)
         end
         return unless highlight[:tags]
 
-        args.push("TAGS", highlight[:tags][0], highlight[:tags][1])
+        args.push(OPT_TAGS, highlight[:tags][0], highlight[:tags][1])
       end
 
       # Build sort and pagination arguments
       def build_search_sort_and_pagination(args, options)
         if options[:sortby]
-          args.push("SORTBY", options[:sortby])
-          args << (options[:sortasc] == false ? "DESC" : "ASC")
+          args.push(OPT_SORTBY, options[:sortby])
+          args << (options[:sortasc] == false ? OPT_DESC : OPT_ASC)
         end
 
         return unless options[:limit]
 
         offset, count = options[:limit]
-        args.push("LIMIT", offset, count)
+        args.push(OPT_LIMIT, offset, count)
       end
 
       # Build params, dialect, and timeout arguments
       def build_search_params(args, options)
         if options[:params]
-          args.push("PARAMS", options[:params].size * 2)
+          args.push(OPT_PARAMS, options[:params].size * 2)
           options[:params].each do |k, v|
             args.push(k.to_s, v.to_s)
           end
         end
 
-        args.push("DIALECT", options[:dialect]) if options[:dialect]
-        args.push("TIMEOUT", options[:timeout]) if options[:timeout]
+        args.push(OPT_DIALECT, options[:dialect]) if options[:dialect]
+        args.push(OPT_TIMEOUT, options[:timeout]) if options[:timeout]
       end
     end
   end
