@@ -6,6 +6,18 @@ module RedisRuby
     #
     # @see https://redis.io/commands/?group=hash
     module Hashes
+      # Frozen command constants to avoid string allocations
+      CMD_HSET = "HSET"
+      CMD_HGET = "HGET"
+      CMD_HSETNX = "HSETNX"
+      CMD_HMGET = "HMGET"
+      CMD_HMSET = "HMSET"
+      CMD_HGETALL = "HGETALL"
+      CMD_HDEL = "HDEL"
+      CMD_HEXISTS = "HEXISTS"
+      CMD_HKEYS = "HKEYS"
+      CMD_HVALS = "HVALS"
+
       # Set the string value of a hash field
       #
       # @param key [String]
@@ -13,7 +25,12 @@ module RedisRuby
       # @param value [String]
       # @return [Integer] 1 if field is new, 0 if updated
       def hset(key, *field_values)
-        call("HSET", key, *field_values)
+        # Fast path for single field-value pair
+        if field_values.size == 2
+          return call_3args(CMD_HSET, key, field_values[0], field_values[1])
+        end
+
+        call(CMD_HSET, key, *field_values)
       end
 
       # Get the value of a hash field
@@ -22,7 +39,7 @@ module RedisRuby
       # @param field [String]
       # @return [String, nil] value or nil
       def hget(key, field)
-        call("HGET", key, field)
+        call_2args(CMD_HGET, key, field)
       end
 
       # Set the value of a hash field, only if the field does not exist
@@ -32,7 +49,7 @@ module RedisRuby
       # @param value [String]
       # @return [Integer] 1 if set, 0 if field already exists
       def hsetnx(key, field, value)
-        call("HSETNX", key, field, value)
+        call_3args(CMD_HSETNX, key, field, value)
       end
 
       # Get the values of multiple hash fields
@@ -41,7 +58,7 @@ module RedisRuby
       # @param fields [Array<String>]
       # @return [Array<String, nil>] values (nil for missing fields)
       def hmget(key, *fields)
-        call("HMGET", key, *fields)
+        call(CMD_HMGET, key, *fields)
       end
 
       # Set multiple hash fields to multiple values
@@ -50,7 +67,7 @@ module RedisRuby
       # @param field_values [Array] field1, value1, field2, value2, ...
       # @return [String] "OK"
       def hmset(key, *field_values)
-        call("HMSET", key, *field_values)
+        call(CMD_HMSET, key, *field_values)
       end
 
       # Get all fields and values in a hash
@@ -58,7 +75,7 @@ module RedisRuby
       # @param key [String]
       # @return [Hash] field-value pairs
       def hgetall(key)
-        result = call("HGETALL", key)
+        result = call_1arg(CMD_HGETALL, key)
         return {} if result.empty?
 
         # Convert array to hash: [f1, v1, f2, v2] -> {f1 => v1, f2 => v2}
@@ -71,7 +88,12 @@ module RedisRuby
       # @param fields [Array<String>]
       # @return [Integer] number of fields deleted
       def hdel(key, *fields)
-        call("HDEL", key, *fields)
+        # Fast path for single field
+        if fields.size == 1
+          return call_2args(CMD_HDEL, key, fields[0])
+        end
+
+        call(CMD_HDEL, key, *fields)
       end
 
       # Check if a hash field exists
@@ -80,7 +102,7 @@ module RedisRuby
       # @param field [String]
       # @return [Integer] 1 if exists, 0 if not
       def hexists(key, field)
-        call("HEXISTS", key, field)
+        call_2args(CMD_HEXISTS, key, field)
       end
 
       # Get all fields in a hash
@@ -88,7 +110,7 @@ module RedisRuby
       # @param key [String]
       # @return [Array<String>] field names
       def hkeys(key)
-        call("HKEYS", key)
+        call_1arg(CMD_HKEYS, key)
       end
 
       # Get all values in a hash
@@ -96,7 +118,7 @@ module RedisRuby
       # @param key [String]
       # @return [Array<String>] values
       def hvals(key)
-        call("HVALS", key)
+        call_1arg(CMD_HVALS, key)
       end
 
       # Get the number of fields in a hash

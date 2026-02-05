@@ -47,6 +47,11 @@ module RedisRuby
       # @param keys [Array<String>]
       # @return [Integer] number of keys deleted
       def del(*keys)
+        # Fast path for single key (most common)
+        if keys.size == 1
+          return call_1arg(CMD_DEL, keys[0])
+        end
+
         call(CMD_DEL, *keys)
       end
 
@@ -55,6 +60,11 @@ module RedisRuby
       # @param keys [Array<String>]
       # @return [Integer] number of keys that exist
       def exists(*keys)
+        # Fast path for single key (most common)
+        if keys.size == 1
+          return call_1arg(CMD_EXISTS, keys[0])
+        end
+
         call(CMD_EXISTS, *keys)
       end
 
@@ -115,7 +125,7 @@ module RedisRuby
       # @param key [String]
       # @return [Integer] TTL in seconds, -1 if no TTL, -2 if key doesn't exist
       def ttl(key)
-        call(CMD_TTL, key)
+        call_1arg(CMD_TTL, key)
       end
 
       # Get the time to live for a key in milliseconds
@@ -123,7 +133,7 @@ module RedisRuby
       # @param key [String]
       # @return [Integer] TTL in milliseconds, -1 if no TTL, -2 if key doesn't exist
       def pttl(key)
-        call(CMD_PTTL, key)
+        call_1arg(CMD_PTTL, key)
       end
 
       # Remove the expiration from a key
@@ -131,7 +141,7 @@ module RedisRuby
       # @param key [String]
       # @return [Integer] 1 if timeout was removed, 0 if key doesn't exist or has no TTL
       def persist(key)
-        call(CMD_PERSIST, key)
+        call_1arg(CMD_PERSIST, key)
       end
 
       # Get the expiration Unix timestamp for a key (seconds)
@@ -139,7 +149,7 @@ module RedisRuby
       # @param key [String]
       # @return [Integer] timestamp, -1 if no TTL, -2 if key doesn't exist
       def expiretime(key)
-        call(CMD_EXPIRETIME, key)
+        call_1arg(CMD_EXPIRETIME, key)
       end
 
       # Get the expiration Unix timestamp for a key (milliseconds)
@@ -147,7 +157,7 @@ module RedisRuby
       # @param key [String]
       # @return [Integer] timestamp, -1 if no TTL, -2 if key doesn't exist
       def pexpiretime(key)
-        call(CMD_PEXPIRETIME, key)
+        call_1arg(CMD_PEXPIRETIME, key)
       end
 
       # Find all keys matching the given pattern
@@ -156,7 +166,7 @@ module RedisRuby
       # @return [Array<String>] matching keys
       # @note Use SCAN in production for large datasets
       def keys(pattern)
-        call(CMD_KEYS, pattern)
+        call_1arg(CMD_KEYS, pattern)
       end
 
       # Incrementally iterate over keys
@@ -179,7 +189,7 @@ module RedisRuby
       # @param key [String]
       # @return [String] type (string, list, set, zset, hash, stream, none)
       def type(key)
-        call(CMD_TYPE, key)
+        call_1arg(CMD_TYPE, key)
       end
 
       # Rename a key
@@ -189,7 +199,7 @@ module RedisRuby
       # @return [String] "OK"
       # @raise [CommandError] if key doesn't exist
       def rename(key, newkey)
-        call(CMD_RENAME, key, newkey)
+        call_2args(CMD_RENAME, key, newkey)
       end
 
       # Rename a key, only if the new key does not exist
@@ -198,7 +208,7 @@ module RedisRuby
       # @param newkey [String] new name
       # @return [Integer] 1 if renamed, 0 if newkey already exists
       def renamenx(key, newkey)
-        call(CMD_RENAMENX, key, newkey)
+        call_2args(CMD_RENAMENX, key, newkey)
       end
 
       # Return a random key from the database
@@ -234,7 +244,7 @@ module RedisRuby
       # @param key [String]
       # @return [String, nil] serialized value or nil if key doesn't exist
       def dump(key)
-        call(CMD_DUMP, key)
+        call_1arg(CMD_DUMP, key)
       end
 
       # Touch one or more keys (update last access time)

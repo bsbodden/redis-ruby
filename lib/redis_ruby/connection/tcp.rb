@@ -63,6 +63,33 @@ module RedisRuby
         @decoder.decode
       end
 
+      # Ultra-fast path for single-argument commands (GET, DEL, EXISTS, etc.)
+      # Avoids splat allocation overhead
+      # @api private
+      def call_1arg(command, arg)
+        @socket.write(@encoder.encode_command(command, arg))
+        @socket.flush
+        @decoder.decode
+      end
+
+      # Ultra-fast path for two-argument commands (SET without options, HGET, etc.)
+      # Avoids splat allocation overhead
+      # @api private
+      def call_2args(command, arg1, arg2)
+        @socket.write(@encoder.encode_command(command, arg1, arg2))
+        @socket.flush
+        @decoder.decode
+      end
+
+      # Ultra-fast path for three-argument commands (HSET, etc.)
+      # Avoids splat allocation overhead
+      # @api private
+      def call_3args(command, arg1, arg2, arg3)
+        @socket.write(@encoder.encode_command(command, arg1, arg2, arg3))
+        @socket.flush
+        @decoder.decode
+      end
+
       # Ensure we have a valid connection, reconnecting if forked
       # Optimized: only check Process.pid when socket exists (avoids syscall on every call)
       #

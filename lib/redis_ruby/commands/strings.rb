@@ -52,6 +52,12 @@ module RedisRuby
       # @param get [Boolean] Return old value (Redis 6.2+)
       # @return [String, nil] "OK" or nil (or old value if get: true)
       def set(key, value, ex: nil, px: nil, exat: nil, pxat: nil, nx: false, xx: false, keepttl: false, get: false)
+        # Fast path: simple SET key value (most common case)
+        if ex.nil? && px.nil? && exat.nil? && pxat.nil? && !nx && !xx && !keepttl && !get
+          return call_2args(CMD_SET, key, value)
+        end
+
+        # Slow path: SET with options
         args = [key, value]
         args.push(OPT_EX, ex) if ex
         args.push(OPT_PX, px) if px
@@ -69,7 +75,7 @@ module RedisRuby
       # @param key [String] The key
       # @return [String, nil] The value or nil
       def get(key)
-        call(CMD_GET, key)
+        call_1arg(CMD_GET, key)
       end
 
       # Increment the integer value of a key by one
@@ -77,7 +83,7 @@ module RedisRuby
       # @param key [String]
       # @return [Integer] value after increment
       def incr(key)
-        call(CMD_INCR, key)
+        call_1arg(CMD_INCR, key)
       end
 
       # Decrement the integer value of a key by one
@@ -85,7 +91,7 @@ module RedisRuby
       # @param key [String]
       # @return [Integer] value after decrement
       def decr(key)
-        call(CMD_DECR, key)
+        call_1arg(CMD_DECR, key)
       end
 
       # Increment the integer value of a key by the given amount
@@ -94,7 +100,7 @@ module RedisRuby
       # @param increment [Integer]
       # @return [Integer] value after increment
       def incrby(key, increment)
-        call(CMD_INCRBY, key, increment)
+        call_2args(CMD_INCRBY, key, increment)
       end
 
       # Decrement the integer value of a key by the given amount
@@ -103,7 +109,7 @@ module RedisRuby
       # @param decrement [Integer]
       # @return [Integer] value after decrement
       def decrby(key, decrement)
-        call(CMD_DECRBY, key, decrement)
+        call_2args(CMD_DECRBY, key, decrement)
       end
 
       # Increment the float value of a key by the given amount
@@ -112,7 +118,7 @@ module RedisRuby
       # @param increment [Float]
       # @return [String] value after increment (as string)
       def incrbyfloat(key, increment)
-        call(CMD_INCRBYFLOAT, key, increment)
+        call_2args(CMD_INCRBYFLOAT, key, increment)
       end
 
       # Append a value to a key
@@ -121,7 +127,7 @@ module RedisRuby
       # @param value [String]
       # @return [Integer] length of string after append
       def append(key, value)
-        call(CMD_APPEND, key, value)
+        call_2args(CMD_APPEND, key, value)
       end
 
       # Get the length of the value stored at key
@@ -129,7 +135,7 @@ module RedisRuby
       # @param key [String]
       # @return [Integer] length of string, or 0 if key doesn't exist
       def strlen(key)
-        call(CMD_STRLEN, key)
+        call_1arg(CMD_STRLEN, key)
       end
 
       # Get a substring of the string stored at key
@@ -139,7 +145,7 @@ module RedisRuby
       # @param end_pos [Integer] end index (inclusive)
       # @return [String] substring
       def getrange(key, start_pos, end_pos)
-        call(CMD_GETRANGE, key, start_pos, end_pos)
+        call_3args(CMD_GETRANGE, key, start_pos, end_pos)
       end
 
       # Overwrite part of a string at key starting at the specified offset
@@ -149,7 +155,7 @@ module RedisRuby
       # @param value [String]
       # @return [Integer] length of string after modification
       def setrange(key, offset, value)
-        call(CMD_SETRANGE, key, offset, value)
+        call_3args(CMD_SETRANGE, key, offset, value)
       end
 
       # Get the values of multiple keys

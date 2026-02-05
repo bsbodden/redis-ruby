@@ -34,7 +34,7 @@ module RedisRuby
   #   subscriber.run_in_thread
   #
   class Subscriber
-    attr_reader :channels, :patterns
+    attr_reader :channels, :patterns, :thread
 
     # Initialize a new subscriber
     #
@@ -195,13 +195,6 @@ module RedisRuby
     # @return [Boolean]
     def stop_requested?
       @stop_requested
-    end
-
-    # Get the background thread
-    #
-    # @return [Thread, nil]
-    def thread
-      @thread
     end
 
     private

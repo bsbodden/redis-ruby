@@ -81,6 +81,40 @@ module RedisRuby
         read_response
       end
 
+      # Direct call without connection check - use when caller already verified connection
+      # @api private
+      def call_direct(command, *)
+        write_command(command, *)
+        read_response
+      end
+
+      # Ultra-fast path for single-argument commands (GET, DEL, EXISTS, etc.)
+      # Avoids splat allocation overhead
+      # @api private
+      def call_1arg(command, arg)
+        @ssl_socket.write(@encoder.encode_command(command, arg))
+        @ssl_socket.flush
+        @decoder.decode
+      end
+
+      # Ultra-fast path for two-argument commands (SET without options, HGET, etc.)
+      # Avoids splat allocation overhead
+      # @api private
+      def call_2args(command, arg1, arg2)
+        @ssl_socket.write(@encoder.encode_command(command, arg1, arg2))
+        @ssl_socket.flush
+        @decoder.decode
+      end
+
+      # Ultra-fast path for three-argument commands (HSET, etc.)
+      # Avoids splat allocation overhead
+      # @api private
+      def call_3args(command, arg1, arg2, arg3)
+        @ssl_socket.write(@encoder.encode_command(command, arg1, arg2, arg3))
+        @ssl_socket.flush
+        @decoder.decode
+      end
+
       # Execute multiple commands in a pipeline
       #
       # @param commands [Array<Array>] Array of command arrays

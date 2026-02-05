@@ -49,6 +49,26 @@ module RedisRuby
       "QUEUED"
     end
 
+    # Fast path methods - delegate to call for transaction compatibility
+    # In transaction mode we don't get the fast-path benefit, but commands work correctly
+    # @api private
+    def call_1arg(command, arg)
+      @commands << [command, arg]
+      "QUEUED"
+    end
+
+    # @api private
+    def call_2args(command, arg1, arg2)
+      @commands << [command, arg1, arg2]
+      "QUEUED"
+    end
+
+    # @api private
+    def call_3args(command, arg1, arg2, arg3)
+      @commands << [command, arg1, arg2, arg3]
+      "QUEUED"
+    end
+
     # Execute the transaction
     #
     # @return [Array, nil] Results from all commands, or nil if aborted

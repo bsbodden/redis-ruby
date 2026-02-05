@@ -123,6 +123,45 @@ module RedisRuby
       end
     end
 
+    # Fast path for single-argument commands (GET, DEL, EXISTS, etc.)
+    # Avoids splat allocation overhead - ~15% faster than call() for simple ops
+    # @api private
+    def call_1arg(command, arg)
+      @retry_policy.call do
+        ensure_connected
+        result = @connection.call_1arg(command, arg)
+        raise result if result.is_a?(CommandError)
+
+        @decode_responses ? decode_result(result) : result
+      end
+    end
+
+    # Fast path for two-argument commands (HGET, simple SET, etc.)
+    # Avoids splat allocation overhead
+    # @api private
+    def call_2args(command, arg1, arg2)
+      @retry_policy.call do
+        ensure_connected
+        result = @connection.call_2args(command, arg1, arg2)
+        raise result if result.is_a?(CommandError)
+
+        @decode_responses ? decode_result(result) : result
+      end
+    end
+
+    # Fast path for three-argument commands (HSET, etc.)
+    # Avoids splat allocation overhead
+    # @api private
+    def call_3args(command, arg1, arg2, arg3)
+      @retry_policy.call do
+        ensure_connected
+        result = @connection.call_3args(command, arg1, arg2, arg3)
+        raise result if result.is_a?(CommandError)
+
+        @decode_responses ? decode_result(result) : result
+      end
+    end
+
     # Ping the Redis server
     #
     # @return [String] "PONG"

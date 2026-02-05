@@ -65,6 +65,26 @@ module RedisRuby
       self
     end
 
+    # Fast path methods - delegate to call for pipeline compatibility
+    # In pipeline mode we don't get the fast-path benefit, but commands work correctly
+    # @api private
+    def call_1arg(command, arg)
+      @commands << [command, arg]
+      self
+    end
+
+    # @api private
+    def call_2args(command, arg1, arg2)
+      @commands << [command, arg1, arg2]
+      self
+    end
+
+    # @api private
+    def call_3args(command, arg1, arg2, arg3)
+      @commands << [command, arg1, arg2, arg3]
+      self
+    end
+
     # Execute all queued commands
     #
     # @return [Array] Results from all commands
