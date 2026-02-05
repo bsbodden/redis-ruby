@@ -264,6 +264,29 @@ module RedisRuby
         call("HPERSIST", key, "FIELDS", fields.length, *fields)
       end
 
+      # Iterate over hash fields and values
+      #
+      # Returns an Enumerator that handles cursor management automatically.
+      # Yields [field, value] pairs.
+      #
+      # @param key [String] hash key
+      # @param match [String] pattern to match field names (default: "*")
+      # @param count [Integer] hint for number of elements per iteration
+      # @return [Enumerator] yields [field, value] pairs
+      # @example
+      #   client.hscan_iter("myhash").each { |field, value| puts "#{field}: #{value}" }
+      #   client.hscan_iter("myhash", match: "user:*").to_h
+      def hscan_iter(key, match: "*", count: 10)
+        Enumerator.new do |yielder|
+          cursor = "0"
+          loop do
+            cursor, data = hscan(key, cursor, match: match, count: count)
+            data.each_slice(2) { |field, value| yielder << [field, value] }
+            break if cursor == "0"
+          end
+        end
+      end
+
       private
 
       # Build arguments for hash expiration commands

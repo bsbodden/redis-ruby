@@ -267,6 +267,30 @@ module RedisRuby
         call(*args)
       end
 
+      # Iterate over keys matching pattern
+      #
+      # Returns an Enumerator that handles cursor management automatically.
+      # Much safer than KEYS for large datasets.
+      #
+      # @param match [String] pattern to match (default: "*")
+      # @param count [Integer] hint for number of elements per iteration
+      # @param type [String, nil] filter by key type
+      # @return [Enumerator] yields each matching key
+      # @example
+      #   client.scan_iter(match: "user:*").each { |key| puts key }
+      #   client.scan_iter(match: "session:*", count: 100).to_a
+      #   client.scan_iter(type: "string").first(10)
+      def scan_iter(match: "*", count: 10, type: nil)
+        Enumerator.new do |yielder|
+          cursor = "0"
+          loop do
+            cursor, keys = scan(cursor, match: match, count: count, type: type)
+            keys.each { |key| yielder << key }
+            break if cursor == "0"
+          end
+        end
+      end
+
       private
 
       # Build arguments for expiration commands with NX/XX/GT/LT options

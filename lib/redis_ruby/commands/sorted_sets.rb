@@ -300,6 +300,29 @@ module RedisRuby
         [cursor, members]
       end
 
+      # Iterate over sorted set members with scores
+      #
+      # Returns an Enumerator that handles cursor management automatically.
+      # Yields [member, score] pairs.
+      #
+      # @param key [String] sorted set key
+      # @param match [String] pattern to match members (default: "*")
+      # @param count [Integer] hint for number of elements per iteration
+      # @return [Enumerator] yields [member, score] pairs
+      # @example
+      #   client.zscan_iter("myzset").each { |member, score| puts "#{member}: #{score}" }
+      #   client.zscan_iter("leaderboard", match: "player:*").first(10)
+      def zscan_iter(key, match: "*", count: 10)
+        Enumerator.new do |yielder|
+          cursor = "0"
+          loop do
+            cursor, members = zscan(key, cursor, match: match, count: count)
+            members.each { |member, score| yielder << [member, score] }
+            break if cursor == "0"
+          end
+        end
+      end
+
       # Store intersection of sorted sets
       #
       # @param destination [String]

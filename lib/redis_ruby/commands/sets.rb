@@ -169,6 +169,28 @@ module RedisRuby
         args.push("COUNT", count) if count
         call(*args)
       end
+
+      # Iterate over set members
+      #
+      # Returns an Enumerator that handles cursor management automatically.
+      #
+      # @param key [String] set key
+      # @param match [String] pattern to match members (default: "*")
+      # @param count [Integer] hint for number of elements per iteration
+      # @return [Enumerator] yields each member
+      # @example
+      #   client.sscan_iter("myset").each { |member| puts member }
+      #   client.sscan_iter("myset", match: "user:*").to_a
+      def sscan_iter(key, match: "*", count: 10)
+        Enumerator.new do |yielder|
+          cursor = "0"
+          loop do
+            cursor, members = sscan(key, cursor, match: match, count: count)
+            members.each { |member| yielder << member }
+            break if cursor == "0"
+          end
+        end
+      end
     end
   end
 end
