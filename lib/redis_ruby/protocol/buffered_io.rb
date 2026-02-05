@@ -262,8 +262,14 @@ module RedisRuby
 
           case bytes
           when String
-            if empty_buffer
-              # Buffer was overwritten, reset offset
+            if empty_buffer && bytes.equal?(@buffer)
+              # Real IO behavior: data written directly into @buffer, reset offset
+              @offset = 0
+              empty_buffer = false
+            elsif empty_buffer
+              # Mock behavior: returned different string, clear buffer and append
+              @buffer.clear
+              @buffer << bytes
               @offset = 0
               empty_buffer = false
             else
