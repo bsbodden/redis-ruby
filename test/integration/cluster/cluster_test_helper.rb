@@ -44,11 +44,13 @@ module ClusterTestContainerSupport
   end
 
   # Detect the Docker host
+  # With host networking, cluster nodes bind to host interfaces
   def self.docker_host
     if inside_docker? && @compose_started
-      # When inside a container, use the cluster container's IP
-      connect_to_network!
-      `docker inspect docker-redis-cluster-1 --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}'`.strip
+      # With host networking, use the Docker host gateway IP
+      # This is the IP that host-networked containers use
+      gateway = `ip route | grep default | awk '{print $3}'`.strip
+      gateway.empty? ? "host.docker.internal" : gateway
     elsif system("getent hosts host.docker.internal >/dev/null 2>&1")
       "host.docker.internal"
     else
@@ -56,6 +58,17 @@ module ClusterTestContainerSupport
     end
   rescue StandardError
     "localhost"
+  end
+
+  # Get host translation map for cluster client
+  # Maps 127.0.0.1 (announced by cluster) to actual reachable host
+  def self.host_translation
+    return nil unless inside_docker? && @compose_started
+
+    target = docker_host
+    return nil if target == "127.0.0.1" || target == "localhost"
+
+    { "127.0.0.1" => target }
   end
 
   class << self
@@ -296,14 +309,21 @@ class ClusterTestCase < Minitest::Test
       skip "REDIS_CLUSTER_URL not set and TestContainers not enabled"
     end
 
-    @cluster = RedisRuby::ClusterClient.new(nodes: @cluster_nodes)
+    host_translation = ClusterTestContainerSupport.host_translation
+    @cluster = RedisRuby::ClusterClient.new(
+      nodes: @cluster_nodes,
+      host_translation: host_translation
+    )
   end
 
   def verify_cluster_connectivity!
     # Try to connect and execute a simple command
     # This will fail if the cluster announces addresses we can't reach
-
-    client = RedisRuby::ClusterClient.new(nodes: @cluster_nodes)
+    host_translation = ClusterTestContainerSupport.host_translation
+    client = RedisRuby::ClusterClient.new(
+      nodes: @cluster_nodes,
+      host_translation: host_translation
+    )
     client.call("PING")
     client.close
   rescue Errno::ECONNREFUSED, RedisRuby::ConnectionError => e

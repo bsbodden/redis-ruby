@@ -3,21 +3,19 @@
 #
 # Cluster will be available at localhost:7000-7005
 # Set REDIS_CLUSTER_URL=redis://localhost:7000,redis://localhost:7001,redis://localhost:7002
+#
+# Note: Uses host networking so cluster nodes announce accessible IPs
+# This avoids the issue where nodes announce 127.0.0.1 which is unreachable
+# from other containers.
 
 services:
   redis-cluster:
     image: grokzen/redis-cluster:7.0.10
     platform: linux/amd64
+    network_mode: host
     environment:
       - IP=0.0.0.0
       - INITIAL_PORT=7000
-    ports:
-      - "17000:7000"
-      - "17001:7001"
-      - "17002:7002"
-      - "17003:7003"
-      - "17004:7004"
-      - "17005:7005"
     healthcheck:
       test: ["CMD", "redis-cli", "-p", "7000", "cluster", "info"]
       interval: 5s

@@ -50,8 +50,12 @@ class ClusterFailoverIntegrationTest < ClusterTestCase
     # Close connections (simulates temporary network issue)
     cluster.close
 
-    # Reinitialize
-    @cluster = RedisRuby::ClusterClient.new(nodes: @cluster_nodes)
+    # Reinitialize with host translation
+    host_translation = ClusterTestContainerSupport.host_translation
+    @cluster = RedisRuby::ClusterClient.new(
+      nodes: @cluster_nodes,
+      host_translation: host_translation
+    )
 
     # Operations should work with new client
     cluster.call("SET", key, "recovered")
@@ -72,8 +76,17 @@ class ClusterFailoverIntegrationTest < ClusterTestCase
 
   # Test: Node count reflects cluster size
   def test_node_count
-    # Our test cluster should have at least 3 nodes
-    assert_operator cluster.node_count, :>=, 3
+    # Our test cluster should have at least 3 master nodes
+    # node_count returns active connections, which may be fewer initially
+    # So we check cluster_nodes for total node count
+    nodes = cluster.cluster_nodes
+
+    assert_operator nodes.size, :>=, 3, "Cluster should have at least 3 nodes"
+
+    # Should have masters
+    masters = nodes.select { |n| n[:flags].include?("master") }
+
+    assert_operator masters.size, :>=, 3, "Cluster should have at least 3 masters"
   end
 
   # Test: Operations work after client reconnection
@@ -89,9 +102,13 @@ class ClusterFailoverIntegrationTest < ClusterTestCase
 
     assert_equal "value9", values.last
 
-    # Close and reopen
+    # Close and reopen with host translation
     cluster.close
-    @cluster = RedisRuby::ClusterClient.new(nodes: @cluster_nodes)
+    host_translation = ClusterTestContainerSupport.host_translation
+    @cluster = RedisRuby::ClusterClient.new(
+      nodes: @cluster_nodes,
+      host_translation: host_translation
+    )
 
     # Continue operations
     10.times do |i|

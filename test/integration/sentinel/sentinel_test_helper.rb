@@ -13,8 +13,13 @@ require "test_helper"
 module SentinelTestContainerSupport
   REDIS_IMAGE = "redis:7.0"
   SENTINEL_IMAGE = "bitnami/redis-sentinel:latest"
-  MASTER_PORT = 6379
-  REPLICA_PORT = 6380
+  # External ports for accessing containers from host
+  # Uses 7379/7380 to avoid conflict with devcontainer Redis on 6379
+  MASTER_PORT = 7379
+  REPLICA_PORT = 7380
+  # Internal ports used within containers
+  MASTER_INTERNAL_PORT = 6379
+  REPLICA_INTERNAL_PORT = 6380
   SENTINEL_PORTS = [26_379, 26_380, 26_381].freeze
   SERVICE_NAME = "mymaster"
   COMPOSE_FILE = File.expand_path("../../../docker/docker-compose.sentinel.yml", __dir__)
@@ -142,7 +147,7 @@ module SentinelTestContainerSupport
       if @compose_started
         { host: docker_host, port: MASTER_PORT }
       elsif @master_container
-        { host: @master_container.host, port: @master_container.mapped_port(MASTER_PORT) }
+        { host: @master_container.host, port: @master_container.mapped_port(MASTER_INTERNAL_PORT) }
       end
     end
 
@@ -150,7 +155,7 @@ module SentinelTestContainerSupport
       if @compose_started
         { host: docker_host, port: REPLICA_PORT }
       elsif @replica_container
-        { host: @replica_container.host, port: @replica_container.mapped_port(REPLICA_PORT) }
+        { host: @replica_container.host, port: @replica_container.mapped_port(MASTER_INTERNAL_PORT) }
       end
     end
 
@@ -248,15 +253,15 @@ module SentinelTestContainerSupport
       puts "Starting Redis master..."
 
       @master_container = Testcontainers::DockerContainer.new(REDIS_IMAGE)
-      @master_container.with_exposed_port(MASTER_PORT)
+      @master_container.with_exposed_port(MASTER_INTERNAL_PORT)
       @master_container.with_name("redis-master-#{Process.pid}")
       @master_container.start
 
       # Connect to network with alias
       @network.connect(@master_container._id, { "Aliases" => ["redis-master"] })
 
-      wait_for_redis(@master_container, MASTER_PORT)
-      puts "Master started at #{@master_container.host}:#{@master_container.mapped_port(MASTER_PORT)}"
+      wait_for_redis(@master_container, MASTER_INTERNAL_PORT)
+      puts "Master started at #{@master_container.host}:#{@master_container.mapped_port(MASTER_INTERNAL_PORT)}"
     end
 
     def start_replica_tc
@@ -264,16 +269,16 @@ module SentinelTestContainerSupport
 
       # Replica connects to master via network alias
       @replica_container = Testcontainers::DockerContainer.new(REDIS_IMAGE)
-      @replica_container.with_exposed_port(MASTER_PORT)
-      @replica_container.with_command("redis-server", "--port", MASTER_PORT.to_s,
-                                      "--replicaof", "redis-master", MASTER_PORT.to_s)
+      @replica_container.with_exposed_port(MASTER_INTERNAL_PORT)
+      @replica_container.with_command("redis-server", "--port", MASTER_INTERNAL_PORT.to_s,
+                                      "--replicaof", "redis-master", MASTER_INTERNAL_PORT.to_s)
       @replica_container.with_name("redis-replica-#{Process.pid}")
       @replica_container.start
 
       @network.connect(@replica_container._id, { "Aliases" => ["redis-replica"] })
 
-      wait_for_redis(@replica_container, MASTER_PORT)
-      puts "Replica started at #{@replica_container.host}:#{@replica_container.mapped_port(MASTER_PORT)}"
+      wait_for_redis(@replica_container, MASTER_INTERNAL_PORT)
+      puts "Replica started at #{@replica_container.host}:#{@replica_container.mapped_port(MASTER_INTERNAL_PORT)}"
     end
 
     def start_sentinels_tc
@@ -285,7 +290,7 @@ module SentinelTestContainerSupport
         container = Testcontainers::DockerContainer.new(SENTINEL_IMAGE)
         container.with_exposed_port(26_379)
         container.with_env("REDIS_MASTER_HOST", "redis-master")
-        container.with_env("REDIS_MASTER_PORT_NUMBER", MASTER_PORT.to_s)
+        container.with_env("REDIS_MASTER_PORT_NUMBER", MASTER_INTERNAL_PORT.to_s)
         container.with_env("REDIS_MASTER_SET", SERVICE_NAME)
         container.with_env("REDIS_SENTINEL_QUORUM", "2")
         container.with_env("REDIS_SENTINEL_DOWN_AFTER_MILLISECONDS", "5000")

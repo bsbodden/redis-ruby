@@ -2,15 +2,18 @@
 # Usage: docker-compose -f docker/docker-compose.sentinel.yml up -d
 #
 # Sentinels will be available at localhost:26379,26380,26381
-# Master is at localhost:6379, Replica at localhost:6380
+# Master is at localhost:7379, Replica at localhost:7380
 # Set REDIS_SENTINEL_URL=localhost:26379,localhost:26380,localhost:26381
+#
+# Note: Uses ports 7379/7380 for master/replica to avoid conflicts with
+# devcontainer Redis (which uses 6379). Internal ports are still 6379/6380.
 
 services:
   redis-master:
     image: redis:7.0
     container_name: redis-master
     ports:
-      - "6379:6379"
+      - "7379:6379"
     command: redis-server --port 6379
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -24,7 +27,7 @@ services:
     image: redis:7.0
     container_name: redis-replica
     ports:
-      - "6380:6380"
+      - "7380:6380"
     command: redis-server --port 6380 --replicaof redis-master 6379
     depends_on:
       redis-master:
