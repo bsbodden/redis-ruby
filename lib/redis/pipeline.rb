@@ -126,10 +126,10 @@ class Redis
     end
 
     # Queue a command and return a Future
-    def call(command, *)
+    def call(command, *args)
       future = Future.new([command, *args])
       @futures << future
-      @pipeline.call(command, *)
+      @pipeline.call(command, *args)
       future
     end
 
@@ -726,9 +726,9 @@ class Redis
       @inner_futures = inner_futures
     end
 
-    def call(command, *)
+    def call(command, *args)
       # Queue the command in the pipeline
-      @pipeline.call(command, *)
+      @pipeline.call(command, *args)
       # Create a placeholder future in the pipeline futures list (for "QUEUED")
       queued_future = Future.new([command, *args])
       @pipeline_futures << queued_future
@@ -863,10 +863,10 @@ class Redis
     end
 
     # Queue a command and return a Future
-    def call(command, *)
+    def call(command, *args)
       future = Future.new([command, *args])
       @futures << future
-      @transaction.call(command, *)
+      @transaction.call(command, *args)
       future
     end
 
