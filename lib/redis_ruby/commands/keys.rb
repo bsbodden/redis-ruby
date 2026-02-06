@@ -48,9 +48,7 @@ module RedisRuby
       # @return [Integer] number of keys deleted
       def del(*keys)
         # Fast path for single key (most common)
-        if keys.size == 1
-          return call_1arg(CMD_DEL, keys[0])
-        end
+        return call_1arg(CMD_DEL, keys[0]) if keys.size == 1
 
         call(CMD_DEL, *keys)
       end
@@ -61,9 +59,7 @@ module RedisRuby
       # @return [Integer] number of keys that exist
       def exists(*keys)
         # Fast path for single key (most common)
-        if keys.size == 1
-          return call_1arg(CMD_EXISTS, keys[0])
-        end
+        return call_1arg(CMD_EXISTS, keys[0]) if keys.size == 1
 
         call(CMD_EXISTS, *keys)
       end

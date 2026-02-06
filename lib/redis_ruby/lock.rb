@@ -143,11 +143,9 @@ module RedisRuby
       token = current_token
       raise LockNotOwnedError, "Cannot extend a lock that is not owned" unless token
 
-      new_timeout = if replace_ttl
-                      additional_time || @timeout
-                    else
-                      (additional_time || @timeout)
-                    end
+      if replace_ttl
+      end
+      new_timeout = additional_time || @timeout
 
       timeout_ms = (new_timeout * 1000).to_i
       result = @extend_script.call(keys: [@name], argv: [token, timeout_ms])
@@ -266,14 +264,10 @@ module RedisRuby
       deadline = blocking_timeout ? Time.now + blocking_timeout : nil
 
       loop do
-        if acquire_once(token, timeout_ms)
-          return true
-        end
+        return true if acquire_once(token, timeout_ms)
 
         # Check if we've exceeded the blocking timeout
-        if deadline && Time.now >= deadline
-          return false
-        end
+        return false if deadline && Time.now >= deadline
 
         # Sleep before retrying
         sleep(@sleep_interval)

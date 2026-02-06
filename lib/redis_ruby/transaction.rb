@@ -40,18 +40,18 @@ module RedisRuby
     end
 
     # Handle arbitrary commands that aren't explicitly defined
-    def method_missing(method_name, *args, **kwargs, &block)
+    def method_missing(method_name, *, **kwargs)
       # Convert method name to Redis command (e.g., :echo -> "ECHO")
       command = method_name.to_s.upcase
       if kwargs.empty?
-        call(command, *args)
+        call(command, *)
       else
         # Some commands might have keyword args - pass them as regular args
-        call(command, *args, **kwargs)
+        call(command, *, **kwargs)
       end
     end
 
-    def respond_to_missing?(method_name, include_private = false)
+    def respond_to_missing?(_method_name, _include_private = false)
       true
     end
 

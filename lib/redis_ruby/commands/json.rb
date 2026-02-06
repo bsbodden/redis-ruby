@@ -58,9 +58,7 @@ module RedisRuby
       def json_set(key, path, value, nx: false, xx: false)
         json_val = ::JSON.generate(value)
         # Fast path: no options
-        if !nx && !xx
-          return call_3args(CMD_JSON_SET, key, path, json_val)
-        end
+        return call_3args(CMD_JSON_SET, key, path, json_val) if !nx && !xx
 
         args = [key, path, json_val]
         args << OPT_NX if nx

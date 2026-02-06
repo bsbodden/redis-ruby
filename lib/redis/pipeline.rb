@@ -21,9 +21,7 @@ class Redis
       @transformation = nil
     end
 
-    def command
-      @command
-    end
+    attr_reader :command
 
     # Get the future's value
     #
@@ -72,7 +70,7 @@ class Redis
     end
 
     def is_a?(klass)
-      klass == ::Redis::Future || klass == ::BasicObject
+      [::Redis::Future, ::BasicObject].include?(klass)
     end
 
     def instance_of?(klass)
@@ -128,10 +126,10 @@ class Redis
     end
 
     # Queue a command and return a Future
-    def call(command, *args)
+    def call(command, *)
       future = Future.new([command, *args])
       @futures << future
-      @pipeline.call(command, *args)
+      @pipeline.call(command, *)
       future
     end
 
@@ -259,12 +257,12 @@ class Redis
       future.then { |values| keys.zip(values).to_h }
     end
 
-    def mset(*args)
-      call("MSET", *args)
+    def mset(*)
+      call("MSET", *)
     end
 
-    def msetnx(*args)
-      call("MSETNX", *args)
+    def msetnx(*)
+      call("MSETNX", *)
     end
 
     def setnx(key, value)
@@ -337,7 +335,12 @@ class Redis
 
     # Hash commands
     def hset(key, *field_values)
-      field_values.size == 2 ? call_3args("HSET", key, field_values[0], field_values[1]) : call("HSET", key, *field_values)
+      if field_values.size == 2
+        call_3args("HSET", key, field_values[0],
+                   field_values[1])
+      else
+        call("HSET", key, *field_values)
+      end
     end
 
     def hget(key, field)
@@ -577,13 +580,13 @@ class Redis
     def sadd?(key, *members)
       members = members.flatten
       future = members.length == 1 ? call_2args("SADD", key, members[0]) : call("SADD", key, *members)
-      future.then { |result| result > 0 }
+      future.then(&:positive?)
     end
 
     def srem?(key, *members)
       members = members.flatten
       future = members.length == 1 ? call_2args("SREM", key, members[0]) : call("SREM", key, *members)
-      future.then { |result| result > 0 }
+      future.then(&:positive?)
     end
 
     def zincrby(key, increment, member)
@@ -609,8 +612,8 @@ class Redis
       future.then { |result| parse_info(result) }
     end
 
-    def config(action, *args)
-      future = call("CONFIG", action.to_s.upcase, *args)
+    def config(action, *)
+      future = call("CONFIG", action.to_s.upcase, *)
       if action.to_s.downcase == "get"
         future.then { |result| result.is_a?(Array) ? Hash[*result] : result }
       else
@@ -650,12 +653,12 @@ class Redis
     end
 
     # Handle arbitrary method calls
-    def method_missing(method_name, *args, **kwargs, &block)
-      command = method_name.to_s.upcase.gsub("_", " ")
-      call(command, *args)
+    def method_missing(method_name, *, **_kwargs)
+      command = method_name.to_s.upcase.tr("_", " ")
+      call(command, *)
     end
 
-    def respond_to_missing?(method_name, include_private = false)
+    def respond_to_missing?(_method_name, _include_private = false)
       true
     end
 
@@ -723,9 +726,9 @@ class Redis
       @inner_futures = inner_futures
     end
 
-    def call(command, *args)
+    def call(command, *)
       # Queue the command in the pipeline
-      @pipeline.call(command, *args)
+      @pipeline.call(command, *)
       # Create a placeholder future in the pipeline futures list (for "QUEUED")
       queued_future = Future.new([command, *args])
       @pipeline_futures << queued_future
@@ -810,7 +813,12 @@ class Redis
     end
 
     def hset(key, *field_values)
-      field_values.size == 2 ? call_3args("HSET", key, field_values[0], field_values[1]) : call("HSET", key, *field_values)
+      if field_values.size == 2
+        call_3args("HSET", key, field_values[0],
+                   field_values[1])
+      else
+        call("HSET", key, *field_values)
+      end
     end
 
     def hget(key, field)
@@ -833,12 +841,12 @@ class Redis
     end
 
     # Handle arbitrary method calls
-    def method_missing(method_name, *args, **kwargs, &block)
-      command = method_name.to_s.upcase.gsub("_", " ")
-      call(command, *args)
+    def method_missing(method_name, *, **_kwargs)
+      command = method_name.to_s.upcase.tr("_", " ")
+      call(command, *)
     end
 
-    def respond_to_missing?(method_name, include_private = false)
+    def respond_to_missing?(_method_name, _include_private = false)
       true
     end
   end
@@ -855,10 +863,10 @@ class Redis
     end
 
     # Queue a command and return a Future
-    def call(command, *args)
+    def call(command, *)
       future = Future.new([command, *args])
       @futures << future
-      @transaction.call(command, *args)
+      @transaction.call(command, *)
       future
     end
 
@@ -890,9 +898,7 @@ class Redis
       return if results.nil?
 
       @futures.each_with_index do |future, index|
-        if index < results.length
-          future._set_value(results[index])
-        end
+        future._set_value(results[index]) if index < results.length
       end
     end
 
@@ -958,8 +964,8 @@ class Redis
       call("MGET", *keys)
     end
 
-    def mset(*args)
-      call("MSET", *args)
+    def mset(*)
+      call("MSET", *)
     end
 
     def append(key, value)
@@ -1000,7 +1006,12 @@ class Redis
 
     # Hash commands
     def hset(key, *field_values)
-      field_values.size == 2 ? call_3args("HSET", key, field_values[0], field_values[1]) : call("HSET", key, *field_values)
+      if field_values.size == 2
+        call_3args("HSET", key, field_values[0],
+                   field_values[1])
+      else
+        call("HSET", key, *field_values)
+      end
     end
 
     def hget(key, field)
@@ -1103,7 +1114,7 @@ class Redis
     def sadd?(key, *members)
       members = members.flatten
       future = members.size == 1 ? call_2args("SADD", key, members[0]) : call("SADD", key, *members)
-      future.then { |result| result > 0 }
+      future.then(&:positive?)
     end
 
     def srem(key, *members)
@@ -1114,7 +1125,7 @@ class Redis
     def srem?(key, *members)
       members = members.flatten
       future = members.size == 1 ? call_2args("SREM", key, members[0]) : call("SREM", key, *members)
-      future.then { |result| result > 0 }
+      future.then(&:positive?)
     end
 
     def sismember(key, member)
@@ -1271,16 +1282,16 @@ class Redis
 
     def exists?(*keys)
       future = keys.length == 1 ? call_1arg("EXISTS", keys[0]) : call("EXISTS", *keys)
-      future.then { |result| result > 0 }
+      future.then(&:positive?)
     end
 
     # Handle arbitrary method calls
-    def method_missing(method_name, *args, **kwargs, &block)
-      command = method_name.to_s.upcase.gsub("_", " ")
-      call(command, *args)
+    def method_missing(method_name, *, **_kwargs)
+      command = method_name.to_s.upcase.tr("_", " ")
+      call(command, *)
     end
 
-    def respond_to_missing?(method_name, include_private = false)
+    def respond_to_missing?(_method_name, _include_private = false)
       true
     end
 

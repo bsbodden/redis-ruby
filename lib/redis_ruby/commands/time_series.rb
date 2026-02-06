@@ -427,11 +427,11 @@ module RedisRuby
       # @return [Hash] Time series metadata
       def ts_info(key, debug: false)
         # Fast path: no options
-        if debug
-          result = call(CMD_TS_INFO, key, OPT_DEBUG)
-        else
-          result = call_1arg(CMD_TS_INFO, key)
-        end
+        result = if debug
+                   call(CMD_TS_INFO, key, OPT_DEBUG)
+                 else
+                   call_1arg(CMD_TS_INFO, key)
+                 end
         result.each_slice(2).to_h
       end
 

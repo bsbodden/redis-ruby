@@ -66,14 +66,10 @@ module RedisRuby
       #   redis.bitcount("mykey", 0, 7, "BIT")
       def bitcount(key, start = nil, stop = nil, mode = nil)
         # Fast path: just key (most common)
-        if start.nil? && stop.nil?
-          return call_1arg(CMD_BITCOUNT, key)
-        end
+        return call_1arg(CMD_BITCOUNT, key) if start.nil? && stop.nil?
 
         # Fast path: key with byte range, no mode
-        if start && stop && mode.nil?
-          return call_3args(CMD_BITCOUNT, key, start, stop)
-        end
+        return call_3args(CMD_BITCOUNT, key, start, stop) if start && stop && mode.nil?
 
         # Full path with mode
         if mode
@@ -99,14 +95,10 @@ module RedisRuby
       #   redis.bitpos("mykey", 0, 2, 4)
       def bitpos(key, bit, start = nil, stop = nil, mode = nil)
         # Fast path: no range
-        if start.nil? && stop.nil?
-          return call_2args(CMD_BITPOS, key, bit)
-        end
+        return call_2args(CMD_BITPOS, key, bit) if start.nil? && stop.nil?
 
         # Fast path: range without mode
-        if start && stop && mode.nil?
-          return call(CMD_BITPOS, key, bit, start, stop)
-        end
+        return call(CMD_BITPOS, key, bit, start, stop) if start && stop && mode.nil?
 
         cmd = [CMD_BITPOS, key, bit]
         cmd << start if start
@@ -129,9 +121,7 @@ module RedisRuby
       #   redis.bitop("NOT", "result", "key1")
       def bitop(operation, destkey, *keys)
         # Fast path for NOT (single key)
-        if keys.size == 1
-          return call_3args(CMD_BITOP, operation.to_s.upcase, destkey, keys[0])
-        end
+        return call_3args(CMD_BITOP, operation.to_s.upcase, destkey, keys[0]) if keys.size == 1
 
         call(CMD_BITOP, operation.to_s.upcase, destkey, *keys)
       end

@@ -425,9 +425,7 @@ module RedisRuby
       # @return [Hash] Command documentation
       def command_docs(*command_names)
         # Fast path for single command
-        if command_names.size == 1
-          return call_2args(CMD_COMMAND, SUBCMD_DOCS, command_names[0])
-        end
+        return call_2args(CMD_COMMAND, SUBCMD_DOCS, command_names[0]) if command_names.size == 1
 
         call(CMD_COMMAND, SUBCMD_DOCS, *command_names)
       end
@@ -438,9 +436,7 @@ module RedisRuby
       # @return [Hash] Command info
       def command_info(*command_names)
         # Fast path for single command
-        if command_names.size == 1
-          return call_2args(CMD_COMMAND, SUBCMD_INFO, command_names[0])
-        end
+        return call_2args(CMD_COMMAND, SUBCMD_INFO, command_names[0]) if command_names.size == 1
 
         call(CMD_COMMAND, SUBCMD_INFO, *command_names)
       end
@@ -475,14 +471,10 @@ module RedisRuby
       # @return [Integer] Number of events reset
       def latency_reset(*events)
         # Fast path for no events
-        if events.empty?
-          return call_1arg(CMD_LATENCY, SUBCMD_RESET)
-        end
+        return call_1arg(CMD_LATENCY, SUBCMD_RESET) if events.empty?
 
         # Fast path for single event
-        if events.size == 1
-          return call_2args(CMD_LATENCY, SUBCMD_RESET, events[0])
-        end
+        return call_2args(CMD_LATENCY, SUBCMD_RESET, events[0]) if events.size == 1
 
         call(CMD_LATENCY, SUBCMD_RESET, *events)
       end
@@ -503,9 +495,7 @@ module RedisRuby
       # @return [String] "OK"
       def module_load(path, *args)
         # Fast path for no args
-        if args.empty?
-          return call_2args(CMD_MODULE, SUBCMD_LOAD, path)
-        end
+        return call_2args(CMD_MODULE, SUBCMD_LOAD, path) if args.empty?
 
         call(CMD_MODULE, SUBCMD_LOAD, path, *args)
       end

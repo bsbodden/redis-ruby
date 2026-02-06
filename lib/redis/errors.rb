@@ -36,11 +36,11 @@ class Redis
     def initialize(message)
       super
       # Parse "MOVED 12345 127.0.0.1:6379" format
-      if message =~ /MOVED (\d+) ([^:]+):(\d+)/
-        @slot = ::Regexp.last_match(1).to_i
-        @host = ::Regexp.last_match(2)
-        @port = ::Regexp.last_match(3).to_i
-      end
+      return unless message =~ /MOVED (\d+) ([^:]+):(\d+)/
+
+      @slot = ::Regexp.last_match(1).to_i
+      @host = ::Regexp.last_match(2)
+      @port = ::Regexp.last_match(3).to_i
     end
   end
 
@@ -50,11 +50,11 @@ class Redis
     def initialize(message)
       super
       # Parse "ASK 12345 127.0.0.1:6379" format
-      if message =~ /ASK (\d+) ([^:]+):(\d+)/
-        @slot = ::Regexp.last_match(1).to_i
-        @host = ::Regexp.last_match(2)
-        @port = ::Regexp.last_match(3).to_i
-      end
+      return unless message =~ /ASK (\d+) ([^:]+):(\d+)/
+
+      @slot = ::Regexp.last_match(1).to_i
+      @host = ::Regexp.last_match(2)
+      @port = ::Regexp.last_match(3).to_i
     end
   end
 

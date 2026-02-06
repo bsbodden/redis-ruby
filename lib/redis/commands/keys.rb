@@ -14,7 +14,7 @@ class Redis
       def exists?(*keys)
         keys = keys.flatten
         if keys.length == 1
-          exists(keys[0]) > 0
+          exists(keys[0]).positive?
         else
           exists(*keys)
         end
@@ -32,7 +32,6 @@ class Redis
         enum = scan_iter(match: match, count: count, type: type)
         block ? enum.each(&block) : enum
       end
-
 
       # Expire in seconds, returns boolean
       #

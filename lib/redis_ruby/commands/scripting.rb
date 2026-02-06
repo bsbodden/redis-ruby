@@ -50,9 +50,7 @@ module RedisRuby
       #   redis.eval("return redis.call('SET', KEYS[1], ARGV[1])", 1, "key", "value")
       def eval(script, numkeys, *keys_and_args)
         # Fast path: no keys or args
-        if keys_and_args.empty?
-          return call_2args(CMD_EVAL, script, numkeys)
-        end
+        return call_2args(CMD_EVAL, script, numkeys) if keys_and_args.empty?
 
         call(CMD_EVAL, script, numkeys, *keys_and_args)
       end
@@ -72,9 +70,7 @@ module RedisRuby
       #   redis.evalsha(sha, 1, "mykey")
       def evalsha(sha, numkeys, *keys_and_args)
         # Fast path: no keys or args
-        if keys_and_args.empty?
-          return call_2args(CMD_EVALSHA, sha, numkeys)
-        end
+        return call_2args(CMD_EVALSHA, sha, numkeys) if keys_and_args.empty?
 
         call(CMD_EVALSHA, sha, numkeys, *keys_and_args)
       end
@@ -90,9 +86,7 @@ module RedisRuby
       # @return [Object] Script return value
       def eval_ro(script, numkeys, *keys_and_args)
         # Fast path: no keys or args
-        if keys_and_args.empty?
-          return call_2args(CMD_EVAL_RO, script, numkeys)
-        end
+        return call_2args(CMD_EVAL_RO, script, numkeys) if keys_and_args.empty?
 
         call(CMD_EVAL_RO, script, numkeys, *keys_and_args)
       end
@@ -107,9 +101,7 @@ module RedisRuby
       # @return [Object] Script return value
       def evalsha_ro(sha, numkeys, *keys_and_args)
         # Fast path: no keys or args
-        if keys_and_args.empty?
-          return call_2args(CMD_EVALSHA_RO, sha, numkeys)
-        end
+        return call_2args(CMD_EVALSHA_RO, sha, numkeys) if keys_and_args.empty?
 
         call(CMD_EVALSHA_RO, sha, numkeys, *keys_and_args)
       end

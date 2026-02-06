@@ -61,9 +61,7 @@ module RedisRuby
       # @return [Integer] Number of users deleted
       def acl_deluser(*usernames)
         # Fast path for single user
-        if usernames.size == 1
-          return call_2args(CMD_ACL, SUBCMD_DELUSER, usernames[0])
-        end
+        return call_2args(CMD_ACL, SUBCMD_DELUSER, usernames[0]) if usernames.size == 1
 
         call(CMD_ACL, SUBCMD_DELUSER, *usernames)
       end
@@ -160,8 +158,8 @@ module RedisRuby
       #
       # @example
       #   redis.acl_dryrun("testuser", "SET", "foo", "bar")
-      def acl_dryrun(username, *args)
-        call(CMD_ACL, SUBCMD_DRYRUN, username, *args)
+      def acl_dryrun(username, *)
+        call(CMD_ACL, SUBCMD_DRYRUN, username, *)
       end
     end
   end

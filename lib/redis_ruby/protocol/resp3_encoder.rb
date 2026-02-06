@@ -83,62 +83,36 @@ module RedisRuby
         argc = args.size
 
         # Ultra-fast path for GET key (most common)
-        if argc == 1 && command == "GET"
-          return encode_get_fast(args[0])
-        end
+        return encode_get_fast(args[0]) if argc == 1 && command == "GET"
 
         # Ultra-fast path for SET key value (second most common)
-        if argc == 2 && command == "SET"
-          return encode_set_fast(args[0], args[1])
-        end
+        return encode_set_fast(args[0], args[1]) if argc == 2 && command == "SET"
 
         # Fast path for hash commands
-        if argc == 2 && command == "HGET"
-          return encode_hget_fast(args[0], args[1])
-        end
+        return encode_hget_fast(args[0], args[1]) if argc == 2 && command == "HGET"
 
-        if argc == 3 && command == "HSET"
-          return encode_hset_fast(args[0], args[1], args[2])
-        end
+        return encode_hset_fast(args[0], args[1], args[2]) if argc == 3 && command == "HSET"
 
-        if argc == 2 && command == "HDEL"
-          return encode_hdel_fast(args[0], args[1])
-        end
+        return encode_hdel_fast(args[0], args[1]) if argc == 2 && command == "HDEL"
 
         # Fast path for list commands (single value)
-        if argc == 2 && command == "LPUSH"
-          return encode_lpush_fast(args[0], args[1])
-        end
+        return encode_lpush_fast(args[0], args[1]) if argc == 2 && command == "LPUSH"
 
-        if argc == 2 && command == "RPUSH"
-          return encode_rpush_fast(args[0], args[1])
-        end
+        return encode_rpush_fast(args[0], args[1]) if argc == 2 && command == "RPUSH"
 
-        if argc == 1 && command == "LPOP"
-          return encode_lpop_fast(args[0])
-        end
+        return encode_lpop_fast(args[0]) if argc == 1 && command == "LPOP"
 
-        if argc == 1 && command == "RPOP"
-          return encode_rpop_fast(args[0])
-        end
+        return encode_rpop_fast(args[0]) if argc == 1 && command == "RPOP"
 
         # Fast path for key commands
-        if argc == 2 && command == "EXPIRE"
-          return encode_expire_fast(args[0], args[1])
-        end
+        return encode_expire_fast(args[0], args[1]) if argc == 2 && command == "EXPIRE"
 
-        if argc == 1 && command == "TTL"
-          return encode_ttl_fast(args[0])
-        end
+        return encode_ttl_fast(args[0]) if argc == 1 && command == "TTL"
 
         # Fast path for batch commands
-        if command == "MGET" && argc > 0
-          return encode_mget_fast(args)
-        end
+        return encode_mget_fast(args) if command == "MGET" && argc.positive?
 
-        if command == "MSET" && argc > 0 && argc.even?
-          return encode_mset_fast(args)
-        end
+        return encode_mset_fast(args) if command == "MSET" && argc.positive? && argc.even?
 
         # Fast path for 0-2 args: check directly instead of iterating
         has_hash = case argc

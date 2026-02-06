@@ -119,9 +119,7 @@ module RedisRuby
       #   # => ["9q8yyk8yutp"]
       def geohash(key, *members)
         # Fast path for single member
-        if members.size == 1
-          return call_2args(CMD_GEOHASH, key, members[0])
-        end
+        return call_2args(CMD_GEOHASH, key, members[0]) if members.size == 1
 
         call(CMD_GEOHASH, key, *members)
       end

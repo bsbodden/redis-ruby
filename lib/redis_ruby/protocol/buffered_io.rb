@@ -243,7 +243,7 @@ module RedisRuby
         # Reset oversized buffer to prevent memory bloat
         if empty_buffer && buffer_size > BUFFER_CUTOFF
           @buffer = String.new(encoding: Encoding::BINARY, capacity: @chunk_size)
-          buffer_size = 0
+          0
         end
 
         remaining = min_bytes

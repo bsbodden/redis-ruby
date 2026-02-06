@@ -105,9 +105,7 @@ module RedisRuby
       # @return [Integer] number of members removed
       def zrem(key, *members)
         # Fast path for single member (most common)
-        if members.size == 1
-          return call_2args(CMD_ZREM, key, members[0])
-        end
+        return call_2args(CMD_ZREM, key, members[0]) if members.size == 1
 
         call(CMD_ZREM, key, *members)
       end
@@ -204,9 +202,7 @@ module RedisRuby
       #   redis.zrange("zset", "[c", "[a", bylex: true, rev: true, limit: [0, 5])
       def zrange(key, start, stop, byscore: false, bylex: false, rev: false, limit: nil, withscores: false)
         # Fast path: simple index range without options
-        if !byscore && !bylex && !rev && limit.nil? && !withscores
-          return call_3args(CMD_ZRANGE, key, start, stop)
-        end
+        return call_3args(CMD_ZRANGE, key, start, stop) if !byscore && !bylex && !rev && limit.nil? && !withscores
 
         args = [CMD_ZRANGE, key, start, stop]
         args.push(OPT_BYSCORE) if byscore
@@ -252,9 +248,7 @@ module RedisRuby
       # @return [Array] members, or [[member, score], ...] if withscores
       def zrevrange(key, start, stop, withscores: false)
         # Fast path: no withscores
-        unless withscores
-          return call_3args(CMD_ZREVRANGE, key, start, stop)
-        end
+        return call_3args(CMD_ZREVRANGE, key, start, stop) unless withscores
 
         args = [CMD_ZREVRANGE, key, start, stop]
         args.push(OPT_WITHSCORES) if withscores
@@ -274,9 +268,7 @@ module RedisRuby
       # @return [Array] members
       def zrangebyscore(key, min, max, withscores: false, limit: nil)
         # Fast path: no options
-        if !withscores && limit.nil?
-          return call_3args(CMD_ZRANGEBYSCORE, key, min, max)
-        end
+        return call_3args(CMD_ZRANGEBYSCORE, key, min, max) if !withscores && limit.nil?
 
         args = [CMD_ZRANGEBYSCORE, key, min, max]
         args.push(OPT_WITHSCORES) if withscores
@@ -297,9 +289,7 @@ module RedisRuby
       # @return [Array] members
       def zrevrangebyscore(key, max, min, withscores: false, limit: nil)
         # Fast path: no options
-        if !withscores && limit.nil?
-          return call_3args(CMD_ZREVRANGEBYSCORE, key, max, min)
-        end
+        return call_3args(CMD_ZREVRANGEBYSCORE, key, max, min) if !withscores && limit.nil?
 
         args = [CMD_ZREVRANGEBYSCORE, key, max, min]
         args.push(OPT_WITHSCORES) if withscores
@@ -619,9 +609,7 @@ module RedisRuby
       # @return [Array] members
       def zrangebylex(key, min, max, limit: nil)
         # Fast path: no limit
-        if limit.nil?
-          return call_3args(CMD_ZRANGEBYLEX, key, min, max)
-        end
+        return call_3args(CMD_ZRANGEBYLEX, key, min, max) if limit.nil?
 
         args = [CMD_ZRANGEBYLEX, key, min, max]
         args.push(OPT_LIMIT, *limit) if limit
@@ -637,9 +625,7 @@ module RedisRuby
       # @return [Array] members
       def zrevrangebylex(key, max, min, limit: nil)
         # Fast path: no limit
-        if limit.nil?
-          return call_3args(CMD_ZREVRANGEBYLEX, key, max, min)
-        end
+        return call_3args(CMD_ZREVRANGEBYLEX, key, max, min) if limit.nil?
 
         args = [CMD_ZREVRANGEBYLEX, key, max, min]
         args.push(OPT_LIMIT, *limit) if limit
@@ -664,14 +650,10 @@ module RedisRuby
       # @return [String, Array] single member or array of members (with scores if requested)
       def zrandmember(key, count = nil, withscores: false)
         # Fast path: just key
-        if count.nil? && !withscores
-          return call_1arg(CMD_ZRANDMEMBER, key)
-        end
+        return call_1arg(CMD_ZRANDMEMBER, key) if count.nil? && !withscores
 
         # Fast path: key + count, no withscores
-        if count && !withscores
-          return call_2args(CMD_ZRANDMEMBER, key, count)
-        end
+        return call_2args(CMD_ZRANDMEMBER, key, count) if count && !withscores
 
         args = [CMD_ZRANDMEMBER, key]
         args.push(count) if count

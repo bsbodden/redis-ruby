@@ -91,7 +91,7 @@ module RedisRuby
         def status_report
           lines = []
           lines << "YJIT Status Report"
-          lines << "-" * 40
+          lines << ("-" * 40)
 
           if !available?
             lines << "YJIT: Not available (Ruby built without YJIT)"

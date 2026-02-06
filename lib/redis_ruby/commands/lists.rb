@@ -37,9 +37,7 @@ module RedisRuby
       # @return [Integer] length of list after push
       def lpush(key, *values)
         # Fast path for single value (most common)
-        if values.size == 1
-          return call_2args(CMD_LPUSH, key, values[0])
-        end
+        return call_2args(CMD_LPUSH, key, values[0]) if values.size == 1
 
         call(CMD_LPUSH, key, *values)
       end
@@ -51,9 +49,7 @@ module RedisRuby
       # @return [Integer] length of list after push, or 0 if key doesn't exist
       def lpushx(key, *values)
         # Fast path for single value
-        if values.size == 1
-          return call_2args(CMD_LPUSHX, key, values[0])
-        end
+        return call_2args(CMD_LPUSHX, key, values[0]) if values.size == 1
 
         call(CMD_LPUSHX, key, *values)
       end
@@ -65,9 +61,7 @@ module RedisRuby
       # @return [Integer] length of list after push
       def rpush(key, *values)
         # Fast path for single value (most common)
-        if values.size == 1
-          return call_2args(CMD_RPUSH, key, values[0])
-        end
+        return call_2args(CMD_RPUSH, key, values[0]) if values.size == 1
 
         call(CMD_RPUSH, key, *values)
       end
@@ -79,9 +73,7 @@ module RedisRuby
       # @return [Integer] length of list after push, or 0 if key doesn't exist
       def rpushx(key, *values)
         # Fast path for single value
-        if values.size == 1
-          return call_2args(CMD_RPUSHX, key, values[0])
-        end
+        return call_2args(CMD_RPUSHX, key, values[0]) if values.size == 1
 
         call(CMD_RPUSHX, key, *values)
       end
@@ -243,9 +235,7 @@ module RedisRuby
       # @return [Integer, Array, nil] index, indices, or nil
       def lpos(key, element, rank: nil, count: nil, maxlen: nil)
         # Fast path: no options
-        if rank.nil? && count.nil? && maxlen.nil?
-          return call_2args(CMD_LPOS, key, element)
-        end
+        return call_2args(CMD_LPOS, key, element) if rank.nil? && count.nil? && maxlen.nil?
 
         args = [CMD_LPOS, key, element]
         args.push("RANK", rank) if rank

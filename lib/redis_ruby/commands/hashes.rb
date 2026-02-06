@@ -26,9 +26,7 @@ module RedisRuby
       # @return [Integer] 1 if field is new, 0 if updated
       def hset(key, *field_values)
         # Fast path for single field-value pair
-        if field_values.size == 2
-          return call_3args(CMD_HSET, key, field_values[0], field_values[1])
-        end
+        return call_3args(CMD_HSET, key, field_values[0], field_values[1]) if field_values.size == 2
 
         call(CMD_HSET, key, *field_values)
       end
@@ -89,9 +87,7 @@ module RedisRuby
       # @return [Integer] number of fields deleted
       def hdel(key, *fields)
         # Fast path for single field
-        if fields.size == 1
-          return call_2args(CMD_HDEL, key, fields[0])
-        end
+        return call_2args(CMD_HDEL, key, fields[0]) if fields.size == 1
 
         call(CMD_HDEL, key, *fields)
       end

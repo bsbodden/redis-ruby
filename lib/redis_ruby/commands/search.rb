@@ -209,9 +209,7 @@ module RedisRuby
       # @return [Array] [results, cursor_id]
       def ft_cursor_read(index_name, cursor_id, count: nil)
         # Fast path: no count
-        unless count
-          return call_3args(CMD_FT_CURSOR, SUBCMD_READ, index_name, cursor_id)
-        end
+        return call_3args(CMD_FT_CURSOR, SUBCMD_READ, index_name, cursor_id) unless count
 
         call(CMD_FT_CURSOR, SUBCMD_READ, index_name, cursor_id, OPT_COUNT, count)
       end
@@ -424,9 +422,7 @@ module RedisRuby
       # @return [Integer] Current dictionary size
       def ft_sugadd(key, string, score, incr: false, payload: nil)
         # Fast path: no options
-        if !incr && payload.nil?
-          return call_3args(CMD_FT_SUGADD, key, string, score)
-        end
+        return call_3args(CMD_FT_SUGADD, key, string, score) if !incr && payload.nil?
 
         args = [key, string, score]
         args << OPT_INCR if incr
@@ -445,9 +441,7 @@ module RedisRuby
       # @return [Array] Suggestions
       def ft_sugget(key, prefix, fuzzy: false, withscores: false, withpayloads: false, max: nil)
         # Fast path: no options
-        if !fuzzy && !withscores && !withpayloads && max.nil?
-          return call_2args(CMD_FT_SUGGET, key, prefix)
-        end
+        return call_2args(CMD_FT_SUGGET, key, prefix) if !fuzzy && !withscores && !withpayloads && max.nil?
 
         args = [key, prefix]
         args << OPT_FUZZY if fuzzy

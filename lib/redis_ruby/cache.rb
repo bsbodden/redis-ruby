@@ -60,7 +60,7 @@ module RedisRuby
       @ttl = ttl
       @mode = mode
       @cache = {}
-      @access_order = []  # LRU tracking
+      @access_order = [] # LRU tracking
       @monitor = Monitor.new
       @enabled = false
       @tracking_redirect_id = nil
@@ -75,7 +75,7 @@ module RedisRuby
       return true if @enabled
 
       # Enable tracking with appropriate mode
-      args = ["CLIENT", "TRACKING", "ON"]
+      args = %w[CLIENT TRACKING ON]
 
       case @mode
       when :optin
@@ -130,9 +130,7 @@ module RedisRuby
       end
 
       # Send CACHING YES if in OPTIN mode and cache requested
-      if @enabled && @mode == :optin && cache == true
-        @client.call("CLIENT", "CACHING", "YES")
-      end
+      @client.call("CLIENT", "CACHING", "YES") if @enabled && @mode == :optin && cache == true
 
       # Fetch from Redis
       value = @client.get(key)
@@ -203,7 +201,7 @@ module RedisRuby
           max_entries: @max_entries,
           enabled: @enabled,
           mode: @mode,
-          ttl: @ttl
+          ttl: @ttl,
         }
       end
     end

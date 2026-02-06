@@ -37,9 +37,7 @@ module RedisRuby
       #   # => 1
       def pfadd(key, *elements)
         # Fast path for single element (most common)
-        if elements.size == 1
-          return call_2args(CMD_PFADD, key, elements[0])
-        end
+        return call_2args(CMD_PFADD, key, elements[0]) if elements.size == 1
 
         call(CMD_PFADD, key, *elements)
       end
@@ -65,9 +63,7 @@ module RedisRuby
       #   # => 3 (unique: a, b, c)
       def pfcount(*keys)
         # Fast path for single key (most common)
-        if keys.size == 1
-          return call_1arg(CMD_PFCOUNT, keys[0])
-        end
+        return call_1arg(CMD_PFCOUNT, keys[0]) if keys.size == 1
 
         call(CMD_PFCOUNT, *keys)
       end
@@ -89,9 +85,7 @@ module RedisRuby
       #   # => 3
       def pfmerge(destkey, *sourcekeys)
         # Fast path for single source key
-        if sourcekeys.size == 1
-          return call_2args(CMD_PFMERGE, destkey, sourcekeys[0])
-        end
+        return call_2args(CMD_PFMERGE, destkey, sourcekeys[0]) if sourcekeys.size == 1
 
         call(CMD_PFMERGE, destkey, *sourcekeys)
       end

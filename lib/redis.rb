@@ -41,7 +41,7 @@ class Redis
     host: "localhost",
     port: 6379,
     db: 0,
-    timeout: 5.0
+    timeout: 5.0,
   }.freeze
 
   attr_reader :options
@@ -137,7 +137,7 @@ class Redis
       port: @options[:port],
       db: @options[:db],
       id: @id,
-      location: @options[:path] || "#{@options[:host]}:#{@options[:port]}"
+      location: @options[:path] || "#{@options[:host]}:#{@options[:port]}",
     }
   end
 
@@ -215,9 +215,7 @@ class Redis
       return nil if results.nil?
 
       # Handle transaction-level error
-      if results.is_a?(::RedisRuby::CommandError)
-        raise ErrorTranslation.translate(results)
-      end
+      raise ErrorTranslation.translate(results) if results.is_a?(::RedisRuby::CommandError)
 
       # Resolve futures - but only for non-error results
       # Error futures stay unresolved (FutureNotReady)
@@ -266,7 +264,9 @@ class Redis
 
   # Delegate string commands
   def set(key, value, ex: nil, px: nil, exat: nil, pxat: nil, nx: false, xx: false, keepttl: false, get: false)
-    with_error_translation { @client.set(key, value, ex: ex, px: px, exat: exat, pxat: pxat, nx: nx, xx: xx, keepttl: keepttl, get: get) }
+    with_error_translation do
+      @client.set(key, value, ex: ex, px: px, exat: exat, pxat: pxat, nx: nx, xx: xx, keepttl: keepttl, get: get)
+    end
   end
 
   def get(key)
@@ -629,7 +629,8 @@ class Redis
 
   def lmove(source, destination, wherefrom, whereto)
     raise ArgumentError, "where_source must be 'LEFT' or 'RIGHT'" unless %w[LEFT RIGHT].include?(wherefrom.to_s.upcase)
-    raise ArgumentError, "where_destination must be 'LEFT' or 'RIGHT'" unless %w[LEFT RIGHT].include?(whereto.to_s.upcase)
+    raise ArgumentError, "where_destination must be 'LEFT' or 'RIGHT'" unless %w[LEFT
+                                                                                 RIGHT].include?(whereto.to_s.upcase)
 
     with_error_translation { @client.lmove(source, destination, wherefrom, whereto) }
   end
@@ -762,13 +763,15 @@ class Redis
                       args.flatten
                     end
 
-    result = with_error_translation { @client.zadd(key, *score_members, nx: nx, xx: xx, gt: gt, lt: lt, ch: ch, incr: incr) }
+    result = with_error_translation do
+      @client.zadd(key, *score_members, nx: nx, xx: xx, gt: gt, lt: lt, ch: ch, incr: incr)
+    end
 
     # Return boolean for single member add (without incr), count otherwise
     if incr
       parse_float(result)
     elsif args.length == 2 && !args[0].is_a?(Array)
-      result > 0
+      result.positive?
     else
       result
     end
@@ -780,7 +783,7 @@ class Redis
 
     result = with_error_translation { @client.zrem(key, *members) }
     # Return boolean for single member, count for multiple
-    members.length == 1 ? result > 0 : result
+    members.length == 1 ? result.positive? : result
   end
 
   def zscore(key, member)
@@ -813,16 +816,22 @@ class Redis
     with_error_translation { @client.zcount(key, min, max) }
   end
 
-  def zrange(key, start, stop, byscore: false, bylex: false, rev: false, limit: nil, withscores: false, with_scores: false)
+  def zrange(key, start, stop, byscore: false, bylex: false, rev: false, limit: nil, withscores: false,
+             with_scores: false)
     use_scores = withscores || with_scores
-    result = with_error_translation { @client.zrange(key, start, stop, byscore: byscore, bylex: bylex, rev: rev, limit: limit, withscores: use_scores) }
+    result = with_error_translation do
+      @client.zrange(key, start, stop, byscore: byscore, bylex: bylex, rev: rev, limit: limit, withscores: use_scores)
+    end
     use_scores ? transform_scores(result) : result
   end
 
-  def zrangestore(destination, key, start, stop, byscore: false, by_score: false, bylex: false, by_lex: false, rev: false, limit: nil)
+  def zrangestore(destination, key, start, stop, byscore: false, by_score: false, bylex: false, by_lex: false,
+                  rev: false, limit: nil)
     use_byscore = byscore || by_score
     use_bylex = bylex || by_lex
-    with_error_translation { @client.zrangestore(destination, key, start, stop, byscore: use_byscore, bylex: use_bylex, rev: rev, limit: limit) }
+    with_error_translation do
+      @client.zrangestore(destination, key, start, stop, byscore: use_byscore, bylex: use_bylex, rev: rev, limit: limit)
+    end
   end
 
   def zrevrange(key, start, stop, withscores: false, with_scores: false)
@@ -890,13 +899,17 @@ class Redis
 
   def zunion(*keys, weights: nil, aggregate: nil, withscores: false, with_scores: false)
     use_scores = withscores || with_scores
-    result = with_error_translation { @client.zunion(keys, weights: weights, aggregate: aggregate, withscores: use_scores) }
+    result = with_error_translation do
+      @client.zunion(keys, weights: weights, aggregate: aggregate, withscores: use_scores)
+    end
     use_scores ? transform_scores(result) : result
   end
 
   def zinter(*keys, weights: nil, aggregate: nil, withscores: false, with_scores: false)
     use_scores = withscores || with_scores
-    result = with_error_translation { @client.zinter(keys, weights: weights, aggregate: aggregate, withscores: use_scores) }
+    result = with_error_translation do
+      @client.zinter(keys, weights: weights, aggregate: aggregate, withscores: use_scores)
+    end
     use_scores ? transform_scores(result) : result
   end
 
@@ -989,13 +1002,14 @@ class Redis
   def eval(*args, keys: nil, argv: nil)
     # Support both positional and keyword arguments
     # redis-rb: eval(script, keys, argv) or eval(script, keys: [...], argv: [...])
-    if args.length == 1
+    case args.length
+    when 1
       script = args[0]
       keys ||= []
       argv ||= []
-    elsif args.length == 3
+    when 3
       script, keys, argv = args
-    elsif args.length == 2
+    when 2
       script, keys = args
       argv ||= []
     else
@@ -1009,13 +1023,14 @@ class Redis
 
   def evalsha(*args, keys: nil, argv: nil)
     # Support both positional and keyword arguments
-    if args.length == 1
+    case args.length
+    when 1
       sha = args[0]
       keys ||= []
       argv ||= []
-    elsif args.length == 3
+    when 3
       sha, keys, argv = args
-    elsif args.length == 2
+    when 2
       sha, keys = args
       argv ||= []
     else
@@ -1052,15 +1067,15 @@ class Redis
       # Called with array: script(:exists, [a, b]) -> returns array
       shas = shas[0]
       result = with_error_translation { @client.script_exists(*shas) }
-      result.map { |v| v == 1 || v == true }
+      result.map { |v| [1, true].include?(v) }
     elsif shas.length == 1
       # Called with single SHA: script(:exists, sha) -> returns single boolean
       result = with_error_translation { @client.script_exists(shas[0]) }
-      result.map { |v| v == 1 || v == true }.first
+      result.map { |v| [1, true].include?(v) }.first
     else
       # Called with multiple SHAs as varargs
       result = with_error_translation { @client.script_exists(*shas) }
-      result.map { |v| v == 1 || v == true }
+      result.map { |v| [1, true].include?(v) }
     end
   end
 
@@ -1122,13 +1137,13 @@ class Redis
 
   def bitcount(key, start_pos = nil, end_pos = nil, scale: nil)
     # redis-rb uses :scale keyword, redis-ruby uses positional mode argument
-    mode = scale ? scale.to_s.upcase : nil
+    mode = scale&.to_s&.upcase
     with_error_translation { @client.bitcount(key, start_pos, end_pos, mode) }
   end
 
   def bitpos(key, bit, start_pos = nil, end_pos = nil, scale: nil)
     # redis-rb uses :scale keyword, redis-ruby uses positional mode argument
-    mode = scale ? scale.to_s.upcase : nil
+    mode = scale&.to_s&.upcase
     with_error_translation { @client.bitpos(key, bit, start_pos, end_pos, mode) }
   end
 
@@ -1278,9 +1293,7 @@ class Redis
   # Create the underlying client
   def create_client
     # Handle Sentinel configuration
-    if @options[:sentinels] && @options[:name]
-      return create_sentinel_client
-    end
+    return create_sentinel_client if @options[:sentinels] && @options[:name]
 
     # Create standard client
     ::RedisRuby::Client.new(

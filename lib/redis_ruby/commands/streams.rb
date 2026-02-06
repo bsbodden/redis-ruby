@@ -123,9 +123,7 @@ module RedisRuby
       # @return [Array<Array>] Array of [id, {fields}] pairs
       def xrange(key, start, stop, count: nil)
         # Fast path: no count
-        if count.nil?
-          return parse_entries(call_3args(CMD_XRANGE, key, start, stop))
-        end
+        return parse_entries(call_3args(CMD_XRANGE, key, start, stop)) if count.nil?
 
         cmd = [CMD_XRANGE, key, start, stop]
         cmd << OPT_COUNT << count if count
@@ -141,9 +139,7 @@ module RedisRuby
       # @return [Array<Array>] Array of [id, {fields}] pairs
       def xrevrange(key, stop, start, count: nil)
         # Fast path: no count
-        if count.nil?
-          return parse_entries(call_3args(CMD_XREVRANGE, key, stop, start))
-        end
+        return parse_entries(call_3args(CMD_XREVRANGE, key, stop, start)) if count.nil?
 
         cmd = [CMD_XREVRANGE, key, stop, start]
         cmd << OPT_COUNT << count if count
@@ -277,9 +273,7 @@ module RedisRuby
       # @return [Integer] Number of acknowledged entries
       def xack(key, group, *ids)
         # Fast path for single ID
-        if ids.size == 1
-          return call(CMD_XACK, key, group, ids[0])
-        end
+        return call(CMD_XACK, key, group, ids[0]) if ids.size == 1
 
         call(CMD_XACK, key, group, *ids)
       end
@@ -401,9 +395,7 @@ module RedisRuby
       # @return [Integer] Number of deleted entries
       def xdel(key, *ids)
         # Fast path for single ID
-        if ids.size == 1
-          return call_2args(CMD_XDEL, key, ids[0])
-        end
+        return call_2args(CMD_XDEL, key, ids[0]) if ids.size == 1
 
         call(CMD_XDEL, key, *ids)
       end

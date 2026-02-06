@@ -69,9 +69,7 @@ module RedisRuby
       #   redis.function_list(library_name: "mylib", with_code: true)
       def function_list(library_name: nil, with_code: false)
         # Fast path: no filters
-        if library_name.nil? && !with_code
-          return call_1arg(CMD_FUNCTION, SUBCMD_LIST)
-        end
+        return call_1arg(CMD_FUNCTION, SUBCMD_LIST) if library_name.nil? && !with_code
 
         args = [CMD_FUNCTION, SUBCMD_LIST]
         args.push(OPT_LIBRARYNAME, library_name) if library_name
@@ -137,9 +135,7 @@ module RedisRuby
       #   redis.fcall("myfunc", keys: ["key1"], args: ["arg1"])
       def fcall(name, keys: [], args: [])
         # Fast path: no keys or args
-        if keys.empty? && args.empty?
-          return call_2args(CMD_FCALL, name, 0)
-        end
+        return call_2args(CMD_FCALL, name, 0) if keys.empty? && args.empty?
 
         call(CMD_FCALL, name, keys.size, *keys, *args)
       end
@@ -155,9 +151,7 @@ module RedisRuby
       # @return [Object] Function return value
       def fcall_ro(name, keys: [], args: [])
         # Fast path: no keys or args
-        if keys.empty? && args.empty?
-          return call_2args(CMD_FCALL_RO, name, 0)
-        end
+        return call_2args(CMD_FCALL_RO, name, 0) if keys.empty? && args.empty?
 
         call(CMD_FCALL_RO, name, keys.size, *keys, *args)
       end

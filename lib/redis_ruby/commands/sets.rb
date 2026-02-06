@@ -37,9 +37,7 @@ module RedisRuby
       # @return [Integer] number of members added (not already present)
       def sadd(key, *members)
         # Fast path for single member (most common)
-        if members.size == 1
-          return call_2args(CMD_SADD, key, members[0])
-        end
+        return call_2args(CMD_SADD, key, members[0]) if members.size == 1
 
         call(CMD_SADD, key, *members)
       end
@@ -51,9 +49,7 @@ module RedisRuby
       # @return [Integer] number of members removed
       def srem(key, *members)
         # Fast path for single member (most common)
-        if members.size == 1
-          return call_2args(CMD_SREM, key, members[0])
-        end
+        return call_2args(CMD_SREM, key, members[0]) if members.size == 1
 
         call(CMD_SREM, key, *members)
       end
@@ -199,9 +195,7 @@ module RedisRuby
       # @return [Array] [next_cursor, members]
       def sscan(key, cursor, match: nil, count: nil)
         # Fast path: no options
-        if match.nil? && count.nil?
-          return call_2args(CMD_SSCAN, key, cursor)
-        end
+        return call_2args(CMD_SSCAN, key, cursor) if match.nil? && count.nil?
 
         args = [CMD_SSCAN, key, cursor]
         args.push(OPT_MATCH, match) if match

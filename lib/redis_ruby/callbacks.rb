@@ -29,7 +29,7 @@ module RedisRuby
       "DEBUG OBJECT" => ->(r) { parse_debug_object(r) },
       "MEMORY STATS" => ->(r) { r.is_a?(Array) ? r.each_slice(2).to_h : r },
       "CONFIG GET" => ->(r) { r.is_a?(Array) ? r.each_slice(2).to_h : r },
-      "ACL LOG" => ->(r) { r.is_a?(Array) ? r.map { |e| e.each_slice(2).to_h } : r }
+      "ACL LOG" => ->(r) { r.is_a?(Array) ? r.map { |e| e.each_slice(2).to_h } : r },
     }.freeze
 
     def initialize
@@ -75,14 +75,10 @@ module RedisRuby
       cmd = normalize_command(command)
 
       # Check custom callbacks first
-      if @callbacks.key?(cmd)
-        return @callbacks[cmd].call(response)
-      end
+      return @callbacks[cmd].call(response) if @callbacks.key?(cmd)
 
       # Check defaults
-      if DEFAULTS.key?(cmd)
-        return DEFAULTS[cmd].call(response)
-      end
+      return DEFAULTS[cmd].call(response) if DEFAULTS.key?(cmd)
 
       # No callback, return as-is
       response

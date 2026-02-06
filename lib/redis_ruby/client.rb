@@ -342,7 +342,7 @@ module RedisRuby
     # Ensure connection is established
     # Optimized: avoid safe navigation for hot path
     def ensure_connected
-      return if @connection && @connection.connected?
+      return if @connection&.connected?
 
       @connection = create_connection
       authenticate if @password

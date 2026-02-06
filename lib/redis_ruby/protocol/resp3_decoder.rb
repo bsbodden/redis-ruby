@@ -77,14 +77,10 @@ module RedisRuby
         end
 
         # Fast path: INTEGER is very common (INCR, EXISTS, etc.)
-        if type_byte == INTEGER
-          return read_integer
-        end
+        return read_integer if type_byte == INTEGER
 
         # Fast path: SIMPLE_STRING (OK response from SET)
-        if type_byte == SIMPLE_STRING
-          return read_line
-        end
+        return read_line if type_byte == SIMPLE_STRING
 
         # Fast path: ARRAY (pipeline responses, MGET, etc.)
         if type_byte == ARRAY

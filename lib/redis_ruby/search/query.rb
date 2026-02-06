@@ -277,7 +277,7 @@ module RedisRuby
           when :numeric
             parts << "@#{filter[:field]}:[#{filter[:min]} #{filter[:max]}]"
           when :tag
-            parts << "@#{filter[:field]}:{#{filter[:values].join(' | ')}}"
+            parts << "@#{filter[:field]}:{#{filter[:values].join(" | ")}}"
           end
         end
 
@@ -346,7 +346,7 @@ module RedisRuby
             @geo_filter[:lon],
             @geo_filter[:lat],
             @geo_filter[:radius],
-            @geo_filter[:unit].to_s
+            @geo_filter[:unit].to_s,
           ]
         end
 
@@ -477,7 +477,7 @@ module RedisRuby
           opts[:groupby] = @group_by.map do |g|
             {
               fields: g[:fields],
-              reducers: g[:reducers].map(&:to_args)
+              reducers: g[:reducers].map(&:to_args),
             }
           end
         end
@@ -489,13 +489,9 @@ module RedisRuby
 
         opts[:limit] = [@limit_offset, @limit_num]
 
-        unless @apply.empty?
-          opts[:apply] = @apply
-        end
+        opts[:apply] = @apply unless @apply.empty?
 
-        unless @filter.empty?
-          opts[:filter] = @filter
-        end
+        opts[:filter] = @filter unless @filter.empty?
 
         opts[:dialect] = @dialect if @dialect
 

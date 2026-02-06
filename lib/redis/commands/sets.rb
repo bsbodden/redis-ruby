@@ -14,7 +14,7 @@ class Redis
       # @return [Boolean] true if at least one member was added
       def sadd?(key, *members)
         members = members.flatten
-        sadd(key, *members) > 0
+        sadd(key, *members).positive?
       end
 
       # Remove member(s) from a set, returning boolean for single member
@@ -26,7 +26,7 @@ class Redis
       # @return [Boolean] true if at least one member was removed
       def srem?(key, *members)
         members = members.flatten
-        srem(key, *members) > 0
+        srem(key, *members).positive?
       end
 
       # Check if member exists in set, returns boolean

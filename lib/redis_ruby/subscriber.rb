@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require "thread"
-
 module RedisRuby
   # Background subscriber for Redis Pub/Sub
   #
@@ -205,7 +203,7 @@ module RedisRuby
         host: client.host,
         port: client.port,
         db: client.db,
-        timeout: client.timeout
+        timeout: client.timeout,
       }
     end
 
@@ -223,9 +221,7 @@ module RedisRuby
       @connection = create_connection
 
       # Select database if not default
-      if @client_config[:db] && @client_config[:db] != 0
-        @connection.call("SELECT", @client_config[:db])
-      end
+      @connection.call("SELECT", @client_config[:db]) if @client_config[:db] && @client_config[:db] != 0
 
       # Send initial subscriptions
       send_subscriptions
@@ -256,17 +252,13 @@ module RedisRuby
 
     # Send all subscription commands
     def send_subscriptions
-      unless @channels.empty?
-        @connection.call("SUBSCRIBE", *@channels)
-      end
+      @connection.call("SUBSCRIBE", *@channels) unless @channels.empty?
 
-      unless @patterns.empty?
-        @connection.call("PSUBSCRIBE", *@patterns)
-      end
+      @connection.call("PSUBSCRIBE", *@patterns) unless @patterns.empty?
 
-      unless @shard_channels.empty?
-        @connection.call("SSUBSCRIBE", *@shard_channels)
-      end
+      return if @shard_channels.empty?
+
+      @connection.call("SSUBSCRIBE", *@shard_channels)
     end
 
     # Read a message from the connection
@@ -299,9 +291,9 @@ module RedisRuby
     end
 
     # Call a registered callback
-    def call_callback(type, *args)
+    def call_callback(type, *)
       callback = @callbacks[type]
-      callback&.call(*args)
+      callback&.call(*)
     rescue StandardError => e
       handle_error(e)
     end

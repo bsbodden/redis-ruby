@@ -102,9 +102,7 @@ module RedisRuby
       #   redis.bf_reserve("myfilter", 0.01, 1000)
       def bf_reserve(key, error_rate, capacity, expansion: nil, nonscaling: false)
         # Fast path: no options
-        if expansion.nil? && !nonscaling
-          return call_3args(CMD_BF_RESERVE, key, error_rate, capacity)
-        end
+        return call_3args(CMD_BF_RESERVE, key, error_rate, capacity) if expansion.nil? && !nonscaling
 
         args = [key, error_rate, capacity]
         args.push(OPT_EXPANSION, expansion) if expansion
@@ -217,9 +215,7 @@ module RedisRuby
       # @return [String] "OK"
       def cf_reserve(key, capacity, bucketsize: nil, maxiterations: nil, expansion: nil)
         # Fast path: no options
-        if bucketsize.nil? && maxiterations.nil? && expansion.nil?
-          return call_2args(CMD_CF_RESERVE, key, capacity)
-        end
+        return call_2args(CMD_CF_RESERVE, key, capacity) if bucketsize.nil? && maxiterations.nil? && expansion.nil?
 
         args = [key, capacity]
         args.push(OPT_BUCKETSIZE, bucketsize) if bucketsize
@@ -407,9 +403,7 @@ module RedisRuby
       # @return [String] "OK"
       def topk_reserve(key, k, width: nil, depth: nil, decay: nil)
         # Fast path: no options
-        if width.nil? && depth.nil? && decay.nil?
-          return call_2args(CMD_TOPK_RESERVE, key, k)
-        end
+        return call_2args(CMD_TOPK_RESERVE, key, k) if width.nil? && depth.nil? && decay.nil?
 
         args = [key, k]
         args << width if width
