@@ -299,7 +299,7 @@ module RedisRuby
           cmd << consumer if consumer
           call(*cmd)
         else
-          call_3args(CMD_XPENDING, key, group)
+          call(CMD_XPENDING, key, group)
         end
       end
 
@@ -382,7 +382,7 @@ module RedisRuby
       # @param key [String] Stream key
       # @return [Array<Hash>] Group information
       def xinfo_groups(key)
-        call_3args(CMD_XINFO, SUBCMD_GROUPS, key).map { |g| hash_result(g) }
+        call(CMD_XINFO, SUBCMD_GROUPS, key).map { |g| hash_result(g) }
       end
 
       # Get consumers info for a group

@@ -49,6 +49,7 @@ module RedisRuby
       OPT_GT = "GT"
       OPT_LT = "LT"
       OPT_CH = "CH"
+      OPT_INCR = "INCR"
       OPT_BYSCORE = "BYSCORE"
       OPT_BYLEX = "BYLEX"
       OPT_REV = "REV"
@@ -58,6 +59,21 @@ module RedisRuby
       OPT_COUNT = "COUNT"
       OPT_WEIGHTS = "WEIGHTS"
       OPT_AGGREGATE = "AGGREGATE"
+
+      # Convert score value to Float, handling infinity
+      def parse_score(value)
+        return nil if value.nil?
+        return value if value.is_a?(Float)
+
+        case value.to_s
+        when "inf", "+inf"
+          Float::INFINITY
+        when "-inf"
+          -Float::INFINITY
+        else
+          Float(value)
+        end
+      end
 
       # Add one or more members to a sorted set
       #
@@ -70,13 +86,14 @@ module RedisRuby
       # @param lt [Boolean] only update if new score < current
       # @param ch [Boolean] return number of changed elements
       # @return [Integer] number of elements added (or changed if ch)
-      def zadd(key, *score_members, nx: false, xx: false, gt: false, lt: false, ch: false)
+      def zadd(key, *score_members, nx: false, xx: false, gt: false, lt: false, ch: false, incr: false)
         args = [CMD_ZADD, key]
         args.push(OPT_NX) if nx
         args.push(OPT_XX) if xx
         args.push(OPT_GT) if gt
         args.push(OPT_LT) if lt
         args.push(OPT_CH) if ch
+        args.push(OPT_INCR) if incr
         args.push(*score_members.flatten)
         call(*args)
       end
@@ -102,7 +119,7 @@ module RedisRuby
       # @return [Float, nil] score or nil if member doesn't exist
       def zscore(key, member)
         result = call_2args(CMD_ZSCORE, key, member)
-        result&.to_f
+        parse_score(result)
       end
 
       # Get the scores of multiple members
@@ -112,7 +129,7 @@ module RedisRuby
       # @return [Array<Float, nil>] scores
       def zmscore(key, *members)
         result = call(CMD_ZMSCORE, key, *members)
-        result.map { |s| s&.to_f }
+        result.map { |s| parse_score(s) }
       end
 
       # Get the rank of a member (0-based, low to high)
@@ -120,17 +137,26 @@ module RedisRuby
       # @param key [String]
       # @param member [String]
       # @return [Integer, nil] rank or nil if member doesn't exist
-      def zrank(key, member)
-        call_2args(CMD_ZRANK, key, member)
+      def zrank(key, member, withscore: false)
+        if withscore
+          call(CMD_ZRANK, key, member, "WITHSCORE")
+        else
+          call_2args(CMD_ZRANK, key, member)
+        end
       end
 
       # Get the rank of a member (0-based, high to low)
       #
       # @param key [String]
       # @param member [String]
+      # @param withscore [Boolean] also return score
       # @return [Integer, nil] rank or nil if member doesn't exist
-      def zrevrank(key, member)
-        call_2args(CMD_ZREVRANK, key, member)
+      def zrevrank(key, member, withscore: false)
+        if withscore
+          call(CMD_ZREVRANK, key, member, "WITHSCORE")
+        else
+          call_2args(CMD_ZREVRANK, key, member)
+        end
       end
 
       # Get the number of members in a sorted set
@@ -191,7 +217,7 @@ module RedisRuby
         result = call(*args)
         return result unless withscores
 
-        result.each_slice(2).map { |m, s| [m, s.to_f] }
+        result.each_slice(2).map { |m, s| [m, parse_score(s)] }
       end
 
       # Store range results in a destination key (Redis 6.2+)
@@ -235,7 +261,7 @@ module RedisRuby
         result = call(*args)
         return result unless withscores
 
-        result.each_slice(2).map { |m, s| [m, s.to_f] }
+        result.each_slice(2).map { |m, s| [m, parse_score(s)] }
       end
 
       # Get members in a score range (low to high)
@@ -258,7 +284,7 @@ module RedisRuby
         result = call(*args)
         return result unless withscores
 
-        result.each_slice(2).map { |m, s| [m, s.to_f] }
+        result.each_slice(2).map { |m, s| [m, parse_score(s)] }
       end
 
       # Get members in a score range (high to low)
@@ -281,7 +307,7 @@ module RedisRuby
         result = call(*args)
         return result unless withscores
 
-        result.each_slice(2).map { |m, s| [m, s.to_f] }
+        result.each_slice(2).map { |m, s| [m, parse_score(s)] }
       end
 
       # Increment the score of a member
@@ -291,7 +317,7 @@ module RedisRuby
       # @param member [String]
       # @return [Float] new score
       def zincrby(key, increment, member)
-        call_3args(CMD_ZINCRBY, key, increment, member).to_f
+        parse_score(call_3args(CMD_ZINCRBY, key, increment, member))
       end
 
       # Remove members in a rank range
@@ -318,7 +344,7 @@ module RedisRuby
       #
       # @param key [String]
       # @param count [Integer] number of members to pop
-      # @return [Array] [[member, score], ...] or nil
+      # @return [Array] [member, score] without count, [[member, score], ...] with count, or nil
       def zpopmin(key, count = nil)
         result = if count
                    call_2args(CMD_ZPOPMIN, key, count)
@@ -327,14 +353,16 @@ module RedisRuby
                  end
         return nil if result.nil? || result.empty?
 
-        result.each_slice(2).map { |m, s| [m, s.to_f] }
+        pairs = result.each_slice(2).map { |m, s| [m, parse_score(s)] }
+        # Without count, return single pair [member, score]; with count, return [[member, score], ...]
+        count ? pairs : pairs[0]
       end
 
       # Remove and return members with highest scores
       #
       # @param key [String]
       # @param count [Integer] number of members to pop
-      # @return [Array] [[member, score], ...] or nil
+      # @return [Array] [member, score] without count, [[member, score], ...] with count, or nil
       def zpopmax(key, count = nil)
         result = if count
                    call_2args(CMD_ZPOPMAX, key, count)
@@ -343,7 +371,9 @@ module RedisRuby
                  end
         return nil if result.nil? || result.empty?
 
-        result.each_slice(2).map { |m, s| [m, s.to_f] }
+        pairs = result.each_slice(2).map { |m, s| [m, parse_score(s)] }
+        # Without count, return single pair [member, score]; with count, return [[member, score], ...]
+        count ? pairs : pairs[0]
       end
 
       # Blocking pop from sorted set (lowest scores)
@@ -355,7 +385,7 @@ module RedisRuby
         result = call(CMD_BZPOPMIN, *keys, timeout)
         return nil if result.nil?
 
-        [result[0], result[1], result[2].to_f]
+        [result[0], result[1], parse_score(result[2])]
       end
 
       # Blocking pop from sorted set (highest scores)
@@ -367,7 +397,7 @@ module RedisRuby
         result = call(CMD_BZPOPMAX, *keys, timeout)
         return nil if result.nil?
 
-        [result[0], result[1], result[2].to_f]
+        [result[0], result[1], parse_score(result[2])]
       end
 
       # Incrementally iterate sorted set members
@@ -381,7 +411,7 @@ module RedisRuby
         # Fast path: no options
         if match.nil? && count.nil?
           cursor_result, pairs = call_2args(CMD_ZSCAN, key, cursor)
-          members = pairs.each_slice(2).map { |m, s| [m, s.to_f] }
+          members = pairs.each_slice(2).map { |m, s| [m, parse_score(s)] }
           return [cursor_result, members]
         end
 
@@ -389,7 +419,7 @@ module RedisRuby
         args.push(OPT_MATCH, match) if match
         args.push(OPT_COUNT, count) if count
         cursor_result, pairs = call(*args)
-        members = pairs.each_slice(2).map { |m, s| [m, s.to_f] }
+        members = pairs.each_slice(2).map { |m, s| [m, parse_score(s)] }
         [cursor_result, members]
       end
 
@@ -459,7 +489,7 @@ module RedisRuby
         result = call(*args)
         return result unless withscores
 
-        result.each_slice(2).map { |m, s| [m, s.to_f] }
+        result.each_slice(2).map { |m, s| [m, parse_score(s)] }
       end
 
       # Get the intersection of sorted sets (Redis 6.2+)
@@ -477,7 +507,7 @@ module RedisRuby
         result = call(*args)
         return result unless withscores
 
-        result.each_slice(2).map { |m, s| [m, s.to_f] }
+        result.each_slice(2).map { |m, s| [m, parse_score(s)] }
       end
 
       # Get the difference of sorted sets (Redis 6.2+)
@@ -491,7 +521,7 @@ module RedisRuby
         result = call(*args)
         return result unless withscores
 
-        result.each_slice(2).map { |m, s| [m, s.to_f] }
+        result.each_slice(2).map { |m, s| [m, parse_score(s)] }
       end
 
       # Store the difference of sorted sets (Redis 6.2+)
@@ -547,7 +577,7 @@ module RedisRuby
 
         # Response format is [key, [[member, score], [member, score], ...]]
         key = result[0]
-        members = result[1].map { |pair| [pair[0], pair[1].to_f] }
+        members = result[1].map { |pair| [pair[0], parse_score(pair[1])] }
         [key, members]
       end
 
@@ -566,7 +596,7 @@ module RedisRuby
 
         # Response format is [key, [[member, score], [member, score], ...]]
         key = result[0]
-        members = result[1].map { |pair| [pair[0], pair[1].to_f] }
+        members = result[1].map { |pair| [pair[0], parse_score(pair[1])] }
         [key, members]
       end
 
@@ -651,7 +681,7 @@ module RedisRuby
 
         # Handle withscores response
         if withscores && count && result
-          result.each_slice(2).map { |m, s| [m, s.to_f] }
+          result.each_slice(2).map { |m, s| [m, parse_score(s)] }
         else
           result
         end

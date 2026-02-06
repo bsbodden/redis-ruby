@@ -237,7 +237,7 @@ module RedisRuby
       return result unless block
 
       begin
-        yield
+        yield self
       ensure
         @connection.call(CMD_UNWATCH)
       end

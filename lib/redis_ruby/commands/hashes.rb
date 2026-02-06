@@ -153,9 +153,10 @@ module RedisRuby
       # @param key [String]
       # @param field [String]
       # @param increment [Float]
-      # @return [String] value after increment (as string)
+      # @return [Float] value after increment
       def hincrbyfloat(key, field, increment)
-        call("HINCRBYFLOAT", key, field, increment)
+        result = call("HINCRBYFLOAT", key, field, increment)
+        result.is_a?(String) ? Float(result) : result
       end
 
       # Incrementally iterate hash fields and values
@@ -164,12 +165,15 @@ module RedisRuby
       # @param cursor [Integer] cursor position (0 to start)
       # @param match [String, nil] pattern to match
       # @param count [Integer, nil] hint for number of elements
-      # @return [Array] [next_cursor, [field, value, ...]]
+      # @return [Array] [next_cursor, [[field, value], ...]]
       def hscan(key, cursor, match: nil, count: nil)
         args = ["HSCAN", key, cursor]
         args.push("MATCH", match) if match
         args.push("COUNT", count) if count
-        call(*args)
+        cursor_result, data = call(*args)
+        # Convert flat array [f1, v1, f2, v2] to nested [[f1, v1], [f2, v2]]
+        pairs = data.each_slice(2).to_a
+        [cursor_result, pairs]
       end
 
       # Get random fields from a hash
@@ -177,12 +181,14 @@ module RedisRuby
       # @param key [String]
       # @param count [Integer, nil] number of fields to return
       # @param withvalues [Boolean] include values
-      # @return [String, Array] random field(s), or field-value pairs
+      # @return [String, Array] random field(s), or [[field, value], ...] if withvalues
       def hrandfield(key, count: nil, withvalues: false)
         args = ["HRANDFIELD", key]
         args.push(count) if count
         args.push("WITHVALUES") if withvalues
-        call(*args)
+        result = call(*args)
+        # Convert flat array [f1, v1, f2, v2] to nested [[f1, v1], [f2, v2]] when withvalues
+        withvalues && result.is_a?(Array) ? result.each_slice(2).to_a : result
       end
 
       # Set expiration (seconds) on hash fields (Redis 7.4+)
@@ -302,8 +308,8 @@ module RedisRuby
         Enumerator.new do |yielder|
           cursor = "0"
           loop do
-            cursor, data = hscan(key, cursor, match: match, count: count)
-            data.each_slice(2) { |field, value| yielder << [field, value] }
+            cursor, pairs = hscan(key, cursor, match: match, count: count)
+            pairs.each { |field, value| yielder << [field, value] }
             break if cursor == "0"
           end
         end

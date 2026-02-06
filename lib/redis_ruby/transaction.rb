@@ -39,6 +39,22 @@ module RedisRuby
       @commands = []
     end
 
+    # Handle arbitrary commands that aren't explicitly defined
+    def method_missing(method_name, *args, **kwargs, &block)
+      # Convert method name to Redis command (e.g., :echo -> "ECHO")
+      command = method_name.to_s.upcase
+      if kwargs.empty?
+        call(command, *args)
+      else
+        # Some commands might have keyword args - pass them as regular args
+        call(command, *args, **kwargs)
+      end
+    end
+
+    def respond_to_missing?(method_name, include_private = false)
+      true
+    end
+
     # Queue a command for execution
     #
     # @param command [String] Command name
@@ -120,28 +136,32 @@ module RedisRuby
       call("ZMSCORE", key, *members)
     end
 
-    def zrange(key, start, stop, withscores: false)
+    def zrange(key, start, stop, withscores: false, with_scores: false)
+      use_scores = withscores || with_scores
       args = ["ZRANGE", key, start, stop]
-      args.push("WITHSCORES") if withscores
+      args.push("WITHSCORES") if use_scores
       call(*args)
     end
 
-    def zrevrange(key, start, stop, withscores: false)
+    def zrevrange(key, start, stop, withscores: false, with_scores: false)
+      use_scores = withscores || with_scores
       args = ["ZREVRANGE", key, start, stop]
-      args.push("WITHSCORES") if withscores
+      args.push("WITHSCORES") if use_scores
       call(*args)
     end
 
-    def zrangebyscore(key, min, max, withscores: false, limit: nil)
+    def zrangebyscore(key, min, max, withscores: false, with_scores: false, limit: nil)
+      use_scores = withscores || with_scores
       args = ["ZRANGEBYSCORE", key, min, max]
-      args.push("WITHSCORES") if withscores
+      args.push("WITHSCORES") if use_scores
       args.push("LIMIT", *limit) if limit
       call(*args)
     end
 
-    def zrevrangebyscore(key, max, min, withscores: false, limit: nil)
+    def zrevrangebyscore(key, max, min, withscores: false, with_scores: false, limit: nil)
+      use_scores = withscores || with_scores
       args = ["ZREVRANGEBYSCORE", key, max, min]
-      args.push("WITHSCORES") if withscores
+      args.push("WITHSCORES") if use_scores
       args.push("LIMIT", *limit) if limit
       call(*args)
     end
@@ -163,6 +183,48 @@ module RedisRuby
       args.push("MATCH", match) if match
       args.push("COUNT", count) if count
       call(*args)
+    end
+
+    # Convenience methods for redis-rb compatibility
+
+    # Add member to set, returns 1 if added, 0 if already exists
+    def sadd?(key, *members)
+      members = members.flatten
+      call("SADD", key, *members)
+    end
+
+    # Remove member from set, returns 1 if removed, 0 if not found
+    def srem?(key, *members)
+      members = members.flatten
+      call("SREM", key, *members)
+    end
+
+    # Check if key exists, returns count of existing keys
+    def exists?(*keys)
+      keys = keys.flatten
+      call("EXISTS", *keys)
+    end
+
+    # Check if member exists in set, returns 1 if exists, 0 if not
+    def sismember?(key, member)
+      call("SISMEMBER", key, member)
+    end
+
+    # Get server info
+    def info(section = nil)
+      section ? call("INFO", section) : call("INFO")
+    end
+
+    # Get multiple keys and return as array (in transaction, cannot return hash)
+    def mapped_mget(*keys)
+      keys = keys.flatten
+      call("MGET", *keys)
+    end
+
+    # Get multiple hash fields (in transaction, cannot return hash)
+    def mapped_hmget(key, *fields)
+      fields = fields.flatten
+      call("HMGET", key, *fields)
     end
   end
 end

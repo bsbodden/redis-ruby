@@ -116,9 +116,10 @@ module RedisRuby
       #
       # @param key [String]
       # @param increment [Float]
-      # @return [String] value after increment (as string)
+      # @return [Float] value after increment
       def incrbyfloat(key, increment)
-        call_2args(CMD_INCRBYFLOAT, key, increment)
+        result = call_2args(CMD_INCRBYFLOAT, key, increment)
+        result.is_a?(String) ? Float(result) : result
       end
 
       # Append a value to a key

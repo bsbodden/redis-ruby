@@ -123,7 +123,7 @@ module RedisRuby
       #   sha = redis.script_load("return 'cached'")
       #   # => "a42059b356c875f0717db19a51f6aaa9161e77a2"
       def script_load(script)
-        call_3args(CMD_SCRIPT, SUBCMD_LOAD, script)
+        call(CMD_SCRIPT, SUBCMD_LOAD, script)
       end
 
       # Check if scripts exist in the cache
@@ -135,12 +135,7 @@ module RedisRuby
       #   redis.script_exists(sha1, sha2)
       #   # => [true, false]
       def script_exists(*shas)
-        # Fast path for single SHA
-        result = if shas.size == 1
-                   call_3args(CMD_SCRIPT, SUBCMD_EXISTS, shas[0])
-                 else
-                   call(CMD_SCRIPT, SUBCMD_EXISTS, *shas)
-                 end
+        result = call(CMD_SCRIPT, SUBCMD_EXISTS, *shas)
         result.map { |v| v == 1 }
       end
 
@@ -153,11 +148,10 @@ module RedisRuby
       #   redis.script_flush
       #   redis.script_flush(:async)
       def script_flush(mode = nil)
-        if mode
-          call_3args(CMD_SCRIPT, SUBCMD_FLUSH, mode.to_s.upcase)
-        else
-          call_2args(CMD_SCRIPT, SUBCMD_FLUSH)
-        end
+        # Redis 6.2+ requires SYNC or ASYNC argument
+        # Default to SYNC for backwards compatibility
+        flush_mode = mode ? mode.to_s.upcase : "SYNC"
+        call(CMD_SCRIPT, SUBCMD_FLUSH, flush_mode)
       end
 
       # Kill currently executing script
@@ -175,7 +169,7 @@ module RedisRuby
       # @param args [Array] Subcommand arguments
       # @return [Object] Debug information
       def script_debug(mode)
-        call_3args(CMD_SCRIPT, SUBCMD_DEBUG, mode.to_s.upcase)
+        call(CMD_SCRIPT, SUBCMD_DEBUG, mode.to_s.upcase)
       end
 
       # Register a script for efficient repeated execution
