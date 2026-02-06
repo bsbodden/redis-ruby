@@ -72,7 +72,7 @@ module RedisRuby
       # @return [Hash] Parsed components
       def parse_unix(uri)
         # Unix socket path is in the host + path
-        path = if uri.host
+        path = if uri.host && !uri.host.empty?
                  "/#{uri.host}#{uri.path}"
                else
                  uri.path
