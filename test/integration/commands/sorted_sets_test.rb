@@ -123,7 +123,18 @@ class SortedSetsCommandsTest < RedisRubyTestCase
     redis.zadd("test:zset", 1, "one", 2, "two", 3, "three")
     result = redis.zpopmin("test:zset")
 
-    assert_equal [["one", 1.0]], result
+    # Without count returns single pair [member, score]
+    assert_equal ["one", 1.0], result
+  ensure
+    redis.del("test:zset")
+  end
+
+  def test_zpopmin_with_count
+    redis.zadd("test:zset", 1, "one", 2, "two", 3, "three")
+    result = redis.zpopmin("test:zset", 2)
+
+    # With count returns nested [[member, score], ...]
+    assert_equal [["one", 1.0], ["two", 2.0]], result
   ensure
     redis.del("test:zset")
   end
@@ -132,7 +143,18 @@ class SortedSetsCommandsTest < RedisRubyTestCase
     redis.zadd("test:zset", 1, "one", 2, "two", 3, "three")
     result = redis.zpopmax("test:zset")
 
-    assert_equal [["three", 3.0]], result
+    # Without count returns single pair [member, score]
+    assert_equal ["three", 3.0], result
+  ensure
+    redis.del("test:zset")
+  end
+
+  def test_zpopmax_with_count
+    redis.zadd("test:zset", 1, "one", 2, "two", 3, "three")
+    result = redis.zpopmax("test:zset", 2)
+
+    # With count returns nested [[member, score], ...]
+    assert_equal [["three", 3.0], ["two", 2.0]], result
   ensure
     redis.del("test:zset")
   end
