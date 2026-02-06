@@ -1,0 +1,537 @@
+{
+  "metadata": {
+    "version": "1.0.0",
+    "timestamp": "2026-02-06T06:02:14-08:00",
+    "ruby_version": "3.4.8",
+    "ruby_platform": "aarch64-linux",
+    "yjit_enabled": true,
+    "redis_url": "redis://redis:6379",
+    "config": {
+      "runs": 3,
+      "warmup_time": 2,
+      "measure_time": 5,
+      "latency_iterations": 10000
+    }
+  },
+  "benchmarks": {
+    "PING": {
+      "category": "Basic",
+      "throughput": {
+        "redis_rb": {
+          "ips": 19497.1
+        },
+        "redis_ruby": {
+          "ips": 19335.8
+        },
+        "speedup": 0.992
+      }
+    },
+    "GET (small)": {
+      "category": "Basic",
+      "throughput": {
+        "redis_rb": {
+          "ips": 19394.4
+        },
+        "redis_ruby": {
+          "ips": 19963.6
+        },
+        "speedup": 1.029
+      }
+    },
+    "SET (small)": {
+      "category": "Basic",
+      "throughput": {
+        "redis_rb": {
+          "ips": 19151.7
+        },
+        "redis_ruby": {
+          "ips": 19713.9
+        },
+        "speedup": 1.029
+      }
+    },
+    "INCR": {
+      "category": "Basic",
+      "throughput": {
+        "redis_rb": {
+          "ips": 19198.1
+        },
+        "redis_ruby": {
+          "ips": 21186.6
+        },
+        "speedup": 1.104
+      }
+    },
+    "HGET": {
+      "category": "Hash",
+      "throughput": {
+        "redis_rb": {
+          "ips": 19383.4
+        },
+        "redis_ruby": {
+          "ips": 19758.3
+        },
+        "speedup": 1.019
+      }
+    },
+    "LPUSH/LPOP": {
+      "category": "List",
+      "throughput": {
+        "redis_rb": {
+          "ips": 9604.0
+        },
+        "redis_ruby": {
+          "ips": 9842.4
+        },
+        "speedup": 1.025
+      }
+    },
+    "SADD/SISMEMBER": {
+      "category": "Set",
+      "throughput": {
+        "redis_rb": {
+          "ips": 9703.7
+        },
+        "redis_ruby": {
+          "ips": 9763.0
+        },
+        "speedup": 1.006
+      }
+    },
+    "ZADD/ZSCORE": {
+      "category": "SortedSet",
+      "throughput": {
+        "redis_rb": {
+          "ips": 9202.0
+        },
+        "redis_ruby": {
+          "ips": 9419.3
+        },
+        "speedup": 1.024
+      }
+    },
+    "GET Latency": {
+      "category": "Basic",
+      "latency": {
+        "redis_rb": {
+          "count": 10000,
+          "min": 25.0,
+          "max": 580.33,
+          "mean": 50.42,
+          "p50": 49.33,
+          "p95": 57.83,
+          "p99": 70.83,
+          "p999": 190.33
+        },
+        "redis_ruby": {
+          "count": 10000,
+          "min": 21.96,
+          "max": 1837.88,
+          "mean": 51.12,
+          "p50": 49.46,
+          "p95": 60.29,
+          "p99": 76.83,
+          "p999": 238.75
+        },
+        "improvement": {
+          "p50": -0.3,
+          "p99": -8.5
+        }
+      }
+    },
+    "SET Latency": {
+      "category": "Basic",
+      "latency": {
+        "redis_rb": {
+          "count": 10000,
+          "min": 12.63,
+          "max": 562.08,
+          "mean": 50.67,
+          "p50": 49.42,
+          "p95": 59.63,
+          "p99": 73.13,
+          "p999": 159.13
+        },
+        "redis_ruby": {
+          "count": 10000,
+          "min": 18.71,
+          "max": 1138.58,
+          "mean": 51.81,
+          "p50": 49.54,
+          "p95": 61.96,
+          "p99": 87.67,
+          "p999": 547.42
+        },
+        "improvement": {
+          "p50": -0.2,
+          "p99": -19.9
+        }
+      }
+    },
+    "Pipeline 10 Latency": {
+      "category": "Pipeline",
+      "latency": {
+        "redis_rb": {
+          "count": 1000,
+          "min": 47.58,
+          "max": 609.29,
+          "mean": 69.68,
+          "p50": 65.46,
+          "p95": 81.42,
+          "p99": 175.33,
+          "p999": 609.29
+        },
+        "redis_ruby": {
+          "count": 1000,
+          "min": 44.54,
+          "max": 7988.0,
+          "mean": 109.44,
+          "p50": 60.38,
+          "p95": 123.71,
+          "p99": 1753.38,
+          "p999": 7988.0
+        },
+        "improvement": {
+          "p50": 7.8,
+          "p99": -900.0
+        }
+      }
+    },
+    "Pipeline 100 Latency": {
+      "category": "Pipeline",
+      "latency": {
+        "redis_rb": {
+          "count": 100,
+          "min": 130.75,
+          "max": 914.75,
+          "mean": 237.31,
+          "p50": 162.54,
+          "p95": 560.21,
+          "p99": 834.54,
+          "p999": 914.75
+        },
+        "redis_ruby": {
+          "count": 100,
+          "min": 119.29,
+          "max": 375.88,
+          "mean": 143.46,
+          "p50": 126.21,
+          "p95": 229.04,
+          "p99": 375.0,
+          "p999": 375.88
+        },
+        "improvement": {
+          "p50": 22.4,
+          "p99": 55.1
+        }
+      }
+    },
+    "GET 100B": {
+      "category": "DataSize",
+      "throughput": {
+        "redis_rb": {
+          "ips": 20082.0
+        },
+        "redis_ruby": {
+          "ips": 21875.5
+        },
+        "speedup": 1.089
+      }
+    },
+    "SET 100B": {
+      "category": "DataSize",
+      "throughput": {
+        "redis_rb": {
+          "ips": 19474.9
+        },
+        "redis_ruby": {
+          "ips": 19732.6
+        },
+        "speedup": 1.013
+      }
+    },
+    "GET 1024B": {
+      "category": "DataSize",
+      "throughput": {
+        "redis_rb": {
+          "ips": 19263.6
+        },
+        "redis_ruby": {
+          "ips": 19367.9
+        },
+        "speedup": 1.005
+      }
+    },
+    "SET 1024B": {
+      "category": "DataSize",
+      "throughput": {
+        "redis_rb": {
+          "ips": 19316.5
+        },
+        "redis_ruby": {
+          "ips": 19313.7
+        },
+        "speedup": 1.0
+      }
+    },
+    "GET 10240B": {
+      "category": "DataSize",
+      "throughput": {
+        "redis_rb": {
+          "ips": 16977.1
+        },
+        "redis_ruby": {
+          "ips": 16991.0
+        },
+        "speedup": 1.001
+      }
+    },
+    "SET 10240B": {
+      "category": "DataSize",
+      "throughput": {
+        "redis_rb": {
+          "ips": 17969.1
+        },
+        "redis_ruby": {
+          "ips": 17103.7
+        },
+        "speedup": 0.952
+      }
+    },
+    "GET 102400B": {
+      "category": "DataSize",
+      "throughput": {
+        "redis_rb": {
+          "ips": 9661.3
+        },
+        "redis_ruby": {
+          "ips": 9569.9
+        },
+        "speedup": 0.991
+      }
+    },
+    "SET 102400B": {
+      "category": "DataSize",
+      "throughput": {
+        "redis_rb": {
+          "ips": 13394.8
+        },
+        "redis_ruby": {
+          "ips": 12841.9
+        },
+        "speedup": 0.959
+      }
+    },
+    "Pipeline 1 GETs": {
+      "category": "Pipeline",
+      "throughput": {
+        "redis_rb": {
+          "ips": 18959.5
+        },
+        "redis_ruby": {
+          "ips": 19989.9
+        },
+        "speedup": 1.054
+      }
+    },
+    "Pipeline 1 SETs": {
+      "category": "Pipeline",
+      "throughput": {
+        "redis_rb": {
+          "ips": 18009.7
+        },
+        "redis_ruby": {
+          "ips": 18886.4
+        },
+        "speedup": 1.049
+      }
+    },
+    "Pipeline 10 GETs": {
+      "category": "Pipeline",
+      "throughput": {
+        "redis_rb": {
+          "ips": 14777.8
+        },
+        "redis_ruby": {
+          "ips": 16108.2
+        },
+        "speedup": 1.09
+      }
+    },
+    "Pipeline 10 SETs": {
+      "category": "Pipeline",
+      "throughput": {
+        "redis_rb": {
+          "ips": 13526.3
+        },
+        "redis_ruby": {
+          "ips": 14848.4
+        },
+        "speedup": 1.098
+      }
+    },
+    "Pipeline 50 GETs": {
+      "category": "Pipeline",
+      "throughput": {
+        "redis_rb": {
+          "ips": 8582.4
+        },
+        "redis_ruby": {
+          "ips": 9899.7
+        },
+        "speedup": 1.153
+      }
+    },
+    "Pipeline 50 SETs": {
+      "category": "Pipeline",
+      "throughput": {
+        "redis_rb": {
+          "ips": 7364.7
+        },
+        "redis_ruby": {
+          "ips": 8371.6
+        },
+        "speedup": 1.137
+      }
+    },
+    "Pipeline 100 GETs": {
+      "category": "Pipeline",
+      "throughput": {
+        "redis_rb": {
+          "ips": 5625.8
+        },
+        "redis_ruby": {
+          "ips": 6890.7
+        },
+        "speedup": 1.225
+      }
+    },
+    "Pipeline 100 SETs": {
+      "category": "Pipeline",
+      "throughput": {
+        "redis_rb": {
+          "ips": 4764.8
+        },
+        "redis_ruby": {
+          "ips": 5573.7
+        },
+        "speedup": 1.17
+      }
+    },
+    "Pipeline 500 GETs": {
+      "category": "Pipeline",
+      "throughput": {
+        "redis_rb": {
+          "ips": 1625.9
+        },
+        "redis_ruby": {
+          "ips": 2055.6
+        },
+        "speedup": 1.264
+      }
+    },
+    "Pipeline 500 SETs": {
+      "category": "Pipeline",
+      "throughput": {
+        "redis_rb": {
+          "ips": 1285.8
+        },
+        "redis_ruby": {
+          "ips": 1549.7
+        },
+        "speedup": 1.205
+      }
+    },
+    "MULTI/EXEC (3 cmds)": {
+      "category": "Transaction",
+      "throughput": {
+        "redis_rb": {
+          "ips": 3851.2
+        },
+        "redis_ruby": {
+          "ips": 3782.6
+        },
+        "speedup": 0.982
+      }
+    },
+    "MULTI/EXEC (10 cmds)": {
+      "category": "Transaction",
+      "throughput": {
+        "redis_rb": {
+          "ips": 1610.1
+        },
+        "redis_ruby": {
+          "ips": 1629.9
+        },
+        "speedup": 1.012
+      }
+    },
+    "WATCH + MULTI/EXEC": {
+      "category": "Transaction",
+      "throughput": {
+        "redis_rb": {
+          "ips": 3798.5
+        },
+        "redis_ruby": {
+          "ips": 3832.0
+        },
+        "speedup": 1.009
+      }
+    },
+    "Read-Heavy (10:1)": {
+      "category": "Workload",
+      "throughput": {
+        "redis_rb": {
+          "ips": 1767.0
+        },
+        "redis_ruby": {
+          "ips": 1783.7
+        },
+        "speedup": 1.009
+      }
+    },
+    "Write-Heavy (1:10)": {
+      "category": "Workload",
+      "throughput": {
+        "redis_rb": {
+          "ips": 1770.4
+        },
+        "redis_ruby": {
+          "ips": 1791.9
+        },
+        "speedup": 1.012
+      }
+    },
+    "Balanced (1:1)": {
+      "category": "Workload",
+      "throughput": {
+        "redis_rb": {
+          "ips": 1929.2
+        },
+        "redis_ruby": {
+          "ips": 1954.2
+        },
+        "speedup": 1.013
+      }
+    },
+    "Mixed Commands": {
+      "category": "Workload",
+      "throughput": {
+        "redis_rb": {
+          "ips": 2722.4
+        },
+        "redis_ruby": {
+          "ips": 2790.6
+        },
+        "speedup": 1.025
+      }
+    }
+  },
+  "summary": {
+    "total_benchmarks": 37,
+    "avg_throughput_speedup": 1.053,
+    "avg_latency_p99_improvement": -218.3,
+    "faster_count": 27,
+    "slower_count": 5
+  }
+}
