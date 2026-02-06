@@ -63,13 +63,15 @@ module RedisRuby
     # @param timeout [Float] Connection timeout in seconds
     # @param read_from [Symbol] :master (default), :replica, :replica_preferred
     # @param retry_count [Integer] Number of retries on failure
+    # @param host_translation [Hash] Map announced IPs to reachable IPs (e.g., {"127.0.0.1" => "192.168.1.1"})
     def initialize(nodes:, password: nil, timeout: DEFAULT_TIMEOUT,
-                   read_from: :master, retry_count: 3)
+                   read_from: :master, retry_count: 3, host_translation: nil)
       @seed_nodes = normalize_nodes(nodes)
       @password = password
       @timeout = timeout
       @read_from = read_from
       @retry_count = retry_count
+      @host_translation = host_translation || {}
 
       @slots = Array.new(HASH_SLOTS) # slot -> node mapping
       @nodes = {}                      # "host:port" -> connection
@@ -95,6 +97,23 @@ module RedisRuby
       slot = key ? key_slot(key) : nil
 
       execute_with_retry(command, args, slot)
+    end
+
+    # Optimized call methods for fixed argument counts
+    # These provide API compatibility with Client; ClusterClient delegates to call()
+    # @api private
+    def call_1arg(command, arg)
+      call(command, arg)
+    end
+
+    # @api private
+    def call_2args(command, arg1, arg2)
+      call(command, arg1, arg2)
+    end
+
+    # @api private
+    def call_3args(command, arg1, arg2, arg3)
+      call(command, arg1, arg2, arg3)
     end
 
     # Close all connections
@@ -182,6 +201,11 @@ module RedisRuby
           raise ArgumentError, "Invalid node format: #{node.inspect}"
         end
       end
+    end
+
+    # Translate host address if translation is configured
+    def translate_host(host)
+      @host_translation[host] || host
     end
 
     # Extract hash tag from key (e.g., "foo{bar}baz" -> "bar")
@@ -283,8 +307,11 @@ module RedisRuby
         host, port = new_addr.split(":")
         new_slot.to_i
 
+        # Translate host if configured
+        translated_host = translate_host(host)
+
         # For ASK, we need to send ASKING before the command
-        conn = get_connection("#{host}:#{port}")
+        conn = get_connection("#{translated_host}:#{port}")
         conn.call("ASKING")
         result = conn.call(command, *args)
         raise result if result.is_a?(CommandError)
@@ -379,11 +406,13 @@ module RedisRuby
       slots_data.each do |slot_info|
         start_slot, end_slot, master_info, *replica_infos = slot_info
 
-        master_addr = "#{master_info[0]}:#{master_info[1]}"
+        # Translate host if configured (useful when cluster announces localhost)
+        master_host = translate_host(master_info[0])
+        master_addr = "#{master_host}:#{master_info[1]}"
         @masters << master_addr unless @masters.include?(master_addr)
 
-        # Parse replica addresses
-        replica_addrs = replica_infos.map { |r| "#{r[0]}:#{r[1]}" }
+        # Parse replica addresses with translation
+        replica_addrs = replica_infos.map { |r| "#{translate_host(r[0])}:#{r[1]}" }
 
         # Update slot mapping
         (start_slot..end_slot).each do |slot|
