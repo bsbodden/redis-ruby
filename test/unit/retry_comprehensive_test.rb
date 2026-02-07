@@ -13,23 +13,27 @@ class RetryComprehensiveTest < Minitest::Test
 
   def test_retry_can_be_instantiated
     retry_policy = RedisRuby::Retry.new
+
     assert_instance_of RedisRuby::Retry, retry_policy
   end
 
   def test_retry_with_custom_retries
     retry_policy = RedisRuby::Retry.new(retries: 5)
+
     assert_instance_of RedisRuby::Retry, retry_policy
   end
 
   def test_retry_with_custom_backoff
     backoff = RedisRuby::NoBackoff.new
     retry_policy = RedisRuby::Retry.new(backoff: backoff)
+
     assert_instance_of RedisRuby::Retry, retry_policy
   end
 
   def test_retry_with_callback
     callback = ->(error, attempt) { puts "Attempt #{attempt}: #{error}" }
     retry_policy = RedisRuby::Retry.new(on_retry: callback)
+
     assert_instance_of RedisRuby::Retry, retry_policy
   end
 
@@ -57,6 +61,7 @@ class RetryComprehensiveTest < Minitest::Test
     result = retry_policy.call do
       call_count += 1
       raise RedisRuby::ConnectionError, "Connection lost" if call_count < 2
+
       "success"
     end
 
@@ -71,6 +76,7 @@ class RetryComprehensiveTest < Minitest::Test
     result = retry_policy.call do
       call_count += 1
       raise RedisRuby::TimeoutError, "Timed out" if call_count < 2
+
       "success"
     end
 
@@ -144,6 +150,7 @@ class RetryComprehensiveTest < Minitest::Test
     result = retry_policy.call do
       call_count += 1
       raise RedisRuby::ConnectionError, "fail" if call_count < 2
+
       "success"
     end
 
@@ -158,6 +165,7 @@ class RetryComprehensiveTest < Minitest::Test
 
   def test_no_backoff
     backoff = RedisRuby::NoBackoff.new
+
     assert_equal 0, backoff.compute(1)
     assert_equal 0, backoff.compute(5)
     assert_equal 0, backoff.compute(100)
@@ -165,6 +173,7 @@ class RetryComprehensiveTest < Minitest::Test
 
   def test_constant_backoff
     backoff = RedisRuby::ConstantBackoff.new(0.5)
+
     assert_in_delta 0.5, backoff.compute(1), 0.001
     assert_in_delta 0.5, backoff.compute(5), 0.001
     assert_in_delta 0.5, backoff.compute(100), 0.001
@@ -191,8 +200,9 @@ class RetryComprehensiveTest < Minitest::Test
     # Result should be in [0, 0.1] for failures=1
     100.times do
       delay = backoff.compute(1)
-      assert delay >= 0, "Delay should be >= 0"
-      assert delay <= 0.1, "Delay should be <= 0.1 for failures=1"
+
+      assert_operator delay, :>=, 0, "Delay should be >= 0"
+      assert_operator delay, :<=, 0.1, "Delay should be <= 0.1 for failures=1"
     end
   end
 
@@ -201,8 +211,9 @@ class RetryComprehensiveTest < Minitest::Test
     # Result should be in [0, 5.0] for high failure counts
     100.times do
       delay = backoff.compute(10)
-      assert delay >= 0, "Delay should be >= 0"
-      assert delay <= 5.0, "Delay should be <= 5.0 (cap)"
+
+      assert_operator delay, :>=, 0, "Delay should be >= 0"
+      assert_operator delay, :<=, 5.0, "Delay should be <= 5.0 (cap)"
     end
   end
 
@@ -212,8 +223,9 @@ class RetryComprehensiveTest < Minitest::Test
     # Result should be in [0.5, 1.0]
     100.times do
       delay = backoff.compute(1)
-      assert delay >= 0.5, "Delay should be >= 0.5"
-      assert delay <= 1.0, "Delay should be <= 1.0 for failures=1"
+
+      assert_operator delay, :>=, 0.5, "Delay should be >= 0.5"
+      assert_operator delay, :<=, 1.0, "Delay should be <= 1.0 for failures=1"
     end
   end
 
@@ -223,8 +235,9 @@ class RetryComprehensiveTest < Minitest::Test
     # Result should be in [3.0, 6.0]
     100.times do
       delay = backoff.compute(10)
-      assert delay >= 3.0, "Delay should be >= 3.0 (half of cap)"
-      assert delay <= 6.0, "Delay should be <= 6.0 (cap)"
+
+      assert_operator delay, :>=, 3.0, "Delay should be >= 3.0 (half of cap)"
+      assert_operator delay, :<=, 6.0, "Delay should be <= 6.0 (cap)"
     end
   end
 end

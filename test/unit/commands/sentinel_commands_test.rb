@@ -10,7 +10,9 @@ class SentinelCommandsTest < Minitest::Test
     @client.define_singleton_method(:call) { |*args| @mock_connection.call(*args) }
     @client.define_singleton_method(:call_1arg) { |cmd, arg| @mock_connection.call_1arg(cmd, arg) }
     @client.define_singleton_method(:call_2args) { |cmd, arg1, arg2| @mock_connection.call_2args(cmd, arg1, arg2) }
-    @client.define_singleton_method(:call_3args) { |cmd, arg1, arg2, arg3| @mock_connection.call_3args(cmd, arg1, arg2, arg3) }
+    @client.define_singleton_method(:call_3args) do |cmd, arg1, arg2, arg3|
+      @mock_connection.call_3args(cmd, arg1, arg2, arg3)
+    end
     @client.instance_variable_set(:@mock_connection, @mock_connection)
   end
 

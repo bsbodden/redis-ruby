@@ -167,18 +167,8 @@ module RedisRuby
         cmd << OPT_COUNT << count if count
         cmd << OPT_BLOCK << block if block
         cmd << OPT_STREAMS
-
-        if streams.is_a?(Hash)
-          streams.each_key { |k| cmd << k }
-          streams.each_value { |v| cmd << v }
-        else
-          cmd << streams << id
-        end
-
-        result = call(*cmd)
-        return nil if result.nil?
-
-        result.map { |stream, entries| [stream, parse_entries(entries)] }
+        append_stream_keys(cmd, streams, id)
+        parse_xread_result(call(*cmd))
       end
 
       # Create a consumer group
@@ -251,18 +241,8 @@ module RedisRuby
         cmd << OPT_BLOCK << block if block
         cmd << OPT_NOACK if noack
         cmd << OPT_STREAMS
-
-        if streams.is_a?(Hash)
-          streams.each_key { |k| cmd << k }
-          streams.each_value { |v| cmd << v }
-        else
-          cmd << streams << id
-        end
-
-        result = call(*cmd)
-        return nil if result.nil?
-
-        result.map { |stream, entries| [stream, parse_entries(entries)] }
+        append_stream_keys(cmd, streams, id)
+        parse_xread_result(call(*cmd))
       end
 
       # Acknowledge message processing
@@ -428,6 +408,21 @@ module RedisRuby
       end
 
       private
+
+      def append_stream_keys(cmd, streams, id)
+        if streams.is_a?(Hash)
+          streams.each_key { |k| cmd << k }
+          streams.each_value { |v| cmd << v }
+        else
+          cmd << streams << id
+        end
+      end
+
+      def parse_xread_result(result)
+        return nil if result.nil?
+
+        result.map { |stream, entries| [stream, parse_entries(entries)] }
+      end
 
       # Parse stream entries from [id, [field, value, ...]] to [id, {field => value}]
       def parse_entries(entries)

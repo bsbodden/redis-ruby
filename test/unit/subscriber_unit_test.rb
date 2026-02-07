@@ -44,26 +44,31 @@ class SubscriberUnitTest < Minitest::Test
 
   def test_initialize_sets_empty_channels
     subscriber = RedisRuby::Subscriber.new(@mock_client)
-    assert_equal [], subscriber.channels
+
+    assert_empty subscriber.channels
   end
 
   def test_initialize_sets_empty_patterns
     subscriber = RedisRuby::Subscriber.new(@mock_client)
-    assert_equal [], subscriber.patterns
+
+    assert_empty subscriber.patterns
   end
 
   def test_initialize_not_running
     subscriber = RedisRuby::Subscriber.new(@mock_client)
-    refute subscriber.running?
+
+    refute_predicate subscriber, :running?
   end
 
   def test_initialize_not_stop_requested
     subscriber = RedisRuby::Subscriber.new(@mock_client)
-    refute subscriber.stop_requested?
+
+    refute_predicate subscriber, :stop_requested?
   end
 
   def test_initialize_thread_nil
     subscriber = RedisRuby::Subscriber.new(@mock_client)
+
     assert_nil subscriber.thread
   end
 
@@ -71,10 +76,11 @@ class SubscriberUnitTest < Minitest::Test
     client = SubscriberMockClient.new(host: "redis.example.com", port: 6380, db: 2, timeout: 10.0)
     subscriber = RedisRuby::Subscriber.new(client)
     config = subscriber.instance_variable_get(:@client_config)
+
     assert_equal "redis.example.com", config[:host]
     assert_equal 6380, config[:port]
     assert_equal 2, config[:db]
-    assert_equal 10.0, config[:timeout]
+    assert_in_delta(10.0, config[:timeout])
   end
 
   # ============================================================
@@ -84,7 +90,8 @@ class SubscriberUnitTest < Minitest::Test
   def test_subscribe_adds_channels
     subscriber = RedisRuby::Subscriber.new(@mock_client)
     result = subscriber.subscribe("ch1", "ch2")
-    assert_equal ["ch1", "ch2"], subscriber.channels
+
+    assert_equal %w[ch1 ch2], subscriber.channels
     assert_same subscriber, result # returns self for chaining
   end
 
@@ -92,12 +99,14 @@ class SubscriberUnitTest < Minitest::Test
     subscriber = RedisRuby::Subscriber.new(@mock_client)
     subscriber.subscribe("ch1")
     subscriber.subscribe("ch2", "ch3")
-    assert_equal ["ch1", "ch2", "ch3"], subscriber.channels
+
+    assert_equal %w[ch1 ch2 ch3], subscriber.channels
   end
 
   def test_psubscribe_adds_patterns
     subscriber = RedisRuby::Subscriber.new(@mock_client)
     result = subscriber.psubscribe("news.*", "sports.*")
+
     assert_equal ["news.*", "sports.*"], subscriber.patterns
     assert_same subscriber, result
   end
@@ -106,6 +115,7 @@ class SubscriberUnitTest < Minitest::Test
     subscriber = RedisRuby::Subscriber.new(@mock_client)
     subscriber.psubscribe("news.*")
     subscriber.psubscribe("sports.*")
+
     assert_equal ["news.*", "sports.*"], subscriber.patterns
   end
 
@@ -113,7 +123,8 @@ class SubscriberUnitTest < Minitest::Test
     subscriber = RedisRuby::Subscriber.new(@mock_client)
     result = subscriber.ssubscribe("shard1", "shard2")
     shard_channels = subscriber.instance_variable_get(:@shard_channels)
-    assert_equal ["shard1", "shard2"], shard_channels
+
+    assert_equal %w[shard1 shard2], shard_channels
     assert_same subscriber, result
   end
 
@@ -126,6 +137,7 @@ class SubscriberUnitTest < Minitest::Test
     block = proc { |_ch, _msg| }
     result = subscriber.on_message(&block)
     callbacks = subscriber.instance_variable_get(:@callbacks)
+
     assert_equal block, callbacks[:message]
     assert_same subscriber, result
   end
@@ -135,6 +147,7 @@ class SubscriberUnitTest < Minitest::Test
     block = proc { |_p, _ch, _msg| }
     result = subscriber.on_pmessage(&block)
     callbacks = subscriber.instance_variable_get(:@callbacks)
+
     assert_equal block, callbacks[:pmessage]
     assert_same subscriber, result
   end
@@ -144,6 +157,7 @@ class SubscriberUnitTest < Minitest::Test
     block = proc { |_ch, _msg| }
     result = subscriber.on_smessage(&block)
     callbacks = subscriber.instance_variable_get(:@callbacks)
+
     assert_equal block, callbacks[:smessage]
     assert_same subscriber, result
   end
@@ -153,6 +167,7 @@ class SubscriberUnitTest < Minitest::Test
     block = proc { |_ch, _count| }
     result = subscriber.on_subscribe(&block)
     callbacks = subscriber.instance_variable_get(:@callbacks)
+
     assert_equal block, callbacks[:subscribe]
     assert_same subscriber, result
   end
@@ -162,6 +177,7 @@ class SubscriberUnitTest < Minitest::Test
     block = proc { |_ch, _count| }
     result = subscriber.on_unsubscribe(&block)
     callbacks = subscriber.instance_variable_get(:@callbacks)
+
     assert_equal block, callbacks[:unsubscribe]
     assert_same subscriber, result
   end
@@ -171,6 +187,7 @@ class SubscriberUnitTest < Minitest::Test
     block = proc { |_err| }
     result = subscriber.on_error(&block)
     callbacks = subscriber.instance_variable_get(:@callbacks)
+
     assert_equal block, callbacks[:error]
     assert_same subscriber, result
   end
@@ -182,10 +199,10 @@ class SubscriberUnitTest < Minitest::Test
   def test_fluent_chaining
     subscriber = RedisRuby::Subscriber.new(@mock_client)
     result = subscriber
-             .on_message { |_ch, _msg| }
-             .on_error { |_e| }
-             .subscribe("ch1")
-             .psubscribe("p*")
+      .on_message { |_ch, _msg| }
+      .on_error { |_e| }
+      .subscribe("ch1")
+      .psubscribe("p*")
 
     assert_same subscriber, result
     assert_equal ["ch1"], subscriber.channels
@@ -198,12 +215,14 @@ class SubscriberUnitTest < Minitest::Test
 
   def test_running_false_initially
     subscriber = RedisRuby::Subscriber.new(@mock_client)
-    refute subscriber.running?
+
+    refute_predicate subscriber, :running?
   end
 
   def test_stop_requested_false_initially
     subscriber = RedisRuby::Subscriber.new(@mock_client)
-    refute subscriber.stop_requested?
+
+    refute_predicate subscriber, :stop_requested?
   end
 
   # ============================================================
@@ -216,6 +235,7 @@ class SubscriberUnitTest < Minitest::Test
     subscriber.on_subscribe { |ch, count| received = [ch, count] }
 
     result = subscriber.send(:process_message, ["subscribe", "ch1", 1], 0)
+
     assert_equal 1, result
     assert_equal ["ch1", 1], received
   end
@@ -226,6 +246,7 @@ class SubscriberUnitTest < Minitest::Test
     subscriber.on_subscribe { |ch, count| received = [ch, count] }
 
     result = subscriber.send(:process_message, ["psubscribe", "p*", 2], 0)
+
     assert_equal 2, result
     assert_equal ["p*", 2], received
   end
@@ -236,6 +257,7 @@ class SubscriberUnitTest < Minitest::Test
     subscriber.on_subscribe { |ch, count| received = [ch, count] }
 
     result = subscriber.send(:process_message, ["ssubscribe", "s1", 3], 0)
+
     assert_equal 3, result
     assert_equal ["s1", 3], received
   end
@@ -246,6 +268,7 @@ class SubscriberUnitTest < Minitest::Test
     subscriber.on_unsubscribe { |ch, count| received = [ch, count] }
 
     result = subscriber.send(:process_message, ["unsubscribe", "ch1", 0], 1)
+
     assert_equal 0, result
     assert_equal ["ch1", 0], received
   end
@@ -256,6 +279,7 @@ class SubscriberUnitTest < Minitest::Test
     subscriber.on_unsubscribe { |ch, count| received = [ch, count] }
 
     result = subscriber.send(:process_message, ["punsubscribe", "p*", 1], 2)
+
     assert_equal 1, result
     assert_equal ["p*", 1], received
   end
@@ -266,6 +290,7 @@ class SubscriberUnitTest < Minitest::Test
     subscriber.on_unsubscribe { |ch, count| received = [ch, count] }
 
     result = subscriber.send(:process_message, ["sunsubscribe", "s1", 0], 1)
+
     assert_equal 0, result
     assert_equal ["s1", 0], received
   end
@@ -275,9 +300,10 @@ class SubscriberUnitTest < Minitest::Test
     received = nil
     subscriber.on_message { |ch, msg| received = [ch, msg] }
 
-    result = subscriber.send(:process_message, ["message", "ch1", "hello"], 1)
+    result = subscriber.send(:process_message, %w[message ch1 hello], 1)
+
     assert_equal 1, result
-    assert_equal ["ch1", "hello"], received
+    assert_equal %w[ch1 hello], received
   end
 
   def test_process_message_pmessage
@@ -286,6 +312,7 @@ class SubscriberUnitTest < Minitest::Test
     subscriber.on_pmessage { |pattern, ch, msg| received = [pattern, ch, msg] }
 
     result = subscriber.send(:process_message, ["pmessage", "news.*", "news.tech", "article"], 1)
+
     assert_equal 1, result
     assert_equal ["news.*", "news.tech", "article"], received
   end
@@ -295,26 +322,30 @@ class SubscriberUnitTest < Minitest::Test
     received = nil
     subscriber.on_smessage { |ch, msg| received = [ch, msg] }
 
-    result = subscriber.send(:process_message, ["smessage", "shard1", "data"], 2)
+    result = subscriber.send(:process_message, %w[smessage shard1 data], 2)
+
     assert_equal 2, result
-    assert_equal ["shard1", "data"], received
+    assert_equal %w[shard1 data], received
   end
 
   def test_process_message_not_an_array
     subscriber = RedisRuby::Subscriber.new(@mock_client)
     result = subscriber.send(:process_message, "not_array", 5)
+
     assert_equal 5, result # returns subscriptions unchanged
   end
 
   def test_process_message_empty_array
     subscriber = RedisRuby::Subscriber.new(@mock_client)
     result = subscriber.send(:process_message, [], 5)
+
     assert_equal 5, result
   end
 
   def test_process_message_unknown_type
     subscriber = RedisRuby::Subscriber.new(@mock_client)
-    result = subscriber.send(:process_message, ["unknown_type", "data"], 3)
+    result = subscriber.send(:process_message, %w[unknown_type data], 3)
+
     assert_equal 3, result
   end
 
@@ -328,7 +359,8 @@ class SubscriberUnitTest < Minitest::Test
     subscriber.on_message { |ch, msg| received = [ch, msg] }
 
     subscriber.send(:call_callback, :message, "ch1", "msg1")
-    assert_equal ["ch1", "msg1"], received
+
+    assert_equal %w[ch1 msg1], received
   end
 
   def test_call_callback_with_no_callback_registered
@@ -344,6 +376,7 @@ class SubscriberUnitTest < Minitest::Test
     subscriber.on_error { |e| error_received = e }
 
     subscriber.send(:call_callback, :message, "ch1", "msg1")
+
     assert_instance_of RuntimeError, error_received
     assert_equal "test error", error_received.message
   end
@@ -359,6 +392,7 @@ class SubscriberUnitTest < Minitest::Test
 
     error = RuntimeError.new("test")
     subscriber.send(:handle_error, error)
+
     assert_same error, error_received
   end
 
@@ -386,7 +420,8 @@ class SubscriberUnitTest < Minitest::Test
   def test_stop_sets_stop_requested
     subscriber = RedisRuby::Subscriber.new(@mock_client)
     subscriber.stop(wait: false)
-    assert subscriber.stop_requested?
+
+    assert_predicate subscriber, :stop_requested?
   end
 
   def test_stop_sends_unsubscribe_commands
@@ -424,7 +459,8 @@ class SubscriberUnitTest < Minitest::Test
     subscriber.subscribe("ch1")
     # No connection set - should not raise
     subscriber.stop(wait: false)
-    assert subscriber.stop_requested?
+
+    assert_predicate subscriber, :stop_requested?
   end
 
   def test_stop_ignores_errors_during_unsubscribe
@@ -440,7 +476,8 @@ class SubscriberUnitTest < Minitest::Test
 
     # Should not raise
     subscriber.stop(wait: false)
-    assert subscriber.stop_requested?
+
+    assert_predicate subscriber, :stop_requested?
   end
 
   # ============================================================
@@ -456,7 +493,7 @@ class SubscriberUnitTest < Minitest::Test
 
     subscriber.send(:send_subscriptions)
 
-    assert_includes mock_conn.calls, ["SUBSCRIBE", "ch1", "ch2"]
+    assert_includes mock_conn.calls, %w[SUBSCRIBE ch1 ch2]
   end
 
   def test_send_subscriptions_with_patterns
@@ -480,7 +517,7 @@ class SubscriberUnitTest < Minitest::Test
 
     subscriber.send(:send_subscriptions)
 
-    assert_includes mock_conn.calls, ["SSUBSCRIBE", "shard1"]
+    assert_includes mock_conn.calls, %w[SSUBSCRIBE shard1]
   end
 
   def test_send_subscriptions_skips_empty_channels
@@ -507,9 +544,9 @@ class SubscriberUnitTest < Minitest::Test
     subscriber.send(:send_subscriptions)
 
     assert_equal 3, mock_conn.calls.size
-    assert_includes mock_conn.calls, ["SUBSCRIBE", "ch1"]
+    assert_includes mock_conn.calls, %w[SUBSCRIBE ch1]
     assert_includes mock_conn.calls, ["PSUBSCRIBE", "p*"]
-    assert_includes mock_conn.calls, ["SSUBSCRIBE", "s1"]
+    assert_includes mock_conn.calls, %w[SSUBSCRIBE s1]
   end
 
   # ============================================================
@@ -522,6 +559,7 @@ class SubscriberUnitTest < Minitest::Test
     subscriber.instance_variable_set(:@connection, mock_conn)
 
     result = subscriber.send(:read_message)
+
     assert_nil result
   end
 
@@ -537,6 +575,6 @@ class SubscriberUnitTest < Minitest::Test
     assert_equal "10.0.0.1", config[:host]
     assert_equal 6380, config[:port]
     assert_equal 3, config[:db]
-    assert_equal 15.0, config[:timeout]
+    assert_in_delta(15.0, config[:timeout])
   end
 end

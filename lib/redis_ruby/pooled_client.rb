@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "uri"
+require_relative "concerns/pooled_operations"
 
 module RedisRuby
   # Thread-safe Redis client with connection pooling
@@ -20,6 +21,7 @@ module RedisRuby
   #   end
   #
   class PooledClient
+    include Concerns::PooledOperations
     include Commands::Strings
     include Commands::Keys
     include Commands::Hashes
@@ -143,69 +145,6 @@ module RedisRuby
       @pool.with(&)
     end
 
-    # Ping the Redis server
-    #
-    # @return [String] "PONG"
-    def ping
-      call("PING")
-    end
-
-    # Execute commands in a pipeline
-    #
-    # @yield [Pipeline] pipeline object to queue commands
-    # @return [Array] results from all commands
-    def pipelined
-      @pool.with do |conn|
-        pipeline = Pipeline.new(conn)
-        yield pipeline
-        results = pipeline.execute
-        results.map { |r| r.is_a?(CommandError) ? raise(r) : r }
-      end
-    end
-
-    # Execute commands in a transaction (MULTI/EXEC)
-    #
-    # @yield [Transaction] transaction object to queue commands
-    # @return [Array, nil] results from all commands, or nil if aborted
-    def multi
-      @pool.with do |conn|
-        transaction = Transaction.new(conn)
-        yield transaction
-        results = transaction.execute
-        return nil if results.nil?
-
-        # Handle case where transaction itself failed (e.g., MISCONF)
-        raise results if results.is_a?(CommandError)
-
-        results.map { |r| r.is_a?(CommandError) ? raise(r) : r }
-      end
-    end
-
-    # Watch keys for changes (optimistic locking)
-    #
-    # @param keys [Array<String>] keys to watch
-    # @yield [optional] block to execute while watching
-    # @return [Object] result of block, or "OK" if no block
-    def watch(*keys, &block)
-      @pool.with do |conn|
-        result = conn.call("WATCH", *keys)
-        return result unless block
-
-        begin
-          yield
-        ensure
-          conn.call("UNWATCH")
-        end
-      end
-    end
-
-    # Unwatch all watched keys
-    #
-    # @return [String] "OK"
-    def unwatch
-      call("UNWATCH")
-    end
-
     # Close all connections in the pool
     def close
       @pool.close
@@ -226,17 +165,6 @@ module RedisRuby
     # @return [Integer]
     def pool_available
       @pool.available
-    end
-
-    private
-
-    # Parse Redis URL using shared utility
-    def parse_url(url)
-      parsed = Utils::URLParser.parse(url)
-      @host = parsed[:host] || DEFAULT_HOST
-      @port = parsed[:port] || DEFAULT_PORT
-      @db = parsed[:db] || DEFAULT_DB
-      @password = parsed[:password]
     end
   end
 end

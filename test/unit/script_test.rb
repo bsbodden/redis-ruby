@@ -13,11 +13,13 @@ class ScriptTest < Minitest::Test
 
   def test_register_script_returns_script_object
     script = @client.register_script("return 1")
+
     assert_instance_of RedisRuby::Script, script
   end
 
   def test_script_sha
     script = @client.register_script("return 1")
+
     assert_equal Digest::SHA1.hexdigest("return 1"), script.sha
   end
 
@@ -26,6 +28,7 @@ class ScriptTest < Minitest::Test
     # No keys/args uses call_2args fast path
     @connection.expects(:call_2args).with("EVALSHA", script.sha, 0).returns(1)
     result = script.call
+
     assert_equal 1, result
   end
 
@@ -36,6 +39,7 @@ class ScriptTest < Minitest::Test
     @connection.expects(:call_2args).with("EVALSHA", script.sha, 0).raises(error)
     @connection.expects(:call_2args).with("EVAL", "return 1", 0).returns(1)
     result = script.call
+
     assert_equal 1, result
   end
 
@@ -44,6 +48,7 @@ class ScriptTest < Minitest::Test
     # With keys/args uses call_direct (varargs)
     @connection.expects(:call_direct).with("EVALSHA", script.sha, 1, "mykey").returns("value")
     result = script.call(keys: ["mykey"])
+
     assert_equal "value", result
   end
 
@@ -52,6 +57,7 @@ class ScriptTest < Minitest::Test
     # With args uses call_direct (varargs)
     @connection.expects(:call_direct).with("EVALSHA", script.sha, 0, "hello").returns("hello")
     result = script.call(args: ["hello"])
+
     assert_equal "hello", result
   end
 
@@ -60,6 +66,7 @@ class ScriptTest < Minitest::Test
     # With keys and args uses call_direct (varargs)
     @connection.expects(:call_direct).with("EVALSHA", script.sha, 1, "mykey", "myval").returns("OK")
     result = script.call(keys: ["mykey"], args: ["myval"])
+
     assert_equal "OK", result
   end
 
@@ -67,7 +74,8 @@ class ScriptTest < Minitest::Test
     script = @client.register_script("return 1")
     # With multiple keys/args uses call_direct (varargs)
     @connection.expects(:call_direct).with("EVALSHA", script.sha, 2, "k1", "k2", "a1", "a2").returns(1)
-    result = script.call(keys: ["k1", "k2"], args: ["a1", "a2"])
+    result = script.call(keys: %w[k1 k2], args: %w[a1 a2])
+
     assert_equal 1, result
   end
 
@@ -81,6 +89,7 @@ class ScriptTest < Minitest::Test
 
   def test_script_source
     script = @client.register_script("return 42")
+
     assert_equal "return 42", script.source
   end
 end

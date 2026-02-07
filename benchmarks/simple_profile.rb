@@ -43,7 +43,7 @@ puts "Warmup complete."
 # ============================================================
 # 1. Memory Profiler - Single Operations
 # ============================================================
-puts "\n" + "=" * 70
+puts "\n#{"=" * 70}"
 puts "1. MEMORY - Single GET operations (1000x)"
 puts "=" * 70
 
@@ -54,17 +54,17 @@ end
 puts "\nAllocations by location (redis-ruby only):"
 puts "-" * 70
 report.allocated_objects_by_location
-      .select { |s| s[:data].include?("redis_ruby") }
-      .first(15)
-      .each do |stat|
-        short_path = stat[:data].gsub(%r{.*/lib/}, "")
-        puts format("  %-55s %8d", short_path, stat[:count])
-      end
+  .select { |s| s[:data].include?("redis_ruby") }
+  .first(15)
+  .each do |stat|
+    short_path = stat[:data].gsub(%r{.*/lib/}, "")
+    puts format("  %-55s %8d", short_path, stat[:count])
+end
 
 # ============================================================
 # 2. Memory Profiler - Pipeline Operations
 # ============================================================
-puts "\n" + "=" * 70
+puts "\n#{"=" * 70}"
 puts "2. MEMORY - Pipeline operations (100 cmds x 50 pipelines)"
 puts "=" * 70
 
@@ -79,17 +79,17 @@ end
 puts "\nAllocations by location (redis-ruby only):"
 puts "-" * 70
 report.allocated_objects_by_location
-      .select { |s| s[:data].include?("redis_ruby") }
-      .first(15)
-      .each do |stat|
-        short_path = stat[:data].gsub(%r{.*/lib/}, "")
-        puts format("  %-55s %8d", short_path, stat[:count])
-      end
+  .select { |s| s[:data].include?("redis_ruby") }
+  .first(15)
+  .each do |stat|
+    short_path = stat[:data].gsub(%r{.*/lib/}, "")
+    puts format("  %-55s %8d", short_path, stat[:count])
+end
 
 # ============================================================
 # 3. StackProf - CPU Profiling
 # ============================================================
-puts "\n" + "=" * 70
+puts "\n#{"=" * 70}"
 puts "3. STACKPROF - CPU Profiling"
 puts "=" * 70
 
@@ -98,6 +98,7 @@ profile = StackProf.run(mode: :cpu, raw: true, interval: 100) do
     redis.get("profile_key")
     redis.set("profile_key", "value_#{i}")
     next unless (i % 20).zero?
+
     redis.pipelined do |p|
       PIPELINE_SIZE.times { |j| p.get("pipe_#{j}") }
     end
@@ -113,7 +114,7 @@ StackProf::Report.new(profile).print_text(false, 25)
 # ============================================================
 # 4. Allocation per operation measurement
 # ============================================================
-puts "\n" + "=" * 70
+puts "\n#{"=" * 70}"
 puts "4. ALLOCATIONS PER OPERATION"
 puts "=" * 70
 
@@ -143,7 +144,7 @@ puts format("  PIPELINE (100 cmds): %.2f objects/pipeline", (after - before) / 1
 # 5. YJIT Stats
 # ============================================================
 if defined?(RubyVM::YJIT) && RubyVM::YJIT.enabled?
-  puts "\n" + "=" * 70
+  puts "\n#{"=" * 70}"
   puts "5. YJIT STATISTICS"
   puts "=" * 70
 
@@ -155,16 +156,12 @@ if defined?(RubyVM::YJIT) && RubyVM::YJIT.enabled?
     puts format("  Ratio in YJIT: %s%%", ratio)
   end
 
-  if stats[:compiled_iseq_count]
-    puts format("  Compiled ISEQs: %d", stats[:compiled_iseq_count])
-  end
+  puts format("  Compiled ISEQs: %d", stats[:compiled_iseq_count]) if stats[:compiled_iseq_count]
 
-  if stats[:invalidation_count]
-    puts format("  Invalidations: %d", stats[:invalidation_count])
-  end
+  puts format("  Invalidations: %d", stats[:invalidation_count]) if stats[:invalidation_count]
 end
 
 redis.close
-puts "\n" + "=" * 70
+puts "\n#{"=" * 70}"
 puts "Profiling complete!"
 puts "=" * 70

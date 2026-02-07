@@ -31,13 +31,15 @@ class TransactionUnitTest < Minitest::Test
   def test_transaction_initializes_with_connection
     conn = MockConnection.new
     tx = RedisRuby::Transaction.new(conn)
+
     assert_instance_of RedisRuby::Transaction, tx
   end
 
   def test_transaction_starts_empty
     conn = MockConnection.new
     tx = RedisRuby::Transaction.new(conn)
-    assert tx.empty?
+
+    assert_empty tx
     assert_equal 0, tx.size
   end
 
@@ -49,6 +51,7 @@ class TransactionUnitTest < Minitest::Test
     conn = MockConnection.new
     tx = RedisRuby::Transaction.new(conn)
     result = tx.call("SET", "key", "value")
+
     assert_equal "QUEUED", result
   end
 
@@ -57,6 +60,7 @@ class TransactionUnitTest < Minitest::Test
     tx = RedisRuby::Transaction.new(conn)
     tx.call("SET", "key1", "value1")
     tx.call("GET", "key1")
+
     assert_equal 2, tx.size
   end
 
@@ -68,6 +72,7 @@ class TransactionUnitTest < Minitest::Test
     conn = MockConnection.new
     tx = RedisRuby::Transaction.new(conn)
     result = tx.call_1arg("GET", "key")
+
     assert_equal "QUEUED", result
     assert_equal 1, tx.size
   end
@@ -76,6 +81,7 @@ class TransactionUnitTest < Minitest::Test
     conn = MockConnection.new
     tx = RedisRuby::Transaction.new(conn)
     result = tx.call_2args("HGET", "hash", "field")
+
     assert_equal "QUEUED", result
     assert_equal 1, tx.size
   end
@@ -84,6 +90,7 @@ class TransactionUnitTest < Minitest::Test
     conn = MockConnection.new
     tx = RedisRuby::Transaction.new(conn)
     result = tx.call_3args("HSET", "hash", "field", "value")
+
     assert_equal "QUEUED", result
     assert_equal 1, tx.size
   end
@@ -95,8 +102,10 @@ class TransactionUnitTest < Minitest::Test
   def test_size_and_length_are_aliases
     conn = MockConnection.new
     tx = RedisRuby::Transaction.new(conn)
+
     assert_equal tx.size, tx.length
     tx.call("SET", "k", "v")
+
     assert_equal tx.size, tx.length
     assert_equal 1, tx.size
   end
@@ -104,14 +113,16 @@ class TransactionUnitTest < Minitest::Test
   def test_empty_is_true_when_no_commands
     conn = MockConnection.new
     tx = RedisRuby::Transaction.new(conn)
-    assert tx.empty?
+
+    assert_empty tx
   end
 
   def test_empty_is_false_after_queueing
     conn = MockConnection.new
     tx = RedisRuby::Transaction.new(conn)
     tx.call("SET", "k", "v")
-    refute tx.empty?
+
+    refute_empty tx
   end
 
   # ============================================================
@@ -127,8 +138,8 @@ class TransactionUnitTest < Minitest::Test
 
     # Should have called MULTI, SET, GET, EXEC
     assert_equal ["MULTI"], conn.calls[0]
-    assert_equal ["SET", "key1", "value1"], conn.calls[1]
-    assert_equal ["GET", "key1"], conn.calls[2]
+    assert_equal %w[SET key1 value1], conn.calls[1]
+    assert_equal %w[GET key1], conn.calls[2]
     assert_equal ["EXEC"], conn.calls[3]
   end
 
@@ -150,6 +161,7 @@ class TransactionUnitTest < Minitest::Test
     conn = MockConnection.new
     tx = RedisRuby::Transaction.new(conn)
     result = tx.echo("hello")
+
     assert_equal "QUEUED", result
     assert_equal 1, tx.size
   end
@@ -159,6 +171,7 @@ class TransactionUnitTest < Minitest::Test
     tx = RedisRuby::Transaction.new(conn)
     # This should go through the kwargs branch
     result = tx.custom_cmd("arg1", some_opt: "val")
+
     assert_equal "QUEUED", result
     assert_equal 1, tx.size
   end
@@ -166,13 +179,15 @@ class TransactionUnitTest < Minitest::Test
   def test_respond_to_missing_returns_true
     conn = MockConnection.new
     tx = RedisRuby::Transaction.new(conn)
-    assert tx.respond_to?(:any_arbitrary_method)
+
+    assert_respond_to tx, :any_arbitrary_method
   end
 
   def test_respond_to_missing_with_include_private
     conn = MockConnection.new
     tx = RedisRuby::Transaction.new(conn)
-    assert tx.respond_to?(:some_method, true)
+
+    assert_respond_to tx, :some_method
   end
 
   # ============================================================
@@ -183,6 +198,7 @@ class TransactionUnitTest < Minitest::Test
     conn = MockConnection.new
     tx = RedisRuby::Transaction.new(conn)
     result = tx.ping
+
     assert_equal "QUEUED", result
   end
 
@@ -190,6 +206,7 @@ class TransactionUnitTest < Minitest::Test
     conn = MockConnection.new
     tx = RedisRuby::Transaction.new(conn)
     result = tx.hgetall("myhash")
+
     assert_equal "QUEUED", result
   end
 
@@ -197,6 +214,7 @@ class TransactionUnitTest < Minitest::Test
     conn = MockConnection.new
     tx = RedisRuby::Transaction.new(conn)
     result = tx.zscore("zset", "member")
+
     assert_equal "QUEUED", result
   end
 
@@ -204,6 +222,7 @@ class TransactionUnitTest < Minitest::Test
     conn = MockConnection.new
     tx = RedisRuby::Transaction.new(conn)
     result = tx.zmscore("zset", "m1", "m2")
+
     assert_equal "QUEUED", result
   end
 
@@ -216,6 +235,7 @@ class TransactionUnitTest < Minitest::Test
     tx = RedisRuby::Transaction.new(conn)
     tx.zrange("zset", 0, -1)
     tx.execute
+
     assert_equal ["ZRANGE", "zset", 0, -1], conn.calls[1]
   end
 
@@ -224,6 +244,7 @@ class TransactionUnitTest < Minitest::Test
     tx = RedisRuby::Transaction.new(conn)
     tx.zrange("zset", 0, -1, withscores: true)
     tx.execute
+
     assert_equal ["ZRANGE", "zset", 0, -1, "WITHSCORES"], conn.calls[1]
   end
 
@@ -232,6 +253,7 @@ class TransactionUnitTest < Minitest::Test
     tx = RedisRuby::Transaction.new(conn)
     tx.zrange("zset", 0, -1, with_scores: true)
     tx.execute
+
     assert_equal ["ZRANGE", "zset", 0, -1, "WITHSCORES"], conn.calls[1]
   end
 
@@ -244,6 +266,7 @@ class TransactionUnitTest < Minitest::Test
     tx = RedisRuby::Transaction.new(conn)
     tx.zrevrange("zset", 0, -1)
     tx.execute
+
     assert_equal ["ZREVRANGE", "zset", 0, -1], conn.calls[1]
   end
 
@@ -252,6 +275,7 @@ class TransactionUnitTest < Minitest::Test
     tx = RedisRuby::Transaction.new(conn)
     tx.zrevrange("zset", 0, -1, withscores: true)
     tx.execute
+
     assert_equal ["ZREVRANGE", "zset", 0, -1, "WITHSCORES"], conn.calls[1]
   end
 
@@ -260,6 +284,7 @@ class TransactionUnitTest < Minitest::Test
     tx = RedisRuby::Transaction.new(conn)
     tx.zrevrange("zset", 0, -1, with_scores: true)
     tx.execute
+
     assert_equal ["ZREVRANGE", "zset", 0, -1, "WITHSCORES"], conn.calls[1]
   end
 
@@ -272,6 +297,7 @@ class TransactionUnitTest < Minitest::Test
     tx = RedisRuby::Transaction.new(conn)
     tx.zrangebyscore("zset", "-inf", "+inf")
     tx.execute
+
     assert_equal ["ZRANGEBYSCORE", "zset", "-inf", "+inf"], conn.calls[1]
   end
 
@@ -280,6 +306,7 @@ class TransactionUnitTest < Minitest::Test
     tx = RedisRuby::Transaction.new(conn)
     tx.zrangebyscore("zset", "-inf", "+inf", withscores: true)
     tx.execute
+
     assert_includes conn.calls[1], "WITHSCORES"
   end
 
@@ -288,6 +315,7 @@ class TransactionUnitTest < Minitest::Test
     tx = RedisRuby::Transaction.new(conn)
     tx.zrangebyscore("zset", "-inf", "+inf", with_scores: true)
     tx.execute
+
     assert_includes conn.calls[1], "WITHSCORES"
   end
 
@@ -296,6 +324,7 @@ class TransactionUnitTest < Minitest::Test
     tx = RedisRuby::Transaction.new(conn)
     tx.zrangebyscore("zset", "-inf", "+inf", limit: [0, 10])
     tx.execute
+
     assert_includes conn.calls[1], "LIMIT"
     assert_includes conn.calls[1], 0
     assert_includes conn.calls[1], 10
@@ -306,6 +335,7 @@ class TransactionUnitTest < Minitest::Test
     tx = RedisRuby::Transaction.new(conn)
     tx.zrangebyscore("zset", "-inf", "+inf", withscores: true, limit: [0, 5])
     tx.execute
+
     assert_includes conn.calls[1], "WITHSCORES"
     assert_includes conn.calls[1], "LIMIT"
   end
@@ -319,6 +349,7 @@ class TransactionUnitTest < Minitest::Test
     tx = RedisRuby::Transaction.new(conn)
     tx.zrevrangebyscore("zset", "+inf", "-inf")
     tx.execute
+
     assert_equal ["ZREVRANGEBYSCORE", "zset", "+inf", "-inf"], conn.calls[1]
   end
 
@@ -327,6 +358,7 @@ class TransactionUnitTest < Minitest::Test
     tx = RedisRuby::Transaction.new(conn)
     tx.zrevrangebyscore("zset", "+inf", "-inf", withscores: true)
     tx.execute
+
     assert_includes conn.calls[1], "WITHSCORES"
   end
 
@@ -335,6 +367,7 @@ class TransactionUnitTest < Minitest::Test
     tx = RedisRuby::Transaction.new(conn)
     tx.zrevrangebyscore("zset", "+inf", "-inf", with_scores: true)
     tx.execute
+
     assert_includes conn.calls[1], "WITHSCORES"
   end
 
@@ -343,6 +376,7 @@ class TransactionUnitTest < Minitest::Test
     tx = RedisRuby::Transaction.new(conn)
     tx.zrevrangebyscore("zset", "+inf", "-inf", limit: [0, 10])
     tx.execute
+
     assert_includes conn.calls[1], "LIMIT"
   end
 
@@ -351,6 +385,7 @@ class TransactionUnitTest < Minitest::Test
     tx = RedisRuby::Transaction.new(conn)
     tx.zrevrangebyscore("zset", "+inf", "-inf", withscores: true, limit: [0, 5])
     tx.execute
+
     assert_includes conn.calls[1], "WITHSCORES"
     assert_includes conn.calls[1], "LIMIT"
   end
@@ -363,6 +398,7 @@ class TransactionUnitTest < Minitest::Test
     conn = MockConnection.new
     tx = RedisRuby::Transaction.new(conn)
     result = tx.zincrby("zset", 1.5, "member")
+
     assert_equal "QUEUED", result
   end
 
@@ -375,7 +411,8 @@ class TransactionUnitTest < Minitest::Test
     tx = RedisRuby::Transaction.new(conn)
     tx.zpopmin("zset")
     tx.execute
-    assert_equal ["ZPOPMIN", "zset"], conn.calls[1]
+
+    assert_equal %w[ZPOPMIN zset], conn.calls[1]
   end
 
   def test_zpopmin_with_count
@@ -383,6 +420,7 @@ class TransactionUnitTest < Minitest::Test
     tx = RedisRuby::Transaction.new(conn)
     tx.zpopmin("zset", 3)
     tx.execute
+
     assert_equal ["ZPOPMIN", "zset", 3], conn.calls[1]
   end
 
@@ -391,7 +429,8 @@ class TransactionUnitTest < Minitest::Test
     tx = RedisRuby::Transaction.new(conn)
     tx.zpopmax("zset")
     tx.execute
-    assert_equal ["ZPOPMAX", "zset"], conn.calls[1]
+
+    assert_equal %w[ZPOPMAX zset], conn.calls[1]
   end
 
   def test_zpopmax_with_count
@@ -399,6 +438,7 @@ class TransactionUnitTest < Minitest::Test
     tx = RedisRuby::Transaction.new(conn)
     tx.zpopmax("zset", 2)
     tx.execute
+
     assert_equal ["ZPOPMAX", "zset", 2], conn.calls[1]
   end
 
@@ -411,7 +451,8 @@ class TransactionUnitTest < Minitest::Test
     tx = RedisRuby::Transaction.new(conn)
     tx.zscan("zset", "0")
     tx.execute
-    assert_equal ["ZSCAN", "zset", "0"], conn.calls[1]
+
+    assert_equal %w[ZSCAN zset 0], conn.calls[1]
   end
 
   def test_zscan_with_match
@@ -419,6 +460,7 @@ class TransactionUnitTest < Minitest::Test
     tx = RedisRuby::Transaction.new(conn)
     tx.zscan("zset", "0", match: "foo*")
     tx.execute
+
     assert_includes conn.calls[1], "MATCH"
     assert_includes conn.calls[1], "foo*"
   end
@@ -428,6 +470,7 @@ class TransactionUnitTest < Minitest::Test
     tx = RedisRuby::Transaction.new(conn)
     tx.zscan("zset", "0", count: 100)
     tx.execute
+
     assert_includes conn.calls[1], "COUNT"
     assert_includes conn.calls[1], 100
   end
@@ -437,6 +480,7 @@ class TransactionUnitTest < Minitest::Test
     tx = RedisRuby::Transaction.new(conn)
     tx.zscan("zset", "0", match: "bar*", count: 50)
     tx.execute
+
     assert_includes conn.calls[1], "MATCH"
     assert_includes conn.calls[1], "COUNT"
   end
@@ -449,6 +493,7 @@ class TransactionUnitTest < Minitest::Test
     conn = MockConnection.new
     tx = RedisRuby::Transaction.new(conn)
     result = tx.sadd?("myset", "m1", "m2")
+
     assert_equal "QUEUED", result
   end
 
@@ -456,6 +501,7 @@ class TransactionUnitTest < Minitest::Test
     conn = MockConnection.new
     tx = RedisRuby::Transaction.new(conn)
     result = tx.srem?("myset", "m1", "m2")
+
     assert_equal "QUEUED", result
   end
 
@@ -463,6 +509,7 @@ class TransactionUnitTest < Minitest::Test
     conn = MockConnection.new
     tx = RedisRuby::Transaction.new(conn)
     result = tx.exists?("key1", "key2")
+
     assert_equal "QUEUED", result
   end
 
@@ -470,6 +517,7 @@ class TransactionUnitTest < Minitest::Test
     conn = MockConnection.new
     tx = RedisRuby::Transaction.new(conn)
     result = tx.sismember?("myset", "member")
+
     assert_equal "QUEUED", result
   end
 
@@ -482,7 +530,8 @@ class TransactionUnitTest < Minitest::Test
     tx = RedisRuby::Transaction.new(conn)
     tx.info("server")
     tx.execute
-    assert_equal ["INFO", "server"], conn.calls[1]
+
+    assert_equal %w[INFO server], conn.calls[1]
   end
 
   def test_info_without_section
@@ -490,6 +539,7 @@ class TransactionUnitTest < Minitest::Test
     tx = RedisRuby::Transaction.new(conn)
     tx.info
     tx.execute
+
     assert_equal ["INFO"], conn.calls[1]
   end
 
@@ -501,6 +551,7 @@ class TransactionUnitTest < Minitest::Test
     conn = MockConnection.new
     tx = RedisRuby::Transaction.new(conn)
     result = tx.mapped_mget("k1", "k2")
+
     assert_equal "QUEUED", result
   end
 
@@ -508,6 +559,7 @@ class TransactionUnitTest < Minitest::Test
     conn = MockConnection.new
     tx = RedisRuby::Transaction.new(conn)
     result = tx.mapped_hmget("myhash", "f1", "f2")
+
     assert_equal "QUEUED", result
   end
 
@@ -519,6 +571,7 @@ class TransactionUnitTest < Minitest::Test
     conn = MockConnection.new
     tx = RedisRuby::Transaction.new(conn)
     result = tx.set("key", "value")
+
     assert_equal "QUEUED", result
   end
 
@@ -526,6 +579,7 @@ class TransactionUnitTest < Minitest::Test
     conn = MockConnection.new
     tx = RedisRuby::Transaction.new(conn)
     result = tx.get("key")
+
     assert_equal "QUEUED", result
   end
 
@@ -533,6 +587,7 @@ class TransactionUnitTest < Minitest::Test
     conn = MockConnection.new
     tx = RedisRuby::Transaction.new(conn)
     result = tx.del("key")
+
     assert_equal "QUEUED", result
   end
 
@@ -540,6 +595,7 @@ class TransactionUnitTest < Minitest::Test
     conn = MockConnection.new
     tx = RedisRuby::Transaction.new(conn)
     result = tx.incr("counter")
+
     assert_equal "QUEUED", result
   end
 
@@ -550,6 +606,7 @@ class TransactionUnitTest < Minitest::Test
     tx.call("SET", "k2", "v2")
     tx.call("GET", "k1")
     tx.call("DEL", "k2")
+
     assert_equal 4, tx.size
     tx.execute
     # Verify order: MULTI, SET, SET, GET, DEL, EXEC
@@ -564,21 +621,25 @@ class TransactionUnitTest < Minitest::Test
 
   def test_client_responds_to_multi
     client = RedisRuby::Client.new
+
     assert_respond_to client, :multi
   end
 
   def test_client_responds_to_watch
     client = RedisRuby::Client.new
+
     assert_respond_to client, :watch
   end
 
   def test_client_responds_to_unwatch
     client = RedisRuby::Client.new
+
     assert_respond_to client, :unwatch
   end
 
   def test_client_responds_to_discard
     client = RedisRuby::Client.new
+
     assert_respond_to client, :discard
   end
 end

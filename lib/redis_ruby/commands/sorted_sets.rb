@@ -211,9 +211,7 @@ module RedisRuby
         args.push(OPT_LIMIT, *limit) if limit && (byscore || bylex)
         args.push(OPT_WITHSCORES) if withscores
         result = call(*args)
-        return result unless withscores
-
-        result.each_slice(2).map { |m, s| [m, parse_score(s)] }
+        withscores ? parse_withscores_result(result) : result
       end
 
       # Store range results in a destination key (Redis 6.2+)
@@ -250,12 +248,8 @@ module RedisRuby
         # Fast path: no withscores
         return call_3args(CMD_ZREVRANGE, key, start, stop) unless withscores
 
-        args = [CMD_ZREVRANGE, key, start, stop]
-        args.push(OPT_WITHSCORES) if withscores
-        result = call(*args)
-        return result unless withscores
-
-        result.each_slice(2).map { |m, s| [m, parse_score(s)] }
+        result = call(CMD_ZREVRANGE, key, start, stop, OPT_WITHSCORES)
+        parse_withscores_result(result)
       end
 
       # Get members in a score range (low to high)
@@ -267,16 +261,7 @@ module RedisRuby
       # @param limit [Array, nil] [offset, count] for pagination
       # @return [Array] members
       def zrangebyscore(key, min, max, withscores: false, limit: nil)
-        # Fast path: no options
-        return call_3args(CMD_ZRANGEBYSCORE, key, min, max) if !withscores && limit.nil?
-
-        args = [CMD_ZRANGEBYSCORE, key, min, max]
-        args.push(OPT_WITHSCORES) if withscores
-        args.push(OPT_LIMIT, *limit) if limit
-        result = call(*args)
-        return result unless withscores
-
-        result.each_slice(2).map { |m, s| [m, parse_score(s)] }
+        zrangebyscore_internal(CMD_ZRANGEBYSCORE, key, min, max, withscores: withscores, limit: limit)
       end
 
       # Get members in a score range (high to low)
@@ -288,16 +273,7 @@ module RedisRuby
       # @param limit [Array, nil] [offset, count] for pagination
       # @return [Array] members
       def zrevrangebyscore(key, max, min, withscores: false, limit: nil)
-        # Fast path: no options
-        return call_3args(CMD_ZREVRANGEBYSCORE, key, max, min) if !withscores && limit.nil?
-
-        args = [CMD_ZREVRANGEBYSCORE, key, max, min]
-        args.push(OPT_WITHSCORES) if withscores
-        args.push(OPT_LIMIT, *limit) if limit
-        result = call(*args)
-        return result unless withscores
-
-        result.each_slice(2).map { |m, s| [m, parse_score(s)] }
+        zrangebyscore_internal(CMD_ZREVRANGEBYSCORE, key, max, min, withscores: withscores, limit: limit)
       end
 
       # Increment the score of a member
@@ -336,16 +312,7 @@ module RedisRuby
       # @param count [Integer] number of members to pop
       # @return [Array] [member, score] without count, [[member, score], ...] with count, or nil
       def zpopmin(key, count = nil)
-        result = if count
-                   call_2args(CMD_ZPOPMIN, key, count)
-                 else
-                   call_1arg(CMD_ZPOPMIN, key)
-                 end
-        return nil if result.nil? || result.empty?
-
-        pairs = result.each_slice(2).map { |m, s| [m, parse_score(s)] }
-        # Without count, return single pair [member, score]; with count, return [[member, score], ...]
-        count ? pairs : pairs[0]
+        zpop_internal(CMD_ZPOPMIN, key, count)
       end
 
       # Remove and return members with highest scores
@@ -354,16 +321,7 @@ module RedisRuby
       # @param count [Integer] number of members to pop
       # @return [Array] [member, score] without count, [[member, score], ...] with count, or nil
       def zpopmax(key, count = nil)
-        result = if count
-                   call_2args(CMD_ZPOPMAX, key, count)
-                 else
-                   call_1arg(CMD_ZPOPMAX, key)
-                 end
-        return nil if result.nil? || result.empty?
-
-        pairs = result.each_slice(2).map { |m, s| [m, parse_score(s)] }
-        # Without count, return single pair [member, score]; with count, return [[member, score], ...]
-        count ? pairs : pairs[0]
+        zpop_internal(CMD_ZPOPMAX, key, count)
       end
 
       # Blocking pop from sorted set (lowest scores)
@@ -444,10 +402,7 @@ module RedisRuby
       # @param aggregate [:sum, :min, :max, nil] aggregation function
       # @return [Integer] number of members in result
       def zinterstore(destination, keys, weights: nil, aggregate: nil)
-        args = [CMD_ZINTERSTORE, destination, keys.length, *keys]
-        args.push(OPT_WEIGHTS, *weights) if weights
-        args.push(OPT_AGGREGATE, aggregate.to_s.upcase) if aggregate
-        call(*args)
+        zstore_operation(CMD_ZINTERSTORE, destination, keys, weights: weights, aggregate: aggregate)
       end
 
       # Store union of sorted sets
@@ -458,10 +413,7 @@ module RedisRuby
       # @param aggregate [:sum, :min, :max, nil] aggregation function
       # @return [Integer] number of members in result
       def zunionstore(destination, keys, weights: nil, aggregate: nil)
-        args = [CMD_ZUNIONSTORE, destination, keys.length, *keys]
-        args.push(OPT_WEIGHTS, *weights) if weights
-        args.push(OPT_AGGREGATE, aggregate.to_s.upcase) if aggregate
-        call(*args)
+        zstore_operation(CMD_ZUNIONSTORE, destination, keys, weights: weights, aggregate: aggregate)
       end
 
       # Get the union of sorted sets (Redis 6.2+)
@@ -472,14 +424,7 @@ module RedisRuby
       # @param withscores [Boolean] include scores
       # @return [Array] members (with scores if requested)
       def zunion(keys, weights: nil, aggregate: nil, withscores: false)
-        args = [CMD_ZUNION, keys.length, *keys]
-        args.push(OPT_WEIGHTS, *weights) if weights
-        args.push(OPT_AGGREGATE, aggregate.to_s.upcase) if aggregate
-        args.push(OPT_WITHSCORES) if withscores
-        result = call(*args)
-        return result unless withscores
-
-        result.each_slice(2).map { |m, s| [m, parse_score(s)] }
+        zset_operation(CMD_ZUNION, keys, weights: weights, aggregate: aggregate, withscores: withscores)
       end
 
       # Get the intersection of sorted sets (Redis 6.2+)
@@ -490,14 +435,7 @@ module RedisRuby
       # @param withscores [Boolean] include scores
       # @return [Array] members (with scores if requested)
       def zinter(keys, weights: nil, aggregate: nil, withscores: false)
-        args = [CMD_ZINTER, keys.length, *keys]
-        args.push(OPT_WEIGHTS, *weights) if weights
-        args.push(OPT_AGGREGATE, aggregate.to_s.upcase) if aggregate
-        args.push(OPT_WITHSCORES) if withscores
-        result = call(*args)
-        return result unless withscores
-
-        result.each_slice(2).map { |m, s| [m, parse_score(s)] }
+        zset_operation(CMD_ZINTER, keys, weights: weights, aggregate: aggregate, withscores: withscores)
       end
 
       # Get the difference of sorted sets (Redis 6.2+)
@@ -506,12 +444,7 @@ module RedisRuby
       # @param withscores [Boolean] include scores
       # @return [Array] members (with scores if requested)
       def zdiff(keys, withscores: false)
-        args = [CMD_ZDIFF, keys.length, *keys]
-        args.push(OPT_WITHSCORES) if withscores
-        result = call(*args)
-        return result unless withscores
-
-        result.each_slice(2).map { |m, s| [m, parse_score(s)] }
+        zset_operation(CMD_ZDIFF, keys, withscores: withscores)
       end
 
       # Store the difference of sorted sets (Redis 6.2+)
@@ -562,13 +495,7 @@ module RedisRuby
       def zmpop(*keys, modifier: :min, count: nil)
         args = [CMD_ZMPOP, keys.length, *keys, modifier.to_s.upcase]
         args.push(OPT_COUNT, count) if count
-        result = call(*args)
-        return nil if result.nil?
-
-        # Response format is [key, [[member, score], [member, score], ...]]
-        key = result[0]
-        members = result[1].map { |pair| [pair[0], parse_score(pair[1])] }
-        [key, members]
+        parse_zmpop_result(call(*args))
       end
 
       # Blocking pop from multiple sorted sets (Redis 7.0+)
@@ -581,13 +508,7 @@ module RedisRuby
       def bzmpop(timeout, *keys, modifier: :min, count: nil)
         args = [CMD_BZMPOP, timeout, keys.length, *keys, modifier.to_s.upcase]
         args.push(OPT_COUNT, count) if count
-        result = call(*args)
-        return nil if result.nil?
-
-        # Response format is [key, [[member, score], [member, score], ...]]
-        key = result[0]
-        members = result[1].map { |pair| [pair[0], parse_score(pair[1])] }
-        [key, members]
+        parse_zmpop_result(call(*args))
       end
 
       # Count members in a lexicographical range
@@ -663,10 +584,58 @@ module RedisRuby
 
         # Handle withscores response
         if withscores && count && result
-          result.each_slice(2).map { |m, s| [m, parse_score(s)] }
+          parse_withscores_result(result)
         else
           result
         end
+      end
+
+      private
+
+      def parse_withscores_result(result)
+        result.each_slice(2).map { |m, s| [m, parse_score(s)] }
+      end
+
+      def zpop_internal(cmd, key, count)
+        result = count ? call_2args(cmd, key, count) : call_1arg(cmd, key)
+        return nil if result.nil? || result.empty?
+
+        pairs = parse_withscores_result(result)
+        count ? pairs : pairs[0]
+      end
+
+      def zrangebyscore_internal(cmd, key, bound1, bound2, withscores:, limit:)
+        return call_3args(cmd, key, bound1, bound2) if !withscores && limit.nil?
+
+        args = [cmd, key, bound1, bound2]
+        args.push(OPT_WITHSCORES) if withscores
+        args.push(OPT_LIMIT, *limit) if limit
+        result = call(*args)
+        withscores ? parse_withscores_result(result) : result
+      end
+
+      def zset_operation(cmd, keys, weights: nil, aggregate: nil, withscores: false)
+        args = [cmd, keys.length, *keys]
+        args.push(OPT_WEIGHTS, *weights) if weights
+        args.push(OPT_AGGREGATE, aggregate.to_s.upcase) if aggregate
+        args.push(OPT_WITHSCORES) if withscores
+        result = call(*args)
+        withscores ? parse_withscores_result(result) : result
+      end
+
+      def zstore_operation(cmd, destination, keys, weights:, aggregate:)
+        args = [cmd, destination, keys.length, *keys]
+        args.push(OPT_WEIGHTS, *weights) if weights
+        args.push(OPT_AGGREGATE, aggregate.to_s.upcase) if aggregate
+        call(*args)
+      end
+
+      def parse_zmpop_result(result)
+        return nil if result.nil?
+
+        key = result[0]
+        members = result[1].map { |pair| [pair[0], parse_score(pair[1])] }
+        [key, members]
       end
     end
   end

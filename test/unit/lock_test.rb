@@ -17,7 +17,7 @@ class LockTest < Minitest::Test
     lock = RedisRuby::Lock.new(@mock_client, "my-resource")
 
     assert_equal "lock:my-resource", lock.name
-    assert_equal 10.0, lock.timeout
+    assert_in_delta(10.0, lock.timeout)
     @mock_client.verify
   end
 
@@ -28,7 +28,7 @@ class LockTest < Minitest::Test
 
     lock = RedisRuby::Lock.new(@mock_client, "resource", timeout: 30.0)
 
-    assert_equal 30.0, lock.timeout
+    assert_in_delta(30.0, lock.timeout)
   end
 
   def test_acquire_nonblocking_success
@@ -85,6 +85,7 @@ class LockTest < Minitest::Test
     end
 
     result = lock.release
+
     assert result
     @mock_script.verify
   end
@@ -98,6 +99,7 @@ class LockTest < Minitest::Test
     # Never acquired, so no token
 
     result = lock.release
+
     refute result
   end
 
@@ -115,10 +117,10 @@ class LockTest < Minitest::Test
     lock.acquire
 
     # The get should return the same token
-    token = lock.instance_variable_get(:@local_tokens)[Thread.current.object_id]
+    token = lock.instance_variable_get(:@local_tokens)[Thread.current]
     @mock_client.expect(:get, token, ["lock:resource"])
 
-    assert lock.owned?
+    assert_predicate lock, :owned?
     @mock_client.verify
   end
 
@@ -137,7 +139,7 @@ class LockTest < Minitest::Test
 
     @mock_client.expect(:get, "different-token", ["lock:resource"])
 
-    refute lock.owned?
+    refute_predicate lock, :owned?
     @mock_client.verify
   end
 
@@ -149,7 +151,7 @@ class LockTest < Minitest::Test
 
     lock = RedisRuby::Lock.new(@mock_client, "resource")
 
-    assert lock.locked?
+    assert_predicate lock, :locked?
     @mock_client.verify
   end
 
@@ -161,7 +163,7 @@ class LockTest < Minitest::Test
 
     lock = RedisRuby::Lock.new(@mock_client, "resource")
 
-    refute lock.locked?
+    refute_predicate lock, :locked?
     @mock_client.verify
   end
 
@@ -173,7 +175,7 @@ class LockTest < Minitest::Test
 
     lock = RedisRuby::Lock.new(@mock_client, "resource")
 
-    assert_equal 5.0, lock.ttl
+    assert_in_delta(5.0, lock.ttl)
     @mock_client.verify
   end
 
@@ -207,6 +209,7 @@ class LockTest < Minitest::Test
     end
 
     result = lock.extend(additional_time: 15)
+
     assert result
     @mock_script.verify
   end
@@ -241,6 +244,7 @@ class LockTest < Minitest::Test
     end
 
     result = lock.reacquire
+
     assert result
     @mock_script.verify
   end
@@ -331,7 +335,7 @@ class LockTest < Minitest::Test
     lock = RedisRuby::Lock.new(@mock_client, "resource", thread_local: true)
 
     # Verify thread-local storage is used
-    assert lock.instance_variable_get(:@local_tokens).is_a?(Hash)
+    assert_kind_of Hash, lock.instance_variable_get(:@local_tokens)
     assert lock.instance_variable_get(:@thread_local)
   end
 

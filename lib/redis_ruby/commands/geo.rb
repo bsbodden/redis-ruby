@@ -149,40 +149,12 @@ module RedisRuby
                     unit: "m", count: nil, any: false, sort: nil,
                     withcoord: false, withdist: false, withhash: false)
         cmd = [CMD_GEOSEARCH, key]
-
-        # From position
-        if frommember
-          cmd << OPT_FROMMEMBER << frommember
-        elsif fromlonlat
-          cmd << OPT_FROMLONLAT << fromlonlat[0] << fromlonlat[1]
-        else
-          raise ArgumentError, "Must specify frommember or fromlonlat"
-        end
-
-        # Search shape
-        if byradius
-          cmd << OPT_BYRADIUS << byradius << unit.to_s.upcase
-        elsif bybox
-          cmd << OPT_BYBOX << bybox[0] << bybox[1] << unit.to_s.upcase
-        else
-          raise ArgumentError, "Must specify byradius or bybox"
-        end
-
-        # Options
-        cmd << OPT_COUNT << count << (OPT_ANY if any) if count
-        cmd.compact!
-
-        case sort
-        when :asc, "ASC", "asc"
-          cmd << OPT_ASC
-        when :desc, "DESC", "desc"
-          cmd << OPT_DESC
-        end
-
+        build_geosearch_args(cmd, frommember: frommember, fromlonlat: fromlonlat,
+                             byradius: byradius, bybox: bybox, unit: unit,
+                             count: count, any: any, sort: sort)
         cmd << OPT_WITHCOORD if withcoord
         cmd << OPT_WITHDIST if withdist
         cmd << OPT_WITHHASH if withhash
-
         call(*cmd)
       end
 
@@ -201,38 +173,10 @@ module RedisRuby
                          byradius: nil, bybox: nil, unit: "m", count: nil, any: false,
                          sort: nil, storedist: false)
         cmd = [CMD_GEOSEARCHSTORE, destination, source]
-
-        # From position
-        if frommember
-          cmd << OPT_FROMMEMBER << frommember
-        elsif fromlonlat
-          cmd << OPT_FROMLONLAT << fromlonlat[0] << fromlonlat[1]
-        else
-          raise ArgumentError, "Must specify frommember or fromlonlat"
-        end
-
-        # Search shape
-        if byradius
-          cmd << OPT_BYRADIUS << byradius << unit.to_s.upcase
-        elsif bybox
-          cmd << OPT_BYBOX << bybox[0] << bybox[1] << unit.to_s.upcase
-        else
-          raise ArgumentError, "Must specify byradius or bybox"
-        end
-
-        # Options
-        cmd << OPT_COUNT << count << (OPT_ANY if any) if count
-        cmd.compact!
-
-        case sort
-        when :asc, "ASC", "asc"
-          cmd << OPT_ASC
-        when :desc, "DESC", "desc"
-          cmd << OPT_DESC
-        end
-
+        build_geosearch_args(cmd, frommember: frommember, fromlonlat: fromlonlat,
+                             byradius: byradius, bybox: bybox, unit: unit,
+                             count: count, any: any, sort: sort)
         cmd << OPT_STOREDIST if storedist
-
         call(*cmd)
       end
 
@@ -264,6 +208,34 @@ module RedisRuby
       end
 
       private
+
+      def build_geosearch_args(cmd, frommember:, fromlonlat:, byradius:, bybox:, unit:, count:, any:, sort:)
+        if frommember
+          cmd << OPT_FROMMEMBER << frommember
+        elsif fromlonlat
+          cmd << OPT_FROMLONLAT << fromlonlat[0] << fromlonlat[1]
+        else
+          raise ArgumentError, "Must specify frommember or fromlonlat"
+        end
+
+        if byradius
+          cmd << OPT_BYRADIUS << byradius << unit.to_s.upcase
+        elsif bybox
+          cmd << OPT_BYBOX << bybox[0] << bybox[1] << unit.to_s.upcase
+        else
+          raise ArgumentError, "Must specify byradius or bybox"
+        end
+
+        if count
+          cmd << OPT_COUNT << count
+          cmd << OPT_ANY if any
+        end
+
+        case sort
+        when :asc, "ASC", "asc" then cmd << OPT_ASC
+        when :desc, "DESC", "desc" then cmd << OPT_DESC
+        end
+      end
 
       def add_geo_options(cmd, options)
         cmd << OPT_COUNT << options[:count] if options[:count]

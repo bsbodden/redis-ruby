@@ -16,11 +16,12 @@ class PooledClientBranchTest < Minitest::Test
   def test_pooled_client_initialization
     TCPSocket.stubs(:new).returns(@mock_socket)
     client = RedisRuby::PooledClient.new(host: "localhost", port: 6379)
+
     assert_kind_of RedisRuby::PooledClient, client
     assert_equal "localhost", client.host
     assert_equal 6379, client.port
     assert_equal 0, client.db
-    assert_equal 5.0, client.timeout
+    assert_in_delta(5.0, client.timeout)
     client.close
   end
 
@@ -31,6 +32,7 @@ class PooledClientBranchTest < Minitest::Test
     @mock_socket.stubs(:read_nonblock).returns("+OK\r\n")
 
     client = RedisRuby::PooledClient.new(url: "redis://localhost:6380/1")
+
     assert_equal "localhost", client.host
     assert_equal 6380, client.port
     assert_equal 1, client.db
@@ -44,6 +46,7 @@ class PooledClientBranchTest < Minitest::Test
     @mock_socket.stubs(:read_nonblock).returns("+OK\r\n")
 
     client = RedisRuby::PooledClient.new(url: "redis://:secret@localhost:6379/0")
+
     assert_equal "localhost", client.host
     client.close
   end
@@ -51,6 +54,7 @@ class PooledClientBranchTest < Minitest::Test
   def test_pooled_client_custom_pool_size
     TCPSocket.stubs(:new).returns(@mock_socket)
     client = RedisRuby::PooledClient.new(host: "localhost", pool: { size: 10 })
+
     assert_equal 10, client.pool_size
     client.close
   end
@@ -58,6 +62,7 @@ class PooledClientBranchTest < Minitest::Test
   def test_pooled_client_custom_pool_timeout
     TCPSocket.stubs(:new).returns(@mock_socket)
     client = RedisRuby::PooledClient.new(host: "localhost", pool: { size: 5, timeout: 15.0 })
+
     assert_equal 5, client.pool_size
     client.close
   end
@@ -65,6 +70,7 @@ class PooledClientBranchTest < Minitest::Test
   def test_pooled_client_default_pool_size
     TCPSocket.stubs(:new).returns(@mock_socket)
     client = RedisRuby::PooledClient.new(host: "localhost")
+
     assert_equal 5, client.pool_size
     client.close
   end
@@ -81,6 +87,7 @@ class PooledClientBranchTest < Minitest::Test
 
     client = RedisRuby::PooledClient.new(host: "localhost", port: 6379)
     result = client.call("PING")
+
     assert_equal "PONG", result
     client.close
   end
@@ -104,6 +111,7 @@ class PooledClientBranchTest < Minitest::Test
 
     client = RedisRuby::PooledClient.new(host: "localhost", port: 6379)
     result = client.call_1arg("GET", "key")
+
     assert_equal "hello", result
     client.close
   end
@@ -127,6 +135,7 @@ class PooledClientBranchTest < Minitest::Test
 
     client = RedisRuby::PooledClient.new(host: "localhost", port: 6379)
     result = client.call_2args("SET", "key", "val")
+
     assert_equal "OK", result
     client.close
   end
@@ -150,6 +159,7 @@ class PooledClientBranchTest < Minitest::Test
 
     client = RedisRuby::PooledClient.new(host: "localhost", port: 6379)
     result = client.call_3args("HSET", "h", "f", "v")
+
     assert_equal 1, result
     client.close
   end
@@ -176,6 +186,7 @@ class PooledClientBranchTest < Minitest::Test
     @mock_socket.expects(:read_nonblock).returns("+PONG\r\n")
 
     client = RedisRuby::PooledClient.new(host: "localhost", port: 6379)
+
     assert_equal "PONG", client.ping
     client.close
   end
@@ -188,6 +199,7 @@ class PooledClientBranchTest < Minitest::Test
 
     client = RedisRuby::PooledClient.new(host: "localhost", port: 6379)
     result = client.with_connection { |conn| conn.call("PING") }
+
     assert_equal "PONG", result
     client.close
   end
@@ -195,6 +207,7 @@ class PooledClientBranchTest < Minitest::Test
   def test_pooled_client_pool_available
     TCPSocket.stubs(:new).returns(@mock_socket)
     client = RedisRuby::PooledClient.new(host: "localhost", port: 6379, pool: { size: 5 })
+
     assert_equal 5, client.pool_available
     client.close
   end
@@ -211,6 +224,7 @@ class PooledClientBranchTest < Minitest::Test
 
     client = RedisRuby::PooledClient.new(host: "localhost", port: 6379)
     result = client.watch("key1")
+
     assert_equal "OK", result
     client.close
   end
@@ -224,6 +238,7 @@ class PooledClientBranchTest < Minitest::Test
     client = RedisRuby::PooledClient.new(host: "localhost", port: 6379)
     executed = false
     client.watch("key1") { executed = true }
+
     assert executed
     client.close
   end
@@ -240,6 +255,7 @@ class PooledClientBranchTest < Minitest::Test
 
     client = RedisRuby::PooledClient.new(host: "localhost", port: 6379)
     result = client.unwatch
+
     assert_equal "OK", result
     client.close
   end
@@ -290,11 +306,12 @@ class PooledClientBranchTest < Minitest::Test
     RedisRuby::Connection::AsyncPool.stubs(:new).returns(mock_pool)
 
     client = RedisRuby::AsyncPooledClient.new(host: "localhost", port: 6379)
+
     assert_kind_of RedisRuby::AsyncPooledClient, client
     assert_equal "localhost", client.host
     assert_equal 6379, client.port
     assert_equal 0, client.db
-    assert_equal 5.0, client.timeout
+    assert_in_delta(5.0, client.timeout)
   end
 
   def test_async_pooled_client_with_url
@@ -302,6 +319,7 @@ class PooledClientBranchTest < Minitest::Test
     RedisRuby::Connection::AsyncPool.stubs(:new).returns(mock_pool)
 
     client = RedisRuby::AsyncPooledClient.new(url: "redis://localhost:6380/2")
+
     assert_equal "localhost", client.host
     assert_equal 6380, client.port
     assert_equal 2, client.db
@@ -312,6 +330,7 @@ class PooledClientBranchTest < Minitest::Test
     RedisRuby::Connection::AsyncPool.stubs(:new).returns(mock_pool)
 
     client = RedisRuby::AsyncPooledClient.new(url: "redis://:secret@localhost:6379/0")
+
     assert_equal "localhost", client.host
   end
 
@@ -320,70 +339,76 @@ class PooledClientBranchTest < Minitest::Test
     RedisRuby::Connection::AsyncPool.stubs(:new).returns(mock_pool)
 
     client = RedisRuby::AsyncPooledClient.new(host: "localhost", pool: { limit: 20 })
+
     assert_kind_of RedisRuby::AsyncPooledClient, client
   end
 
   def test_async_pooled_client_call
-    mock_pool = create_yielding_pool("PONG") { |conn| conn.expects(:call).with("PING").returns("PONG") }
+    create_yielding_pool("PONG") { |conn| conn.expects(:call).with("PING").returns("PONG") }
 
     client = RedisRuby::AsyncPooledClient.new(host: "localhost", port: 6379)
     result = client.call("PING")
+
     assert_equal "PONG", result
   end
 
   def test_async_pooled_client_call_raises_on_error
-    mock_pool = create_yielding_pool(nil) { |conn| conn.expects(:call).returns(RedisRuby::CommandError.new("ERR")) }
+    create_yielding_pool(nil) { |conn| conn.expects(:call).returns(RedisRuby::CommandError.new("ERR")) }
 
     client = RedisRuby::AsyncPooledClient.new(host: "localhost", port: 6379)
     assert_raises(RedisRuby::CommandError) { client.call("BAD") }
   end
 
   def test_async_pooled_client_call_1arg
-    mock_pool = create_yielding_pool("value") { |conn| conn.expects(:call_1arg).with("GET", "key").returns("value") }
+    create_yielding_pool("value") { |conn| conn.expects(:call_1arg).with("GET", "key").returns("value") }
 
     client = RedisRuby::AsyncPooledClient.new(host: "localhost", port: 6379)
+
     assert_equal "value", client.call_1arg("GET", "key")
   end
 
   def test_async_pooled_client_call_1arg_raises_on_error
-    mock_pool = create_yielding_pool(nil) { |conn| conn.expects(:call_1arg).returns(RedisRuby::CommandError.new("ERR")) }
+    create_yielding_pool(nil) { |conn| conn.expects(:call_1arg).returns(RedisRuby::CommandError.new("ERR")) }
 
     client = RedisRuby::AsyncPooledClient.new(host: "localhost", port: 6379)
     assert_raises(RedisRuby::CommandError) { client.call_1arg("GET", "key") }
   end
 
   def test_async_pooled_client_call_2args
-    mock_pool = create_yielding_pool("OK") { |conn| conn.expects(:call_2args).with("SET", "k", "v").returns("OK") }
+    create_yielding_pool("OK") { |conn| conn.expects(:call_2args).with("SET", "k", "v").returns("OK") }
 
     client = RedisRuby::AsyncPooledClient.new(host: "localhost", port: 6379)
+
     assert_equal "OK", client.call_2args("SET", "k", "v")
   end
 
   def test_async_pooled_client_call_2args_raises_on_error
-    mock_pool = create_yielding_pool(nil) { |conn| conn.expects(:call_2args).returns(RedisRuby::CommandError.new("ERR")) }
+    create_yielding_pool(nil) { |conn| conn.expects(:call_2args).returns(RedisRuby::CommandError.new("ERR")) }
 
     client = RedisRuby::AsyncPooledClient.new(host: "localhost", port: 6379)
     assert_raises(RedisRuby::CommandError) { client.call_2args("SET", "k", "v") }
   end
 
   def test_async_pooled_client_call_3args
-    mock_pool = create_yielding_pool(1) { |conn| conn.expects(:call_3args).with("HSET", "h", "f", "v").returns(1) }
+    create_yielding_pool(1) { |conn| conn.expects(:call_3args).with("HSET", "h", "f", "v").returns(1) }
 
     client = RedisRuby::AsyncPooledClient.new(host: "localhost", port: 6379)
+
     assert_equal 1, client.call_3args("HSET", "h", "f", "v")
   end
 
   def test_async_pooled_client_call_3args_raises_on_error
-    mock_pool = create_yielding_pool(nil) { |conn| conn.expects(:call_3args).returns(RedisRuby::CommandError.new("ERR")) }
+    create_yielding_pool(nil) { |conn| conn.expects(:call_3args).returns(RedisRuby::CommandError.new("ERR")) }
 
     client = RedisRuby::AsyncPooledClient.new(host: "localhost", port: 6379)
     assert_raises(RedisRuby::CommandError) { client.call_3args("CMD", "a", "b", "c") }
   end
 
   def test_async_pooled_client_ping
-    mock_pool = create_yielding_pool("PONG") { |conn| conn.expects(:call).with("PING").returns("PONG") }
+    create_yielding_pool("PONG") { |conn| conn.expects(:call).with("PING").returns("PONG") }
 
     client = RedisRuby::AsyncPooledClient.new(host: "localhost", port: 6379)
+
     assert_equal "PONG", client.ping
   end
 
@@ -393,11 +418,12 @@ class PooledClientBranchTest < Minitest::Test
     mock_pool.define_singleton_method(:acquire) { |&block| block.call(mock_conn) }
     mock_pool.define_singleton_method(:limit) { 5 }
     mock_pool.define_singleton_method(:available?) { true }
-    mock_pool.define_singleton_method(:close) { }
+    mock_pool.define_singleton_method(:close) {}
     RedisRuby::Connection::AsyncPool.stubs(:new).returns(mock_pool)
 
     client = RedisRuby::AsyncPooledClient.new(host: "localhost", port: 6379)
     result = client.with_connection { |c| c }
+
     assert_equal mock_conn, result
   end
 
@@ -407,6 +433,7 @@ class PooledClientBranchTest < Minitest::Test
     RedisRuby::Connection::AsyncPool.stubs(:new).returns(mock_pool)
 
     client = RedisRuby::AsyncPooledClient.new(host: "localhost", pool: { limit: 10 })
+
     assert_equal 10, client.pool_limit
   end
 
@@ -416,6 +443,7 @@ class PooledClientBranchTest < Minitest::Test
     RedisRuby::Connection::AsyncPool.stubs(:new).returns(mock_pool)
 
     client = RedisRuby::AsyncPooledClient.new(host: "localhost")
+
     assert_predicate client, :pool_available?
   end
 
@@ -447,9 +475,10 @@ class PooledClientBranchTest < Minitest::Test
   end
 
   def test_async_pooled_client_unwatch
-    mock_pool = create_yielding_pool("OK") { |conn| conn.expects(:call).with("UNWATCH").returns("OK") }
+    create_yielding_pool("OK") { |conn| conn.expects(:call).with("UNWATCH").returns("OK") }
 
     client = RedisRuby::AsyncPooledClient.new(host: "localhost")
+
     assert_equal "OK", client.unwatch
   end
 
@@ -462,6 +491,7 @@ class PooledClientBranchTest < Minitest::Test
 
     client = RedisRuby::AsyncPooledClient.new(host: "localhost")
     result = client.watch("k1")
+
     assert_equal "OK", result
   end
 
@@ -476,6 +506,7 @@ class PooledClientBranchTest < Minitest::Test
     client = RedisRuby::AsyncPooledClient.new(host: "localhost")
     executed = false
     client.watch("k1") { executed = true }
+
     assert executed
   end
 
@@ -484,6 +515,7 @@ class PooledClientBranchTest < Minitest::Test
     RedisRuby::Connection::AsyncPool.stubs(:new).returns(mock_pool)
 
     client = RedisRuby::AsyncPooledClient.new(host: "localhost")
+
     assert_respond_to client, :get
     assert_respond_to client, :set
     assert_respond_to client, :pfadd

@@ -91,7 +91,7 @@ module RedisRuby
       @sleep_interval = sleep
       @thread_local = thread_local
       @token = nil
-      @local_tokens = {} if thread_local
+      @local_tokens = {}.compare_by_identity if thread_local
 
       # Register Lua scripts
       @release_script = @client.register_script(RELEASE_SCRIPT)
@@ -143,9 +143,7 @@ module RedisRuby
       token = current_token
       raise LockNotOwnedError, "Cannot extend a lock that is not owned" unless token
 
-      if replace_ttl
-      end
-      new_timeout = additional_time || @timeout
+      new_timeout = replace_ttl ? additional_time : (additional_time || @timeout)
 
       timeout_ms = (new_timeout * 1000).to_i
       result = @extend_script.call(keys: [@name], argv: [token, timeout_ms])
@@ -223,7 +221,7 @@ module RedisRuby
     # Get the current token (thread-local or instance)
     def current_token
       if @thread_local
-        @local_tokens[Thread.current.object_id]
+        @local_tokens[Thread.current]
       else
         @token
       end
@@ -232,7 +230,7 @@ module RedisRuby
     # Store the token
     def store_token(token)
       if @thread_local
-        @local_tokens[Thread.current.object_id] = token
+        @local_tokens[Thread.current] = token
       else
         @token = token
       end
@@ -241,7 +239,7 @@ module RedisRuby
     # Clear the stored token
     def clear_token
       if @thread_local
-        @local_tokens.delete(Thread.current.object_id)
+        @local_tokens.delete(Thread.current)
       else
         @token = nil
       end

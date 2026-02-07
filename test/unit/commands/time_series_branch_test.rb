@@ -50,6 +50,7 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_create_fast_path
     @client.ts_create("temp:sensor1")
+
     assert_equal ["TS.CREATE", "temp:sensor1"], @client.last_command
   end
 
@@ -59,6 +60,7 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_create_with_retention
     @client.ts_create("temp:sensor1", retention: 86_400_000)
+
     assert_equal ["TS.CREATE", "temp:sensor1", "RETENTION", 86_400_000], @client.last_command
   end
 
@@ -68,6 +70,7 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_create_with_encoding
     @client.ts_create("temp:sensor1", encoding: "COMPRESSED")
+
     assert_equal ["TS.CREATE", "temp:sensor1", "ENCODING", "COMPRESSED"], @client.last_command
   end
 
@@ -77,6 +80,7 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_create_with_chunk_size
     @client.ts_create("temp:sensor1", chunk_size: 4096)
+
     assert_equal ["TS.CREATE", "temp:sensor1", "CHUNK_SIZE", 4096], @client.last_command
   end
 
@@ -86,6 +90,7 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_create_with_duplicate_policy
     @client.ts_create("temp:sensor1", duplicate_policy: "LAST")
+
     assert_equal ["TS.CREATE", "temp:sensor1", "DUPLICATE_POLICY", "LAST"], @client.last_command
   end
 
@@ -95,8 +100,9 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_create_with_labels
     @client.ts_create("temp:sensor1", labels: { sensor: "temp", location: "room1" })
+
     assert_equal [
-      "TS.CREATE", "temp:sensor1", "LABELS", "sensor", "temp", "location", "room1"
+      "TS.CREATE", "temp:sensor1", "LABELS", "sensor", "temp", "location", "room1",
     ], @client.last_command
   end
 
@@ -106,6 +112,7 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_create_with_ignore_max_time_diff_only
     @client.ts_create("temp:sensor1", ignore_max_time_diff: 1000)
+
     assert_equal ["TS.CREATE", "temp:sensor1", "IGNORE", 1000], @client.last_command
   end
 
@@ -115,6 +122,7 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_create_with_ignore_max_val_diff_only
     @client.ts_create("temp:sensor1", ignore_max_val_diff: 0.5)
+
     assert_equal ["TS.CREATE", "temp:sensor1", "IGNORE", 0.5], @client.last_command
   end
 
@@ -124,6 +132,7 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_create_with_both_ignore_options
     @client.ts_create("temp:sensor1", ignore_max_time_diff: 1000, ignore_max_val_diff: 0.5)
+
     assert_equal ["TS.CREATE", "temp:sensor1", "IGNORE", 1000, 0.5], @client.last_command
   end
 
@@ -147,8 +156,9 @@ class TimeSeriesBranchTest < Minitest::Test
       "CHUNK_SIZE", 4096,
       "DUPLICATE_POLICY", "LAST",
       "IGNORE", 1000, 0.5,
-      "LABELS", "sensor", "temp"
+      "LABELS", "sensor", "temp",
     ]
+
     assert_equal expected, @client.last_command
   end
 
@@ -158,6 +168,7 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_del
     @client.ts_del("temp:sensor1", 1_000_000, 2_000_000)
+
     assert_equal ["TS.DEL", "temp:sensor1", 1_000_000, 2_000_000], @client.last_command
   end
 
@@ -167,6 +178,7 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_alter_with_retention
     @client.ts_alter("temp:sensor1", retention: 172_800_000)
+
     assert_equal ["TS.ALTER", "temp:sensor1", "RETENTION", 172_800_000], @client.last_command
   end
 
@@ -176,6 +188,7 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_alter_with_chunk_size
     @client.ts_alter("temp:sensor1", chunk_size: 8192)
+
     assert_equal ["TS.ALTER", "temp:sensor1", "CHUNK_SIZE", 8192], @client.last_command
   end
 
@@ -185,6 +198,7 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_alter_with_duplicate_policy
     @client.ts_alter("temp:sensor1", duplicate_policy: "FIRST")
+
     assert_equal ["TS.ALTER", "temp:sensor1", "DUPLICATE_POLICY", "FIRST"], @client.last_command
   end
 
@@ -194,6 +208,7 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_alter_with_labels
     @client.ts_alter("temp:sensor1", labels: { sensor: "humidity" })
+
     assert_equal ["TS.ALTER", "temp:sensor1", "LABELS", "sensor", "humidity"], @client.last_command
   end
 
@@ -203,6 +218,7 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_alter_with_ignore_max_time_diff_only
     @client.ts_alter("temp:sensor1", ignore_max_time_diff: 2000)
+
     assert_equal ["TS.ALTER", "temp:sensor1", "IGNORE", 2000], @client.last_command
   end
 
@@ -212,6 +228,7 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_alter_with_ignore_max_val_diff_only
     @client.ts_alter("temp:sensor1", ignore_max_val_diff: 1.0)
+
     assert_equal ["TS.ALTER", "temp:sensor1", "IGNORE", 1.0], @client.last_command
   end
 
@@ -221,6 +238,7 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_alter_with_both_ignore_options
     @client.ts_alter("temp:sensor1", ignore_max_time_diff: 2000, ignore_max_val_diff: 1.0)
+
     assert_equal ["TS.ALTER", "temp:sensor1", "IGNORE", 2000, 1.0], @client.last_command
   end
 
@@ -242,8 +260,9 @@ class TimeSeriesBranchTest < Minitest::Test
       "CHUNK_SIZE", 8192,
       "DUPLICATE_POLICY", "FIRST",
       "IGNORE", 2000, 1.0,
-      "LABELS", "sensor", "humidity", "area", "kitchen"
+      "LABELS", "sensor", "humidity", "area", "kitchen",
     ]
+
     assert_equal expected, @client.last_command
   end
 
@@ -253,6 +272,7 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_alter_no_options
     @client.ts_alter("temp:sensor1")
+
     assert_equal ["TS.ALTER", "temp:sensor1"], @client.last_command
   end
 
@@ -262,6 +282,7 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_add_fast_path
     @client.ts_add("temp:sensor1", "*", 23.5)
+
     assert_equal ["TS.ADD", "temp:sensor1", "*", 23.5], @client.last_command
   end
 
@@ -271,6 +292,7 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_add_with_timestamp
     @client.ts_add("temp:sensor1", 1_640_000_000_000, 23.5)
+
     assert_equal ["TS.ADD", "temp:sensor1", 1_640_000_000_000, 23.5], @client.last_command
   end
 
@@ -280,8 +302,9 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_add_with_retention
     @client.ts_add("temp:sensor1", "*", 23.5, retention: 86_400_000)
+
     assert_equal [
-      "TS.ADD", "temp:sensor1", "*", 23.5, "RETENTION", 86_400_000
+      "TS.ADD", "temp:sensor1", "*", 23.5, "RETENTION", 86_400_000,
     ], @client.last_command
   end
 
@@ -291,8 +314,9 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_add_with_encoding
     @client.ts_add("temp:sensor1", "*", 23.5, encoding: "UNCOMPRESSED")
+
     assert_equal [
-      "TS.ADD", "temp:sensor1", "*", 23.5, "ENCODING", "UNCOMPRESSED"
+      "TS.ADD", "temp:sensor1", "*", 23.5, "ENCODING", "UNCOMPRESSED",
     ], @client.last_command
   end
 
@@ -302,8 +326,9 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_add_with_chunk_size
     @client.ts_add("temp:sensor1", "*", 23.5, chunk_size: 4096)
+
     assert_equal [
-      "TS.ADD", "temp:sensor1", "*", 23.5, "CHUNK_SIZE", 4096
+      "TS.ADD", "temp:sensor1", "*", 23.5, "CHUNK_SIZE", 4096,
     ], @client.last_command
   end
 
@@ -313,8 +338,9 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_add_with_on_duplicate
     @client.ts_add("temp:sensor1", "*", 23.5, on_duplicate: "LAST")
+
     assert_equal [
-      "TS.ADD", "temp:sensor1", "*", 23.5, "ON_DUPLICATE", "LAST"
+      "TS.ADD", "temp:sensor1", "*", 23.5, "ON_DUPLICATE", "LAST",
     ], @client.last_command
   end
 
@@ -324,8 +350,9 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_add_with_labels
     @client.ts_add("temp:sensor1", "*", 23.5, labels: { sensor: "temp" })
+
     assert_equal [
-      "TS.ADD", "temp:sensor1", "*", 23.5, "LABELS", "sensor", "temp"
+      "TS.ADD", "temp:sensor1", "*", 23.5, "LABELS", "sensor", "temp",
     ], @client.last_command
   end
 
@@ -335,22 +362,25 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_add_with_ignore_max_time_diff
     @client.ts_add("temp:sensor1", "*", 23.5, ignore_max_time_diff: 500)
+
     assert_equal [
-      "TS.ADD", "temp:sensor1", "*", 23.5, "IGNORE", 500
+      "TS.ADD", "temp:sensor1", "*", 23.5, "IGNORE", 500,
     ], @client.last_command
   end
 
   def test_ts_add_with_ignore_max_val_diff
     @client.ts_add("temp:sensor1", "*", 23.5, ignore_max_val_diff: 0.1)
+
     assert_equal [
-      "TS.ADD", "temp:sensor1", "*", 23.5, "IGNORE", 0.1
+      "TS.ADD", "temp:sensor1", "*", 23.5, "IGNORE", 0.1,
     ], @client.last_command
   end
 
   def test_ts_add_with_both_ignore_options
     @client.ts_add("temp:sensor1", "*", 23.5, ignore_max_time_diff: 500, ignore_max_val_diff: 0.1)
+
     assert_equal [
-      "TS.ADD", "temp:sensor1", "*", 23.5, "IGNORE", 500, 0.1
+      "TS.ADD", "temp:sensor1", "*", 23.5, "IGNORE", 500, 0.1,
     ], @client.last_command
   end
 
@@ -374,8 +404,9 @@ class TimeSeriesBranchTest < Minitest::Test
       "CHUNK_SIZE", 4096,
       "ON_DUPLICATE", "LAST",
       "IGNORE", 500, 0.1,
-      "LABELS", "sensor", "temp", "area", "room1"
+      "LABELS", "sensor", "temp", "area", "room1",
     ]
+
     assert_equal expected, @client.last_command
   end
 
@@ -385,13 +416,15 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_madd
     @client.ts_madd(["temp:1", "*", 23.5], ["temp:2", "*", 24.0], ["temp:3", "*", 22.8])
+
     assert_equal [
-      "TS.MADD", "temp:1", "*", 23.5, "temp:2", "*", 24.0, "temp:3", "*", 22.8
+      "TS.MADD", "temp:1", "*", 23.5, "temp:2", "*", 24.0, "temp:3", "*", 22.8,
     ], @client.last_command
   end
 
   def test_ts_madd_single_sample
     @client.ts_madd(["temp:1", 1_000_000, 23.5])
+
     assert_equal ["TS.MADD", "temp:1", 1_000_000, 23.5], @client.last_command
   end
 
@@ -401,6 +434,7 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_incrby_fast_path
     @client.ts_incrby("temp:sensor1", 1.5)
+
     assert_equal ["TS.INCRBY", "temp:sensor1", 1.5], @client.last_command
   end
 
@@ -410,8 +444,9 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_incrby_with_timestamp
     @client.ts_incrby("temp:sensor1", 1.5, timestamp: 1_640_000_000_000)
+
     assert_equal [
-      "TS.INCRBY", "temp:sensor1", 1.5, "TIMESTAMP", 1_640_000_000_000
+      "TS.INCRBY", "temp:sensor1", 1.5, "TIMESTAMP", 1_640_000_000_000,
     ], @client.last_command
   end
 
@@ -421,8 +456,9 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_incrby_with_retention
     @client.ts_incrby("temp:sensor1", 1.5, retention: 86_400_000)
+
     assert_equal [
-      "TS.INCRBY", "temp:sensor1", 1.5, "RETENTION", 86_400_000
+      "TS.INCRBY", "temp:sensor1", 1.5, "RETENTION", 86_400_000,
     ], @client.last_command
   end
 
@@ -432,8 +468,9 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_incrby_with_labels
     @client.ts_incrby("temp:sensor1", 1.5, labels: { sensor: "temp" })
+
     assert_equal [
-      "TS.INCRBY", "temp:sensor1", 1.5, "LABELS", "sensor", "temp"
+      "TS.INCRBY", "temp:sensor1", 1.5, "LABELS", "sensor", "temp",
     ], @client.last_command
   end
 
@@ -443,8 +480,9 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_incrby_with_chunk_size
     @client.ts_incrby("temp:sensor1", 1.5, chunk_size: 4096)
+
     assert_equal [
-      "TS.INCRBY", "temp:sensor1", 1.5, "CHUNK_SIZE", 4096
+      "TS.INCRBY", "temp:sensor1", 1.5, "CHUNK_SIZE", 4096,
     ], @client.last_command
   end
 
@@ -454,22 +492,25 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_incrby_with_ignore_max_time_diff
     @client.ts_incrby("temp:sensor1", 1.5, ignore_max_time_diff: 500)
+
     assert_equal [
-      "TS.INCRBY", "temp:sensor1", 1.5, "IGNORE", 500
+      "TS.INCRBY", "temp:sensor1", 1.5, "IGNORE", 500,
     ], @client.last_command
   end
 
   def test_ts_incrby_with_ignore_max_val_diff
     @client.ts_incrby("temp:sensor1", 1.5, ignore_max_val_diff: 0.1)
+
     assert_equal [
-      "TS.INCRBY", "temp:sensor1", 1.5, "IGNORE", 0.1
+      "TS.INCRBY", "temp:sensor1", 1.5, "IGNORE", 0.1,
     ], @client.last_command
   end
 
   def test_ts_incrby_with_both_ignore_options
     @client.ts_incrby("temp:sensor1", 1.5, ignore_max_time_diff: 500, ignore_max_val_diff: 0.1)
+
     assert_equal [
-      "TS.INCRBY", "temp:sensor1", 1.5, "IGNORE", 500, 0.1
+      "TS.INCRBY", "temp:sensor1", 1.5, "IGNORE", 500, 0.1,
     ], @client.last_command
   end
 
@@ -491,8 +532,9 @@ class TimeSeriesBranchTest < Minitest::Test
       "RETENTION", 86_400_000,
       "CHUNK_SIZE", 4096,
       "IGNORE", 500, 0.1,
-      "LABELS", "sensor", "temp"
+      "LABELS", "sensor", "temp",
     ]
+
     assert_equal expected, @client.last_command
   end
 
@@ -502,6 +544,7 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_decrby_fast_path
     @client.ts_decrby("temp:sensor1", 1.5)
+
     assert_equal ["TS.DECRBY", "temp:sensor1", 1.5], @client.last_command
   end
 
@@ -511,8 +554,9 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_decrby_with_timestamp
     @client.ts_decrby("temp:sensor1", 1.5, timestamp: 1_640_000_000_000)
+
     assert_equal [
-      "TS.DECRBY", "temp:sensor1", 1.5, "TIMESTAMP", 1_640_000_000_000
+      "TS.DECRBY", "temp:sensor1", 1.5, "TIMESTAMP", 1_640_000_000_000,
     ], @client.last_command
   end
 
@@ -522,8 +566,9 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_decrby_with_retention
     @client.ts_decrby("temp:sensor1", 1.5, retention: 86_400_000)
+
     assert_equal [
-      "TS.DECRBY", "temp:sensor1", 1.5, "RETENTION", 86_400_000
+      "TS.DECRBY", "temp:sensor1", 1.5, "RETENTION", 86_400_000,
     ], @client.last_command
   end
 
@@ -533,8 +578,9 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_decrby_with_labels
     @client.ts_decrby("temp:sensor1", 1.5, labels: { sensor: "temp" })
+
     assert_equal [
-      "TS.DECRBY", "temp:sensor1", 1.5, "LABELS", "sensor", "temp"
+      "TS.DECRBY", "temp:sensor1", 1.5, "LABELS", "sensor", "temp",
     ], @client.last_command
   end
 
@@ -544,8 +590,9 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_decrby_with_chunk_size
     @client.ts_decrby("temp:sensor1", 1.5, chunk_size: 4096)
+
     assert_equal [
-      "TS.DECRBY", "temp:sensor1", 1.5, "CHUNK_SIZE", 4096
+      "TS.DECRBY", "temp:sensor1", 1.5, "CHUNK_SIZE", 4096,
     ], @client.last_command
   end
 
@@ -555,22 +602,25 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_decrby_with_ignore_max_time_diff
     @client.ts_decrby("temp:sensor1", 1.5, ignore_max_time_diff: 500)
+
     assert_equal [
-      "TS.DECRBY", "temp:sensor1", 1.5, "IGNORE", 500
+      "TS.DECRBY", "temp:sensor1", 1.5, "IGNORE", 500,
     ], @client.last_command
   end
 
   def test_ts_decrby_with_ignore_max_val_diff
     @client.ts_decrby("temp:sensor1", 1.5, ignore_max_val_diff: 0.1)
+
     assert_equal [
-      "TS.DECRBY", "temp:sensor1", 1.5, "IGNORE", 0.1
+      "TS.DECRBY", "temp:sensor1", 1.5, "IGNORE", 0.1,
     ], @client.last_command
   end
 
   def test_ts_decrby_with_both_ignore_options
     @client.ts_decrby("temp:sensor1", 1.5, ignore_max_time_diff: 500, ignore_max_val_diff: 0.1)
+
     assert_equal [
-      "TS.DECRBY", "temp:sensor1", 1.5, "IGNORE", 500, 0.1
+      "TS.DECRBY", "temp:sensor1", 1.5, "IGNORE", 500, 0.1,
     ], @client.last_command
   end
 
@@ -592,8 +642,9 @@ class TimeSeriesBranchTest < Minitest::Test
       "RETENTION", 86_400_000,
       "CHUNK_SIZE", 4096,
       "IGNORE", 500, 0.1,
-      "LABELS", "sensor", "temp"
+      "LABELS", "sensor", "temp",
     ]
+
     assert_equal expected, @client.last_command
   end
 
@@ -603,8 +654,9 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_createrule_basic
     @client.ts_createrule("temp:raw", "temp:hourly", "avg", 3_600_000)
+
     assert_equal [
-      "TS.CREATERULE", "temp:raw", "temp:hourly", "AGGREGATION", "avg", 3_600_000
+      "TS.CREATERULE", "temp:raw", "temp:hourly", "AGGREGATION", "avg", 3_600_000,
     ], @client.last_command
   end
 
@@ -614,8 +666,9 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_createrule_with_align_timestamp
     @client.ts_createrule("temp:raw", "temp:hourly", "avg", 3_600_000, align_timestamp: 0)
+
     assert_equal [
-      "TS.CREATERULE", "temp:raw", "temp:hourly", "AGGREGATION", "avg", 3_600_000, 0
+      "TS.CREATERULE", "temp:raw", "temp:hourly", "AGGREGATION", "avg", 3_600_000, 0,
     ], @client.last_command
   end
 
@@ -625,9 +678,10 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_createrule_without_align_timestamp
     @client.ts_createrule("temp:raw", "temp:hourly", "sum", 60_000)
+
     assert_equal 6, @client.last_command.length
     assert_equal [
-      "TS.CREATERULE", "temp:raw", "temp:hourly", "AGGREGATION", "sum", 60_000
+      "TS.CREATERULE", "temp:raw", "temp:hourly", "AGGREGATION", "sum", 60_000,
     ], @client.last_command
   end
 
@@ -637,6 +691,7 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_deleterule
     @client.ts_deleterule("temp:raw", "temp:hourly")
+
     assert_equal ["TS.DELETERULE", "temp:raw", "temp:hourly"], @client.last_command
   end
 
@@ -646,6 +701,7 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_range_fast_path
     @client.ts_range("temp:sensor1", "-", "+")
+
     assert_equal ["TS.RANGE", "temp:sensor1", "-", "+"], @client.last_command
   end
 
@@ -655,6 +711,7 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_range_with_latest
     @client.ts_range("temp:sensor1", "-", "+", latest: true)
+
     assert_includes @client.last_command, "LATEST"
   end
 
@@ -665,8 +722,9 @@ class TimeSeriesBranchTest < Minitest::Test
   def test_ts_range_with_filter_by_ts
     @client.ts_range("temp:sensor1", "-", "+", filter_by_ts: [1_000_000, 2_000_000])
     expected = [
-      "TS.RANGE", "temp:sensor1", "-", "+", "FILTER_BY_TS", 1_000_000, 2_000_000
+      "TS.RANGE", "temp:sensor1", "-", "+", "FILTER_BY_TS", 1_000_000, 2_000_000,
     ]
+
     assert_equal expected, @client.last_command
   end
 
@@ -677,8 +735,9 @@ class TimeSeriesBranchTest < Minitest::Test
   def test_ts_range_with_filter_by_value
     @client.ts_range("temp:sensor1", "-", "+", filter_by_value: [20.0, 30.0])
     expected = [
-      "TS.RANGE", "temp:sensor1", "-", "+", "FILTER_BY_VALUE", 20.0, 30.0
+      "TS.RANGE", "temp:sensor1", "-", "+", "FILTER_BY_VALUE", 20.0, 30.0,
     ]
+
     assert_equal expected, @client.last_command
   end
 
@@ -689,8 +748,9 @@ class TimeSeriesBranchTest < Minitest::Test
   def test_ts_range_with_count
     @client.ts_range("temp:sensor1", "-", "+", count: 100)
     expected = [
-      "TS.RANGE", "temp:sensor1", "-", "+", "COUNT", 100
+      "TS.RANGE", "temp:sensor1", "-", "+", "COUNT", 100,
     ]
+
     assert_equal expected, @client.last_command
   end
 
@@ -700,8 +760,10 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_range_with_align
     @client.ts_range("temp:sensor1", "-", "+", align: 0, aggregation: "avg", bucket_duration: 3_600_000)
+
     assert_includes @client.last_command, "ALIGN"
     idx = @client.last_command.index("ALIGN")
+
     assert_equal 0, @client.last_command[idx + 1]
   end
 
@@ -712,8 +774,9 @@ class TimeSeriesBranchTest < Minitest::Test
   def test_ts_range_with_aggregation
     @client.ts_range("temp:sensor1", "-", "+", aggregation: "avg", bucket_duration: 3_600_000)
     expected = [
-      "TS.RANGE", "temp:sensor1", "-", "+", "AGGREGATION", "avg", 3_600_000
+      "TS.RANGE", "temp:sensor1", "-", "+", "AGGREGATION", "avg", 3_600_000,
     ]
+
     assert_equal expected, @client.last_command
   end
 
@@ -726,8 +789,9 @@ class TimeSeriesBranchTest < Minitest::Test
                      aggregation: "avg", bucket_duration: 3_600_000, bucket_timestamp: "start")
     expected = [
       "TS.RANGE", "temp:sensor1", "-", "+",
-      "AGGREGATION", "avg", 3_600_000, "BUCKETTIMESTAMP", "start"
+      "AGGREGATION", "avg", 3_600_000, "BUCKETTIMESTAMP", "start",
     ]
+
     assert_equal expected, @client.last_command
   end
 
@@ -740,8 +804,9 @@ class TimeSeriesBranchTest < Minitest::Test
                      aggregation: "avg", bucket_duration: 3_600_000, empty: true)
     expected = [
       "TS.RANGE", "temp:sensor1", "-", "+",
-      "AGGREGATION", "avg", 3_600_000, "EMPTY"
+      "AGGREGATION", "avg", 3_600_000, "EMPTY",
     ]
+
     assert_equal expected, @client.last_command
   end
 
@@ -751,6 +816,7 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_range_empty_without_aggregation
     @client.ts_range("temp:sensor1", "-", "+", count: 10, empty: true)
+
     refute_includes @client.last_command, "EMPTY"
   end
 
@@ -760,6 +826,7 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_range_bucket_timestamp_without_aggregation
     @client.ts_range("temp:sensor1", "-", "+", count: 10, bucket_timestamp: "end")
+
     refute_includes @client.last_command, "BUCKETTIMESTAMP"
   end
 
@@ -787,8 +854,9 @@ class TimeSeriesBranchTest < Minitest::Test
       "ALIGN", 0,
       "AGGREGATION", "avg", 3_600_000,
       "BUCKETTIMESTAMP", "start",
-      "EMPTY"
+      "EMPTY",
     ]
+
     assert_equal expected, @client.last_command
   end
 
@@ -798,6 +866,7 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_revrange_fast_path
     @client.ts_revrange("temp:sensor1", "-", "+")
+
     assert_equal ["TS.REVRANGE", "temp:sensor1", "-", "+"], @client.last_command
   end
 
@@ -807,6 +876,7 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_revrange_with_latest
     @client.ts_revrange("temp:sensor1", "-", "+", latest: true)
+
     assert_includes @client.last_command, "LATEST"
     assert_equal "TS.REVRANGE", @client.last_command[0]
   end
@@ -817,6 +887,7 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_revrange_with_filter_by_ts
     @client.ts_revrange("temp:sensor1", "-", "+", filter_by_ts: [1_000_000, 2_000_000])
+
     assert_equal "TS.REVRANGE", @client.last_command[0]
     assert_includes @client.last_command, "FILTER_BY_TS"
   end
@@ -827,6 +898,7 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_revrange_with_filter_by_value
     @client.ts_revrange("temp:sensor1", "-", "+", filter_by_value: [10.0, 50.0])
+
     assert_equal "TS.REVRANGE", @client.last_command[0]
     assert_includes @client.last_command, "FILTER_BY_VALUE"
   end
@@ -837,6 +909,7 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_revrange_with_count
     @client.ts_revrange("temp:sensor1", "-", "+", count: 50)
+
     assert_equal "TS.REVRANGE", @client.last_command[0]
     assert_includes @client.last_command, "COUNT"
   end
@@ -848,6 +921,7 @@ class TimeSeriesBranchTest < Minitest::Test
   def test_ts_revrange_with_aggregation
     @client.ts_revrange("temp:sensor1", "-", "+",
                         aggregation: "sum", bucket_duration: 60_000)
+
     assert_equal "TS.REVRANGE", @client.last_command[0]
     assert_includes @client.last_command, "AGGREGATION"
   end
@@ -862,8 +936,9 @@ class TimeSeriesBranchTest < Minitest::Test
                         bucket_timestamp: "end", empty: true)
     expected = [
       "TS.REVRANGE", "temp:sensor1", "-", "+",
-      "AGGREGATION", "avg", 3_600_000, "BUCKETTIMESTAMP", "end", "EMPTY"
+      "AGGREGATION", "avg", 3_600_000, "BUCKETTIMESTAMP", "end", "EMPTY",
     ]
+
     assert_equal expected, @client.last_command
   end
 
@@ -891,8 +966,9 @@ class TimeSeriesBranchTest < Minitest::Test
       "ALIGN", 0,
       "AGGREGATION", "avg", 3_600_000,
       "BUCKETTIMESTAMP", "mid",
-      "EMPTY"
+      "EMPTY",
     ]
+
     assert_equal expected, @client.last_command
   end
 
@@ -903,8 +979,9 @@ class TimeSeriesBranchTest < Minitest::Test
   def test_ts_mrange_basic
     @client.ts_mrange("-", "+", ["sensor=temp"])
     expected = [
-      "TS.MRANGE", "-", "+", "FILTER", "sensor=temp"
+      "TS.MRANGE", "-", "+", "FILTER", "sensor=temp",
     ]
+
     assert_equal expected, @client.last_command
   end
 
@@ -914,6 +991,7 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_mrange_with_latest
     @client.ts_mrange("-", "+", ["sensor=temp"], latest: true)
+
     assert_includes @client.last_command, "LATEST"
   end
 
@@ -923,8 +1001,10 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_mrange_with_filter_by_ts
     @client.ts_mrange("-", "+", ["sensor=temp"], filter_by_ts: [1_000_000, 2_000_000])
+
     assert_includes @client.last_command, "FILTER_BY_TS"
     idx = @client.last_command.index("FILTER_BY_TS")
+
     assert_equal 1_000_000, @client.last_command[idx + 1]
     assert_equal 2_000_000, @client.last_command[idx + 2]
   end
@@ -935,8 +1015,10 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_mrange_with_filter_by_value
     @client.ts_mrange("-", "+", ["sensor=temp"], filter_by_value: [20.0, 30.0])
+
     assert_includes @client.last_command, "FILTER_BY_VALUE"
     idx = @client.last_command.index("FILTER_BY_VALUE")
+
     assert_in_delta 20.0, @client.last_command[idx + 1]
     assert_in_delta 30.0, @client.last_command[idx + 2]
   end
@@ -947,11 +1029,13 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_mrange_with_withlabels
     @client.ts_mrange("-", "+", ["sensor=temp"], withlabels: true)
+
     assert_includes @client.last_command, "WITHLABELS"
   end
 
   def test_ts_mrange_without_withlabels
     @client.ts_mrange("-", "+", ["sensor=temp"], withlabels: false)
+
     refute_includes @client.last_command, "WITHLABELS"
   end
 
@@ -960,9 +1044,11 @@ class TimeSeriesBranchTest < Minitest::Test
   # ============================================================
 
   def test_ts_mrange_with_selected_labels
-    @client.ts_mrange("-", "+", ["sensor=temp"], selected_labels: ["sensor", "location"])
+    @client.ts_mrange("-", "+", ["sensor=temp"], selected_labels: %w[sensor location])
+
     assert_includes @client.last_command, "SELECTED_LABELS"
     idx = @client.last_command.index("SELECTED_LABELS")
+
     assert_equal "sensor", @client.last_command[idx + 1]
     assert_equal "location", @client.last_command[idx + 2]
   end
@@ -973,8 +1059,10 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_mrange_with_count
     @client.ts_mrange("-", "+", ["sensor=temp"], count: 100)
+
     assert_includes @client.last_command, "COUNT"
     idx = @client.last_command.index("COUNT")
+
     assert_equal 100, @client.last_command[idx + 1]
   end
 
@@ -985,8 +1073,10 @@ class TimeSeriesBranchTest < Minitest::Test
   def test_ts_mrange_with_align
     @client.ts_mrange("-", "+", ["sensor=temp"],
                       align: 0, aggregation: "avg", bucket_duration: 3_600_000)
+
     assert_includes @client.last_command, "ALIGN"
     idx = @client.last_command.index("ALIGN")
+
     assert_equal 0, @client.last_command[idx + 1]
   end
 
@@ -997,8 +1087,10 @@ class TimeSeriesBranchTest < Minitest::Test
   def test_ts_mrange_with_aggregation
     @client.ts_mrange("-", "+", ["sensor=temp"],
                       aggregation: "avg", bucket_duration: 3_600_000)
+
     assert_includes @client.last_command, "AGGREGATION"
     idx = @client.last_command.index("AGGREGATION")
+
     assert_equal "avg", @client.last_command[idx + 1]
     assert_equal 3_600_000, @client.last_command[idx + 2]
   end
@@ -1010,8 +1102,10 @@ class TimeSeriesBranchTest < Minitest::Test
   def test_ts_mrange_with_aggregation_and_bucket_timestamp
     @client.ts_mrange("-", "+", ["sensor=temp"],
                       aggregation: "avg", bucket_duration: 3_600_000, bucket_timestamp: "start")
+
     assert_includes @client.last_command, "BUCKETTIMESTAMP"
     idx = @client.last_command.index("BUCKETTIMESTAMP")
+
     assert_equal "start", @client.last_command[idx + 1]
   end
 
@@ -1022,6 +1116,7 @@ class TimeSeriesBranchTest < Minitest::Test
   def test_ts_mrange_with_aggregation_and_empty
     @client.ts_mrange("-", "+", ["sensor=temp"],
                       aggregation: "avg", bucket_duration: 3_600_000, empty: true)
+
     assert_includes @client.last_command, "EMPTY"
   end
 
@@ -1031,6 +1126,7 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_mrange_empty_without_aggregation
     @client.ts_mrange("-", "+", ["sensor=temp"], empty: true)
+
     refute_includes @client.last_command, "EMPTY"
   end
 
@@ -1040,6 +1136,7 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_mrange_bucket_timestamp_without_aggregation
     @client.ts_mrange("-", "+", ["sensor=temp"], bucket_timestamp: "end")
+
     refute_includes @client.last_command, "BUCKETTIMESTAMP"
   end
 
@@ -1049,9 +1146,11 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_mrange_with_groupby_and_reduce
     @client.ts_mrange("-", "+", ["sensor=temp"], groupby: "location", reduce: "avg")
+
     assert_includes @client.last_command, "GROUPBY"
     assert_includes @client.last_command, "REDUCE"
     idx = @client.last_command.index("GROUPBY")
+
     assert_equal "location", @client.last_command[idx + 1]
     assert_equal "REDUCE", @client.last_command[idx + 2]
     assert_equal "avg", @client.last_command[idx + 3]
@@ -1063,6 +1162,7 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_mrange_without_groupby
     @client.ts_mrange("-", "+", ["sensor=temp"])
+
     refute_includes @client.last_command, "GROUPBY"
     refute_includes @client.last_command, "REDUCE"
   end
@@ -1074,8 +1174,9 @@ class TimeSeriesBranchTest < Minitest::Test
   def test_ts_mrange_with_multiple_filters
     @client.ts_mrange("-", "+", ["sensor=temp", "location=room1"])
     expected = [
-      "TS.MRANGE", "-", "+", "FILTER", "sensor=temp", "location=room1"
+      "TS.MRANGE", "-", "+", "FILTER", "sensor=temp", "location=room1",
     ]
+
     assert_equal expected, @client.last_command
   end
 
@@ -1109,8 +1210,9 @@ class TimeSeriesBranchTest < Minitest::Test
       "BUCKETTIMESTAMP", "start",
       "EMPTY",
       "FILTER", "sensor=temp",
-      "GROUPBY", "location", "REDUCE", "avg"
+      "GROUPBY", "location", "REDUCE", "avg",
     ]
+
     assert_equal expected, @client.last_command
   end
 
@@ -1121,8 +1223,9 @@ class TimeSeriesBranchTest < Minitest::Test
   def test_ts_mrevrange_basic
     @client.ts_mrevrange("-", "+", ["sensor=temp"])
     expected = [
-      "TS.MREVRANGE", "-", "+", "FILTER", "sensor=temp"
+      "TS.MREVRANGE", "-", "+", "FILTER", "sensor=temp",
     ]
+
     assert_equal expected, @client.last_command
   end
 
@@ -1132,6 +1235,7 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_mrevrange_with_latest
     @client.ts_mrevrange("-", "+", ["sensor=temp"], latest: true)
+
     assert_equal "TS.MREVRANGE", @client.last_command[0]
     assert_includes @client.last_command, "LATEST"
   end
@@ -1142,6 +1246,7 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_mrevrange_with_filter_by_ts
     @client.ts_mrevrange("-", "+", ["sensor=temp"], filter_by_ts: [1_000_000])
+
     assert_equal "TS.MREVRANGE", @client.last_command[0]
     assert_includes @client.last_command, "FILTER_BY_TS"
   end
@@ -1152,6 +1257,7 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_mrevrange_with_filter_by_value
     @client.ts_mrevrange("-", "+", ["sensor=temp"], filter_by_value: [10.0, 50.0])
+
     assert_equal "TS.MREVRANGE", @client.last_command[0]
     assert_includes @client.last_command, "FILTER_BY_VALUE"
   end
@@ -1162,6 +1268,7 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_mrevrange_with_withlabels
     @client.ts_mrevrange("-", "+", ["sensor=temp"], withlabels: true)
+
     assert_equal "TS.MREVRANGE", @client.last_command[0]
     assert_includes @client.last_command, "WITHLABELS"
   end
@@ -1172,6 +1279,7 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_mrevrange_with_selected_labels
     @client.ts_mrevrange("-", "+", ["sensor=temp"], selected_labels: ["sensor"])
+
     assert_equal "TS.MREVRANGE", @client.last_command[0]
     assert_includes @client.last_command, "SELECTED_LABELS"
   end
@@ -1182,6 +1290,7 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_mrevrange_with_count
     @client.ts_mrevrange("-", "+", ["sensor=temp"], count: 50)
+
     assert_equal "TS.MREVRANGE", @client.last_command[0]
     assert_includes @client.last_command, "COUNT"
   end
@@ -1193,6 +1302,7 @@ class TimeSeriesBranchTest < Minitest::Test
   def test_ts_mrevrange_with_aggregation
     @client.ts_mrevrange("-", "+", ["sensor=temp"],
                          aggregation: "sum", bucket_duration: 60_000)
+
     assert_equal "TS.MREVRANGE", @client.last_command[0]
     assert_includes @client.last_command, "AGGREGATION"
   end
@@ -1205,6 +1315,7 @@ class TimeSeriesBranchTest < Minitest::Test
     @client.ts_mrevrange("-", "+", ["sensor=temp"],
                          aggregation: "avg", bucket_duration: 3_600_000,
                          bucket_timestamp: "end", empty: true)
+
     assert_equal "TS.MREVRANGE", @client.last_command[0]
     assert_includes @client.last_command, "BUCKETTIMESTAMP"
     assert_includes @client.last_command, "EMPTY"
@@ -1216,6 +1327,7 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_mrevrange_with_groupby_and_reduce
     @client.ts_mrevrange("-", "+", ["sensor=temp"], groupby: "location", reduce: "sum")
+
     assert_equal "TS.MREVRANGE", @client.last_command[0]
     assert_includes @client.last_command, "GROUPBY"
     assert_includes @client.last_command, "REDUCE"
@@ -1227,6 +1339,7 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_mrevrange_without_groupby
     @client.ts_mrevrange("-", "+", ["sensor=temp"])
+
     refute_includes @client.last_command, "GROUPBY"
     refute_includes @client.last_command, "REDUCE"
   end
@@ -1261,8 +1374,9 @@ class TimeSeriesBranchTest < Minitest::Test
       "BUCKETTIMESTAMP", "mid",
       "EMPTY",
       "FILTER", "sensor=temp",
-      "GROUPBY", "location", "REDUCE", "sum"
+      "GROUPBY", "location", "REDUCE", "sum",
     ]
+
     assert_equal expected, @client.last_command
   end
 
@@ -1272,6 +1386,7 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_get_fast_path
     result = @client.ts_get("temp:sensor1")
+
     assert_equal ["TS.GET", "temp:sensor1"], @client.last_command
     assert_equal [1_640_000_000, 23.5], result
   end
@@ -1282,6 +1397,7 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_get_with_latest
     @client.ts_get("temp:sensor1", latest: true)
+
     assert_equal ["TS.GET", "temp:sensor1", "LATEST"], @client.last_command
   end
 
@@ -1291,6 +1407,7 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_get_without_latest_explicit
     result = @client.ts_get("temp:sensor1", latest: false)
+
     assert_equal ["TS.GET", "temp:sensor1"], @client.last_command
     assert_equal [1_640_000_000, 23.5], result
   end
@@ -1301,6 +1418,7 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_mget_basic
     @client.ts_mget(["sensor=temp"])
+
     assert_equal ["TS.MGET", "FILTER", "sensor=temp"], @client.last_command
   end
 
@@ -1310,6 +1428,7 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_mget_with_latest
     @client.ts_mget(["sensor=temp"], latest: true)
+
     assert_equal ["TS.MGET", "LATEST", "FILTER", "sensor=temp"], @client.last_command
   end
 
@@ -1319,6 +1438,7 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_mget_without_latest
     @client.ts_mget(["sensor=temp"], latest: false)
+
     refute_includes @client.last_command, "LATEST"
   end
 
@@ -1328,6 +1448,7 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_mget_with_withlabels
     @client.ts_mget(["sensor=temp"], withlabels: true)
+
     assert_equal ["TS.MGET", "WITHLABELS", "FILTER", "sensor=temp"], @client.last_command
   end
 
@@ -1337,6 +1458,7 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_mget_without_withlabels
     @client.ts_mget(["sensor=temp"], withlabels: false)
+
     refute_includes @client.last_command, "WITHLABELS"
   end
 
@@ -1345,10 +1467,11 @@ class TimeSeriesBranchTest < Minitest::Test
   # ============================================================
 
   def test_ts_mget_with_selected_labels
-    @client.ts_mget(["sensor=temp"], selected_labels: ["sensor", "location"])
+    @client.ts_mget(["sensor=temp"], selected_labels: %w[sensor location])
     expected = [
-      "TS.MGET", "SELECTED_LABELS", "sensor", "location", "FILTER", "sensor=temp"
+      "TS.MGET", "SELECTED_LABELS", "sensor", "location", "FILTER", "sensor=temp",
     ]
+
     assert_equal expected, @client.last_command
   end
 
@@ -1358,6 +1481,7 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_mget_without_selected_labels
     @client.ts_mget(["sensor=temp"])
+
     refute_includes @client.last_command, "SELECTED_LABELS"
   end
 
@@ -1368,8 +1492,9 @@ class TimeSeriesBranchTest < Minitest::Test
   def test_ts_mget_with_latest_and_withlabels
     @client.ts_mget(["sensor=temp"], latest: true, withlabels: true)
     expected = [
-      "TS.MGET", "LATEST", "WITHLABELS", "FILTER", "sensor=temp"
+      "TS.MGET", "LATEST", "WITHLABELS", "FILTER", "sensor=temp",
     ]
+
     assert_equal expected, @client.last_command
   end
 
@@ -1382,8 +1507,9 @@ class TimeSeriesBranchTest < Minitest::Test
                     latest: true, withlabels: true, selected_labels: ["sensor"])
     expected = [
       "TS.MGET", "LATEST", "WITHLABELS", "SELECTED_LABELS", "sensor",
-      "FILTER", "sensor=temp", "location=room1"
+      "FILTER", "sensor=temp", "location=room1",
     ]
+
     assert_equal expected, @client.last_command
   end
 
@@ -1393,6 +1519,7 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_info_basic
     result = @client.ts_info("temp:sensor1")
+
     assert_equal ["TS.INFO", "temp:sensor1"], @client.last_command
     assert_equal({ "totalSamples" => 100, "memoryUsage" => 4096 }, result)
   end
@@ -1409,6 +1536,7 @@ class TimeSeriesBranchTest < Minitest::Test
     end
 
     result = @client.ts_info("temp:sensor1", debug: true)
+
     assert_equal ["TS.INFO", "temp:sensor1", "DEBUG"], @client.last_command
     assert_equal({ "totalSamples" => 100, "memoryUsage" => 4096, "chunks" => [] }, result)
   end
@@ -1419,6 +1547,7 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_info_debug_false
     result = @client.ts_info("temp:sensor1", debug: false)
+
     assert_equal ["TS.INFO", "temp:sensor1"], @client.last_command
     assert_instance_of Hash, result
   end
@@ -1429,11 +1558,13 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_queryindex_single_filter
     @client.ts_queryindex("sensor=temp")
+
     assert_equal ["TS.QUERYINDEX", "sensor=temp"], @client.last_command
   end
 
   def test_ts_queryindex_multiple_filters
     @client.ts_queryindex("sensor=temp", "location=room1")
+
     assert_equal ["TS.QUERYINDEX", "sensor=temp", "location=room1"], @client.last_command
   end
 
@@ -1443,6 +1574,7 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_mrange_selected_labels_without_withlabels
     @client.ts_mrange("-", "+", ["sensor=temp"], selected_labels: ["sensor"])
+
     assert_includes @client.last_command, "SELECTED_LABELS"
     refute_includes @client.last_command, "WITHLABELS"
   end
@@ -1453,6 +1585,7 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_mrevrange_selected_labels_without_withlabels
     @client.ts_mrevrange("-", "+", ["sensor=temp"], selected_labels: ["sensor"])
+
     assert_includes @client.last_command, "SELECTED_LABELS"
     refute_includes @client.last_command, "WITHLABELS"
   end
@@ -1463,6 +1596,7 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_mrange_align_without_aggregation
     @client.ts_mrange("-", "+", ["sensor=temp"], align: 0)
+
     assert_includes @client.last_command, "ALIGN"
     refute_includes @client.last_command, "AGGREGATION"
   end
@@ -1473,6 +1607,7 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_range_align_without_aggregation
     @client.ts_range("temp:sensor1", "-", "+", align: 0)
+
     assert_includes @client.last_command, "ALIGN"
     refute_includes @client.last_command, "AGGREGATION"
   end

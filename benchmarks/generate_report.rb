@@ -511,7 +511,7 @@ begin
   end
 
   summary = reporter.generate_summary
-  puts "\n" + "=" * 70
+  puts "\n#{"=" * 70}"
   puts "SUMMARY"
   puts "-" * 70
   puts "Total benchmarks: #{summary[:total_benchmarks]}"

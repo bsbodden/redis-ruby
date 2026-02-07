@@ -71,6 +71,7 @@ def workload_mixed(redis, iterations, pipeline_size)
     redis.set("profile_key", "value_#{i}")
 
     next unless (i % 20).zero?
+
     redis.pipelined do |p|
       pipeline_size.times { |j| p.get("pipe_#{j}") }
     end
@@ -80,7 +81,7 @@ end
 # ============================================================
 # 1. Memory Profiler - Allocation Analysis
 # ============================================================
-puts "\n" + "=" * 70
+puts "\n#{"=" * 70}"
 puts "1. MEMORY PROFILER - Allocation Analysis"
 puts "=" * 70
 
@@ -110,14 +111,14 @@ report.retained_objects_by_location.first(10).each do |stat|
   puts format("  %-55s %8d", stat[:data], stat[:count])
 end
 
-# Note: String analysis removed - format varies by memory_profiler version
+# NOTE: String analysis removed - format varies by memory_profiler version
 
 puts "\nFull report saved to: tmp/profiles/memory_report.txt"
 
 # ============================================================
 # 2. StackProf - CPU Profiling
 # ============================================================
-puts "\n" + "=" * 70
+puts "\n#{"=" * 70}"
 puts "2. STACKPROF - CPU Profiling"
 puts "=" * 70
 
@@ -139,7 +140,7 @@ puts "Generate flamegraph: stackprof --d3-flamegraph tmp/profiles/stackprof_cpu.
 # ============================================================
 # 3. Object Allocation Tracing
 # ============================================================
-puts "\n" + "=" * 70
+puts "\n#{"=" * 70}"
 puts "3. OBJECT ALLOCATION TRACING"
 puts "=" * 70
 
@@ -153,12 +154,12 @@ end
 
 # Sort by allocation count
 sorted = result.sort_by { |_k, v| -v[0] }
-           .first(30)
-           .select { |(path, _, _), _| path.to_s.include?("redis_ruby") }
+  .first(30)
+  .select { |(path, _, _), _| path.to_s.include?("redis_ruby") }
 
 puts "\nTop Allocation Sites in redis-ruby:"
 puts "-" * 70
-puts format("%-50s %10s %10s", "Location", "Count", "Old GC")
+puts "Location                                                Count     Old GC"
 puts "-" * 70
 sorted.first(20).each do |(path, line, type), (count, old_count, *)|
   short_path = path.to_s.gsub(%r{.*/lib/}, "")
@@ -168,7 +169,7 @@ end
 # ============================================================
 # 4. GC Analysis
 # ============================================================
-puts "\n" + "=" * 70
+puts "\n#{"=" * 70}"
 puts "4. GC ANALYSIS"
 puts "=" * 70
 
@@ -193,7 +194,7 @@ end
 # 5. YJIT Statistics (if available)
 # ============================================================
 if defined?(RubyVM::YJIT) && RubyVM::YJIT.enabled?
-  puts "\n" + "=" * 70
+  puts "\n#{"=" * 70}"
   puts "5. YJIT STATISTICS"
   puts "=" * 70
 
@@ -235,7 +236,7 @@ end
 # ============================================================
 # 6. Encoder/Decoder Micro-profiling
 # ============================================================
-puts "\n" + "=" * 70
+puts "\n#{"=" * 70}"
 puts "6. ENCODER/DECODER MICRO-PROFILE"
 puts "=" * 70
 
@@ -276,6 +277,6 @@ puts format("  Objects allocated: %d", gc_stat_after - gc_stat_before)
 puts format("  Objects per pipeline: %.2f", (gc_stat_after - gc_stat_before) / 100.0)
 
 redis.close
-puts "\n" + "=" * 70
+puts "\n#{"=" * 70}"
 puts "Profiling complete! Check tmp/profiles/ for detailed reports."
 puts "=" * 70

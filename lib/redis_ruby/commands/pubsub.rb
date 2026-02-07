@@ -265,7 +265,7 @@ module RedisRuby
       private
 
       # Main subscription loop
-      def subscription_loop(command, targets, timeout: nil, sharded: false)
+      def subscription_loop(command, targets, timeout: nil, sharded: false) # rubocop:disable Lint/UnusedMethodArgument
         handler = SubscriptionHandler.new
 
         # Let caller set up callbacks
@@ -284,11 +284,12 @@ module RedisRuby
         deadline = timeout ? Time.now + timeout : nil
 
         # Determine unsubscribe command based on type
-        unsubscribe_command = case command
-                              when "SUBSCRIBE" then "UNSUBSCRIBE"
-                              when "PSUBSCRIBE" then "PUNSUBSCRIBE"
-                              when "SSUBSCRIBE" then "SUNSUBSCRIBE"
-                              end
+        unsubscribe_commands = {
+          "SUBSCRIBE" => "UNSUBSCRIBE",
+          "PSUBSCRIBE" => "PUNSUBSCRIBE",
+          "SSUBSCRIBE" => "SUNSUBSCRIBE",
+        }.freeze
+        unsubscribe_command = unsubscribe_commands[command]
 
         # Read messages until we're fully unsubscribed
         loop do

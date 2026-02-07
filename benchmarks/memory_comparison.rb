@@ -52,12 +52,12 @@ puts
 
 results = {}
 
-def measure_memory(name, iterations, &block)
+def measure_memory(_name, iterations, &block)
   # Force GC before measurement
   GC.start(full_mark: true, immediate_sweep: true)
 
   report = MemoryProfiler.report do
-    iterations.times { block.call }
+    iterations.times(&block)
   end
 
   {
@@ -156,8 +156,8 @@ compare_memory("MULTI/EXEC (5 cmds)", results, ITERATIONS / 10,
 puts "=" * 70
 puts "MEMORY COMPARISON SUMMARY"
 puts "=" * 70
-puts format("%-25s %15s %15s %12s", "Operation", "redis-rb", "redis-ruby", "Improvement")
-puts format("%-25s %15s %15s %12s", "", "(obj/op)", "(obj/op)", "")
+puts "Operation                        redis-rb      redis-ruby  Improvement"
+puts "                                 (obj/op)        (obj/op)             "
 puts "-" * 70
 
 results.each do |name, data|

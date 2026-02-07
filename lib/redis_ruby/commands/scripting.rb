@@ -200,7 +200,7 @@ module RedisRuby
         rescue CommandError => e
           raise unless e.message.include?("NOSCRIPT")
 
-          eval(script, keys.size, *keys, *args)
+          eval(script, keys.size, *keys, *args) # rubocop:disable Security/Eval
         end
       end
     end

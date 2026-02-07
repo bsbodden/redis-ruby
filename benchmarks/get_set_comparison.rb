@@ -42,7 +42,7 @@ end
 rb_set = set_report.entries.find { |e| e.label == "redis-rb SET" }
 ruby_set = set_report.entries.find { |e| e.label == "redis-ruby SET" }
 
-puts "\n" + "=" * 70
+puts "\n#{"=" * 70}"
 puts "DETAILED RESULTS"
 puts "=" * 70
 
@@ -53,14 +53,18 @@ ruby_set_ips = ruby_set.stats.central_tendency
 
 puts
 puts "GET Operation:"
-puts "  redis-rb:    #{format('%10.1f', rb_get_ips)} iterations/sec  (#{format('%6.2f', 1_000_000.0 / rb_get_ips)} μs/op)"
-puts "  redis-ruby:  #{format('%10.1f', ruby_get_ips)} iterations/sec  (#{format('%6.2f', 1_000_000.0 / ruby_get_ips)} μs/op)"
-puts "  Speedup:     #{format('%.2f', ruby_get_ips / rb_get_ips)}x"
+puts "  redis-rb:    #{format("%10.1f",
+                              rb_get_ips)} iterations/sec  (#{format("%6.2f", 1_000_000.0 / rb_get_ips)} μs/op)"
+puts "  redis-ruby:  #{format("%10.1f",
+                              ruby_get_ips)} iterations/sec  (#{format("%6.2f", 1_000_000.0 / ruby_get_ips)} μs/op)"
+puts "  Speedup:     #{format("%.2f", ruby_get_ips / rb_get_ips)}x"
 puts
 puts "SET Operation:"
-puts "  redis-rb:    #{format('%10.1f', rb_set_ips)} iterations/sec  (#{format('%6.2f', 1_000_000.0 / rb_set_ips)} μs/op)"
-puts "  redis-ruby:  #{format('%10.1f', ruby_set_ips)} iterations/sec  (#{format('%6.2f', 1_000_000.0 / ruby_set_ips)} μs/op)"
-puts "  Speedup:     #{format('%.2f', ruby_set_ips / rb_set_ips)}x"
+puts "  redis-rb:    #{format("%10.1f",
+                              rb_set_ips)} iterations/sec  (#{format("%6.2f", 1_000_000.0 / rb_set_ips)} μs/op)"
+puts "  redis-ruby:  #{format("%10.1f",
+                              ruby_set_ips)} iterations/sec  (#{format("%6.2f", 1_000_000.0 / ruby_set_ips)} μs/op)"
+puts "  Speedup:     #{format("%.2f", ruby_set_ips / rb_set_ips)}x"
 puts
 puts "=" * 70
 

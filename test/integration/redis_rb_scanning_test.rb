@@ -11,7 +11,7 @@ class RedisRbScanningTest < Minitest::Test
   end
 
   def teardown
-    @redis.flushdb if @redis
+    @redis&.flushdb
   end
 
   def r
@@ -114,7 +114,7 @@ class RedisRbScanningTest < Minitest::Test
     # Each pair should be [member, score] with score as Float
     all_pairs.each do |member, score|
       assert member.start_with?("key:")
-      assert score.is_a?(Float)
+      assert_kind_of Float, score
     end
   end
 
@@ -122,7 +122,8 @@ class RedisRbScanningTest < Minitest::Test
     100.times { |i| r.set("key:#{i}", "value") }
 
     scan_enumerator = r.scan_each
-    assert scan_enumerator.is_a?(Enumerator)
+
+    assert_kind_of Enumerator, scan_enumerator
 
     keys_from_scan = scan_enumerator.to_a.uniq
     all_keys = r.keys("*")
@@ -149,7 +150,8 @@ class RedisRbScanningTest < Minitest::Test
     r.sadd("set", elements)
 
     scan_enumerator = r.sscan_each("set")
-    assert scan_enumerator.is_a?(Enumerator)
+
+    assert_kind_of Enumerator, scan_enumerator
 
     keys_from_scan = scan_enumerator.to_a.uniq
     all_keys = r.smembers("set")
@@ -178,7 +180,8 @@ class RedisRbScanningTest < Minitest::Test
     r.hmset("hash", *elements)
 
     scan_enumerator = r.hscan_each("hash")
-    assert scan_enumerator.is_a?(Enumerator)
+
+    assert_kind_of Enumerator, scan_enumerator
 
     keys_from_scan = scan_enumerator.to_a.uniq
     all_keys = r.hgetall("hash").to_a
@@ -206,7 +209,8 @@ class RedisRbScanningTest < Minitest::Test
     r.zadd("zset", elements)
 
     scan_enumerator = r.zscan_each("zset")
-    assert scan_enumerator.is_a?(Enumerator)
+
+    assert_kind_of Enumerator, scan_enumerator
 
     scores_from_scan = scan_enumerator.to_a.uniq
     member_scores = r.zrange("zset", 0, -1, with_scores: true)

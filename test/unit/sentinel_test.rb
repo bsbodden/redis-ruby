@@ -42,29 +42,34 @@ class SentinelManagerBranchTest < Minitest::Test
 
   def test_normalize_hash_with_symbol_keys
     mgr = build_manager(sentinels: [{ host: "h1", port: 26_379 }])
+
     assert_equal "h1", mgr.sentinels[0][:host]
     assert_equal 26_379, mgr.sentinels[0][:port]
   end
 
   def test_normalize_hash_with_string_keys
     mgr = build_manager(sentinels: [{ "host" => "h2", "port" => 26_380 }])
+
     assert_equal "h2", mgr.sentinels[0][:host]
     assert_equal 26_380, mgr.sentinels[0][:port]
   end
 
   def test_normalize_hash_missing_port_uses_default
     mgr = build_manager(sentinels: [{ host: "h3" }])
+
     assert_equal 26_379, mgr.sentinels[0][:port]
   end
 
   def test_normalize_string_with_port
     mgr = build_manager(sentinels: ["sentinel1:26380"])
+
     assert_equal "sentinel1", mgr.sentinels[0][:host]
     assert_equal 26_380, mgr.sentinels[0][:port]
   end
 
   def test_normalize_string_without_port_uses_default
     mgr = build_manager(sentinels: ["sentinel1"])
+
     assert_equal "sentinel1", mgr.sentinels[0][:host]
     assert_equal 26_379, mgr.sentinels[0][:port]
   end
@@ -77,10 +82,11 @@ class SentinelManagerBranchTest < Minitest::Test
 
   def test_normalize_multiple_sentinels
     mgr = build_manager(sentinels: [
-                           { host: "s1", port: 26_379 },
-                           "s2:26380",
-                           { "host" => "s3" },
-                         ])
+      { host: "s1", port: 26_379 },
+      "s2:26380",
+      { "host" => "s3" },
+    ])
+
     assert_equal 3, mgr.sentinels.length
   end
 
@@ -127,7 +133,7 @@ class SentinelManagerBranchTest < Minitest::Test
     master_info = [
       "name", "mymaster", "ip", "10.0.0.1", "port", "6379",
       "role-reported", "master", "flags", "master",
-      "num-other-sentinels", "2"
+      "num-other-sentinels", "2",
     ]
 
     conn = mock_conn
@@ -147,7 +153,7 @@ class SentinelManagerBranchTest < Minitest::Test
     master_info = [
       "name", "mymaster", "ip", "10.0.0.1", "port", "6379",
       "role-reported", "master", "flags", "master",
-      "num-other-sentinels", "2"
+      "num-other-sentinels", "2",
     ]
 
     conn_fail = mock_conn
@@ -162,12 +168,13 @@ class SentinelManagerBranchTest < Minitest::Test
       .then.returns(conn_ok)
 
     mgr = build_manager(sentinels: [
-                           { host: "s1", port: 26_379 },
-                           { host: "s2", port: 26_380 },
-                         ])
+      { host: "s1", port: 26_379 },
+      { host: "s2", port: 26_380 },
+    ])
     mgr.stubs(:sleep) # skip sleep during SENTINEL_DELAY
 
     address = mgr.discover_master
+
     assert_equal "10.0.0.1", address[:host]
 
     # s2 should now be first (promoted)
@@ -178,7 +185,7 @@ class SentinelManagerBranchTest < Minitest::Test
     master_info = [
       "name", "mymaster", "ip", "10.0.0.1", "port", "6379",
       "role-reported", "master", "flags", "master",
-      "num-other-sentinels", "2"
+      "num-other-sentinels", "2",
     ]
 
     conn = mock_conn
@@ -187,9 +194,9 @@ class SentinelManagerBranchTest < Minitest::Test
     RedisRuby::Connection::TCP.stubs(:new).returns(conn)
 
     mgr = build_manager(sentinels: [
-                           { host: "s1", port: 26_379 },
-                           { host: "s2", port: 26_380 },
-                         ])
+      { host: "s1", port: 26_379 },
+      { host: "s2", port: 26_380 },
+    ])
     mgr.discover_master
 
     # s1 should still be first (index 0, no promotion needed)
@@ -202,9 +209,9 @@ class SentinelManagerBranchTest < Minitest::Test
     RedisRuby::Connection::TCP.stubs(:new).returns(conn)
 
     mgr = build_manager(sentinels: [
-                           { host: "s1", port: 26_379 },
-                           { host: "s2", port: 26_380 },
-                         ])
+      { host: "s1", port: 26_379 },
+      { host: "s2", port: 26_380 },
+    ])
     mgr.stubs(:sleep) # skip sleep
 
     error = assert_raises(RedisRuby::MasterNotFoundError) { mgr.discover_master }
@@ -218,7 +225,7 @@ class SentinelManagerBranchTest < Minitest::Test
     master_info = [
       "name", "mymaster", "ip", "10.0.0.1", "port", "6379",
       "role-reported", "master", "flags", "master,s_down",
-      "num-other-sentinels", "2"
+      "num-other-sentinels", "2",
     ]
 
     conn = mock_conn
@@ -233,7 +240,7 @@ class SentinelManagerBranchTest < Minitest::Test
     other_master = [
       "name", "other_service", "ip", "10.0.0.1", "port", "6379",
       "role-reported", "master", "flags", "master",
-      "num-other-sentinels", "2"
+      "num-other-sentinels", "2",
     ]
 
     conn = mock_conn
@@ -255,16 +262,18 @@ class SentinelManagerBranchTest < Minitest::Test
       "flags" => "master",
       "num-other-sentinels" => "2",
     }
+
     assert mgr.send(:check_master_state, state)
   end
 
   def test_check_master_state_valid_via_flags_only
     mgr = build_manager
     state = {
-      "role-reported" => "slave",  # not master role-reported
-      "flags" => "master",        # but flags includes master
+      "role-reported" => "slave", # not master role-reported
+      "flags" => "master", # but flags includes master
       "num-other-sentinels" => "0",
     }
+
     assert mgr.send(:check_master_state, state)
   end
 
@@ -275,6 +284,7 @@ class SentinelManagerBranchTest < Minitest::Test
       "flags" => "slave",
       "num-other-sentinels" => "0",
     }
+
     refute mgr.send(:check_master_state, state)
   end
 
@@ -285,6 +295,7 @@ class SentinelManagerBranchTest < Minitest::Test
       "flags" => "master,s_down",
       "num-other-sentinels" => "2",
     }
+
     refute mgr.send(:check_master_state, state)
   end
 
@@ -295,6 +306,7 @@ class SentinelManagerBranchTest < Minitest::Test
       "flags" => "master,o_down",
       "num-other-sentinels" => "2",
     }
+
     refute mgr.send(:check_master_state, state)
   end
 
@@ -305,6 +317,7 @@ class SentinelManagerBranchTest < Minitest::Test
       "flags" => "master",
       "num-other-sentinels" => "1",
     }
+
     refute mgr.send(:check_master_state, state)
   end
 
@@ -335,6 +348,7 @@ class SentinelManagerBranchTest < Minitest::Test
       ["name", "mymaster", "ip", "5.6.7.8", "port", "6380"],
     ]
     result = mgr.send(:find_master_state, masters, "mymaster")
+
     assert_equal "mymaster", result["name"]
     assert_equal "5.6.7.8", result["ip"]
   end
@@ -343,18 +357,21 @@ class SentinelManagerBranchTest < Minitest::Test
     mgr = build_manager
     masters = [["name", "other", "ip", "1.2.3.4", "port", "6379"]]
     result = mgr.send(:find_master_state, masters, "mymaster")
+
     assert_nil result
   end
 
   def test_find_master_state_nil_input
     mgr = build_manager
     result = mgr.send(:find_master_state, nil, "mymaster")
+
     assert_nil result
   end
 
   def test_find_master_state_non_array_input
     mgr = build_manager
     result = mgr.send(:find_master_state, "not_an_array", "mymaster")
+
     assert_nil result
   end
 
@@ -364,13 +381,14 @@ class SentinelManagerBranchTest < Minitest::Test
 
   def test_refresh_sentinels_adds_new_sentinel
     conn = mock_conn
-    sentinel_info = ["ip", "s3", "port", "26381"]
+    sentinel_info = %w[ip s3 port 26381]
     conn.stubs(:call).with("SENTINEL", "SENTINELS", "mymaster").returns([sentinel_info])
 
     mgr = build_manager(sentinels: [{ host: "s1", port: 26_379 }])
     initial_count = mgr.sentinels.length
 
     mgr.send(:refresh_sentinels, conn)
+
     assert_equal initial_count + 1, mgr.sentinels.length
     assert_equal "s3", mgr.sentinels.last[:host]
     assert_equal 26_381, mgr.sentinels.last[:port]
@@ -378,13 +396,14 @@ class SentinelManagerBranchTest < Minitest::Test
 
   def test_refresh_sentinels_skips_existing
     conn = mock_conn
-    sentinel_info = ["ip", "s1", "port", "26379"]
+    sentinel_info = %w[ip s1 port 26379]
     conn.stubs(:call).with("SENTINEL", "SENTINELS", "mymaster").returns([sentinel_info])
 
     mgr = build_manager(sentinels: [{ host: "s1", port: 26_379 }])
     initial_count = mgr.sentinels.length
 
     mgr.send(:refresh_sentinels, conn)
+
     assert_equal initial_count, mgr.sentinels.length
   end
 
@@ -397,6 +416,7 @@ class SentinelManagerBranchTest < Minitest::Test
 
     # Should return early without error
     mgr.send(:refresh_sentinels, conn)
+
     assert_equal initial_count, mgr.sentinels.length
   end
 
@@ -493,9 +513,9 @@ class SentinelManagerBranchTest < Minitest::Test
     RedisRuby::Connection::TCP.stubs(:new).returns(conn)
 
     mgr = build_manager(sentinels: [
-                           { host: "s1", port: 26_379 },
-                           { host: "s2", port: 26_380 },
-                         ])
+      { host: "s1", port: 26_379 },
+      { host: "s2", port: 26_380 },
+    ])
     mgr.stubs(:sleep)
 
     error = assert_raises(RedisRuby::ReplicaNotFoundError) { mgr.discover_replicas }
@@ -571,6 +591,7 @@ class SentinelManagerBranchTest < Minitest::Test
 
     mgr = build_manager
     result = mgr.rotate_replicas
+
     assert_kind_of Enumerator, result
   end
 
@@ -582,7 +603,7 @@ class SentinelManagerBranchTest < Minitest::Test
     master_info = [
       "name", "mymaster", "ip", "10.0.0.1", "port", "6379",
       "role-reported", "master", "flags", "master",
-      "num-other-sentinels", "0"
+      "num-other-sentinels", "0",
     ]
 
     conn = mock_conn
@@ -602,6 +623,7 @@ class SentinelManagerBranchTest < Minitest::Test
 
     # At least the replica + master should have been yielded
     hosts = yielded.map { |a| a[:host] }
+
     assert_includes hosts, "10.0.0.2"
     assert_includes hosts, "10.0.0.1"
   end
@@ -632,13 +654,14 @@ class SentinelManagerBranchTest < Minitest::Test
 
   def test_rotate_sentinels
     mgr = build_manager(sentinels: [
-                           { host: "s1", port: 26_379 },
-                           { host: "s2", port: 26_380 },
-                           { host: "s3", port: 26_381 },
-                         ])
+      { host: "s1", port: 26_379 },
+      { host: "s2", port: 26_380 },
+      { host: "s3", port: 26_381 },
+    ])
 
     first = mgr.sentinels[0][:host]
     mgr.rotate_sentinels!
+
     refute_equal first, mgr.sentinels[0][:host]
   end
 
@@ -650,6 +673,7 @@ class SentinelManagerBranchTest < Minitest::Test
     mgr = build_manager
     mgr.instance_variable_set(:@slave_rr_counter, 5)
     mgr.reset
+
     assert_nil mgr.instance_variable_get(:@slave_rr_counter)
   end
 
@@ -663,6 +687,7 @@ class SentinelManagerBranchTest < Minitest::Test
     RedisRuby::Connection::TCP.stubs(:new).returns(conn)
 
     mgr = build_manager
+
     assert mgr.sentinel_reachable?({ host: "s1", port: 26_379 })
   end
 
@@ -672,6 +697,7 @@ class SentinelManagerBranchTest < Minitest::Test
     RedisRuby::Connection::TCP.stubs(:new).returns(conn)
 
     mgr = build_manager
+
     refute mgr.sentinel_reachable?({ host: "s1", port: 26_379 })
   end
 
@@ -679,6 +705,7 @@ class SentinelManagerBranchTest < Minitest::Test
     RedisRuby::Connection::TCP.stubs(:new).raises(StandardError, "connection refused")
 
     mgr = build_manager
+
     refute mgr.sentinel_reachable?({ host: "s1", port: 26_379 })
   end
 
@@ -688,8 +715,8 @@ class SentinelManagerBranchTest < Minitest::Test
 
   def test_discover_sentinels_success
     sentinel_response = [
-      ["ip", "s2", "port", "26380"],
-      ["ip", "s3", "port", "26381"],
+      %w[ip s2 port 26380],
+      %w[ip s3 port 26381],
     ]
 
     conn = mock_conn
@@ -706,8 +733,8 @@ class SentinelManagerBranchTest < Minitest::Test
 
   def test_discover_sentinels_deduplicates
     sentinel_response = [
-      ["ip", "s2", "port", "26380"],
-      ["ip", "s2", "port", "26380"],
+      %w[ip s2 port 26380],
+      %w[ip s2 port 26380],
     ]
 
     conn = mock_conn
@@ -725,16 +752,16 @@ class SentinelManagerBranchTest < Minitest::Test
     conn_fail.stubs(:call).raises(StandardError, "down")
 
     conn_ok = mock_conn
-    conn_ok.expects(:call).with("SENTINEL", "SENTINELS", "mymaster").returns([["ip", "s3", "port", "26381"]])
+    conn_ok.expects(:call).with("SENTINEL", "SENTINELS", "mymaster").returns([%w[ip s3 port 26381]])
 
     RedisRuby::Connection::TCP.stubs(:new)
       .returns(conn_fail)
       .then.returns(conn_ok)
 
     mgr = build_manager(sentinels: [
-                           { host: "s1", port: 26_379 },
-                           { host: "s2", port: 26_380 },
-                         ])
+      { host: "s1", port: 26_379 },
+      { host: "s2", port: 26_380 },
+    ])
     sentinels = mgr.discover_sentinels
 
     assert_equal 1, sentinels.length
@@ -742,7 +769,7 @@ class SentinelManagerBranchTest < Minitest::Test
   end
 
   def test_discover_sentinels_breaks_when_result_found
-    sentinel_response1 = [["ip", "s3", "port", "26381"]]
+    sentinel_response1 = [%w[ip s3 port 26381]]
 
     conn1 = mock_conn
     conn1.expects(:call).with("SENTINEL", "SENTINELS", "mymaster").returns(sentinel_response1)
@@ -755,9 +782,9 @@ class SentinelManagerBranchTest < Minitest::Test
       .returns(conn1)
 
     mgr = build_manager(sentinels: [
-                           { host: "s1", port: 26_379 },
-                           { host: "s2", port: 26_380 },
-                         ])
+      { host: "s1", port: 26_379 },
+      { host: "s2", port: 26_380 },
+    ])
     sentinels = mgr.discover_sentinels
 
     assert_equal 1, sentinels.length
@@ -781,18 +808,21 @@ class SentinelManagerBranchTest < Minitest::Test
   def test_parse_info_array_valid
     mgr = build_manager
     result = mgr.send(:parse_info_array, ["name", "mymaster", "ip", "1.2.3.4"])
+
     assert_equal "mymaster", result["name"]
     assert_equal "1.2.3.4", result["ip"]
   end
 
   def test_parse_info_array_nil
     mgr = build_manager
-    assert_equal({}, mgr.send(:parse_info_array, nil))
+
+    assert_empty(mgr.send(:parse_info_array, nil))
   end
 
   def test_parse_info_array_non_array
     mgr = build_manager
-    assert_equal({}, mgr.send(:parse_info_array, "string"))
+
+    assert_empty(mgr.send(:parse_info_array, "string"))
   end
 
   # ============================================================
@@ -805,6 +835,7 @@ class SentinelManagerBranchTest < Minitest::Test
     RedisRuby::Connection::TCP.stubs(:new).returns(conn)
 
     mgr = build_manager
+
     assert mgr.send(:verify_master_role?, { host: "10.0.0.1", port: 6379 })
   end
 
@@ -814,6 +845,7 @@ class SentinelManagerBranchTest < Minitest::Test
     RedisRuby::Connection::TCP.stubs(:new).returns(conn)
 
     mgr = build_manager
+
     refute mgr.send(:verify_master_role?, { host: "10.0.0.1", port: 6379 })
   end
 
@@ -823,6 +855,7 @@ class SentinelManagerBranchTest < Minitest::Test
     RedisRuby::Connection::TCP.stubs(:new).returns(conn)
 
     mgr = build_manager
+
     refute mgr.send(:verify_master_role?, { host: "10.0.0.1", port: 6379 })
   end
 
@@ -832,6 +865,7 @@ class SentinelManagerBranchTest < Minitest::Test
     RedisRuby::Connection::TCP.stubs(:new).returns(conn)
 
     mgr = build_manager
+
     refute mgr.send(:verify_master_role?, { host: "10.0.0.1", port: 6379 })
   end
 
@@ -846,6 +880,7 @@ class SentinelManagerBranchTest < Minitest::Test
 
     mgr = build_manager(password: "my_pass")
     result = mgr.send(:create_sentinel_connection, { host: "s1", port: 26_379 })
+
     assert_equal conn, result
   end
 
@@ -856,6 +891,7 @@ class SentinelManagerBranchTest < Minitest::Test
 
     mgr = build_manager
     result = mgr.send(:create_sentinel_connection, { host: "s1", port: 26_379 })
+
     assert_equal conn, result
   end
 
@@ -946,26 +982,31 @@ class SentinelClientBranchTest < Minitest::Test
 
   def test_normalize_role_master
     client = RedisRuby::SentinelClient.allocate
+
     assert_equal :master, client.send(:normalize_role, :master)
   end
 
   def test_normalize_role_replica
     client = RedisRuby::SentinelClient.allocate
+
     assert_equal :replica, client.send(:normalize_role, :replica)
   end
 
   def test_normalize_role_slave_to_replica
     client = RedisRuby::SentinelClient.allocate
+
     assert_equal :replica, client.send(:normalize_role, :slave)
   end
 
   def test_normalize_role_string_master
     client = RedisRuby::SentinelClient.allocate
+
     assert_equal :master, client.send(:normalize_role, "master")
   end
 
   def test_normalize_role_string_slave_to_replica
     client = RedisRuby::SentinelClient.allocate
+
     assert_equal :replica, client.send(:normalize_role, "slave")
   end
 
@@ -975,14 +1016,16 @@ class SentinelClientBranchTest < Minitest::Test
 
   def test_master_predicate_true
     client = build_client(role: :master)
-    assert client.master?
-    refute client.replica?
+
+    assert_predicate client, :master?
+    refute_predicate client, :replica?
   end
 
   def test_replica_predicate_true
     client = build_client(role: :replica)
-    assert client.replica?
-    refute client.master?
+
+    assert_predicate client, :replica?
+    refute_predicate client, :master?
   end
 
   # ============================================================
@@ -991,7 +1034,8 @@ class SentinelClientBranchTest < Minitest::Test
 
   def test_connected_when_no_connection
     client = build_client
-    refute client.connected?
+
+    refute_predicate client, :connected?
   end
 
   def test_connected_when_connection_exists_and_connected
@@ -999,7 +1043,8 @@ class SentinelClientBranchTest < Minitest::Test
     conn = mock_conn
     conn.stubs(:connected?).returns(true)
     client.instance_variable_set(:@connection, conn)
-    assert client.connected?
+
+    assert_predicate client, :connected?
   end
 
   def test_connected_when_connection_exists_but_disconnected
@@ -1007,7 +1052,8 @@ class SentinelClientBranchTest < Minitest::Test
     conn = mock_conn
     conn.stubs(:connected?).returns(false)
     client.instance_variable_set(:@connection, conn)
-    refute client.connected?
+
+    refute_predicate client, :connected?
   end
 
   # ============================================================
@@ -1021,6 +1067,7 @@ class SentinelClientBranchTest < Minitest::Test
     client.instance_variable_set(:@connection, conn)
 
     client.close
+
     assert_nil client.instance_variable_get(:@connection)
     assert_nil client.current_address
   end
@@ -1033,12 +1080,14 @@ class SentinelClientBranchTest < Minitest::Test
 
   def test_disconnect_alias
     client = build_client
-    assert client.respond_to?(:disconnect)
+
+    assert_respond_to client, :disconnect
   end
 
   def test_quit_alias
     client = build_client
-    assert client.respond_to?(:quit)
+
+    assert_respond_to client, :quit
   end
 
   # ============================================================
@@ -1071,6 +1120,7 @@ class SentinelClientBranchTest < Minitest::Test
     manager.expects(:discover_master).returns({ host: "master", port: 6379 })
 
     address = client.send(:discover_address)
+
     assert_equal "master", address[:host]
   end
 
@@ -1080,6 +1130,7 @@ class SentinelClientBranchTest < Minitest::Test
     manager.expects(:random_replica).returns({ host: "replica", port: 6380 })
 
     address = client.send(:discover_address)
+
     assert_equal "replica", address[:host]
   end
 
@@ -1090,6 +1141,7 @@ class SentinelClientBranchTest < Minitest::Test
     manager.expects(:discover_master).returns({ host: "master", port: 6379 })
 
     address = client.send(:discover_address)
+
     assert_equal "master", address[:host]
   end
 
@@ -1107,6 +1159,7 @@ class SentinelClientBranchTest < Minitest::Test
     ).returns(conn)
 
     result = client.send(:create_connection, { host: "master", port: 6379 })
+
     assert_equal conn, result
   end
 
@@ -1121,6 +1174,7 @@ class SentinelClientBranchTest < Minitest::Test
     ).returns(conn)
 
     result = client.send(:create_connection, { host: "master", port: 6379 })
+
     assert_equal conn, result
   end
 
@@ -1215,13 +1269,14 @@ class SentinelClientBranchTest < Minitest::Test
     manager.expects(:discover_master).returns({ host: "master", port: 6379 })
 
     conn = mock_conn
-    conn.stubs(:connected?).returns(false, true)  # first check => not connected, after setup => connected
+    conn.stubs(:connected?).returns(false, true) # first check => not connected, after setup => connected
     conn.expects(:call).with("ROLE").returns(["master", 0, []])
     conn.expects(:call).with("AUTH", "pass").returns("OK")
     conn.expects(:call).with("SELECT", "2").returns("OK")
     RedisRuby::Connection::TCP.expects(:new).returns(conn)
 
     client.send(:ensure_connected)
+
     assert_equal({ host: "master", port: 6379 }, client.current_address)
   end
 
@@ -1261,18 +1316,21 @@ class SentinelClientBranchTest < Minitest::Test
   def test_readonly_error_with_readonly
     client = build_client
     err = RedisRuby::CommandError.new("READONLY some message")
+
     assert client.send(:readonly_error?, err)
   end
 
   def test_readonly_error_with_cant_write
     client = build_client
     err = RedisRuby::CommandError.new("You can't write against a read only replica")
+
     assert client.send(:readonly_error?, err)
   end
 
   def test_readonly_error_other_message
     client = build_client
     err = RedisRuby::CommandError.new("ERR wrong number of arguments")
+
     refute client.send(:readonly_error?, err)
   end
 
@@ -1317,6 +1375,7 @@ class SentinelClientBranchTest < Minitest::Test
     client.instance_variable_set(:@connection, conn)
 
     result = client.call("GET", "key")
+
     assert_equal "value", result
   end
 
@@ -1365,8 +1424,6 @@ class SentinelClientBranchTest < Minitest::Test
     client.stubs(:sleep) # skip backoff
     # Stub reconnect to just reset connection reference (skip actual logic)
     client.stubs(:reconnect)
-
-    call_count = 0
     conn = mock_conn
     conn.stubs(:connected?).returns(true)
     conn.stubs(:close)
@@ -1377,6 +1434,7 @@ class SentinelClientBranchTest < Minitest::Test
 
     # After 2 retries, the 3rd attempt succeeds
     result = client.call("PING")
+
     assert_equal "PONG", result
   end
 
@@ -1428,6 +1486,7 @@ class SentinelClientBranchTest < Minitest::Test
     client.expects(:sleep).never
 
     result = client.call("PING")
+
     assert_equal "OK", result
   end
 
@@ -1448,6 +1507,7 @@ class SentinelClientBranchTest < Minitest::Test
     client.expects(:sleep).with(0.2).once
 
     result = client.call("PING")
+
     assert_equal "OK", result
   end
 
@@ -1476,11 +1536,12 @@ class SentinelClientBranchTest < Minitest::Test
     client.instance_variable_set(:@connection, conn)
 
     pipeline_mock = mock("pipeline")
-    pipeline_mock.expects(:execute).returns(["OK", "value"])
+    pipeline_mock.expects(:execute).returns(%w[OK value])
     RedisRuby::Pipeline.expects(:new).with(conn).returns(pipeline_mock)
 
     results = client.pipelined { |pipe| }
-    assert_equal ["OK", "value"], results
+
+    assert_equal %w[OK value], results
   end
 
   def test_pipelined_raises_on_command_error
@@ -1514,6 +1575,7 @@ class SentinelClientBranchTest < Minitest::Test
     RedisRuby::Transaction.expects(:new).with(conn).returns(tx_mock)
 
     results = client.multi { |tx| }
+
     assert_equal ["OK", 1], results
   end
 
@@ -1528,6 +1590,7 @@ class SentinelClientBranchTest < Minitest::Test
     RedisRuby::Transaction.expects(:new).with(conn).returns(tx_mock)
 
     result = client.multi { |tx| }
+
     assert_nil result
   end
 
@@ -1575,6 +1638,7 @@ class SentinelClientBranchTest < Minitest::Test
     client.instance_variable_set(:@connection, conn)
 
     result = client.watch("key1", "key2")
+
     assert_equal "OK", result
   end
 
@@ -1587,6 +1651,7 @@ class SentinelClientBranchTest < Minitest::Test
     client.instance_variable_set(:@connection, conn)
 
     result = client.watch("key1") { "block_result" }
+
     assert_equal "block_result", result
   end
 
@@ -1615,6 +1680,7 @@ class SentinelClientBranchTest < Minitest::Test
     client.instance_variable_set(:@connection, conn)
 
     result = client.unwatch
+
     assert_equal "OK", result
   end
 
@@ -1640,9 +1706,9 @@ class SentinelClientBranchTest < Minitest::Test
     assert_equal "mymaster", client.service_name
     assert_equal :master, client.role
     assert_in_delta 2.0, client.timeout
-    assert client.master?
-    refute client.replica?
-    refute client.connected?
+    assert_predicate client, :master?
+    refute_predicate client, :replica?
+    refute_predicate client, :connected?
     assert_nil client.current_address
     assert_instance_of RedisRuby::SentinelManager, client.sentinel_manager
   end
@@ -1655,7 +1721,7 @@ class SentinelClientBranchTest < Minitest::Test
     )
 
     assert_equal :replica, client.role
-    assert client.replica?
+    assert_predicate client, :replica?
   end
 
   def test_initialize_invalid_role_raises
@@ -1674,6 +1740,7 @@ class SentinelClientBranchTest < Minitest::Test
 
   def test_sentinel_manager_accessible
     client = build_client
+
     refute_nil client.sentinel_manager
   end
 
@@ -1689,6 +1756,7 @@ class SentinelClientBranchTest < Minitest::Test
     client.instance_variable_set(:@connection, conn)
 
     result = client.call("INFO")
+
     assert_equal "redis_version:7.0.0", result
   end
 
@@ -1700,6 +1768,7 @@ class SentinelClientBranchTest < Minitest::Test
     client.instance_variable_set(:@connection, conn)
 
     result = client.call("GET", "missing")
+
     assert_nil result
   end
 
@@ -1711,6 +1780,7 @@ class SentinelClientBranchTest < Minitest::Test
     client.instance_variable_set(:@connection, conn)
 
     result = client.call("INCR", "counter")
+
     assert_equal 42, result
   end
 end

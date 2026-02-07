@@ -64,8 +64,8 @@ class TransactionCompatibilityTest < RedisRubyTestCase
 
     assert_equal %w[a b c], results[0]
     # with_scores should return [member, score, member, score, ...]
-    assert_equal ["a", "1", "b", "2", "c", "3"], results[1]
-    assert_equal ["a", "1", "b", "2", "c", "3"], results[2]
+    assert_equal %w[a 1 b 2 c 3], results[1]
+    assert_equal %w[a 1 b 2 c 3], results[2]
   ensure
     redis.del("test:zset")
   end
@@ -78,7 +78,7 @@ class TransactionCompatibilityTest < RedisRubyTestCase
       tx.zrevrange("test:zset", 0, -1, with_scores: true)
     end
 
-    assert_equal ["c", "3", "b", "2", "a", "1"], results[0]
+    assert_equal %w[c 3 b 2 a 1], results[0]
   ensure
     redis.del("test:zset")
   end
@@ -91,7 +91,7 @@ class TransactionCompatibilityTest < RedisRubyTestCase
       tx.zrangebyscore("test:zset", 1, 2, with_scores: true)
     end
 
-    assert_equal ["a", "1", "b", "2"], results[0]
+    assert_equal %w[a 1 b 2], results[0]
   ensure
     redis.del("test:zset")
   end
@@ -104,7 +104,7 @@ class TransactionCompatibilityTest < RedisRubyTestCase
       tx.zrevrangebyscore("test:zset", 3, 2, with_scores: true)
     end
 
-    assert_equal ["c", "3", "b", "2"], results[0]
+    assert_equal %w[c 3 b 2], results[0]
   ensure
     redis.del("test:zset")
   end
@@ -117,7 +117,7 @@ class TransactionCompatibilityTest < RedisRubyTestCase
       tx.echo("hello") # Less common command, should work via method_missing if not defined
     end
 
-    assert_equal ["OK", "value", "hello"], results
+    assert_equal %w[OK value hello], results
   ensure
     redis.del("test:key")
   end

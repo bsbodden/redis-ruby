@@ -46,7 +46,8 @@ class HyperLogLogBranchTest < Minitest::Test
   def test_pfadd_single_element_fast_path
     @client.call_2arg_return_value = 1
     result = @client.pfadd("hll", "elem1")
-    assert_equal ["PFADD", "hll", "elem1"], @client.last_call_2args
+
+    assert_equal %w[PFADD hll elem1], @client.last_call_2args
     assert_equal 1, result
     # Verify slow path was NOT used
     assert_nil @client.last_call
@@ -55,20 +56,23 @@ class HyperLogLogBranchTest < Minitest::Test
   def test_pfadd_multiple_elements_slow_path
     @client.call_return_value = 1
     result = @client.pfadd("hll", "a", "b", "c")
-    assert_equal ["PFADD", "hll", "a", "b", "c"], @client.last_call
+
+    assert_equal %w[PFADD hll a b c], @client.last_call
     assert_equal 1, result
   end
 
   def test_pfadd_returns_zero_no_change
     @client.call_2arg_return_value = 0
     result = @client.pfadd("hll", "elem1")
+
     assert_equal 0, result
   end
 
   def test_pfadd_no_elements
     @client.call_return_value = 0
     result = @client.pfadd("hll")
-    assert_equal ["PFADD", "hll"], @client.last_call
+
+    assert_equal %w[PFADD hll], @client.last_call
     assert_equal 0, result
   end
 
@@ -79,7 +83,8 @@ class HyperLogLogBranchTest < Minitest::Test
   def test_pfcount_single_key_fast_path
     @client.call_1arg_return_value = 42
     result = @client.pfcount("hll")
-    assert_equal ["PFCOUNT", "hll"], @client.last_call_1arg
+
+    assert_equal %w[PFCOUNT hll], @client.last_call_1arg
     assert_equal 42, result
     assert_nil @client.last_call
   end
@@ -87,13 +92,15 @@ class HyperLogLogBranchTest < Minitest::Test
   def test_pfcount_multiple_keys_slow_path
     @client.call_return_value = 100
     result = @client.pfcount("hll1", "hll2")
-    assert_equal ["PFCOUNT", "hll1", "hll2"], @client.last_call
+
+    assert_equal %w[PFCOUNT hll1 hll2], @client.last_call
     assert_equal 100, result
   end
 
   def test_pfcount_returns_zero
     @client.call_1arg_return_value = 0
     result = @client.pfcount("empty_hll")
+
     assert_equal 0, result
   end
 
@@ -104,7 +111,8 @@ class HyperLogLogBranchTest < Minitest::Test
   def test_pfmerge_single_source_fast_path
     @client.call_2arg_return_value = "OK"
     result = @client.pfmerge("dest", "src1")
-    assert_equal ["PFMERGE", "dest", "src1"], @client.last_call_2args
+
+    assert_equal %w[PFMERGE dest src1], @client.last_call_2args
     assert_equal "OK", result
     assert_nil @client.last_call
   end
@@ -112,7 +120,8 @@ class HyperLogLogBranchTest < Minitest::Test
   def test_pfmerge_multiple_sources_slow_path
     @client.call_return_value = "OK"
     result = @client.pfmerge("dest", "src1", "src2", "src3")
-    assert_equal ["PFMERGE", "dest", "src1", "src2", "src3"], @client.last_call
+
+    assert_equal %w[PFMERGE dest src1 src2 src3], @client.last_call
     assert_equal "OK", result
   end
 

@@ -137,8 +137,6 @@ module RedisRuby
 
       # Read exactly count bytes
       def read_bytes(count)
-        if @buffered
-        end
         @stream.read(count)
       end
 

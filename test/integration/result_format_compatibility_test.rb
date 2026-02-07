@@ -11,7 +11,7 @@ class ResultFormatCompatibilityTest < RedisRubyTestCase
   def test_hscan_returns_nested_pairs
     redis.hset("test:hash", "f1", "v1", "f2", "v2", "f3", "v3")
 
-    cursor, data = redis.hscan("test:hash", "0")
+    _, data = redis.hscan("test:hash", "0")
 
     # Should be [[f1, v1], [f2, v2], ...] not [f1, v1, f2, v2, ...]
     assert_kind_of Array, data
@@ -19,6 +19,7 @@ class ResultFormatCompatibilityTest < RedisRubyTestCase
     assert_equal 2, data[0].length
     # Verify we got field-value pairs
     fields = data.map(&:first)
+
     assert_includes fields, "f1"
     assert_includes fields, "f2"
     assert_includes fields, "f3"
@@ -50,7 +51,7 @@ class ResultFormatCompatibilityTest < RedisRubyTestCase
     assert_kind_of Array, result
     assert_equal 2, result.length, "Expected [member, score], got: #{result.inspect}"
     assert_equal "a", result[0]
-    assert_equal 1.0, result[1]
+    assert_in_delta(1.0, result[1])
   ensure
     redis.del("test:zset")
   end
@@ -79,7 +80,7 @@ class ResultFormatCompatibilityTest < RedisRubyTestCase
     assert_kind_of Array, result
     assert_equal 2, result.length, "Expected [member, score], got: #{result.inspect}"
     assert_equal "c", result[0]
-    assert_equal 3.0, result[1]
+    assert_in_delta(3.0, result[1])
   ensure
     redis.del("test:zset")
   end
@@ -119,7 +120,7 @@ class ResultFormatCompatibilityTest < RedisRubyTestCase
     result = redis.incrbyfloat("test:float", 0.5)
 
     assert_kind_of Float, result
-    assert_equal 2.0, result
+    assert_in_delta(2.0, result)
   ensure
     redis.del("test:float")
   end
@@ -131,7 +132,7 @@ class ResultFormatCompatibilityTest < RedisRubyTestCase
     result = redis.hincrbyfloat("test:hash", "field", 0.5)
 
     assert_kind_of Float, result
-    assert_equal 2.0, result
+    assert_in_delta(2.0, result)
   ensure
     redis.del("test:hash")
   end
@@ -143,7 +144,7 @@ class ResultFormatCompatibilityTest < RedisRubyTestCase
     result = redis.zscore("test:zset", "member")
 
     assert_kind_of Float, result
-    assert_equal 1.5, result
+    assert_in_delta(1.5, result)
   ensure
     redis.del("test:zset")
   end
@@ -155,7 +156,7 @@ class ResultFormatCompatibilityTest < RedisRubyTestCase
     result = redis.zincrby("test:zset", 0.5, "member")
 
     assert_kind_of Float, result
-    assert_equal 2.0, result
+    assert_in_delta(2.0, result)
   ensure
     redis.del("test:zset")
   end

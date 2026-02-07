@@ -66,7 +66,7 @@ module ClusterTestContainerSupport
     return nil unless inside_docker? && @compose_started
 
     target = docker_host
-    return nil if target == "127.0.0.1" || target == "localhost"
+    return nil if ["127.0.0.1", "localhost"].include?(target)
 
     { "127.0.0.1" => target }
   end

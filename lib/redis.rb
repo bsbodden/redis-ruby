@@ -1061,21 +1061,24 @@ class Redis
     with_error_translation { @client.script_load(script) }
   end
 
+  TRUTHY_SCRIPT_VALUES = [1, true].freeze
+  private_constant :TRUTHY_SCRIPT_VALUES
+
   def script_exists(*shas)
     # Check if first arg is an array (explicit array argument)
     if shas.length == 1 && shas[0].is_a?(Array)
       # Called with array: script(:exists, [a, b]) -> returns array
       shas = shas[0]
       result = with_error_translation { @client.script_exists(*shas) }
-      result.map { |v| [1, true].include?(v) }
+      result.map { |v| TRUTHY_SCRIPT_VALUES.include?(v) }
     elsif shas.length == 1
       # Called with single SHA: script(:exists, sha) -> returns single boolean
       result = with_error_translation { @client.script_exists(shas[0]) }
-      result.map { |v| [1, true].include?(v) }.first
+      result.map { |v| TRUTHY_SCRIPT_VALUES.include?(v) }.first
     else
       # Called with multiple SHAs as varargs
       result = with_error_translation { @client.script_exists(*shas) }
-      result.map { |v| [1, true].include?(v) }
+      result.map { |v| TRUTHY_SCRIPT_VALUES.include?(v) }
     end
   end
 
@@ -1260,34 +1263,57 @@ class Redis
   # Normalize redis-rb options to redis-ruby options
   def normalize_options(options)
     opts = DEFAULT_OPTIONS.dup.merge(options)
+    parse_url_if_provided(opts)
+    normalize_timeout_options(opts)
+    opts.delete(:driver) # driver option is ignored (we always use pure Ruby)
+    opts
+  end
 
-    # Parse URL if provided
-    if opts[:url]
-      uri = URI.parse(opts[:url])
-      case uri.scheme
-      when "redis", "rediss"
-        opts[:host] = uri.host if uri.host
-        opts[:port] = uri.port if uri.port
-        opts[:db] = uri.path.delete_prefix("/").to_i if uri.path && !uri.path.empty? && uri.path != "/"
-        opts[:password] = uri.password if uri.password
-        opts[:username] = uri.user if uri.user && uri.user != "" && uri.user != uri.password
-        opts[:ssl] = (uri.scheme == "rediss")
-      when "unix"
-        opts[:path] = uri.path
-      end
+  # Parse URL into host/port/db/auth options
+  def parse_url_if_provided(opts)
+    return unless opts[:url]
+
+    uri = URI.parse(opts[:url])
+    case uri.scheme
+    when "redis", "rediss"
+      parse_redis_url(uri, opts)
+    when "unix"
+      opts[:path] = uri.path
     end
+  end
 
+  # Parse redis:// or rediss:// URL
+  def parse_redis_url(uri, opts)
+    opts[:host] = uri.host if uri.host
+    opts[:port] = uri.port if uri.port
+    parse_url_db(uri, opts)
+    opts[:password] = uri.password if uri.password
+    parse_url_username(uri, opts)
+    opts[:ssl] = (uri.scheme == "rediss")
+  end
+
+  # Extract database number from URL path
+  def parse_url_db(uri, opts)
+    return unless uri.path && !uri.path.empty? && uri.path != "/"
+
+    opts[:db] = uri.path.delete_prefix("/").to_i
+  end
+
+  # Extract username from URL (if distinct from password)
+  def parse_url_username(uri, opts)
+    return unless uri.user && uri.user != "" && uri.user != uri.password
+
+    opts[:username] = uri.user
+  end
+
+  # Normalize various timeout option aliases
+  def normalize_timeout_options(opts)
     # Handle connect_timeout as alias for timeout
     opts[:timeout] = opts.delete(:connect_timeout) if opts.key?(:connect_timeout)
 
     # read_timeout and write_timeout are not yet supported, use timeout
     opts[:timeout] ||= opts.delete(:read_timeout) if opts.key?(:read_timeout)
     opts[:timeout] ||= opts.delete(:write_timeout) if opts.key?(:write_timeout)
-
-    # driver option is ignored (we always use pure Ruby)
-    opts.delete(:driver)
-
-    opts
   end
 
   # Create the underlying client
@@ -1328,7 +1354,7 @@ class Redis
   end
 
   # Get the underlying connection (for pipeline)
-  def get_connection
+  def get_connection # rubocop:disable Naming/AccessorMethodName
     @client.send(:ensure_connected)
     @client.instance_variable_get(:@connection)
   end

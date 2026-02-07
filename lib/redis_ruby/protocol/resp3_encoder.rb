@@ -82,6 +82,17 @@ module RedisRuby
 
         argc = args.size
 
+        # Try fast path encoders for common commands (performance-critical)
+        fast_result = try_fast_path_encoding(command, args, argc)
+        return fast_result if fast_result
+
+        # General path: check for hash args and encode accordingly
+        encode_general_command(command, args, argc)
+      end
+
+      # Try fast-path encoding for common commands
+      # Returns nil if no fast path matches
+      def try_fast_path_encoding(command, args, argc)
         # Ultra-fast path for GET key (most common)
         return encode_get_fast(args[0]) if argc == 1 && command == "GET"
 
@@ -90,42 +101,44 @@ module RedisRuby
 
         # Fast path for hash commands
         return encode_hget_fast(args[0], args[1]) if argc == 2 && command == "HGET"
-
         return encode_hset_fast(args[0], args[1], args[2]) if argc == 3 && command == "HSET"
-
         return encode_hdel_fast(args[0], args[1]) if argc == 2 && command == "HDEL"
 
         # Fast path for list commands (single value)
         return encode_lpush_fast(args[0], args[1]) if argc == 2 && command == "LPUSH"
-
         return encode_rpush_fast(args[0], args[1]) if argc == 2 && command == "RPUSH"
-
         return encode_lpop_fast(args[0]) if argc == 1 && command == "LPOP"
-
         return encode_rpop_fast(args[0]) if argc == 1 && command == "RPOP"
 
         # Fast path for key commands
         return encode_expire_fast(args[0], args[1]) if argc == 2 && command == "EXPIRE"
-
         return encode_ttl_fast(args[0]) if argc == 1 && command == "TTL"
 
         # Fast path for batch commands
         return encode_mget_fast(args) if command == "MGET" && argc.positive?
-
         return encode_mset_fast(args) if command == "MSET" && argc.positive? && argc.even?
 
-        # Fast path for 0-2 args: check directly instead of iterating
-        has_hash = case argc
-                   when 0 then false
-                   when 1 then args[0].is_a?(Hash)
-                   when 2 then args[0].is_a?(Hash) || args[1].is_a?(Hash)
-                   else args.any?(Hash)
-                   end
+        nil # No fast path matched
+      end
+
+      # Encode command using general path (slower, handles hash args)
+      def encode_general_command(command, args, argc)
+        has_hash = check_for_hash_args(args, argc)
 
         if has_hash
           encode_with_hash(command, args)
         else
           dump_array_fast(command, args)
+        end
+      end
+
+      # Check if any args are hashes (optimized for common cases)
+      def check_for_hash_args(args, argc)
+        case argc
+        when 0 then false
+        when 1 then args[0].is_a?(Hash)
+        when 2 then args[0].is_a?(Hash) || args[1].is_a?(Hash)
+        else args.any?(Hash)
         end
       end
 
@@ -264,106 +277,73 @@ module RedisRuby
         reset_buffer_if_large
         @buffer.clear
         commands.each do |cmd|
-          # Fast path: check first element for common commands
-          first = cmd[0]
-          size = cmd.size
-          case first
-          when "GET"
-            if size == 2
-              @buffer << GET_PREFIX
-              dump_bulk_string_fast(cmd[1], @buffer)
-              next
-            end
-          when "SET"
-            if size == 3
-              @buffer << SET_PREFIX
-              dump_bulk_string_fast(cmd[1], @buffer)
-              dump_bulk_string_fast(cmd[2], @buffer)
-              next
-            end
-          when "HGET"
-            if size == 3
-              @buffer << HGET_PREFIX
-              dump_bulk_string_fast(cmd[1], @buffer)
-              dump_bulk_string_fast(cmd[2], @buffer)
-              next
-            end
-          when "HSET"
-            if size == 4
-              @buffer << HSET_PREFIX
-              dump_bulk_string_fast(cmd[1], @buffer)
-              dump_bulk_string_fast(cmd[2], @buffer)
-              dump_bulk_string_fast(cmd[3], @buffer)
-              next
-            end
-          when "LPUSH"
-            if size == 3
-              @buffer << LPUSH_PREFIX
-              dump_bulk_string_fast(cmd[1], @buffer)
-              dump_bulk_string_fast(cmd[2], @buffer)
-              next
-            end
-          when "RPUSH"
-            if size == 3
-              @buffer << RPUSH_PREFIX
-              dump_bulk_string_fast(cmd[1], @buffer)
-              dump_bulk_string_fast(cmd[2], @buffer)
-              next
-            end
-          when "LPOP"
-            if size == 2
-              @buffer << LPOP_PREFIX
-              dump_bulk_string_fast(cmd[1], @buffer)
-              next
-            end
-          when "RPOP"
-            if size == 2
-              @buffer << RPOP_PREFIX
-              dump_bulk_string_fast(cmd[1], @buffer)
-              next
-            end
-          when "EXPIRE"
-            if size == 3
-              @buffer << EXPIRE_PREFIX
-              dump_bulk_string_fast(cmd[1], @buffer)
-              dump_bulk_string_fast(cmd[2], @buffer)
-              next
-            end
-          when "TTL"
-            if size == 2
-              @buffer << TTL_PREFIX
-              dump_bulk_string_fast(cmd[1], @buffer)
-              next
-            end
-          when "INCR"
-            if size == 2
-              @buffer << INCR_PREFIX
-              dump_bulk_string_fast(cmd[1], @buffer)
-              next
-            end
-          when "DECR"
-            if size == 2
-              @buffer << DECR_PREFIX
-              dump_bulk_string_fast(cmd[1], @buffer)
-              next
-            end
-          when "DEL"
-            if size == 2
-              @buffer << DEL_PREFIX
-              dump_bulk_string_fast(cmd[1], @buffer)
-              next
-            end
-          when "EXISTS"
-            if size == 2
-              @buffer << EXISTS_PREFIX
-              dump_bulk_string_fast(cmd[1], @buffer)
-              next
-            end
-          end
-          # Slow path for other commands
-          dump_array(cmd, @buffer)
+          encode_pipeline_command(cmd)
         end
         @buffer
+      end
+
+      # Encode a single command in pipeline (fast path optimized)
+      def encode_pipeline_command(cmd)
+        first = cmd[0]
+        size = cmd.size
+
+        # Try fast path for common commands
+        return if try_pipeline_fast_path(first, size, cmd)
+
+        # Slow path for other commands
+        dump_array(cmd, @buffer)
+      end
+
+      # Try fast path encoding for common pipeline commands
+      # Returns true if fast path was used, false otherwise
+      def try_pipeline_fast_path(first, size, cmd)
+        case first
+        when "GET" then encode_pipeline_1arg(size, 2, GET_PREFIX, cmd)
+        when "SET" then encode_pipeline_2args(size, 3, SET_PREFIX, cmd)
+        when "HGET" then encode_pipeline_2args(size, 3, HGET_PREFIX, cmd)
+        when "HSET" then encode_pipeline_3args(size, 4, HSET_PREFIX, cmd)
+        when "LPUSH" then encode_pipeline_2args(size, 3, LPUSH_PREFIX, cmd)
+        when "RPUSH" then encode_pipeline_2args(size, 3, RPUSH_PREFIX, cmd)
+        when "LPOP" then encode_pipeline_1arg(size, 2, LPOP_PREFIX, cmd)
+        when "RPOP" then encode_pipeline_1arg(size, 2, RPOP_PREFIX, cmd)
+        when "EXPIRE" then encode_pipeline_2args(size, 3, EXPIRE_PREFIX, cmd)
+        when "TTL" then encode_pipeline_1arg(size, 2, TTL_PREFIX, cmd)
+        when "INCR" then encode_pipeline_1arg(size, 2, INCR_PREFIX, cmd)
+        when "DECR" then encode_pipeline_1arg(size, 2, DECR_PREFIX, cmd)
+        when "DEL" then encode_pipeline_1arg(size, 2, DEL_PREFIX, cmd)
+        when "EXISTS" then encode_pipeline_1arg(size, 2, EXISTS_PREFIX, cmd)
+        else false
+        end
+      end
+
+      # Encode pipeline command with 1 argument (CMD key)
+      def encode_pipeline_1arg(size, expected_size, prefix, cmd)
+        return false unless size == expected_size
+
+        @buffer << prefix
+        dump_bulk_string_fast(cmd[1], @buffer)
+        true
+      end
+
+      # Encode pipeline command with 2 arguments (CMD key arg)
+      def encode_pipeline_2args(size, expected_size, prefix, cmd)
+        return false unless size == expected_size
+
+        @buffer << prefix
+        dump_bulk_string_fast(cmd[1], @buffer)
+        dump_bulk_string_fast(cmd[2], @buffer)
+        true
+      end
+
+      # Encode pipeline command with 3 arguments (CMD key arg1 arg2)
+      def encode_pipeline_3args(size, expected_size, prefix, cmd)
+        return false unless size == expected_size
+
+        @buffer << prefix
+        dump_bulk_string_fast(cmd[1], @buffer)
+        dump_bulk_string_fast(cmd[2], @buffer)
+        dump_bulk_string_fast(cmd[3], @buffer)
+        true
       end
 
       # Encode a bulk string (public API for compatibility)
@@ -464,10 +444,6 @@ module RedisRuby
           when Symbol
             # Symbol#name returns frozen string - faster than to_s
             dump_string_value(element.name, buffer)
-          when Integer
-            dump_string_value(element.to_s, buffer)
-          when Float
-            dump_string_value(element.to_s, buffer)
           when nil
             buffer << NULL_BULK_STRING
           else
@@ -479,12 +455,6 @@ module RedisRuby
           case element
           when String
             dump_string(element, buffer)
-          when Symbol
-            dump_string_value(element.to_s, buffer)
-          when Integer
-            dump_string_value(element.to_s, buffer)
-          when Float
-            dump_string_value(element.to_s, buffer)
           when nil
             buffer << NULL_BULK_STRING
           else

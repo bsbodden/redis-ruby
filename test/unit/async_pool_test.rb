@@ -11,6 +11,7 @@ class AsyncPoolPooledConnectionTest < Minitest::Test
   def test_pooled_connection_initialize
     mock_conn = mock("connection")
     pc = RedisRuby::Connection::AsyncPool::PooledConnection.new(mock_conn)
+
     assert_equal 1, pc.concurrency
     assert_equal 0, pc.count
   end
@@ -20,6 +21,7 @@ class AsyncPoolPooledConnectionTest < Minitest::Test
     mock_conn.expects(:call).with("PING").returns("PONG")
     pc = RedisRuby::Connection::AsyncPool::PooledConnection.new(mock_conn)
     result = pc.call("PING")
+
     assert_equal "PONG", result
     assert_equal 1, pc.count
   end
@@ -29,6 +31,7 @@ class AsyncPoolPooledConnectionTest < Minitest::Test
     mock_conn.expects(:call_1arg).with("GET", "key").returns("value")
     pc = RedisRuby::Connection::AsyncPool::PooledConnection.new(mock_conn)
     result = pc.call_1arg("GET", "key")
+
     assert_equal "value", result
     assert_equal 1, pc.count
   end
@@ -38,6 +41,7 @@ class AsyncPoolPooledConnectionTest < Minitest::Test
     mock_conn.expects(:call_2args).with("SET", "k", "v").returns("OK")
     pc = RedisRuby::Connection::AsyncPool::PooledConnection.new(mock_conn)
     result = pc.call_2args("SET", "k", "v")
+
     assert_equal "OK", result
     assert_equal 1, pc.count
   end
@@ -47,16 +51,18 @@ class AsyncPoolPooledConnectionTest < Minitest::Test
     mock_conn.expects(:call_3args).with("HSET", "h", "f", "v").returns(1)
     pc = RedisRuby::Connection::AsyncPool::PooledConnection.new(mock_conn)
     result = pc.call_3args("HSET", "h", "f", "v")
+
     assert_equal 1, result
     assert_equal 1, pc.count
   end
 
   def test_pooled_connection_pipeline
     mock_conn = mock("connection")
-    mock_conn.expects(:pipeline).returns(["OK", "value"])
+    mock_conn.expects(:pipeline).returns(%w[OK value])
     pc = RedisRuby::Connection::AsyncPool::PooledConnection.new(mock_conn)
     result = pc.pipeline
-    assert_equal ["OK", "value"], result
+
+    assert_equal %w[OK value], result
     assert_equal 1, pc.count
   end
 
@@ -64,42 +70,48 @@ class AsyncPoolPooledConnectionTest < Minitest::Test
     mock_conn = mock("connection")
     mock_conn.expects(:connected?).returns(true)
     pc = RedisRuby::Connection::AsyncPool::PooledConnection.new(mock_conn)
-    assert pc.viable?
+
+    assert_predicate pc, :viable?
   end
 
   def test_pooled_connection_viable_false_when_closed
     mock_conn = mock("connection")
     pc = RedisRuby::Connection::AsyncPool::PooledConnection.new(mock_conn)
     pc.instance_variable_set(:@closed, true)
-    refute pc.viable?
+
+    refute_predicate pc, :viable?
   end
 
   def test_pooled_connection_viable_false_when_disconnected
     mock_conn = mock("connection")
     mock_conn.expects(:connected?).returns(false)
     pc = RedisRuby::Connection::AsyncPool::PooledConnection.new(mock_conn)
-    refute pc.viable?
+
+    refute_predicate pc, :viable?
   end
 
   def test_pooled_connection_closed_true
     mock_conn = mock("connection")
     pc = RedisRuby::Connection::AsyncPool::PooledConnection.new(mock_conn)
     pc.instance_variable_set(:@closed, true)
-    assert pc.closed?
+
+    assert_predicate pc, :closed?
   end
 
   def test_pooled_connection_closed_false
     mock_conn = mock("connection")
     mock_conn.expects(:connected?).returns(true)
     pc = RedisRuby::Connection::AsyncPool::PooledConnection.new(mock_conn)
-    refute pc.closed?
+
+    refute_predicate pc, :closed?
   end
 
   def test_pooled_connection_closed_when_not_connected
     mock_conn = mock("connection")
     mock_conn.expects(:connected?).returns(false)
     pc = RedisRuby::Connection::AsyncPool::PooledConnection.new(mock_conn)
-    assert pc.closed?
+
+    assert_predicate pc, :closed?
   end
 
   def test_pooled_connection_close
@@ -107,6 +119,7 @@ class AsyncPoolPooledConnectionTest < Minitest::Test
     mock_conn.expects(:close)
     pc = RedisRuby::Connection::AsyncPool::PooledConnection.new(mock_conn)
     pc.close
+
     assert pc.instance_variable_get(:@closed)
   end
 
@@ -114,14 +127,16 @@ class AsyncPoolPooledConnectionTest < Minitest::Test
     mock_conn = mock("connection")
     mock_conn.expects(:connected?).returns(true)
     pc = RedisRuby::Connection::AsyncPool::PooledConnection.new(mock_conn)
-    assert pc.reusable?
+
+    assert_predicate pc, :reusable?
   end
 
   def test_pooled_connection_not_reusable_when_closed
     mock_conn = mock("connection")
     pc = RedisRuby::Connection::AsyncPool::PooledConnection.new(mock_conn)
     pc.instance_variable_set(:@closed, true)
-    refute pc.reusable?
+
+    refute_predicate pc, :reusable?
   end
 
   def test_pooled_connection_multiple_calls_increment_count
@@ -132,6 +147,7 @@ class AsyncPoolPooledConnectionTest < Minitest::Test
     pc.call("PING")
     pc.call("PING")
     pc.call_1arg("GET", "k")
+
     assert_equal 3, pc.count
   end
 end
@@ -160,6 +176,7 @@ class AsyncPoolTest < Minitest::Test
     Async::Pool::Controller.stubs(:wrap).returns(mock_pool_controller)
 
     pool = RedisRuby::Connection::AsyncPool.new(host: "localhost", port: 6379, limit: 10)
+
     assert_equal 10, pool.limit
   end
 
@@ -169,6 +186,7 @@ class AsyncPoolTest < Minitest::Test
     Async::Pool::Controller.stubs(:wrap).returns(mock_pool_controller)
 
     pool = RedisRuby::Connection::AsyncPool.new(host: "localhost", port: 6379)
+
     assert_equal 3, pool.size
   end
 
@@ -178,7 +196,8 @@ class AsyncPoolTest < Minitest::Test
     Async::Pool::Controller.stubs(:wrap).returns(mock_pool_controller)
 
     pool = RedisRuby::Connection::AsyncPool.new(host: "localhost", port: 6379)
-    assert pool.available?
+
+    assert_predicate pool, :available?
   end
 
   def test_async_pool_close
@@ -206,6 +225,7 @@ class AsyncPoolTest < Minitest::Test
 
     pool = RedisRuby::Connection::AsyncPool.new(host: "localhost", port: 6379)
     result = pool.acquire { |conn| conn }
+
     assert_equal "mock_connection", result
   end
 
@@ -216,6 +236,7 @@ class AsyncPoolTest < Minitest::Test
 
     pool = RedisRuby::Connection::AsyncPool.new(host: "localhost", port: 6379)
     result = pool.with { |c| c }
+
     assert_equal "conn", result
   end
 end

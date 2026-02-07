@@ -8,14 +8,16 @@ class RetryPolicyTest < Minitest::Test
 
   def test_no_backoff_returns_zero
     backoff = RedisRuby::NoBackoff.new
+
     assert_equal 0, backoff.compute(1)
     assert_equal 0, backoff.compute(5)
   end
 
   def test_constant_backoff_returns_fixed_value
     backoff = RedisRuby::ConstantBackoff.new(0.5)
-    assert_equal 0.5, backoff.compute(1)
-    assert_equal 0.5, backoff.compute(10)
+
+    assert_in_delta(0.5, backoff.compute(1))
+    assert_in_delta(0.5, backoff.compute(10))
   end
 
   def test_exponential_backoff_grows_exponentially
@@ -39,8 +41,8 @@ class RetryPolicyTest < Minitest::Test
     100.times do
       val = backoff.compute(3)
       # For failures=3, base * 2^(3-1) = 0.4, jitter in [0, 0.4]
-      assert val >= 0, "Jitter should be >= 0, got #{val}"
-      assert val <= 0.4, "Jitter should be <= cap for this failure, got #{val}"
+      assert_operator val, :>=, 0, "Jitter should be >= 0, got #{val}"
+      assert_operator val, :<=, 0.4, "Jitter should be <= cap for this failure, got #{val}"
     end
   end
 
@@ -49,8 +51,8 @@ class RetryPolicyTest < Minitest::Test
     100.times do
       val = backoff.compute(3)
       # half + random(half), half = 0.4/2 = 0.2, range [0.2, 0.4]
-      assert val >= 0.2 - 0.001, "EqualJitter should be >= half, got #{val}"
-      assert val <= 0.4 + 0.001, "EqualJitter should be <= delay, got #{val}"
+      assert_operator val, :>=, 0.2 - 0.001, "EqualJitter should be >= half, got #{val}"
+      assert_operator val, :<=, 0.4 + 0.001, "EqualJitter should be <= delay, got #{val}"
     end
   end
 
@@ -59,7 +61,11 @@ class RetryPolicyTest < Minitest::Test
   def test_retry_succeeds_on_first_try
     policy = RedisRuby::Retry.new(retries: 3)
     calls = 0
-    result = policy.call { calls += 1; "OK" }
+    result = policy.call do
+      calls += 1
+      "OK"
+    end
+
     assert_equal "OK", result
     assert_equal 1, calls
   end
@@ -70,8 +76,10 @@ class RetryPolicyTest < Minitest::Test
     result = policy.call do
       calls += 1
       raise RedisRuby::ConnectionError, "lost" if calls < 3
+
       "OK"
     end
+
     assert_equal "OK", result
     assert_equal 3, calls
   end
@@ -82,8 +90,10 @@ class RetryPolicyTest < Minitest::Test
     result = policy.call do
       calls += 1
       raise RedisRuby::TimeoutError, "timed out" if calls < 2
+
       "OK"
     end
+
     assert_equal "OK", result
     assert_equal 2, calls
   end
@@ -138,8 +148,10 @@ class RetryPolicyTest < Minitest::Test
       calls += 1
       raise RedisRuby::ConnectionError, "lost" if calls == 1
       raise RedisRuby::TimeoutError, "slow" if calls == 2
+
       "OK"
     end
+
     assert_equal "OK", result
     assert_equal 3, calls
   end
@@ -167,8 +179,10 @@ class RetryPolicyTest < Minitest::Test
     policy.call do
       calls += 1
       raise RedisRuby::ConnectionError, "lost" if calls == 1
+
       "OK"
     end
+
     assert reconnected, "on_retry callback should have been called"
   end
 end

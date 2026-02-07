@@ -9,8 +9,8 @@ class DecodeResponsesTest < Minitest::Test
     @connection.stubs(:connected?).returns(true)
   end
 
-  def make_client(**opts)
-    client = RedisRuby::Client.new(**opts)
+  def make_client(**)
+    client = RedisRuby::Client.new(**)
     client.instance_variable_set(:@connection, @connection)
     client
   end
@@ -22,6 +22,7 @@ class DecodeResponsesTest < Minitest::Test
     # GET uses call_1arg fast path
     @connection.expects(:call_1arg).with("GET", "key").returns("hello".b)
     result = client.get("key")
+
     assert_equal Encoding::BINARY, result.encoding
   end
 
@@ -32,6 +33,7 @@ class DecodeResponsesTest < Minitest::Test
     # GET uses call_1arg fast path
     @connection.expects(:call_1arg).with("GET", "key").returns("hello".b)
     result = client.get("key")
+
     assert_equal Encoding::UTF_8, result.encoding
     assert_equal "hello", result
   end
@@ -41,6 +43,7 @@ class DecodeResponsesTest < Minitest::Test
     # GET uses call_1arg fast path
     @connection.expects(:call_1arg).with("GET", "key").returns(nil)
     result = client.get("key")
+
     assert_nil result
   end
 
@@ -49,6 +52,7 @@ class DecodeResponsesTest < Minitest::Test
     # INCR uses call_1arg fast path
     @connection.expects(:call_1arg).with("INCR", "counter").returns(42)
     result = client.incr("counter")
+
     assert_equal 42, result
   end
 
@@ -57,7 +61,8 @@ class DecodeResponsesTest < Minitest::Test
     # MGET uses call_direct (varargs)
     @connection.expects(:call_direct).with("MGET", "k1", "k2").returns(["v1".b, "v2".b])
     result = client.mget("k1", "k2")
-    assert_equal ["v1", "v2"], result
+
+    assert_equal %w[v1 v2], result
     result.each { |v| assert_equal Encoding::UTF_8, v.encoding }
   end
 
@@ -66,6 +71,7 @@ class DecodeResponsesTest < Minitest::Test
     # MGET uses call_direct (varargs)
     @connection.expects(:call_direct).with("MGET", "k1", "k2").returns(["v1".b, nil])
     result = client.mget("k1", "k2")
+
     assert_equal ["v1", nil], result
     assert_equal Encoding::UTF_8, result[0].encoding
   end
@@ -75,6 +81,7 @@ class DecodeResponsesTest < Minitest::Test
     # HGETALL uses call_1arg fast path
     @connection.expects(:call_1arg).with("HGETALL", "myhash").returns(["field".b, "value".b])
     result = client.hgetall("myhash")
+
     assert_equal({ "field" => "value" }, result)
     result.each do |k, v|
       assert_equal Encoding::UTF_8, k.encoding
@@ -87,6 +94,7 @@ class DecodeResponsesTest < Minitest::Test
     # GET uses call_1arg fast path
     @connection.expects(:call_1arg).with("GET", "key").returns("hello".b)
     result = client.get("key")
+
     assert_equal Encoding::ISO_8859_1, result.encoding
   end
 
@@ -95,6 +103,7 @@ class DecodeResponsesTest < Minitest::Test
     # SET without options uses call_2args fast path
     @connection.expects(:call_2args).with("SET", "key", "value").returns("OK".b)
     result = client.set("key", "value")
+
     assert_equal Encoding::UTF_8, result.encoding
     assert_equal "OK", result
   end
@@ -104,6 +113,7 @@ class DecodeResponsesTest < Minitest::Test
     # EXISTS with single key uses call_1arg fast path
     @connection.expects(:call_1arg).with("EXISTS", "key").returns(1)
     result = client.exists("key")
+
     assert_equal 1, result
   end
 end

@@ -16,25 +16,29 @@ class LockBranchTest < Minitest::Test
 
   def test_initialize_defaults
     lock = RedisRuby::Lock.new(@mock_client, "resource")
+
     assert_equal "lock:resource", lock.name
-    assert_equal 10.0, lock.timeout
-    assert_equal 0.1, lock.sleep_interval
+    assert_in_delta(10.0, lock.timeout)
+    assert_in_delta(0.1, lock.sleep_interval)
   end
 
   def test_initialize_custom_params
     lock = RedisRuby::Lock.new(@mock_client, "res", timeout: 30.0, sleep: 0.5)
-    assert_equal 30.0, lock.timeout
-    assert_equal 0.5, lock.sleep_interval
+
+    assert_in_delta(30.0, lock.timeout)
+    assert_in_delta(0.5, lock.sleep_interval)
   end
 
   def test_initialize_thread_local_true
     lock = RedisRuby::Lock.new(@mock_client, "res", thread_local: true)
+
     assert lock.instance_variable_get(:@thread_local)
     assert_kind_of Hash, lock.instance_variable_get(:@local_tokens)
   end
 
   def test_initialize_thread_local_false
     lock = RedisRuby::Lock.new(@mock_client, "res", thread_local: false)
+
     refute lock.instance_variable_get(:@thread_local)
   end
 
@@ -45,18 +49,21 @@ class LockBranchTest < Minitest::Test
   def test_acquire_nonblocking_success
     lock = RedisRuby::Lock.new(@mock_client, "res")
     @mock_client.expects(:set).returns("OK")
+
     assert lock.acquire
   end
 
   def test_acquire_nonblocking_failure
     lock = RedisRuby::Lock.new(@mock_client, "res")
     @mock_client.expects(:set).returns(nil)
+
     refute lock.acquire
   end
 
   def test_acquire_with_custom_token
     lock = RedisRuby::Lock.new(@mock_client, "res")
     @mock_client.expects(:set).with("lock:res", "my-token", nx: true, px: 10_000).returns("OK")
+
     assert lock.acquire(token: "my-token")
   end
 
@@ -67,6 +74,7 @@ class LockBranchTest < Minitest::Test
   def test_acquire_blocking_success_first_attempt
     lock = RedisRuby::Lock.new(@mock_client, "res")
     @mock_client.expects(:set).returns("OK")
+
     assert lock.acquire(blocking: true)
   end
 
@@ -74,6 +82,7 @@ class LockBranchTest < Minitest::Test
     lock = RedisRuby::Lock.new(@mock_client, "res", sleep: 0.01)
     # Always fail to acquire
     @mock_client.stubs(:set).returns(nil)
+
     refute lock.acquire(blocking: true, blocking_timeout: 0.05)
   end
 
@@ -87,11 +96,13 @@ class LockBranchTest < Minitest::Test
     lock.acquire
 
     @mock_script.expects(:call).returns(1)
+
     assert lock.release
   end
 
   def test_release_when_not_owned
     lock = RedisRuby::Lock.new(@mock_client, "res")
+
     refute lock.release
   end
 
@@ -101,6 +112,7 @@ class LockBranchTest < Minitest::Test
     lock.acquire
 
     @mock_script.expects(:call).returns(0)
+
     refute lock.release
   end
 
@@ -114,6 +126,7 @@ class LockBranchTest < Minitest::Test
     lock.acquire
 
     @mock_script.expects(:call).returns(1)
+
     assert lock.extend(additional_time: 20)
   end
 
@@ -130,8 +143,9 @@ class LockBranchTest < Minitest::Test
     lock.acquire
 
     @mock_script.expects(:call).with do |args|
-      args[:argv][1] == 15_000  # default timeout in ms
+      args[:argv][1] == 15_000 # default timeout in ms
     end.returns(1)
+
     assert lock.extend
   end
 
@@ -141,6 +155,7 @@ class LockBranchTest < Minitest::Test
     lock.acquire
 
     @mock_script.expects(:call).returns(1)
+
     assert lock.extend(additional_time: 30, replace_ttl: true)
   end
 
@@ -150,6 +165,7 @@ class LockBranchTest < Minitest::Test
     lock.acquire
 
     @mock_script.expects(:call).returns(0)
+
     refute lock.extend(additional_time: 10)
   end
 
@@ -163,6 +179,7 @@ class LockBranchTest < Minitest::Test
     lock.acquire
 
     @mock_script.expects(:call).returns(1)
+
     assert lock.reacquire
   end
 
@@ -179,6 +196,7 @@ class LockBranchTest < Minitest::Test
     lock.acquire
 
     @mock_script.expects(:call).returns(0)
+
     refute lock.reacquire
   end
 
@@ -191,9 +209,10 @@ class LockBranchTest < Minitest::Test
     @mock_client.expects(:set).returns("OK")
     lock.acquire
 
-    token = lock.instance_variable_get(:@local_tokens)[Thread.current.object_id]
+    token = lock.instance_variable_get(:@local_tokens)[Thread.current]
     @mock_client.expects(:get).with("lock:res").returns(token)
-    assert lock.owned?
+
+    assert_predicate lock, :owned?
   end
 
   def test_owned_false_different_token
@@ -202,12 +221,14 @@ class LockBranchTest < Minitest::Test
     lock.acquire
 
     @mock_client.expects(:get).with("lock:res").returns("different")
-    refute lock.owned?
+
+    refute_predicate lock, :owned?
   end
 
   def test_owned_false_no_token
     lock = RedisRuby::Lock.new(@mock_client, "res")
-    refute lock.owned?
+
+    refute_predicate lock, :owned?
   end
 
   # ============================================================
@@ -217,13 +238,15 @@ class LockBranchTest < Minitest::Test
   def test_locked_true
     lock = RedisRuby::Lock.new(@mock_client, "res")
     @mock_client.expects(:exists).with("lock:res").returns(1)
-    assert lock.locked?
+
+    assert_predicate lock, :locked?
   end
 
   def test_locked_false
     lock = RedisRuby::Lock.new(@mock_client, "res")
     @mock_client.expects(:exists).with("lock:res").returns(0)
-    refute lock.locked?
+
+    refute_predicate lock, :locked?
   end
 
   # ============================================================
@@ -233,18 +256,21 @@ class LockBranchTest < Minitest::Test
   def test_ttl_returns_seconds
     lock = RedisRuby::Lock.new(@mock_client, "res")
     @mock_client.expects(:pttl).with("lock:res").returns(5000)
-    assert_equal 5.0, lock.ttl
+
+    assert_in_delta(5.0, lock.ttl)
   end
 
   def test_ttl_returns_nil_when_negative
     lock = RedisRuby::Lock.new(@mock_client, "res")
     @mock_client.expects(:pttl).with("lock:res").returns(-2)
+
     assert_nil lock.ttl
   end
 
   def test_ttl_returns_nil_when_minus_one
     lock = RedisRuby::Lock.new(@mock_client, "res")
     @mock_client.expects(:pttl).with("lock:res").returns(-1)
+
     assert_nil lock.ttl
   end
 
@@ -259,6 +285,7 @@ class LockBranchTest < Minitest::Test
 
     executed = false
     lock.synchronize { executed = true }
+
     assert executed
   end
 
@@ -267,7 +294,7 @@ class LockBranchTest < Minitest::Test
     @mock_client.expects(:set).returns(nil)
 
     assert_raises(RedisRuby::Lock::LockAcquireError) do
-      lock.synchronize(blocking: false) { }
+      lock.synchronize(blocking: false) {}
     end
   end
 
@@ -312,7 +339,8 @@ class LockBranchTest < Minitest::Test
 
     token = lock.instance_variable_get(:@token)
     @mock_client.expects(:get).with("lock:res").returns(token)
-    assert lock.owned?
+
+    assert_predicate lock, :owned?
   end
 
   # ============================================================
@@ -320,14 +348,14 @@ class LockBranchTest < Minitest::Test
   # ============================================================
 
   def test_lock_error_inherits_from_error
-    assert RedisRuby::Lock::LockError < RedisRuby::Error
+    assert_operator RedisRuby::Lock::LockError, :<, RedisRuby::Error
   end
 
   def test_lock_not_owned_error_inherits_from_lock_error
-    assert RedisRuby::Lock::LockNotOwnedError < RedisRuby::Lock::LockError
+    assert_operator RedisRuby::Lock::LockNotOwnedError, :<, RedisRuby::Lock::LockError
   end
 
   def test_lock_acquire_error_inherits_from_lock_error
-    assert RedisRuby::Lock::LockAcquireError < RedisRuby::Lock::LockError
+    assert_operator RedisRuby::Lock::LockAcquireError, :<, RedisRuby::Lock::LockError
   end
 end

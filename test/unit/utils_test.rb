@@ -9,6 +9,7 @@ class YJITMonitorBranchTest < Minitest::Test
 
   def test_available_returns_boolean
     result = RedisRuby::Utils::YJITMonitor.available?
+
     assert_includes [true, false], result
   end
 
@@ -18,6 +19,7 @@ class YJITMonitorBranchTest < Minitest::Test
 
   def test_enabled_returns_boolean
     result = RedisRuby::Utils::YJITMonitor.enabled?
+
     assert_includes [true, false], result
   end
 
@@ -42,6 +44,7 @@ class YJITMonitorBranchTest < Minitest::Test
   def test_enable_when_available_and_not_enabled
     # This tests the branch where enable method is available
     result = RedisRuby::Utils::YJITMonitor.enable!
+
     assert_includes [true, false], result
   end
 
@@ -52,12 +55,14 @@ class YJITMonitorBranchTest < Minitest::Test
   def test_stats_when_disabled
     RedisRuby::Utils::YJITMonitor.stub(:enabled?, false) do
       result = RedisRuby::Utils::YJITMonitor.stats
-      assert_equal({}, result)
+
+      assert_empty(result)
     end
   end
 
   def test_stats_when_enabled
     result = RedisRuby::Utils::YJITMonitor.stats
+
     assert_kind_of Hash, result
   end
 
@@ -73,6 +78,7 @@ class YJITMonitorBranchTest < Minitest::Test
 
   def test_ratio_in_yjit_when_enabled
     result = RedisRuby::Utils::YJITMonitor.ratio_in_yjit
+
     assert result.nil? || result.is_a?(Numeric)
   end
 
@@ -82,25 +88,25 @@ class YJITMonitorBranchTest < Minitest::Test
 
   def test_healthy_when_no_ratio
     RedisRuby::Utils::YJITMonitor.stub(:ratio_in_yjit, nil) do
-      refute RedisRuby::Utils::YJITMonitor.healthy?
+      refute_predicate RedisRuby::Utils::YJITMonitor, :healthy?
     end
   end
 
   def test_healthy_when_ratio_above_90
     RedisRuby::Utils::YJITMonitor.stub(:ratio_in_yjit, 95.0) do
-      assert RedisRuby::Utils::YJITMonitor.healthy?
+      assert_predicate RedisRuby::Utils::YJITMonitor, :healthy?
     end
   end
 
   def test_healthy_when_ratio_below_90
     RedisRuby::Utils::YJITMonitor.stub(:ratio_in_yjit, 80.0) do
-      refute RedisRuby::Utils::YJITMonitor.healthy?
+      refute_predicate RedisRuby::Utils::YJITMonitor, :healthy?
     end
   end
 
   def test_healthy_when_ratio_exactly_90
     RedisRuby::Utils::YJITMonitor.stub(:ratio_in_yjit, 90.0) do
-      assert RedisRuby::Utils::YJITMonitor.healthy?
+      assert_predicate RedisRuby::Utils::YJITMonitor, :healthy?
     end
   end
 
@@ -111,6 +117,7 @@ class YJITMonitorBranchTest < Minitest::Test
   def test_status_report_when_not_available
     RedisRuby::Utils::YJITMonitor.stub(:available?, false) do
       report = RedisRuby::Utils::YJITMonitor.status_report
+
       assert_includes report, "Not available"
       assert_includes report, "Recommendation"
     end
@@ -120,6 +127,7 @@ class YJITMonitorBranchTest < Minitest::Test
     RedisRuby::Utils::YJITMonitor.stub(:available?, true) do
       RedisRuby::Utils::YJITMonitor.stub(:enabled?, false) do
         report = RedisRuby::Utils::YJITMonitor.status_report
+
         assert_includes report, "Available but not enabled"
         assert_includes report, "Recommendation"
       end
@@ -133,6 +141,7 @@ class YJITMonitorBranchTest < Minitest::Test
         RedisRuby::Utils::YJITMonitor.stub(:stats, mock_stats) do
           RedisRuby::Utils::YJITMonitor.stub(:healthy?, true) do
             report = RedisRuby::Utils::YJITMonitor.status_report
+
             assert_includes report, "Enabled"
             assert_includes report, "97.5"
             assert_includes report, "Healthy"
@@ -149,6 +158,7 @@ class YJITMonitorBranchTest < Minitest::Test
         RedisRuby::Utils::YJITMonitor.stub(:stats, mock_stats) do
           RedisRuby::Utils::YJITMonitor.stub(:healthy?, false) do
             report = RedisRuby::Utils::YJITMonitor.status_report
+
             assert_includes report, "Suboptimal"
           end
         end
@@ -163,6 +173,7 @@ class YJITMonitorBranchTest < Minitest::Test
         RedisRuby::Utils::YJITMonitor.stub(:stats, mock_stats) do
           RedisRuby::Utils::YJITMonitor.stub(:healthy?, false) do
             report = RedisRuby::Utils::YJITMonitor.status_report
+
             assert_includes report, "0.0%"
             assert_includes report, "0 B"
           end
@@ -173,6 +184,7 @@ class YJITMonitorBranchTest < Minitest::Test
 
   def test_status_report_is_string
     result = RedisRuby::Utils::YJITMonitor.status_report
+
     assert_kind_of String, result
     assert_includes result, "YJIT"
   end
@@ -185,31 +197,36 @@ class URLParserBranchTest < Minitest::Test
 
   def test_parse_simple_redis_url
     result = RedisRuby::Utils::URLParser.parse("redis://localhost:6379")
+
     assert_equal "localhost", result[:host]
     assert_equal 6379, result[:port]
     assert_equal 0, result[:db]
     assert_nil result[:password]
-    assert_equal false, result[:ssl]
+    refute result[:ssl]
   end
 
   def test_parse_redis_url_with_db
     result = RedisRuby::Utils::URLParser.parse("redis://localhost:6379/5")
+
     assert_equal 5, result[:db]
   end
 
   def test_parse_redis_url_with_password
     result = RedisRuby::Utils::URLParser.parse("redis://:mypassword@localhost:6379/0")
+
     assert_equal "mypassword", result[:password]
   end
 
   def test_parse_redis_url_with_username_and_password
     result = RedisRuby::Utils::URLParser.parse("redis://user:pass@localhost:6379")
+
     assert_equal "user", result[:username]
     assert_equal "pass", result[:password]
   end
 
   def test_parse_redis_url_empty_username
     result = RedisRuby::Utils::URLParser.parse("redis://:pass@localhost:6379")
+
     assert_nil result[:username]
     assert_equal "pass", result[:password]
   end
@@ -222,17 +239,20 @@ class URLParserBranchTest < Minitest::Test
 
   def test_parse_redis_url_no_port
     result = RedisRuby::Utils::URLParser.parse("redis://myhost")
+
     assert_equal "myhost", result[:host]
     assert_equal 6379, result[:port]
   end
 
   def test_parse_redis_url_slash_only_path
     result = RedisRuby::Utils::URLParser.parse("redis://localhost:6379/")
+
     assert_equal 0, result[:db]
   end
 
   def test_parse_redis_url_no_path
     result = RedisRuby::Utils::URLParser.parse("redis://localhost:6379")
+
     assert_equal 0, result[:db]
   end
 
@@ -242,10 +262,11 @@ class URLParserBranchTest < Minitest::Test
 
   def test_parse_rediss_url
     result = RedisRuby::Utils::URLParser.parse("rediss://secure.host:6380/1")
+
     assert_equal "secure.host", result[:host]
     assert_equal 6380, result[:port]
     assert_equal 1, result[:db]
-    assert_equal true, result[:ssl]
+    assert result[:ssl]
   end
 
   # ============================================================
@@ -261,17 +282,20 @@ class URLParserBranchTest < Minitest::Test
 
   def test_parse_unix_url_with_db_query_param
     result = RedisRuby::Utils::URLParser.parse("unix:///tmp/redis.sock?db=3")
+
     assert_includes result[:path], "redis.sock"
     assert_equal 3, result[:db]
   end
 
   def test_parse_unix_url_with_password
     result = RedisRuby::Utils::URLParser.parse("unix://:secret@/tmp/redis.sock")
+
     assert_equal "secret", result[:password]
   end
 
   def test_parse_unix_url_empty_username
     result = RedisRuby::Utils::URLParser.parse("unix://:pass@/tmp/redis.sock")
+
     assert_nil result[:username]
   end
 

@@ -251,43 +251,54 @@ module RedisRuby
       asking = false
 
       begin
-        # Determine target node
-        node_addr = if slot
-                      for_read = read_command?(command)
-                      node_for_slot(slot, for_read: for_read)
-                    else
-                      random_master
-                    end
-
+        node_addr = determine_target_node(command, slot)
         raise RedisRuby::ConnectionError, "No node available for slot #{slot}" unless node_addr
 
         conn = get_connection(node_addr)
-
-        # Send ASKING if this is an ASK redirect
-        if asking
-          conn.call("ASKING")
-          asking = false
-        end
+        send_asking_if_needed(conn, asking)
+        asking = false
 
         result = conn.call(command, *args)
-
-        # Handle errors
-        if result.is_a?(CommandError)
-          handle_command_error(result, command, args, slot, redirections)
-        else
-          result
-        end
+        handle_result_or_error(result, command, args, slot, redirections)
       rescue ConnectionError
         retries += 1
-        if retries <= @retry_count
-          # Exponential backoff: 0.1s, 0.2s, 0.4s, 0.8s...
-          sleep(0.1 * (2**(retries - 1))) if retries > 1
-          # Refresh topology and retry
-          refresh_slots
-          retry
-        end
+        retry if retry_with_backoff?(retries)
         raise
       end
+    end
+
+    # Determine which node to send command to
+    def determine_target_node(command, slot)
+      if slot
+        for_read = read_command?(command)
+        node_for_slot(slot, for_read: for_read)
+      else
+        random_master
+      end
+    end
+
+    # Send ASKING command if this is an ASK redirect
+    def send_asking_if_needed(conn, asking)
+      conn.call("ASKING") if asking
+    end
+
+    # Handle command result or error
+    def handle_result_or_error(result, command, args, slot, redirections)
+      if result.is_a?(CommandError)
+        handle_command_error(result, command, args, slot, redirections)
+      else
+        result
+      end
+    end
+
+    # Check if we should retry with exponential backoff
+    def retry_with_backoff?(retries)
+      return false if retries > @retry_count
+
+      # Exponential backoff: 0.1s, 0.2s, 0.4s, 0.8s...
+      sleep(0.1 * (2**(retries - 1))) if retries > 1
+      refresh_slots # Refresh topology and retry
+      true
     end
 
     # Handle command errors including redirections
@@ -295,33 +306,39 @@ module RedisRuby
       message = error.message
 
       if message.start_with?("MOVED")
-        # MOVED <slot> <host>:<port>
-        _, new_slot, = message.split
-        refresh_slots # Topology changed
-        new_slot_int = new_slot.to_i
-
-        execute_with_retry(command, args, new_slot_int, redirections: redirections + 1)
+        handle_moved_error(message, command, args, redirections)
       elsif message.start_with?("ASK")
-        # ASK <slot> <host>:<port>
-        _, new_slot, new_addr = message.split
-        host, port = new_addr.split(":")
-        new_slot.to_i
-
-        # Translate host if configured
-        translated_host = translate_host(host)
-
-        # For ASK, we need to send ASKING before the command
-        conn = get_connection("#{translated_host}:#{port}")
-        conn.call("ASKING")
-        result = conn.call(command, *args)
-        raise result if result.is_a?(CommandError)
-
-        result
+        handle_ask_error(message, command, args)
       elsif message.start_with?("CLUSTERDOWN")
         raise RedisRuby::Error, "Cluster is down: #{message}"
       else
         raise error
       end
+    end
+
+    # Handle MOVED redirection (topology changed)
+    def handle_moved_error(message, command, args, redirections)
+      # MOVED <slot> <host>:<port>
+      _, new_slot, = message.split
+      refresh_slots # Topology changed
+      new_slot_int = new_slot.to_i
+      execute_with_retry(command, args, new_slot_int, redirections: redirections + 1)
+    end
+
+    # Handle ASK redirection (temporary migration)
+    def handle_ask_error(message, command, args)
+      # ASK <slot> <host>:<port>
+      _, _new_slot, new_addr = message.split
+      host, port = new_addr.split(":")
+      translated_host = translate_host(host)
+
+      # For ASK, we need to send ASKING before the command
+      conn = get_connection("#{translated_host}:#{port}")
+      conn.call("ASKING")
+      result = conn.call(command, *args)
+      raise result if result.is_a?(CommandError)
+
+      result
     end
 
     # Check if command is a read command
@@ -330,6 +347,7 @@ module RedisRuby
     end
 
     # List of read-only commands
+    # rubocop:disable Lint/UselessConstantScoping
     READ_COMMANDS = %w[
       GET MGET GETEX GETDEL STRLEN GETRANGE GETBIT
       HGET HMGET HGETALL HLEN HKEYS HVALS HEXISTS HSCAN HRANDFIELD
@@ -343,6 +361,7 @@ module RedisRuby
       BITCOUNT BITPOS GETBIT
       GEORADIUS GEORADIUSBYMEMBER GEOPOS GEODIST GEOHASH GEOSEARCH
     ].freeze
+    # rubocop:enable Lint/UselessConstantScoping
 
     # Get a random master node address
     def random_master
@@ -384,7 +403,7 @@ module RedisRuby
         next if result.is_a?(CommandError)
 
         update_slots_from_result(result)
-        return
+        return # rubocop:disable Lint/NonLocalExitFromIterator
       rescue StandardError
         next
       end

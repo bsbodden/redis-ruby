@@ -25,7 +25,7 @@ class RedisCompatMockClient
     @call_results[:zmscore]
   end
 
-  def zscan_iter(key, match: "*", count: 10)
+  def zscan_iter(_key, match: "*", count: 10)
     @call_results[:zscan_iter] || Enumerator.new { |y| y << ["member", 1.0] }
   end
 
@@ -69,11 +69,11 @@ class RedisCompatMockClient
     @call_results[:hincrbyfloat]
   end
 
-  def hscan_iter(key, match: "*", count: 10)
-    @call_results[:hscan_iter] || Enumerator.new { |y| y << ["field", "val"] }
+  def hscan_iter(_key, match: "*", count: 10)
+    @call_results[:hscan_iter] || Enumerator.new { |y| y << %w[field val] }
   end
 
-  def sscan_iter(key, match: "*", count: 10)
+  def sscan_iter(_key, match: "*", count: 10)
     @call_results[:sscan_iter] || Enumerator.new { |y| y << "member1" }
   end
 
@@ -118,13 +118,15 @@ class RedisCommandsCompatSortedSetsTest < Minitest::Test
   def test_zincrby_compat_returns_float_from_string
     @client.call_results[:zincrby] = "3.14"
     result = @client.zincrby_compat("zset", 1.0, "member")
-    assert_equal 3.14, result
+
+    assert_in_delta(3.14, result)
   end
 
   def test_zincrby_compat_returns_float_as_is
     @client.call_results[:zincrby] = 3.14
     result = @client.zincrby_compat("zset", 1.0, "member")
-    assert_equal 3.14, result
+
+    assert_in_delta(3.14, result)
   end
 
   # ============================================================
@@ -134,13 +136,15 @@ class RedisCommandsCompatSortedSetsTest < Minitest::Test
   def test_zmscore_compat_converts_to_float
     @client.call_results[:zmscore] = ["1.0", "2.5", nil]
     result = @client.zmscore_compat("zset", "a", "b", "c")
+
     assert_equal [1.0, 2.5, nil], result
   end
 
   def test_zmscore_compat_empty
     @client.call_results[:zmscore] = []
     result = @client.zmscore_compat("zset")
-    assert_equal [], result
+
+    assert_empty result
   end
 
   # ============================================================
@@ -149,14 +153,19 @@ class RedisCommandsCompatSortedSetsTest < Minitest::Test
 
   def test_zscan_each_with_block
     yielded = []
-    @client.call_results[:zscan_iter] = Enumerator.new { |y| y << ["m1", 1.0]; y << ["m2", 2.0] }
+    @client.call_results[:zscan_iter] = Enumerator.new do |y|
+      y << ["m1", 1.0]
+      y << ["m2", 2.0]
+    end
     @client.zscan_each("zset") { |pair| yielded << pair }
+
     assert_equal [["m1", 1.0], ["m2", 2.0]], yielded
   end
 
   def test_zscan_each_without_block
     @client.call_results[:zscan_iter] = Enumerator.new { |y| y << ["m1", 1.0] }
     result = @client.zscan_each("zset")
+
     assert_kind_of Enumerator, result
   end
 end
@@ -172,17 +181,20 @@ class RedisCommandsCompatKeysTest < Minitest::Test
 
   def test_exists_single_key_true
     @client.call_results[:exists] = 1
+
     assert @client.exists?("key1")
   end
 
   def test_exists_single_key_false
     @client.call_results[:exists] = 0
+
     refute @client.exists?("key1")
   end
 
   def test_exists_multiple_keys
     @client.call_results[:exists] = 2
     result = @client.exists?("key1", "key2")
+
     assert_equal 2, result
   end
 
@@ -192,13 +204,18 @@ class RedisCommandsCompatKeysTest < Minitest::Test
 
   def test_scan_each_with_block
     yielded = []
-    @client.call_results[:scan_iter] = Enumerator.new { |y| y << "k1"; y << "k2" }
+    @client.call_results[:scan_iter] = Enumerator.new do |y|
+      y << "k1"
+      y << "k2"
+    end
     @client.scan_each { |k| yielded << k }
-    assert_equal ["k1", "k2"], yielded
+
+    assert_equal %w[k1 k2], yielded
   end
 
   def test_scan_each_without_block
     result = @client.scan_each
+
     assert_kind_of Enumerator, result
   end
 
@@ -208,41 +225,49 @@ class RedisCommandsCompatKeysTest < Minitest::Test
 
   def test_expire_true
     @client.call_results[:expire] = 1
+
     assert @client.expire?("key", 60)
   end
 
   def test_expire_false
     @client.call_results[:expire] = 0
+
     refute @client.expire?("key", 60)
   end
 
   def test_expireat_true
     @client.call_results[:expireat] = 1
+
     assert @client.expireat?("key", 1_700_000_000)
   end
 
   def test_expireat_false
     @client.call_results[:expireat] = 0
+
     refute @client.expireat?("key", 1_700_000_000)
   end
 
   def test_persist_true
     @client.call_results[:persist] = 1
+
     assert @client.persist?("key")
   end
 
   def test_persist_false
     @client.call_results[:persist] = 0
+
     refute @client.persist?("key")
   end
 
   def test_renamenx_true
     @client.call_results[:renamenx] = 1
+
     assert @client.renamenx?("old", "new")
   end
 
   def test_renamenx_false
     @client.call_results[:renamenx] = 0
+
     refute @client.renamenx?("old", "new")
   end
 end
@@ -257,14 +282,16 @@ class RedisCommandsCompatHashesTest < Minitest::Test
   # ============================================================
 
   def test_mapped_hmget
-    @client.call_results[:hmget] = ["val1", "val2"]
+    @client.call_results[:hmget] = %w[val1 val2]
     result = @client.mapped_hmget("hash", "f1", "f2")
+
     assert_equal({ "f1" => "val1", "f2" => "val2" }, result)
   end
 
   def test_mapped_hmget_with_nils
     @client.call_results[:hmget] = ["val1", nil]
     result = @client.mapped_hmget("hash", "f1", "f2")
+
     assert_equal({ "f1" => "val1", "f2" => nil }, result)
   end
 
@@ -275,6 +302,7 @@ class RedisCommandsCompatHashesTest < Minitest::Test
   def test_mapped_hmset
     @client.call_results[:hmset] = "OK"
     result = @client.mapped_hmset("hash", { f1: "v1", f2: "v2" })
+
     assert_equal "OK", result
   end
 
@@ -284,11 +312,13 @@ class RedisCommandsCompatHashesTest < Minitest::Test
 
   def test_hsetnx_true
     @client.call_results[:hsetnx] = 1
+
     assert @client.hsetnx?("hash", "field", "value")
   end
 
   def test_hsetnx_false
     @client.call_results[:hsetnx] = 0
+
     refute @client.hsetnx?("hash", "field", "value")
   end
 
@@ -299,13 +329,15 @@ class RedisCommandsCompatHashesTest < Minitest::Test
   def test_hincrbyfloat_compat_string_result
     @client.call_results[:hincrbyfloat] = "3.14"
     result = @client.hincrbyfloat_compat("hash", "field", 1.0)
-    assert_equal 3.14, result
+
+    assert_in_delta(3.14, result)
   end
 
   def test_hincrbyfloat_compat_float_result
     @client.call_results[:hincrbyfloat] = 3.14
     result = @client.hincrbyfloat_compat("hash", "field", 1.0)
-    assert_equal 3.14, result
+
+    assert_in_delta(3.14, result)
   end
 end
 
@@ -320,13 +352,18 @@ class RedisCommandsCompatMainTest < Minitest::Test
 
   def test_hscan_each_with_block
     yielded = []
-    @client.call_results[:hscan_iter] = Enumerator.new { |y| y << ["f1", "v1"]; y << ["f2", "v2"] }
+    @client.call_results[:hscan_iter] = Enumerator.new do |y|
+      y << %w[f1 v1]
+      y << %w[f2 v2]
+    end
     @client.hscan_each("hash") { |pair| yielded << pair }
-    assert_equal [["f1", "v1"], ["f2", "v2"]], yielded
+
+    assert_equal [%w[f1 v1], %w[f2 v2]], yielded
   end
 
   def test_hscan_each_without_block
     result = @client.hscan_each("hash")
+
     assert_kind_of Enumerator, result
   end
 
@@ -336,13 +373,18 @@ class RedisCommandsCompatMainTest < Minitest::Test
 
   def test_sscan_each_with_block
     yielded = []
-    @client.call_results[:sscan_iter] = Enumerator.new { |y| y << "m1"; y << "m2" }
+    @client.call_results[:sscan_iter] = Enumerator.new do |y|
+      y << "m1"
+      y << "m2"
+    end
     @client.sscan_each("set") { |member| yielded << member }
-    assert_equal ["m1", "m2"], yielded
+
+    assert_equal %w[m1 m2], yielded
   end
 
   def test_sscan_each_without_block
     result = @client.sscan_each("set")
+
     assert_kind_of Enumerator, result
   end
 
@@ -351,21 +393,24 @@ class RedisCommandsCompatMainTest < Minitest::Test
   # ============================================================
 
   def test_mapped_mget
-    @client.call_results[:mget] = ["v1", "v2"]
+    @client.call_results[:mget] = %w[v1 v2]
     result = @client.mapped_mget("k1", "k2")
+
     assert_equal({ "k1" => "v1", "k2" => "v2" }, result)
   end
 
   def test_mapped_mset
     @client.call_results[:mset] = "OK"
     result = @client.mapped_mset({ k1: "v1", k2: "v2" })
+
     assert_equal "OK", result
   end
 
   def test_mapped_msetnx
     @client.call_results[:msetnx] = true
     result = @client.mapped_msetnx({ k1: "v1" })
-    assert_equal true, result
+
+    assert result
   end
 
   # ============================================================
@@ -374,41 +419,49 @@ class RedisCommandsCompatMainTest < Minitest::Test
 
   def test_sadd_true
     @client.call_results[:sadd] = 1
+
     assert @client.sadd?("set", "member")
   end
 
   def test_sadd_false
     @client.call_results[:sadd] = 0
+
     refute @client.sadd?("set", "member")
   end
 
   def test_srem_true
     @client.call_results[:srem] = 1
+
     assert @client.srem?("set", "member")
   end
 
   def test_srem_false
     @client.call_results[:srem] = 0
+
     refute @client.srem?("set", "member")
   end
 
   def test_sismember_true
     @client.call_results[:sismember] = 1
+
     assert @client.sismember?("set", "member")
   end
 
   def test_sismember_false
     @client.call_results[:sismember] = 0
+
     refute @client.sismember?("set", "member")
   end
 
   def test_smove_true
     @client.call_results[:smove] = 1
+
     assert @client.smove?("src", "dst", "member")
   end
 
   def test_smove_false
     @client.call_results[:smove] = 0
+
     refute @client.smove?("src", "dst", "member")
   end
 end

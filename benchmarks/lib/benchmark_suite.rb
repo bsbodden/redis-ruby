@@ -148,7 +148,7 @@ module RedisRuby
 
       # Print summary to console
       def print_summary
-        puts "\n" + "=" * 70
+        puts "\n#{"=" * 70}"
         puts "BENCHMARK SUMMARY"
         puts "=" * 70
         puts "Ruby: #{@metadata[:ruby_version]} | YJIT: #{@metadata[:yjit_enabled]}"
@@ -186,10 +186,10 @@ module RedisRuby
 
     # Memory profiling utilities
     module Memory
-      def self.profile(name, &block)
+      def self.profile(name, &)
         require "memory_profiler"
 
-        report = MemoryProfiler.report(&block)
+        report = MemoryProfiler.report(&)
 
         {
           name: name,
@@ -274,14 +274,14 @@ module RedisRuby
         <body>
           <h1>Redis-Ruby Benchmark Report</h1>
           <div class="metadata">
-            <strong>Generated:</strong> %{timestamp}<br>
-            <strong>Ruby:</strong> %{ruby_version} | <strong>YJIT:</strong> %{yjit_enabled}
+            <strong>Generated:</strong> %<timestamp>s<br>
+            <strong>Ruby:</strong> %<ruby_version>s | <strong>YJIT:</strong> %<yjit_enabled>s
           </div>
 
           <h2>Performance Gate Summary</h2>
           <table>
             <tr><th>Benchmark</th><th>Speedup</th><th>Required</th><th>Status</th></tr>
-            %{gate_rows}
+            %<gate_rows>s
           </table>
 
           <div class="chart-container">
@@ -289,18 +289,18 @@ module RedisRuby
           </div>
 
           <h2>Detailed Results</h2>
-          %{result_sections}
+          %<result_sections>s
 
           <script>
             const ctx = document.getElementById('speedupChart').getContext('2d');
             new Chart(ctx, {
               type: 'bar',
               data: {
-                labels: %{chart_labels},
+                labels: %<chart_labels>s,
                 datasets: [{
                   label: 'Speedup vs redis-rb',
-                  data: %{chart_data},
-                  backgroundColor: %{chart_colors},
+                  data: %<chart_data>s,
+                  backgroundColor: %<chart_colors>s,
                   borderWidth: 1
                 }]
               },

@@ -13,12 +13,14 @@ class SearchQueryTest < Minitest::Test
 
   def test_default_query_string
     q = RedisRuby::Search::Query.new
+
     assert_equal "*", q.query_string
     assert_equal "*", q.to_s
   end
 
   def test_custom_query_string
     q = RedisRuby::Search::Query.new("hello world")
+
     assert_equal "hello world", q.query_string
     assert_equal "hello world", q.to_s
   end
@@ -81,6 +83,7 @@ class SearchQueryTest < Minitest::Test
   def test_filter_numeric_returns_self
     q = RedisRuby::Search::Query.new
     result = q.filter_numeric("f", 0, 10)
+
     assert_same q, result
   end
 
@@ -120,6 +123,7 @@ class SearchQueryTest < Minitest::Test
   def test_filter_tag_returns_self
     q = RedisRuby::Search::Query.new
     result = q.filter_tag("f", "v")
+
     assert_same q, result
   end
 
@@ -144,6 +148,7 @@ class SearchQueryTest < Minitest::Test
       .filter_geo("location", -73.98, 40.73, 10)
 
     opts = q.options
+
     assert_equal ["location", -73.98, 40.73, 10, "km"], opts[:geofilter]
   end
 
@@ -152,17 +157,20 @@ class SearchQueryTest < Minitest::Test
       .filter_geo("location", -73.98, 40.73, 5, unit: :mi)
 
     opts = q.options
+
     assert_equal ["location", -73.98, 40.73, 5, "mi"], opts[:geofilter]
   end
 
   def test_filter_geo_returns_self
     q = RedisRuby::Search::Query.new
     result = q.filter_geo("f", 0.0, 0.0, 1)
+
     assert_same q, result
   end
 
   def test_no_geo_filter_by_default
     q = RedisRuby::Search::Query.new
+
     refute q.options.key?(:geofilter)
   end
 
@@ -175,6 +183,7 @@ class SearchQueryTest < Minitest::Test
       .return_fields("title", "body")
 
     opts = q.options
+
     assert_equal %w[title body], opts[:return]
   end
 
@@ -183,17 +192,20 @@ class SearchQueryTest < Minitest::Test
       .return_fields(%w[title body author])
 
     opts = q.options
+
     assert_equal %w[title body author], opts[:return]
   end
 
   def test_return_fields_not_set_by_default
     q = RedisRuby::Search::Query.new
+
     refute q.options.key?(:return)
   end
 
   def test_return_fields_returns_self
     q = RedisRuby::Search::Query.new
     result = q.return_fields("f")
+
     assert_same q, result
   end
 
@@ -205,6 +217,7 @@ class SearchQueryTest < Minitest::Test
     q = RedisRuby::Search::Query.new.sort_by("price")
 
     opts = q.options
+
     assert_equal "price", opts[:sortby]
     assert_equal :asc, opts[:sortby_order]
   end
@@ -213,6 +226,7 @@ class SearchQueryTest < Minitest::Test
     q = RedisRuby::Search::Query.new.sort_by("price", :desc)
 
     opts = q.options
+
     assert_equal "price", opts[:sortby]
     assert_equal :desc, opts[:sortby_order]
   end
@@ -220,6 +234,7 @@ class SearchQueryTest < Minitest::Test
   def test_sort_by_not_set_by_default
     q = RedisRuby::Search::Query.new
     opts = q.options
+
     refute opts.key?(:sortby)
     refute opts.key?(:sortby_order)
   end
@@ -227,6 +242,7 @@ class SearchQueryTest < Minitest::Test
   def test_sort_by_returns_self
     q = RedisRuby::Search::Query.new
     result = q.sort_by("f")
+
     assert_same q, result
   end
 
@@ -236,12 +252,14 @@ class SearchQueryTest < Minitest::Test
 
   def test_limit
     q = RedisRuby::Search::Query.new.limit(20, 50)
+
     assert_equal [20, 50], q.options[:limit]
   end
 
   def test_limit_returns_self
     q = RedisRuby::Search::Query.new
     result = q.limit(0, 10)
+
     assert_same q, result
   end
 
@@ -253,6 +271,7 @@ class SearchQueryTest < Minitest::Test
 
   def test_paginate_first_page
     q = RedisRuby::Search::Query.new.paginate(0, 10)
+
     assert_equal [0, 10], q.options[:limit]
   end
 
@@ -264,6 +283,7 @@ class SearchQueryTest < Minitest::Test
     q = RedisRuby::Search::Query.new.highlight
 
     opts = q.options
+
     assert opts[:highlight]
     assert_nil opts[:highlight_fields]
     assert_equal ["<b>", "</b>"], opts[:highlight_tags]
@@ -274,6 +294,7 @@ class SearchQueryTest < Minitest::Test
       .highlight(fields: %w[title body])
 
     opts = q.options
+
     assert opts[:highlight]
     assert_equal %w[title body], opts[:highlight_fields]
   end
@@ -283,6 +304,7 @@ class SearchQueryTest < Minitest::Test
       .highlight(tags: ["<em>", "</em>"])
 
     opts = q.options
+
     assert_equal ["<em>", "</em>"], opts[:highlight_tags]
   end
 
@@ -291,18 +313,21 @@ class SearchQueryTest < Minitest::Test
       .highlight(fields: nil)
 
     opts = q.options
+
     assert opts[:highlight]
     refute opts.key?(:highlight_fields)
   end
 
   def test_highlight_not_set_by_default
     q = RedisRuby::Search::Query.new
+
     refute q.options.key?(:highlight)
   end
 
   def test_highlight_returns_self
     q = RedisRuby::Search::Query.new
     result = q.highlight
+
     assert_same q, result
   end
 
@@ -314,6 +339,7 @@ class SearchQueryTest < Minitest::Test
     q = RedisRuby::Search::Query.new.summarize
 
     opts = q.options
+
     assert opts[:summarize]
     assert_nil opts[:summarize_fields]
     assert_equal 3, opts[:summarize_frags]
@@ -326,6 +352,7 @@ class SearchQueryTest < Minitest::Test
       .summarize(fields: ["body"])
 
     opts = q.options
+
     assert opts[:summarize]
     assert_equal ["body"], opts[:summarize_fields]
   end
@@ -335,6 +362,7 @@ class SearchQueryTest < Minitest::Test
       .summarize(frags: 5, len: 50, separator: " --- ")
 
     opts = q.options
+
     assert_equal 5, opts[:summarize_frags]
     assert_equal 50, opts[:summarize_len]
     assert_equal " --- ", opts[:summarize_separator]
@@ -345,18 +373,21 @@ class SearchQueryTest < Minitest::Test
       .summarize(fields: nil)
 
     opts = q.options
+
     assert opts[:summarize]
     refute opts.key?(:summarize_fields)
   end
 
   def test_summarize_not_set_by_default
     q = RedisRuby::Search::Query.new
+
     refute q.options.key?(:summarize)
   end
 
   def test_summarize_returns_self
     q = RedisRuby::Search::Query.new
     result = q.summarize
+
     assert_same q, result
   end
 
@@ -369,6 +400,7 @@ class SearchQueryTest < Minitest::Test
       .params(vec: "blob", k: "10")
 
     opts = q.options
+
     assert_equal({ vec: "blob", k: "10" }, opts[:params])
   end
 
@@ -378,17 +410,20 @@ class SearchQueryTest < Minitest::Test
       .params(b: 2)
 
     opts = q.options
+
     assert_equal({ a: 1, b: 2 }, opts[:params])
   end
 
   def test_params_not_set_by_default
     q = RedisRuby::Search::Query.new
+
     refute q.options.key?(:params)
   end
 
   def test_params_returns_self
     q = RedisRuby::Search::Query.new
     result = q.params(a: 1)
+
     assert_same q, result
   end
 
@@ -398,17 +433,20 @@ class SearchQueryTest < Minitest::Test
 
   def test_dialect
     q = RedisRuby::Search::Query.new.dialect(2)
+
     assert_equal 2, q.options[:dialect]
   end
 
   def test_dialect_not_set_by_default
     q = RedisRuby::Search::Query.new
+
     refute q.options.key?(:dialect)
   end
 
   def test_dialect_returns_self
     q = RedisRuby::Search::Query.new
     result = q.dialect(3)
+
     assert_same q, result
   end
 
@@ -418,113 +456,134 @@ class SearchQueryTest < Minitest::Test
 
   def test_verbatim
     q = RedisRuby::Search::Query.new.verbatim
+
     assert q.options[:verbatim]
   end
 
   def test_verbatim_not_set_by_default
     q = RedisRuby::Search::Query.new
+
     refute q.options.key?(:verbatim)
   end
 
   def test_verbatim_returns_self
     q = RedisRuby::Search::Query.new
     result = q.verbatim
+
     assert_same q, result
   end
 
   def test_no_content
     q = RedisRuby::Search::Query.new.no_content
+
     assert q.options[:nocontent]
   end
 
   def test_no_content_not_set_by_default
     q = RedisRuby::Search::Query.new
+
     refute q.options.key?(:nocontent)
   end
 
   def test_no_content_returns_self
     q = RedisRuby::Search::Query.new
     result = q.no_content
+
     assert_same q, result
   end
 
   def test_no_stopwords
     q = RedisRuby::Search::Query.new.no_stopwords
+
     assert q.options[:nostopwords]
   end
 
   def test_no_stopwords_not_set_by_default
     q = RedisRuby::Search::Query.new
+
     refute q.options.key?(:nostopwords)
   end
 
   def test_no_stopwords_returns_self
     q = RedisRuby::Search::Query.new
     result = q.no_stopwords
+
     assert_same q, result
   end
 
   def test_with_scores
     q = RedisRuby::Search::Query.new.with_scores
+
     assert q.options[:withscores]
   end
 
   def test_with_scores_not_set_by_default
     q = RedisRuby::Search::Query.new
+
     refute q.options.key?(:withscores)
   end
 
   def test_with_scores_returns_self
     q = RedisRuby::Search::Query.new
     result = q.with_scores
+
     assert_same q, result
   end
 
   def test_with_payloads
     q = RedisRuby::Search::Query.new.with_payloads
+
     assert q.options[:withpayloads]
   end
 
   def test_with_payloads_not_set_by_default
     q = RedisRuby::Search::Query.new
+
     refute q.options.key?(:withpayloads)
   end
 
   def test_with_payloads_returns_self
     q = RedisRuby::Search::Query.new
     result = q.with_payloads
+
     assert_same q, result
   end
 
   def test_with_sort_keys
     q = RedisRuby::Search::Query.new.with_sort_keys
+
     assert q.options[:withsortkeys]
   end
 
   def test_with_sort_keys_not_set_by_default
     q = RedisRuby::Search::Query.new
+
     refute q.options.key?(:withsortkeys)
   end
 
   def test_with_sort_keys_returns_self
     q = RedisRuby::Search::Query.new
     result = q.with_sort_keys
+
     assert_same q, result
   end
 
   def test_in_order
     q = RedisRuby::Search::Query.new.in_order
+
     assert q.options[:inorder]
   end
 
   def test_in_order_not_set_by_default
     q = RedisRuby::Search::Query.new
+
     refute q.options.key?(:inorder)
   end
 
   def test_in_order_returns_self
     q = RedisRuby::Search::Query.new
     result = q.in_order
+
     assert_same q, result
   end
 
@@ -534,17 +593,20 @@ class SearchQueryTest < Minitest::Test
 
   def test_scorer
     q = RedisRuby::Search::Query.new.scorer("BM25")
+
     assert_equal "BM25", q.options[:scorer]
   end
 
   def test_scorer_not_set_by_default
     q = RedisRuby::Search::Query.new
+
     refute q.options.key?(:scorer)
   end
 
   def test_scorer_returns_self
     q = RedisRuby::Search::Query.new
     result = q.scorer("BM25")
+
     assert_same q, result
   end
 
@@ -554,17 +616,20 @@ class SearchQueryTest < Minitest::Test
 
   def test_expander
     q = RedisRuby::Search::Query.new.expander("my_expander")
+
     assert_equal "my_expander", q.options[:expander]
   end
 
   def test_expander_not_set_by_default
     q = RedisRuby::Search::Query.new
+
     refute q.options.key?(:expander)
   end
 
   def test_expander_returns_self
     q = RedisRuby::Search::Query.new
     result = q.expander("x")
+
     assert_same q, result
   end
 
@@ -574,17 +639,20 @@ class SearchQueryTest < Minitest::Test
 
   def test_slop
     q = RedisRuby::Search::Query.new.slop(3)
+
     assert_equal 3, q.options[:slop]
   end
 
   def test_slop_not_set_by_default
     q = RedisRuby::Search::Query.new
+
     refute q.options.key?(:slop)
   end
 
   def test_slop_returns_self
     q = RedisRuby::Search::Query.new
     result = q.slop(1)
+
     assert_same q, result
   end
 
@@ -594,17 +662,20 @@ class SearchQueryTest < Minitest::Test
 
   def test_language
     q = RedisRuby::Search::Query.new.language("spanish")
+
     assert_equal "spanish", q.options[:language]
   end
 
   def test_language_not_set_by_default
     q = RedisRuby::Search::Query.new
+
     refute q.options.key?(:language)
   end
 
   def test_language_returns_self
     q = RedisRuby::Search::Query.new
     result = q.language("en")
+
     assert_same q, result
   end
 
@@ -653,6 +724,7 @@ class SearchQueryTest < Minitest::Test
 
     # to_s includes query + numeric + tag filters
     expected_str = "hello world @price:[10 100] @category:{electronics}"
+
     assert_equal expected_str, q.to_s
 
     opts = q.options
@@ -710,6 +782,7 @@ class SearchQueryTest < Minitest::Test
 
   def test_to_s_no_filters
     q = RedisRuby::Search::Query.new("test query")
+
     assert_equal "test query", q.to_s
   end
 
@@ -719,11 +792,13 @@ class SearchQueryTest < Minitest::Test
 
   def test_aggregate_default_query_string
     aq = RedisRuby::Search::AggregateQuery.new
+
     assert_equal "*", aq.to_s
   end
 
   def test_aggregate_custom_query_string
     aq = RedisRuby::Search::AggregateQuery.new("@category:{books}")
+
     assert_equal "@category:{books}", aq.to_s
   end
 
@@ -746,22 +821,26 @@ class SearchQueryTest < Minitest::Test
 
   def test_aggregate_load
     aq = RedisRuby::Search::AggregateQuery.new.load("@title", "@body")
+
     assert_equal %w[@title @body], aq.options[:load]
   end
 
   def test_aggregate_load_array
     aq = RedisRuby::Search::AggregateQuery.new.load(%w[@title @body])
+
     assert_equal %w[@title @body], aq.options[:load]
   end
 
   def test_aggregate_load_not_set_by_default
     aq = RedisRuby::Search::AggregateQuery.new
+
     refute aq.options.key?(:load)
   end
 
   def test_aggregate_load_returns_self
     aq = RedisRuby::Search::AggregateQuery.new
     result = aq.load("@f")
+
     assert_same aq, result
   end
 
@@ -775,10 +854,11 @@ class SearchQueryTest < Minitest::Test
       .group_by("@category", reducers: [reducer])
 
     opts = aq.options
+
     assert opts.key?(:groupby)
     assert_equal 1, opts[:groupby].length
     assert_equal ["@category"], opts[:groupby][0][:fields]
-    assert_equal [["COUNT", "AS", "cnt"]], opts[:groupby][0][:reducers]
+    assert_equal [%w[COUNT AS cnt]], opts[:groupby][0][:reducers]
   end
 
   def test_aggregate_group_by_multiple_fields
@@ -787,6 +867,7 @@ class SearchQueryTest < Minitest::Test
       .group_by("@category", "@brand", reducers: [reducer])
 
     opts = aq.options
+
     assert_equal %w[@category @brand], opts[:groupby][0][:fields]
   end
 
@@ -799,6 +880,7 @@ class SearchQueryTest < Minitest::Test
       .group_by("@brand", reducers: [r2])
 
     opts = aq.options
+
     assert_equal 2, opts[:groupby].length
   end
 
@@ -807,17 +889,20 @@ class SearchQueryTest < Minitest::Test
       .group_by("@category")
 
     opts = aq.options
-    assert_equal [], opts[:groupby][0][:reducers]
+
+    assert_empty opts[:groupby][0][:reducers]
   end
 
   def test_aggregate_group_by_not_set_by_default
     aq = RedisRuby::Search::AggregateQuery.new
+
     refute aq.options.key?(:groupby)
   end
 
   def test_aggregate_group_by_returns_self
     aq = RedisRuby::Search::AggregateQuery.new
     result = aq.group_by("@f")
+
     assert_same aq, result
   end
 
@@ -829,6 +914,7 @@ class SearchQueryTest < Minitest::Test
     aq = RedisRuby::Search::AggregateQuery.new.sort_by("@count")
 
     opts = aq.options
+
     assert_equal "@count", opts[:sortby]
     assert_equal :asc, opts[:sortby_order]
   end
@@ -837,6 +923,7 @@ class SearchQueryTest < Minitest::Test
     aq = RedisRuby::Search::AggregateQuery.new.sort_by("@count", :desc)
 
     opts = aq.options
+
     assert_equal "@count", opts[:sortby]
     assert_equal :desc, opts[:sortby_order]
   end
@@ -844,6 +931,7 @@ class SearchQueryTest < Minitest::Test
   def test_aggregate_sort_by_not_set_by_default
     aq = RedisRuby::Search::AggregateQuery.new
     opts = aq.options
+
     refute opts.key?(:sortby)
     refute opts.key?(:sortby_order)
   end
@@ -851,6 +939,7 @@ class SearchQueryTest < Minitest::Test
   def test_aggregate_sort_by_returns_self
     aq = RedisRuby::Search::AggregateQuery.new
     result = aq.sort_by("@f")
+
     assert_same aq, result
   end
 
@@ -860,12 +949,14 @@ class SearchQueryTest < Minitest::Test
 
   def test_aggregate_limit
     aq = RedisRuby::Search::AggregateQuery.new.limit(5, 15)
+
     assert_equal [5, 15], aq.options[:limit]
   end
 
   def test_aggregate_limit_returns_self
     aq = RedisRuby::Search::AggregateQuery.new
     result = aq.limit(0, 10)
+
     assert_same aq, result
   end
 
@@ -878,6 +969,7 @@ class SearchQueryTest < Minitest::Test
       .apply("upper(@name)", as: "upper_name")
 
     opts = aq.options
+
     assert_equal [{ expression: "upper(@name)", as: "upper_name" }], opts[:apply]
   end
 
@@ -887,17 +979,20 @@ class SearchQueryTest < Minitest::Test
       .apply("@price * 1.1", as: "price_with_tax")
 
     opts = aq.options
+
     assert_equal 2, opts[:apply].length
   end
 
   def test_aggregate_apply_not_set_by_default
     aq = RedisRuby::Search::AggregateQuery.new
+
     refute aq.options.key?(:apply)
   end
 
   def test_aggregate_apply_returns_self
     aq = RedisRuby::Search::AggregateQuery.new
     result = aq.apply("@f", as: "x")
+
     assert_same aq, result
   end
 
@@ -910,6 +1005,7 @@ class SearchQueryTest < Minitest::Test
       .filter("@count > 5")
 
     opts = aq.options
+
     assert_equal ["@count > 5"], opts[:filter]
   end
 
@@ -919,17 +1015,20 @@ class SearchQueryTest < Minitest::Test
       .filter("@price < 100")
 
     opts = aq.options
+
     assert_equal ["@count > 5", "@price < 100"], opts[:filter]
   end
 
   def test_aggregate_filter_not_set_by_default
     aq = RedisRuby::Search::AggregateQuery.new
+
     refute aq.options.key?(:filter)
   end
 
   def test_aggregate_filter_returns_self
     aq = RedisRuby::Search::AggregateQuery.new
     result = aq.filter("@f > 0")
+
     assert_same aq, result
   end
 
@@ -939,17 +1038,20 @@ class SearchQueryTest < Minitest::Test
 
   def test_aggregate_dialect
     aq = RedisRuby::Search::AggregateQuery.new.dialect(3)
+
     assert_equal 3, aq.options[:dialect]
   end
 
   def test_aggregate_dialect_not_set_by_default
     aq = RedisRuby::Search::AggregateQuery.new
+
     refute aq.options.key?(:dialect)
   end
 
   def test_aggregate_dialect_returns_self
     aq = RedisRuby::Search::AggregateQuery.new
     result = aq.dialect(2)
+
     assert_same aq, result
   end
 
@@ -965,7 +1067,7 @@ class SearchQueryTest < Minitest::Test
     mock_client.expects(:ft_aggregate).with("myindex", "*", **aq.options).returns([])
     result = aq.execute(mock_client, "myindex")
 
-    assert_equal [], result
+    assert_empty result
   end
 
   # ==================================================================
@@ -987,6 +1089,7 @@ class SearchQueryTest < Minitest::Test
     assert_equal "@status:{active}", aq.to_s
 
     opts = aq.options
+
     assert_equal %w[@title @price], opts[:load]
     assert_equal 1, opts[:groupby].length
     assert_equal "@cnt", opts[:sortby]
@@ -1003,6 +1106,7 @@ class SearchQueryTest < Minitest::Test
 
   def test_reducer_count
     r = RedisRuby::Search::Reducer.count
+
     assert_equal "COUNT", r.function
     assert_empty r.args
     assert_nil r.alias_name
@@ -1010,70 +1114,82 @@ class SearchQueryTest < Minitest::Test
 
   def test_reducer_count_to_args_without_alias
     r = RedisRuby::Search::Reducer.count
+
     assert_equal ["COUNT"], r.to_args
   end
 
   def test_reducer_count_to_args_with_alias
     r = RedisRuby::Search::Reducer.count.as("cnt")
-    assert_equal ["COUNT", "AS", "cnt"], r.to_args
+
+    assert_equal %w[COUNT AS cnt], r.to_args
   end
 
   def test_reducer_count_distinct
     r = RedisRuby::Search::Reducer.count_distinct("@name")
+
     assert_equal "COUNT_DISTINCT", r.function
     assert_equal ["@name"], r.args
   end
 
   def test_reducer_count_distinctish
     r = RedisRuby::Search::Reducer.count_distinctish("@name")
+
     assert_equal "COUNT_DISTINCTISH", r.function
     assert_equal ["@name"], r.args
   end
 
   def test_reducer_sum
     r = RedisRuby::Search::Reducer.sum("@price")
+
     assert_equal "SUM", r.function
     assert_equal ["@price"], r.args
   end
 
   def test_reducer_min
     r = RedisRuby::Search::Reducer.min("@price")
+
     assert_equal "MIN", r.function
     assert_equal ["@price"], r.args
   end
 
   def test_reducer_max
     r = RedisRuby::Search::Reducer.max("@price")
+
     assert_equal "MAX", r.function
     assert_equal ["@price"], r.args
   end
 
   def test_reducer_avg
     r = RedisRuby::Search::Reducer.avg("@price")
+
     assert_equal "AVG", r.function
     assert_equal ["@price"], r.args
   end
 
   def test_reducer_stddev
     r = RedisRuby::Search::Reducer.stddev("@price")
+
     assert_equal "STDDEV", r.function
     assert_equal ["@price"], r.args
   end
 
   def test_reducer_quantile
     r = RedisRuby::Search::Reducer.quantile("@price", 0.95)
+
     assert_equal "QUANTILE", r.function
     assert_equal ["@price", 0.95], r.args
   end
 
   def test_reducer_tolist
     r = RedisRuby::Search::Reducer.tolist("@name")
+
     assert_equal "TOLIST", r.function
     assert_equal ["@name"], r.args
   end
 
   def test_reducer_random_sample
     r = RedisRuby::Search::Reducer.random_sample("@name", 5)
+
     assert_equal "RANDOM_SAMPLE", r.function
     assert_equal ["@name", 5], r.args
   end
@@ -1084,18 +1200,21 @@ class SearchQueryTest < Minitest::Test
 
   def test_reducer_first_value_no_by
     r = RedisRuby::Search::Reducer.first_value("@name")
+
     assert_equal "FIRST_VALUE", r.function
     assert_equal ["@name"], r.args
   end
 
   def test_reducer_first_value_with_by
     r = RedisRuby::Search::Reducer.first_value("@name", by: "@timestamp")
+
     assert_equal "FIRST_VALUE", r.function
     assert_equal ["@name", "BY", "@timestamp", "ASC"], r.args
   end
 
   def test_reducer_first_value_with_by_desc
     r = RedisRuby::Search::Reducer.first_value("@name", by: "@timestamp", order: :desc)
+
     assert_equal ["@name", "BY", "@timestamp", "DESC"], r.args
   end
 
@@ -1112,6 +1231,7 @@ class SearchQueryTest < Minitest::Test
   def test_reducer_as_returns_self
     r = RedisRuby::Search::Reducer.count
     result = r.as("cnt")
+
     assert_same r, result
     assert_equal "cnt", r.alias_name
   end
@@ -1122,16 +1242,19 @@ class SearchQueryTest < Minitest::Test
 
   def test_reducer_to_args_with_field_and_alias
     r = RedisRuby::Search::Reducer.sum("@price").as("total")
+
     assert_equal ["SUM", "@price", "AS", "total"], r.to_args
   end
 
   def test_reducer_to_args_without_alias
     r = RedisRuby::Search::Reducer.sum("@price")
+
     assert_equal ["SUM", "@price"], r.to_args
   end
 
   def test_reducer_to_args_with_multiple_args_and_alias
     r = RedisRuby::Search::Reducer.quantile("@price", 0.5).as("median")
+
     assert_equal ["QUANTILE", "@price", 0.5, "AS", "median"], r.to_args
   end
 end

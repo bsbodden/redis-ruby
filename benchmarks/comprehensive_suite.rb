@@ -94,11 +94,11 @@ module ComprehensiveBenchmark
       @samples = []
     end
 
-    def measure(&block)
+    def measure
       start = Process.clock_gettime(Process::CLOCK_MONOTONIC, :nanosecond)
-      block.call
+      yield
       elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC, :nanosecond) - start
-      @samples << elapsed / 1_000.0 # Convert to microseconds
+      @samples << (elapsed / 1_000.0) # Convert to microseconds
     end
 
     def reset
@@ -175,7 +175,7 @@ module ComprehensiveBenchmark
       }
     end
 
-    def to_json
+    def to_json(*_args)
       JSON.pretty_generate({
         metadata: @metadata,
         benchmarks: @benchmarks,
@@ -208,10 +208,18 @@ module ComprehensiveBenchmark
 
       {
         total_benchmarks: @benchmarks.size,
-        avg_throughput_speedup: throughput_results.empty? ? 0 :
-          (throughput_results.sum { |r| r[:speedup] } / throughput_results.size).round(3),
-        avg_latency_p99_improvement: latency_results.empty? ? 0 :
-          (latency_results.sum { |r| r[:improvement][:p99] } / latency_results.size).round(1),
+        avg_throughput_speedup: if throughput_results.empty?
+                                  0
+                                else
+                                  (throughput_results.sum { |r| r[:speedup] } / throughput_results.size).round(3)
+                                end,
+        avg_latency_p99_improvement: if latency_results.empty?
+                                       0
+                                     else
+                                       (latency_results.sum do |r|
+                                         r[:improvement][:p99]
+                                       end / latency_results.size).round(1)
+                                     end,
         faster_count: throughput_results.count { |r| r[:speedup] > 1.0 },
         slower_count: throughput_results.count { |r| r[:speedup] < 1.0 },
       }
@@ -361,22 +369,40 @@ module ComprehensiveBenchmark
       end
 
       run_throughput_benchmark("LPUSH/LPOP", "List") do |x|
-        x.report("redis-rb") { @redis_rb.lpush("bench:lpop", "x"); @redis_rb.lpop("bench:lpop") }
-        x.report("redis-ruby") { @redis_ruby.lpush("bench:lpop", "x"); @redis_ruby.lpop("bench:lpop") }
+        x.report("redis-rb") do
+          @redis_rb.lpush("bench:lpop", "x")
+          @redis_rb.lpop("bench:lpop")
+        end
+        x.report("redis-ruby") do
+          @redis_ruby.lpush("bench:lpop", "x")
+          @redis_ruby.lpop("bench:lpop")
+        end
       end
 
       run_throughput_benchmark("SADD/SISMEMBER", "Set") do |x|
-        x.report("redis-rb") { @redis_rb.sadd("bench:stest", "x"); @redis_rb.sismember("bench:stest", "x") }
-        x.report("redis-ruby") { @redis_ruby.sadd("bench:stest", "x"); @redis_ruby.sismember("bench:stest", "x") }
+        x.report("redis-rb") do
+          @redis_rb.sadd("bench:stest", "x")
+          @redis_rb.sismember("bench:stest", "x")
+        end
+        x.report("redis-ruby") do
+          @redis_ruby.sadd("bench:stest", "x")
+          @redis_ruby.sismember("bench:stest", "x")
+        end
       end
 
       run_throughput_benchmark("ZADD/ZSCORE", "SortedSet") do |x|
-        x.report("redis-rb") { @redis_rb.zadd("bench:ztest", 1.0, "x"); @redis_rb.zscore("bench:ztest", "x") }
-        x.report("redis-ruby") { @redis_ruby.zadd("bench:ztest", 1.0, "x"); @redis_ruby.zscore("bench:ztest", "x") }
+        x.report("redis-rb") do
+          @redis_rb.zadd("bench:ztest", 1.0, "x")
+          @redis_rb.zscore("bench:ztest", "x")
+        end
+        x.report("redis-ruby") do
+          @redis_ruby.zadd("bench:ztest", 1.0, "x")
+          @redis_ruby.zscore("bench:ztest", "x")
+        end
       end
     end
 
-    def run_throughput_benchmark(name, category, &block)
+    def run_throughput_benchmark(name, category)
       puts "\n#{name}"
       puts "-" * 50
 
@@ -385,7 +411,7 @@ module ComprehensiveBenchmark
 
       report = Benchmark.ips do |x|
         x.config(warmup: @config.warmup_time, time: @config.measure_time)
-        block.call(x)
+        yield(x)
         x.compare!
       end
 
@@ -425,7 +451,7 @@ module ComprehensiveBenchmark
       end
     end
 
-    def run_latency_benchmark(name, category, iterations, &block)
+    def run_latency_benchmark(name, category, iterations)
       puts "\n#{name} (#{iterations} iterations)"
       puts "-" * 50
 
@@ -433,10 +459,10 @@ module ComprehensiveBenchmark
       ruby_measurer = LatencyMeasurer.new
 
       # Measure redis-rb
-      iterations.times { rb_measurer.measure { block.call(@redis_rb) } }
+      iterations.times { rb_measurer.measure { yield(@redis_rb) } }
 
       # Measure redis-ruby
-      iterations.times { ruby_measurer.measure { block.call(@redis_ruby) } }
+      iterations.times { ruby_measurer.measure { yield(@redis_ruby) } }
 
       rb_stats = rb_measurer.stats
       ruby_stats = ruby_measurer.stats
@@ -662,15 +688,15 @@ module ComprehensiveBenchmark
         puts "\n#{category}:"
         benchmarks.each do |bench|
           name = data[:benchmarks].key(bench)
-          if bench[:throughput]
-            t = bench[:throughput]
-            status = t[:speedup] >= 1.0 ? "FASTER" : "SLOWER"
-            puts format("  %-30s %8.1fx  (%s)", name, t[:speedup], status)
-          end
+          next unless bench[:throughput]
+
+          t = bench[:throughput]
+          status = t[:speedup] >= 1.0 ? "FASTER" : "SLOWER"
+          puts format("  %-30s %8.1fx  (%s)", name, t[:speedup], status)
         end
       end
 
-      puts "\n" + "-" * 70
+      puts "\n#{"-" * 70}"
       summary = data[:summary]
       puts format("Average Throughput Speedup: %.2fx", summary[:avg_throughput_speedup])
       puts format("Faster: %d | Slower: %d", summary[:faster_count], summary[:slower_count])
@@ -829,7 +855,7 @@ module ComprehensiveBenchmark
     end
 
     def generate_table_rows(benchmarks)
-      benchmarks.map do |name, data|
+      benchmarks.filter_map do |name, data|
         next unless data[:throughput]
 
         t = data[:throughput]
@@ -842,7 +868,7 @@ module ComprehensiveBenchmark
           <td>#{format("%.1f", t[:redis_ruby][:ips])}</td>
           <td class=\"speedup #{speedup_class}\">#{format("%.2fx", t[:speedup])}</td>
         </tr>"
-      end.compact.join("\n")
+      end.join("\n")
     end
 
     def generate_latency_section(benchmarks)
@@ -898,7 +924,8 @@ if __FILE__ == $PROGRAM_NAME
       config.quick_mode!
     end
 
-    opts.on("--suite=SUITE", "Run specific suite (throughput,latency,data_sizes,pipeline,transactions,workloads)") do |suite|
+    opts.on("--suite=SUITE",
+            "Run specific suite (throughput,latency,data_sizes,pipeline,transactions,workloads)") do |suite|
       config.suites = suite.split(",").map(&:to_sym)
     end
 

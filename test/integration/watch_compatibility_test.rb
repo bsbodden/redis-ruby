@@ -36,7 +36,7 @@ class WatchCompatibilityTest < RedisRubyTestCase
       end
     end
 
-    assert_equal ["OK", "new_value"], result
+    assert_equal %w[OK new_value], result
   ensure
     redis.del("test:watched")
   end

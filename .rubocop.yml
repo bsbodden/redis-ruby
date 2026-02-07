@@ -73,15 +73,21 @@ Metrics/BlockLength:
 # Naming
 Naming/MethodParameterName:
   AllowedNames:
-    - ex   # expiration in seconds
-    - px   # expiration in milliseconds
-    - nx   # only if not exists
-    - xx   # only if exists
-    - gt   # greater than
-    - lt   # less than
-    - ch   # changed
+    - as   # alias
+    - by   # sort field
     - db   # database
+    - ch   # changed
+    - ef   # HNSW ef_runtime
+    - ex   # expiration in seconds
+    - gt   # greater than
     - id   # identifier
+    - io   # IO object
+    - ip   # IP address
+    - k    # count/key
+    - lt   # less than
+    - nx   # only if not exists
+    - px   # expiration in milliseconds
+    - xx   # only if exists
 
 # Redis commands use non-predicate names like SETNX, GETEX
 Naming/PredicateMethod:

@@ -11,6 +11,7 @@ class ClusterClientUnitTest < Minitest::Test
     client = build_cluster_with_mock_topology
     slot1 = client.key_slot("foo")
     slot2 = client.key_slot("foo")
+
     assert_equal slot1, slot2
   end
 
@@ -19,6 +20,7 @@ class ClusterClientUnitTest < Minitest::Test
     1000.times do
       key = "key_#{rand(100_000)}"
       slot = client.key_slot(key)
+
       assert_operator slot, :>=, 0
       assert_operator slot, :<, 16_384
     end
@@ -27,6 +29,7 @@ class ClusterClientUnitTest < Minitest::Test
   def test_key_slot_different_keys_different_slots
     client = build_cluster_with_mock_topology
     slots = %w[alpha bravo charlie delta echo].map { |k| client.key_slot(k) }.uniq
+
     assert_operator slots.size, :>, 1, "Expected different keys to have different slots"
   end
 
@@ -34,7 +37,7 @@ class ClusterClientUnitTest < Minitest::Test
   def test_key_slot_known_values
     client = build_cluster_with_mock_topology
     # "foo" -> CRC16 = 12182, slot = 12182 % 16384 = 12182
-    assert_equal 12182, client.key_slot("foo")
+    assert_equal 12_182, client.key_slot("foo")
   end
 
   # ==========================================================================
@@ -46,6 +49,7 @@ class ClusterClientUnitTest < Minitest::Test
     # Keys with same hash tag should hash to same slot
     slot1 = client.key_slot("user:{123}:name")
     slot2 = client.key_slot("user:{123}:email")
+
     assert_equal slot1, slot2
   end
 
@@ -53,6 +57,7 @@ class ClusterClientUnitTest < Minitest::Test
     client = build_cluster_with_mock_topology
     slot1 = client.key_slot("{tag}")
     slot2 = client.key_slot("prefix{tag}suffix")
+
     assert_equal slot1, slot2
   end
 
@@ -61,6 +66,7 @@ class ClusterClientUnitTest < Minitest::Test
     # Empty hash tag {} means use full key
     slot1 = client.key_slot("foo{}bar")
     slot2 = client.key_slot("foo{}bar")
+
     assert_equal slot1, slot2
     # But it should differ from the key "bar" or ""
     # (because the empty tag is ignored and the full key is used)
@@ -71,6 +77,7 @@ class ClusterClientUnitTest < Minitest::Test
     # No { means use full key
     slot1 = client.key_slot("nobraces")
     slot2 = client.key_slot("nobraces")
+
     assert_equal slot1, slot2
   end
 
@@ -79,6 +86,7 @@ class ClusterClientUnitTest < Minitest::Test
     # { without } means use full key
     slot1 = client.key_slot("foo{bar")
     slot2 = client.key_slot("foo{bar")
+
     assert_equal slot1, slot2
   end
 
@@ -87,6 +95,7 @@ class ClusterClientUnitTest < Minitest::Test
     # First complete {tag} pair is used
     slot1 = client.key_slot("a{b}c{d}e")
     slot2 = client.key_slot("{b}")
+
     assert_equal slot1, slot2
   end
 
@@ -96,6 +105,7 @@ class ClusterClientUnitTest < Minitest::Test
     # The extract_hash_tag returns nil for non-strings, so crc16 is called on the raw key
     # crc16 expects each_byte, so non-string keys must be converted first
     slot = client.key_slot("12345")
+
     assert_operator slot, :>=, 0
     assert_operator slot, :<, 16_384
   end
@@ -154,6 +164,7 @@ class ClusterClientUnitTest < Minitest::Test
     client = build_cluster_with_mock_topology
     # Use send to call the private method
     key = client.send(:extract_key, "GET", ["mykey"])
+
     assert_equal "mykey", key
   end
 
@@ -161,6 +172,7 @@ class ClusterClientUnitTest < Minitest::Test
     client = build_cluster_with_mock_topology
     %w[PING INFO DBSIZE TIME CLUSTER].each do |cmd|
       key = client.send(:extract_key, cmd, [])
+
       assert_nil key, "Expected nil key for #{cmd}"
     end
   end
@@ -168,18 +180,21 @@ class ClusterClientUnitTest < Minitest::Test
   def test_extract_key_case_insensitive
     client = build_cluster_with_mock_topology
     key = client.send(:extract_key, "ping", [])
+
     assert_nil key
   end
 
   def test_extract_key_with_no_args
     client = build_cluster_with_mock_topology
     key = client.send(:extract_key, "GET", [])
+
     assert_nil key
   end
 
   def test_extract_key_returns_first_arg
     client = build_cluster_with_mock_topology
     key = client.send(:extract_key, "SET", %w[mykey myvalue])
+
     assert_equal "mykey", key
   end
 
@@ -189,6 +204,7 @@ class ClusterClientUnitTest < Minitest::Test
 
   def test_read_command_detection
     client = build_cluster_with_mock_topology
+
     assert client.send(:read_command?, "GET")
     assert client.send(:read_command?, "HGET")
     assert client.send(:read_command?, "SMEMBERS")
@@ -199,6 +215,7 @@ class ClusterClientUnitTest < Minitest::Test
 
   def test_write_command_not_detected_as_read
     client = build_cluster_with_mock_topology
+
     refute client.send(:read_command?, "SET")
     refute client.send(:read_command?, "HSET")
     refute client.send(:read_command?, "LPUSH")
@@ -209,6 +226,7 @@ class ClusterClientUnitTest < Minitest::Test
 
   def test_read_command_case_insensitive
     client = build_cluster_with_mock_topology
+
     assert client.send(:read_command?, "get")
     assert client.send(:read_command?, "Get")
   end
@@ -220,6 +238,7 @@ class ClusterClientUnitTest < Minitest::Test
   def test_node_for_slot_returns_master_by_default
     client = build_cluster_with_mock_topology
     addr = client.node_for_slot(0)
+
     assert_equal "host1:6379", addr
   end
 
@@ -227,12 +246,14 @@ class ClusterClientUnitTest < Minitest::Test
     client = build_cluster_with_mock_topology
     # Slot 15000 is not mapped in our mock (only 0-5460 and 5461-10922 mapped)
     addr = client.node_for_slot(15_000)
+
     assert_nil addr
   end
 
   def test_node_for_slot_returns_master_for_writes
     client = build_cluster_with_mock_topology
     addr = client.node_for_slot(0, for_read: false)
+
     assert_equal "host1:6379", addr
   end
 
@@ -240,6 +261,7 @@ class ClusterClientUnitTest < Minitest::Test
     client = build_cluster_with_mock_topology(read_from: :replica)
     # Slot 0 has replicas
     addr = client.node_for_slot(0, for_read: true)
+
     assert_includes ["replica1:6379", "replica2:6379"], addr
   end
 
@@ -253,6 +275,7 @@ class ClusterClientUnitTest < Minitest::Test
   def test_node_for_slot_returns_master_for_unknown_read_from
     client = build_cluster_with_mock_topology(read_from: :unknown)
     addr = client.node_for_slot(0, for_read: true)
+
     assert_equal "host1:6379", addr
   end
 
@@ -260,12 +283,14 @@ class ClusterClientUnitTest < Minitest::Test
     client = build_cluster_with_mock_topology(read_from: :replica)
     # Slot 5461 has master2 with no replicas
     addr = client.node_for_slot(5461, for_read: true)
+
     assert_equal "host2:6379", addr
   end
 
   def test_node_for_slot_returns_master_for_read_when_read_from_master
     client = build_cluster_with_mock_topology(read_from: :master)
     addr = client.node_for_slot(0, for_read: true)
+
     assert_equal "host1:6379", addr
   end
 
@@ -276,12 +301,14 @@ class ClusterClientUnitTest < Minitest::Test
   def test_translate_host_with_translation
     client = build_cluster_with_mock_topology(host_translation: { "internal-host" => "external-host" })
     translated = client.send(:translate_host, "internal-host")
+
     assert_equal "external-host", translated
   end
 
   def test_translate_host_without_translation
     client = build_cluster_with_mock_topology
     translated = client.send(:translate_host, "somehost")
+
     assert_equal "somehost", translated
   end
 
@@ -303,6 +330,7 @@ class ClusterClientUnitTest < Minitest::Test
     client.stubs(:refresh_slots)
 
     result = client.send(:handle_command_error, error, "GET", ["foo"], 100, 0)
+
     assert_equal "OK", result
   end
 
@@ -318,6 +346,7 @@ class ClusterClientUnitTest < Minitest::Test
 
     error = RedisRuby::CommandError.new("ASK 12182 host4:6379")
     result = client.send(:handle_command_error, error, "GET", ["foo"], 12_182, 0)
+
     assert_equal "bar", result
   end
 
@@ -333,6 +362,7 @@ class ClusterClientUnitTest < Minitest::Test
 
     error = RedisRuby::CommandError.new("ASK 100 internal:6379")
     result = client.send(:handle_command_error, error, "GET", ["foo"], 100, 0)
+
     assert_equal "bar", result
   end
 
@@ -398,6 +428,7 @@ class ClusterClientUnitTest < Minitest::Test
     client.stubs(:random_master).returns("host1:6379")
 
     result = client.send(:execute_with_retry, "PING", [], nil, redirections: 0)
+
     assert_equal "PONG", result
   end
 
@@ -415,6 +446,7 @@ class ClusterClientUnitTest < Minitest::Test
 
     # The method will detect MOVED and recurse
     result = client.send(:execute_with_retry, "SET", %w[k v], 0, redirections: 0)
+
     assert_equal "OK", result
   end
 
@@ -472,6 +504,7 @@ class ClusterClientUnitTest < Minitest::Test
     client.stubs(:node_for_slot).returns("host1:6379")
 
     result = client.call("GET", "mykey")
+
     assert_equal "value", result
   end
 
@@ -483,6 +516,7 @@ class ClusterClientUnitTest < Minitest::Test
     client.stubs(:random_master).returns("host1:6379")
 
     result = client.call("PING")
+
     assert_equal "PONG", result
   end
 
@@ -494,6 +528,7 @@ class ClusterClientUnitTest < Minitest::Test
     client.stubs(:node_for_slot).returns("host1:6379")
 
     result = client.call_1arg("GET", "key")
+
     assert_equal "value", result
   end
 
@@ -505,6 +540,7 @@ class ClusterClientUnitTest < Minitest::Test
     client.stubs(:node_for_slot).returns("host1:6379")
 
     result = client.call_2args("SET", "key", "value")
+
     assert_equal "OK", result
   end
 
@@ -515,6 +551,7 @@ class ClusterClientUnitTest < Minitest::Test
     client.stubs(:get_connection).returns(conn)
 
     result = client.call_3args("HSET", "hash", "field", "value")
+
     assert_equal 1, result
   end
 
@@ -529,16 +566,19 @@ class ClusterClientUnitTest < Minitest::Test
       conn.expects(:close)
     end
     client.close
+
     assert_equal 0, client.node_count
   end
 
   def test_disconnect_alias
     client = build_cluster_with_mock_topology
+
     assert_respond_to client, :disconnect
   end
 
   def test_quit_alias
     client = build_cluster_with_mock_topology
+
     assert_respond_to client, :quit
   end
 
@@ -553,7 +593,7 @@ class ClusterClientUnitTest < Minitest::Test
     client.stubs(:get_connection).returns(conn)
     client.stubs(:random_master).returns("host1:6379")
 
-    assert client.cluster_healthy?
+    assert_predicate client, :cluster_healthy?
   end
 
   def test_cluster_unhealthy_when_not_ok
@@ -563,7 +603,7 @@ class ClusterClientUnitTest < Minitest::Test
     client.stubs(:get_connection).returns(conn)
     client.stubs(:random_master).returns("host1:6379")
 
-    refute client.cluster_healthy?
+    refute_predicate client, :cluster_healthy?
   end
 
   def test_cluster_healthy_returns_false_on_error
@@ -573,7 +613,7 @@ class ClusterClientUnitTest < Minitest::Test
     client.stubs(:get_connection).returns(conn)
     client.stubs(:random_master).returns("host1:6379")
 
-    refute client.cluster_healthy?
+    refute_predicate client, :cluster_healthy?
   end
 
   def test_cluster_healthy_returns_false_when_no_node
@@ -581,7 +621,7 @@ class ClusterClientUnitTest < Minitest::Test
     client.stubs(:random_master).returns(nil)
     client.instance_variable_get(:@seed_nodes).clear
 
-    refute client.cluster_healthy?
+    refute_predicate client, :cluster_healthy?
   end
 
   def test_cluster_healthy_returns_false_on_command_error
@@ -591,7 +631,7 @@ class ClusterClientUnitTest < Minitest::Test
     client.stubs(:get_connection).returns(conn)
     client.stubs(:random_master).returns("host1:6379")
 
-    refute client.cluster_healthy?
+    refute_predicate client, :cluster_healthy?
   end
 
   # ==========================================================================
@@ -601,6 +641,7 @@ class ClusterClientUnitTest < Minitest::Test
   def test_node_count
     client = build_cluster_with_mock_topology
     count = client.node_count
+
     assert_operator count, :>=, 0
   end
 
@@ -612,6 +653,7 @@ class ClusterClientUnitTest < Minitest::Test
     client = build_cluster_with_mock_topology
     info_str = "cluster_state:ok\r\ncluster_slots_assigned:16384\r\ncluster_known_nodes:6\r\n"
     result = client.send(:parse_cluster_info_response, info_str)
+
     assert_equal "ok", result["cluster_state"]
     assert_equal 16_384, result["cluster_slots_assigned"]
     assert_equal 6, result["cluster_known_nodes"]
@@ -621,6 +663,7 @@ class ClusterClientUnitTest < Minitest::Test
     client = build_cluster_with_mock_topology
     info_str = "cluster_state:fail\r\ncluster_my_epoch:2\r\n"
     result = client.send(:parse_cluster_info_response, info_str)
+
     assert_equal "fail", result["cluster_state"]
     assert_equal 2, result["cluster_my_epoch"]
   end
@@ -629,6 +672,7 @@ class ClusterClientUnitTest < Minitest::Test
     client = build_cluster_with_mock_topology
     info_str = "cluster_state:ok\r\n\r\ninvalid_line\r\n"
     result = client.send(:parse_cluster_info_response, info_str)
+
     assert_equal "ok", result["cluster_state"]
     # "invalid_line" has no ":" so key/value split won't yield both
   end
@@ -649,11 +693,13 @@ class ClusterClientUnitTest < Minitest::Test
 
     # Check master list
     masters = client.instance_variable_get(:@masters)
+
     assert_includes masters, "newhost1:6379"
     assert_includes masters, "newhost2:6379"
 
     # Check slot mapping
     slot_info = client.instance_variable_get(:@slots)
+
     assert_equal "newhost1:6379", slot_info[0][:master]
     assert_includes slot_info[0][:replicas], "replica_new:6379"
     assert_equal "newhost2:6379", slot_info[5461][:master]
@@ -664,11 +710,12 @@ class ClusterClientUnitTest < Minitest::Test
   # ==========================================================================
 
   def test_read_commands_constant_is_frozen
-    assert RedisRuby::ClusterClient::READ_COMMANDS.frozen?
+    assert_predicate RedisRuby::ClusterClient::READ_COMMANDS, :frozen?
   end
 
   def test_read_commands_includes_expected
     rc = RedisRuby::ClusterClient::READ_COMMANDS
+
     %w[GET MGET HGET HMGET HGETALL LRANGE LINDEX SMEMBERS SISMEMBER
        ZRANGE ZREVRANGE ZSCORE EXISTS TTL PTTL KEYS PFCOUNT
        XLEN XRANGE BITCOUNT BITPOS GEOPOS GEODIST].each do |cmd|
@@ -689,11 +736,11 @@ class ClusterClientUnitTest < Minitest::Test
   end
 
   def test_default_timeout_constant
-    assert_equal 5.0, RedisRuby::ClusterClient::DEFAULT_TIMEOUT
+    assert_in_delta(5.0, RedisRuby::ClusterClient::DEFAULT_TIMEOUT)
   end
 
   def test_crc16_table_is_frozen
-    assert RedisRuby::ClusterClient::CRC16_TABLE.frozen?
+    assert_predicate RedisRuby::ClusterClient::CRC16_TABLE, :frozen?
   end
 
   def test_crc16_table_has_256_entries
@@ -712,6 +759,7 @@ class ClusterClientUnitTest < Minitest::Test
     client.stubs(:random_master).returns("host1:6379")
 
     result = client.send(:cluster_info_on_any_node)
+
     assert_equal "ok", result["cluster_state"]
   end
 
@@ -723,6 +771,7 @@ class ClusterClientUnitTest < Minitest::Test
     client.stubs(:random_master).returns(nil)
 
     result = client.send(:cluster_info_on_any_node)
+
     assert_equal "ok", result["cluster_state"]
   end
 
@@ -732,6 +781,7 @@ class ClusterClientUnitTest < Minitest::Test
     client.instance_variable_set(:@seed_nodes, [])
 
     result = client.send(:cluster_info_on_any_node)
+
     assert_nil result
   end
 
@@ -747,6 +797,7 @@ class ClusterClientUnitTest < Minitest::Test
     client.stubs(:get_connection).returns(conn)
 
     result = client.send(:execute_with_retry, "SET", %w[k v], 0, redirections: 0)
+
     assert_equal "OK", result
   end
 
@@ -821,12 +872,10 @@ class ClusterClientUnitTest < Minitest::Test
 
     RedisRuby::Connection::TCP.stubs(:new).returns(mock_conn)
 
-    client = RedisRuby::ClusterClient.new(
+    RedisRuby::ClusterClient.new(
       nodes: ["redis://host1:6379"],
       read_from: read_from,
       host_translation: host_translation
     )
-
-    client
   end
 end

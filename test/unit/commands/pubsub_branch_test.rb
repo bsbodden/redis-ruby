@@ -47,6 +47,7 @@ class PubSubBranchTest < Minitest::Test
   def test_publish_sends_correct_command
     @client.call_2arg_return_value = 3
     result = @client.publish("news", "Breaking news!")
+
     assert_equal ["PUBLISH", "news", "Breaking news!"], @client.last_call_2args
     assert_equal 3, result
   end
@@ -54,6 +55,7 @@ class PubSubBranchTest < Minitest::Test
   def test_publish_returns_zero_when_no_subscribers
     @client.call_2arg_return_value = 0
     result = @client.publish("empty_channel", "hello")
+
     assert_equal 0, result
   end
 
@@ -64,6 +66,7 @@ class PubSubBranchTest < Minitest::Test
   def test_spublish_sends_correct_command
     @client.call_2arg_return_value = 1
     result = @client.spublish("user:{123}:updates", "profile_updated")
+
     assert_equal ["SPUBLISH", "user:{123}:updates", "profile_updated"], @client.last_call_2args
     assert_equal 1, result
   end
@@ -71,6 +74,7 @@ class PubSubBranchTest < Minitest::Test
   def test_spublish_returns_zero_when_no_subscribers
     @client.call_2arg_return_value = 0
     result = @client.spublish("shard_channel", "msg")
+
     assert_equal 0, result
   end
 
@@ -79,15 +83,17 @@ class PubSubBranchTest < Minitest::Test
   # ============================================================
 
   def test_pubsub_channels_without_pattern
-    @client.call_1arg_return_value = ["channel1", "channel2"]
+    @client.call_1arg_return_value = %w[channel1 channel2]
     result = @client.pubsub_channels
-    assert_equal ["PUBSUB", "CHANNELS"], @client.last_call_1arg
-    assert_equal ["channel1", "channel2"], result
+
+    assert_equal %w[PUBSUB CHANNELS], @client.last_call_1arg
+    assert_equal %w[channel1 channel2], result
   end
 
   def test_pubsub_channels_with_pattern
     @client.call_2arg_return_value = ["news.sports", "news.tech"]
     result = @client.pubsub_channels("news.*")
+
     assert_equal ["PUBSUB", "CHANNELS", "news.*"], @client.last_call_2args
     assert_equal ["news.sports", "news.tech"], result
   end
@@ -95,14 +101,16 @@ class PubSubBranchTest < Minitest::Test
   def test_pubsub_channels_with_nil_pattern
     @client.call_1arg_return_value = ["ch1"]
     result = @client.pubsub_channels(nil)
-    assert_equal ["PUBSUB", "CHANNELS"], @client.last_call_1arg
+
+    assert_equal %w[PUBSUB CHANNELS], @client.last_call_1arg
     assert_equal ["ch1"], result
   end
 
   def test_pubsub_channels_returns_empty_array
     @client.call_1arg_return_value = []
     result = @client.pubsub_channels
-    assert_equal [], result
+
+    assert_empty result
   end
 
   # ============================================================
@@ -111,7 +119,8 @@ class PubSubBranchTest < Minitest::Test
 
   def test_pubsub_numsub_empty_channels
     result = @client.pubsub_numsub
-    assert_equal({}, result)
+
+    assert_empty(result)
     # Should NOT have called anything
     assert_nil @client.last_call
     assert_nil @client.last_call_1arg
@@ -121,20 +130,23 @@ class PubSubBranchTest < Minitest::Test
   def test_pubsub_numsub_single_channel
     @client.call_2arg_return_value = ["channel1", 5]
     result = @client.pubsub_numsub("channel1")
-    assert_equal ["PUBSUB", "NUMSUB", "channel1"], @client.last_call_2args
+
+    assert_equal %w[PUBSUB NUMSUB channel1], @client.last_call_2args
     assert_equal({ "channel1" => 5 }, result)
   end
 
   def test_pubsub_numsub_multiple_channels
     @client.call_return_value = ["ch1", 3, "ch2", 7]
     result = @client.pubsub_numsub("ch1", "ch2")
-    assert_equal ["PUBSUB", "NUMSUB", "ch1", "ch2"], @client.last_call
+
+    assert_equal %w[PUBSUB NUMSUB ch1 ch2], @client.last_call
     assert_equal({ "ch1" => 3, "ch2" => 7 }, result)
   end
 
   def test_pubsub_numsub_single_channel_zero_subscribers
     @client.call_2arg_return_value = ["empty_ch", 0]
     result = @client.pubsub_numsub("empty_ch")
+
     assert_equal({ "empty_ch" => 0 }, result)
   end
 
@@ -145,13 +157,15 @@ class PubSubBranchTest < Minitest::Test
   def test_pubsub_numpat
     @client.call_1arg_return_value = 42
     result = @client.pubsub_numpat
-    assert_equal ["PUBSUB", "NUMPAT"], @client.last_call_1arg
+
+    assert_equal %w[PUBSUB NUMPAT], @client.last_call_1arg
     assert_equal 42, result
   end
 
   def test_pubsub_numpat_returns_zero
     @client.call_1arg_return_value = 0
     result = @client.pubsub_numpat
+
     assert_equal 0, result
   end
 
@@ -160,15 +174,17 @@ class PubSubBranchTest < Minitest::Test
   # ============================================================
 
   def test_pubsub_shardchannels_without_pattern
-    @client.call_1arg_return_value = ["shard1", "shard2"]
+    @client.call_1arg_return_value = %w[shard1 shard2]
     result = @client.pubsub_shardchannels
-    assert_equal ["PUBSUB", "SHARDCHANNELS"], @client.last_call_1arg
-    assert_equal ["shard1", "shard2"], result
+
+    assert_equal %w[PUBSUB SHARDCHANNELS], @client.last_call_1arg
+    assert_equal %w[shard1 shard2], result
   end
 
   def test_pubsub_shardchannels_with_pattern
     @client.call_2arg_return_value = ["user:{123}:ch1"]
     result = @client.pubsub_shardchannels("user:*")
+
     assert_equal ["PUBSUB", "SHARDCHANNELS", "user:*"], @client.last_call_2args
     assert_equal ["user:{123}:ch1"], result
   end
@@ -176,14 +192,16 @@ class PubSubBranchTest < Minitest::Test
   def test_pubsub_shardchannels_with_nil_pattern
     @client.call_1arg_return_value = []
     result = @client.pubsub_shardchannels(nil)
-    assert_equal ["PUBSUB", "SHARDCHANNELS"], @client.last_call_1arg
-    assert_equal [], result
+
+    assert_equal %w[PUBSUB SHARDCHANNELS], @client.last_call_1arg
+    assert_empty result
   end
 
   def test_pubsub_shardchannels_returns_empty_array
     @client.call_1arg_return_value = []
     result = @client.pubsub_shardchannels
-    assert_equal [], result
+
+    assert_empty result
   end
 
   # ============================================================
@@ -192,7 +210,8 @@ class PubSubBranchTest < Minitest::Test
 
   def test_pubsub_shardnumsub_empty_channels
     result = @client.pubsub_shardnumsub
-    assert_equal({}, result)
+
+    assert_empty(result)
     assert_nil @client.last_call
     assert_nil @client.last_call_1arg
     assert_nil @client.last_call_2args
@@ -201,20 +220,23 @@ class PubSubBranchTest < Minitest::Test
   def test_pubsub_shardnumsub_single_channel
     @client.call_2arg_return_value = ["shard_ch1", 2]
     result = @client.pubsub_shardnumsub("shard_ch1")
-    assert_equal ["PUBSUB", "SHARDNUMSUB", "shard_ch1"], @client.last_call_2args
+
+    assert_equal %w[PUBSUB SHARDNUMSUB shard_ch1], @client.last_call_2args
     assert_equal({ "shard_ch1" => 2 }, result)
   end
 
   def test_pubsub_shardnumsub_multiple_channels
     @client.call_return_value = ["s1", 1, "s2", 4]
     result = @client.pubsub_shardnumsub("s1", "s2")
-    assert_equal ["PUBSUB", "SHARDNUMSUB", "s1", "s2"], @client.last_call
+
+    assert_equal %w[PUBSUB SHARDNUMSUB s1 s2], @client.last_call
     assert_equal({ "s1" => 1, "s2" => 4 }, result)
   end
 
   def test_pubsub_shardnumsub_single_channel_zero_subscribers
     @client.call_2arg_return_value = ["empty_shard", 0]
     result = @client.pubsub_shardnumsub("empty_shard")
+
     assert_equal({ "empty_shard" => 0 }, result)
   end
 
@@ -224,6 +246,7 @@ class PubSubBranchTest < Minitest::Test
 
   def test_subscription_handler_initialize
     handler = RedisRuby::Commands::PubSub::SubscriptionHandler.new
+
     assert_instance_of RedisRuby::Commands::PubSub::SubscriptionHandler, handler
   end
 
@@ -234,6 +257,7 @@ class PubSubBranchTest < Minitest::Test
     received = nil
     handler.subscribe { |channel, count| received = [channel, count] }
     handler.call_subscribe(:subscribe, "ch1", 1)
+
     assert_equal ["ch1", 1], received
   end
 
@@ -250,6 +274,7 @@ class PubSubBranchTest < Minitest::Test
     received = nil
     handler.psubscribe { |pattern, count| received = [pattern, count] }
     handler.call_subscribe(:psubscribe, "news.*", 1)
+
     assert_equal ["news.*", 1], received
   end
 
@@ -265,6 +290,7 @@ class PubSubBranchTest < Minitest::Test
     received = nil
     handler.ssubscribe { |channel, count| received = [channel, count] }
     handler.call_subscribe(:ssubscribe, "shard_ch", 1)
+
     assert_equal ["shard_ch", 1], received
   end
 
@@ -280,6 +306,7 @@ class PubSubBranchTest < Minitest::Test
     received = nil
     handler.unsubscribe { |channel, count| received = [channel, count] }
     handler.call_unsubscribe(:unsubscribe, "ch1", 0)
+
     assert_equal ["ch1", 0], received
   end
 
@@ -295,6 +322,7 @@ class PubSubBranchTest < Minitest::Test
     received = nil
     handler.punsubscribe { |pattern, count| received = [pattern, count] }
     handler.call_unsubscribe(:punsubscribe, "news.*", 0)
+
     assert_equal ["news.*", 0], received
   end
 
@@ -310,6 +338,7 @@ class PubSubBranchTest < Minitest::Test
     received = nil
     handler.sunsubscribe { |channel, count| received = [channel, count] }
     handler.call_unsubscribe(:sunsubscribe, "shard_ch", 0)
+
     assert_equal ["shard_ch", 0], received
   end
 
@@ -325,7 +354,8 @@ class PubSubBranchTest < Minitest::Test
     received = nil
     handler.message { |channel, message| received = [channel, message] }
     handler.call_message("ch1", "hello")
-    assert_equal ["ch1", "hello"], received
+
+    assert_equal %w[ch1 hello], received
   end
 
   def test_subscription_handler_message_callback_not_set
@@ -340,6 +370,7 @@ class PubSubBranchTest < Minitest::Test
     received = nil
     handler.pmessage { |pattern, channel, message| received = [pattern, channel, message] }
     handler.call_pmessage("news.*", "news.tech", "New article!")
+
     assert_equal ["news.*", "news.tech", "New article!"], received
   end
 
@@ -355,7 +386,8 @@ class PubSubBranchTest < Minitest::Test
     received = nil
     handler.smessage { |channel, message| received = [channel, message] }
     handler.call_smessage("shard_ch", "shard_msg")
-    assert_equal ["shard_ch", "shard_msg"], received
+
+    assert_equal %w[shard_ch shard_msg], received
   end
 
   def test_subscription_handler_smessage_callback_not_set
@@ -395,9 +427,9 @@ class PubSubBranchTest < Minitest::Test
     assert_equal ["ch1", 2], results[:unsubscribe]
     assert_equal ["p1", 1], results[:punsubscribe]
     assert_equal ["s1", 0], results[:sunsubscribe]
-    assert_equal ["ch1", "msg1"], results[:message]
-    assert_equal ["p1", "ch2", "msg2"], results[:pmessage]
-    assert_equal ["s1", "msg3"], results[:smessage]
+    assert_equal %w[ch1 msg1], results[:message]
+    assert_equal %w[p1 ch2 msg2], results[:pmessage]
+    assert_equal %w[s1 msg3], results[:smessage]
   end
 
   # --- Overwriting callbacks ---
@@ -410,6 +442,7 @@ class PubSubBranchTest < Minitest::Test
     handler.message { |_ch, _m| received = :second }
 
     handler.call_message("ch", "msg")
+
     assert_equal :second, received
   end
 
@@ -421,12 +454,13 @@ class PubSubBranchTest < Minitest::Test
   def test_unsubscribe_returns_nil_when_no_subscription_connection
     # @subscription_connection is nil by default on our mock
     result = @client.unsubscribe("ch1")
+
     assert_nil result
   end
 
   def test_unsubscribe_with_channels_writes_command
     mock_conn = Minitest::Mock.new
-    mock_conn.expect :write_command, nil, [["UNSUBSCRIBE", "ch1", "ch2"]]
+    mock_conn.expect :write_command, nil, [%w[UNSUBSCRIBE ch1 ch2]]
     @client.instance_variable_set(:@subscription_connection, mock_conn)
 
     @client.unsubscribe("ch1", "ch2")
@@ -444,6 +478,7 @@ class PubSubBranchTest < Minitest::Test
 
   def test_punsubscribe_returns_nil_when_no_subscription_connection
     result = @client.punsubscribe("news.*")
+
     assert_nil result
   end
 
@@ -467,12 +502,13 @@ class PubSubBranchTest < Minitest::Test
 
   def test_sunsubscribe_returns_nil_when_no_subscription_connection
     result = @client.sunsubscribe("shard_ch")
+
     assert_nil result
   end
 
   def test_sunsubscribe_with_channels_writes_command
     mock_conn = Minitest::Mock.new
-    mock_conn.expect :write_command, nil, [["SUNSUBSCRIBE", "s1", "s2"]]
+    mock_conn.expect :write_command, nil, [%w[SUNSUBSCRIBE s1 s2]]
     @client.instance_variable_set(:@subscription_connection, mock_conn)
 
     @client.sunsubscribe("s1", "s2")

@@ -11,7 +11,7 @@ class RedisRbTransactionTest < Minitest::Test
   end
 
   def teardown
-    @redis.flushdb if @redis
+    @redis&.flushdb
   end
 
   def r
@@ -58,9 +58,9 @@ class RedisRbTransactionTest < Minitest::Test
       end
     end
 
-    assert_equal(["OK", "QUEUED", "QUEUED", ["OK", "s1"], "OK", "QUEUED", "QUEUED", ["OK", "s2"]], response)
+    assert_equal(["OK", "QUEUED", "QUEUED", %w[OK s1], "OK", "QUEUED", "QUEUED", %w[OK s2]], response)
 
-    assert_equal ["OK", "s1"], multi_future.value
+    assert_equal %w[OK s1], multi_future.value
 
     assert_equal "s1", foo_future.value
     assert_equal "s2", bar_future.value
@@ -72,8 +72,8 @@ class RedisRbTransactionTest < Minitest::Test
       @second = m.sadd?("foo", 1)
     end
 
-    assert_equal true, @first.value
-    assert_equal false, @second.value
+    assert @first.value
+    refute @second.value
   end
 
   def test_assignment_inside_multi_exec_block_with_delayed_command_errors
@@ -114,9 +114,7 @@ class RedisRbTransactionTest < Minitest::Test
   end
 
   def test_transformed_replies_as_return_values_for_multi_exec_block
-    info, = r.multi do |transaction|
-      transaction.info
-    end
+    info, = r.multi(&:info)
 
     assert_instance_of Hash, info
   end
@@ -126,7 +124,7 @@ class RedisRbTransactionTest < Minitest::Test
       @info = transaction.info
     end
 
-    assert @info.value.is_a?(Hash)
+    assert_kind_of Hash, @info.value
   end
 
   def test_raise_command_errors_when_reply_is_not_transformed
@@ -150,14 +148,12 @@ class RedisRbTransactionTest < Minitest::Test
     rescue Exception
       # Not gonna deal with it
     end
-
-    err = nil
     begin
       @counter.value
-    rescue => err
+    rescue StandardError => e
     end
 
-    assert err.is_a?(RuntimeError)
+    assert_kind_of RuntimeError, e
   end
 
   def test_multi_with_a_block_yielding_the_client
@@ -184,7 +180,7 @@ class RedisRbTransactionTest < Minitest::Test
   end
 
   def test_watch_with_an_unmodified_key_passed_as_array
-    r.watch ["foo", "bar"]
+    r.watch %w[foo bar]
     r.multi do |multi|
       multi.set "foo", "s1"
     end
@@ -204,7 +200,7 @@ class RedisRbTransactionTest < Minitest::Test
   end
 
   def test_watch_with_a_modified_key_passed_as_array
-    r.watch ["foo", "bar"]
+    r.watch %w[foo bar]
     r.set "foo", "s1"
     res = r.multi do |multi|
       multi.set "foo", "s2"

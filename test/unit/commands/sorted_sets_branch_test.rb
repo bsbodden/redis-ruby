@@ -5,6 +5,7 @@ require_relative "../unit_test_helper"
 class SortedSetsBranchTest < Minitest::Test
   class MockClient
     include RedisRuby::Commands::SortedSets
+
     attr_reader :last_command
 
     UNSET = Object.new
@@ -53,7 +54,7 @@ class SortedSetsBranchTest < Minitest::Test
         if args.include?("WITHSCORES")
           ["member1", "1.0", "member2", "2.0"]
         else
-          ["member1", "member2"]
+          %w[member1 member2]
         end
       when "ZPOPMIN", "ZPOPMAX" then ["member1", "1.0"]
       when "BZPOPMIN", "BZPOPMAX" then ["key", "member", "1.0"]
@@ -62,14 +63,14 @@ class SortedSetsBranchTest < Minitest::Test
         if args.include?("WITHSCORES")
           ["member1", "1.0", "member2", "2.0"]
         else
-          ["member1", "member2"]
+          %w[member1 member2]
         end
       when "ZMPOP", "BZMPOP" then ["key", [["m1", "1.0"], ["m2", "2.0"]]]
       when "ZRANDMEMBER"
         if args.include?("WITHSCORES")
           ["member1", "1.0", "member2", "2.0"]
         else
-          args.length > 2 ? ["member1", "member2"] : "member1"
+          args.length > 2 ? %w[member1 member2] : "member1"
         end
       when "ZRANK", "ZREVRANK"
         if args.include?("WITHSCORE")
@@ -97,6 +98,7 @@ class SortedSetsBranchTest < Minitest::Test
 
   def test_parse_score_float_passthrough
     result = @client.parse_score(3.14)
+
     assert_instance_of Float, result
     assert_in_delta 3.14, result, 0.001
   end
@@ -135,81 +137,97 @@ class SortedSetsBranchTest < Minitest::Test
 
   def test_zadd_basic
     @client.zadd("myset", 1.0, "member1")
+
     assert_equal ["ZADD", "myset", 1.0, "member1"], @client.last_command
   end
 
   def test_zadd_with_nx
     @client.zadd("myset", 1.0, "member1", nx: true)
+
     assert_equal ["ZADD", "myset", "NX", 1.0, "member1"], @client.last_command
   end
 
   def test_zadd_without_nx
     @client.zadd("myset", 1.0, "member1", nx: false)
+
     assert_equal ["ZADD", "myset", 1.0, "member1"], @client.last_command
   end
 
   def test_zadd_with_xx
     @client.zadd("myset", 1.0, "member1", xx: true)
+
     assert_equal ["ZADD", "myset", "XX", 1.0, "member1"], @client.last_command
   end
 
   def test_zadd_without_xx
     @client.zadd("myset", 1.0, "member1", xx: false)
+
     assert_equal ["ZADD", "myset", 1.0, "member1"], @client.last_command
   end
 
   def test_zadd_with_gt
     @client.zadd("myset", 1.0, "member1", gt: true)
+
     assert_equal ["ZADD", "myset", "GT", 1.0, "member1"], @client.last_command
   end
 
   def test_zadd_without_gt
     @client.zadd("myset", 1.0, "member1", gt: false)
+
     assert_equal ["ZADD", "myset", 1.0, "member1"], @client.last_command
   end
 
   def test_zadd_with_lt
     @client.zadd("myset", 1.0, "member1", lt: true)
+
     assert_equal ["ZADD", "myset", "LT", 1.0, "member1"], @client.last_command
   end
 
   def test_zadd_without_lt
     @client.zadd("myset", 1.0, "member1", lt: false)
+
     assert_equal ["ZADD", "myset", 1.0, "member1"], @client.last_command
   end
 
   def test_zadd_with_ch
     @client.zadd("myset", 1.0, "member1", ch: true)
+
     assert_equal ["ZADD", "myset", "CH", 1.0, "member1"], @client.last_command
   end
 
   def test_zadd_without_ch
     @client.zadd("myset", 1.0, "member1", ch: false)
+
     assert_equal ["ZADD", "myset", 1.0, "member1"], @client.last_command
   end
 
   def test_zadd_with_incr
     @client.zadd("myset", 1.0, "member1", incr: true)
+
     assert_equal ["ZADD", "myset", "INCR", 1.0, "member1"], @client.last_command
   end
 
   def test_zadd_without_incr
     @client.zadd("myset", 1.0, "member1", incr: false)
+
     assert_equal ["ZADD", "myset", 1.0, "member1"], @client.last_command
   end
 
   def test_zadd_all_flags_combined
     @client.zadd("myset", 1.0, "member1", nx: true, xx: true, gt: true, lt: true, ch: true, incr: true)
+
     assert_equal ["ZADD", "myset", "NX", "XX", "GT", "LT", "CH", "INCR", 1.0, "member1"], @client.last_command
   end
 
   def test_zadd_multiple_members
     @client.zadd("myset", 1.0, "m1", 2.0, "m2")
+
     assert_equal ["ZADD", "myset", 1.0, "m1", 2.0, "m2"], @client.last_command
   end
 
   def test_zadd_no_flags
     @client.zadd("myset", 5.0, "member")
+
     refute_includes @client.last_command, "NX"
     refute_includes @client.last_command, "XX"
     refute_includes @client.last_command, "GT"
@@ -224,12 +242,14 @@ class SortedSetsBranchTest < Minitest::Test
 
   def test_zrem_single_member_fast_path
     @client.zrem("myset", "member1")
-    assert_equal ["ZREM", "myset", "member1"], @client.last_command
+
+    assert_equal %w[ZREM myset member1], @client.last_command
   end
 
   def test_zrem_multiple_members
     @client.zrem("myset", "m1", "m2", "m3")
-    assert_equal ["ZREM", "myset", "m1", "m2", "m3"], @client.last_command
+
+    assert_equal %w[ZREM myset m1 m2 m3], @client.last_command
   end
 
   # ============================================================
@@ -238,7 +258,8 @@ class SortedSetsBranchTest < Minitest::Test
 
   def test_zscore_returns_parsed_float
     result = @client.zscore("myset", "member1")
-    assert_equal ["ZSCORE", "myset", "member1"], @client.last_command
+
+    assert_equal %w[ZSCORE myset member1], @client.last_command
     assert_in_delta 1.5, result, 0.001
   end
 
@@ -248,7 +269,8 @@ class SortedSetsBranchTest < Minitest::Test
 
   def test_zmscore_returns_parsed_floats
     result = @client.zmscore("myset", "m1", "m2")
-    assert_equal ["ZMSCORE", "myset", "m1", "m2"], @client.last_command
+
+    assert_equal %w[ZMSCORE myset m1 m2], @client.last_command
     assert_in_delta 1.0, result[0], 0.001
     assert_in_delta 2.0, result[1], 0.001
   end
@@ -259,19 +281,22 @@ class SortedSetsBranchTest < Minitest::Test
 
   def test_zrank_without_withscore
     result = @client.zrank("myset", "member1")
-    assert_equal ["ZRANK", "myset", "member1"], @client.last_command
+
+    assert_equal %w[ZRANK myset member1], @client.last_command
     assert_equal 2, result
   end
 
   def test_zrank_with_withscore
     result = @client.zrank("myset", "member1", withscore: true)
-    assert_equal ["ZRANK", "myset", "member1", "WITHSCORE"], @client.last_command
+
+    assert_equal %w[ZRANK myset member1 WITHSCORE], @client.last_command
     assert_equal [2, "1.5"], result
   end
 
   def test_zrank_with_withscore_false
     @client.zrank("myset", "member1", withscore: false)
-    assert_equal ["ZRANK", "myset", "member1"], @client.last_command
+
+    assert_equal %w[ZRANK myset member1], @client.last_command
   end
 
   # ============================================================
@@ -280,19 +305,22 @@ class SortedSetsBranchTest < Minitest::Test
 
   def test_zrevrank_without_withscore
     result = @client.zrevrank("myset", "member1")
-    assert_equal ["ZREVRANK", "myset", "member1"], @client.last_command
+
+    assert_equal %w[ZREVRANK myset member1], @client.last_command
     assert_equal 2, result
   end
 
   def test_zrevrank_with_withscore
     result = @client.zrevrank("myset", "member1", withscore: true)
-    assert_equal ["ZREVRANK", "myset", "member1", "WITHSCORE"], @client.last_command
+
+    assert_equal %w[ZREVRANK myset member1 WITHSCORE], @client.last_command
     assert_equal [2, "1.5"], result
   end
 
   def test_zrevrank_with_withscore_false
     @client.zrevrank("myset", "member1", withscore: false)
-    assert_equal ["ZREVRANK", "myset", "member1"], @client.last_command
+
+    assert_equal %w[ZREVRANK myset member1], @client.last_command
   end
 
   # ============================================================
@@ -301,7 +329,8 @@ class SortedSetsBranchTest < Minitest::Test
 
   def test_zcard
     @client.zcard("myset")
-    assert_equal ["ZCARD", "myset"], @client.last_command
+
+    assert_equal %w[ZCARD myset], @client.last_command
   end
 
   # ============================================================
@@ -310,6 +339,7 @@ class SortedSetsBranchTest < Minitest::Test
 
   def test_zcount
     @client.zcount("myset", "-inf", "+inf")
+
     assert_equal ["ZCOUNT", "myset", "-inf", "+inf"], @client.last_command
   end
 
@@ -318,54 +348,64 @@ class SortedSetsBranchTest < Minitest::Test
   # ============================================================
 
   def test_zrange_fast_path_no_options
-    result = @client.zrange("myset", 0, -1)
+    @client.zrange("myset", 0, -1)
+
     assert_equal ["ZRANGE", "myset", 0, -1], @client.last_command
   end
 
   def test_zrange_with_byscore
     @client.zrange("myset", 0, 100, byscore: true)
+
     assert_equal ["ZRANGE", "myset", 0, 100, "BYSCORE"], @client.last_command
   end
 
   def test_zrange_with_bylex
     @client.zrange("myset", "[a", "[z", bylex: true)
+
     assert_equal ["ZRANGE", "myset", "[a", "[z", "BYLEX"], @client.last_command
   end
 
   def test_zrange_with_rev
     @client.zrange("myset", 0, -1, rev: true)
+
     assert_equal ["ZRANGE", "myset", 0, -1, "REV"], @client.last_command
   end
 
   def test_zrange_with_limit_and_byscore
     @client.zrange("myset", 0, 100, byscore: true, limit: [0, 10])
+
     assert_equal ["ZRANGE", "myset", 0, 100, "BYSCORE", "LIMIT", 0, 10], @client.last_command
   end
 
   def test_zrange_with_limit_and_bylex
     @client.zrange("myset", "[a", "[z", bylex: true, limit: [5, 10])
+
     assert_equal ["ZRANGE", "myset", "[a", "[z", "BYLEX", "LIMIT", 5, 10], @client.last_command
   end
 
   def test_zrange_with_limit_without_byscore_or_bylex_does_not_add_limit
     @client.zrange("myset", 0, -1, limit: [0, 10])
+
     refute_includes @client.last_command, "LIMIT"
   end
 
   def test_zrange_with_withscores
     result = @client.zrange("myset", 0, -1, withscores: true)
+
     assert_includes @client.last_command, "WITHSCORES"
     assert_equal [["member1", 1.0], ["member2", 2.0]], result
   end
 
   def test_zrange_without_withscores_returns_raw_result
     result = @client.zrange("myset", 0, -1, byscore: true)
+
     refute_includes @client.last_command, "WITHSCORES"
-    assert_equal ["member1", "member2"], result
+    assert_equal %w[member1 member2], result
   end
 
   def test_zrange_with_all_options
     result = @client.zrange("myset", 0, 100, byscore: true, rev: true, limit: [0, 5], withscores: true)
+
     assert_equal "ZRANGE", @client.last_command[0]
     assert_includes @client.last_command, "BYSCORE"
     assert_includes @client.last_command, "REV"
@@ -380,41 +420,49 @@ class SortedSetsBranchTest < Minitest::Test
 
   def test_zrangestore_basic
     @client.zrangestore("dest", "src", 0, -1)
+
     assert_equal ["ZRANGESTORE", "dest", "src", 0, -1], @client.last_command
   end
 
   def test_zrangestore_with_byscore
     @client.zrangestore("dest", "src", 0, 100, byscore: true)
+
     assert_includes @client.last_command, "BYSCORE"
   end
 
   def test_zrangestore_with_bylex
     @client.zrangestore("dest", "src", "[a", "[z", bylex: true)
+
     assert_includes @client.last_command, "BYLEX"
   end
 
   def test_zrangestore_with_rev
     @client.zrangestore("dest", "src", 0, -1, rev: true)
+
     assert_includes @client.last_command, "REV"
   end
 
   def test_zrangestore_with_limit_and_byscore
     @client.zrangestore("dest", "src", 0, 100, byscore: true, limit: [0, 10])
+
     assert_includes @client.last_command, "LIMIT"
   end
 
   def test_zrangestore_with_limit_and_bylex
     @client.zrangestore("dest", "src", "[a", "[z", bylex: true, limit: [5, 10])
+
     assert_includes @client.last_command, "LIMIT"
   end
 
   def test_zrangestore_with_limit_without_byscore_or_bylex_does_not_add_limit
     @client.zrangestore("dest", "src", 0, -1, limit: [0, 10])
+
     refute_includes @client.last_command, "LIMIT"
   end
 
   def test_zrangestore_all_options
     @client.zrangestore("dest", "src", 0, 100, byscore: true, rev: true, limit: [0, 5])
+
     assert_includes @client.last_command, "BYSCORE"
     assert_includes @client.last_command, "REV"
     assert_includes @client.last_command, "LIMIT"
@@ -426,11 +474,13 @@ class SortedSetsBranchTest < Minitest::Test
 
   def test_zrevrange_fast_path_no_withscores
     @client.zrevrange("myset", 0, -1)
+
     assert_equal ["ZREVRANGE", "myset", 0, -1], @client.last_command
   end
 
   def test_zrevrange_with_withscores
     result = @client.zrevrange("myset", 0, -1, withscores: true)
+
     assert_includes @client.last_command, "WITHSCORES"
     assert_equal [["member1", 1.0], ["member2", 2.0]], result
   end
@@ -441,22 +491,26 @@ class SortedSetsBranchTest < Minitest::Test
 
   def test_zrangebyscore_fast_path_no_options
     @client.zrangebyscore("myset", "-inf", "+inf")
+
     assert_equal ["ZRANGEBYSCORE", "myset", "-inf", "+inf"], @client.last_command
   end
 
   def test_zrangebyscore_with_withscores
     result = @client.zrangebyscore("myset", 0, 100, withscores: true)
+
     assert_includes @client.last_command, "WITHSCORES"
     assert_equal [["member1", 1.0], ["member2", 2.0]], result
   end
 
   def test_zrangebyscore_with_limit
     @client.zrangebyscore("myset", 0, 100, limit: [0, 10])
+
     assert_includes @client.last_command, "LIMIT"
   end
 
   def test_zrangebyscore_with_limit_and_withscores
     result = @client.zrangebyscore("myset", 0, 100, withscores: true, limit: [0, 10])
+
     assert_includes @client.last_command, "WITHSCORES"
     assert_includes @client.last_command, "LIMIT"
     assert_equal [["member1", 1.0], ["member2", 2.0]], result
@@ -464,8 +518,9 @@ class SortedSetsBranchTest < Minitest::Test
 
   def test_zrangebyscore_without_withscores_returns_raw_result
     result = @client.zrangebyscore("myset", 0, 100, limit: [0, 10])
+
     refute_includes @client.last_command, "WITHSCORES"
-    assert_equal ["member1", "member2"], result
+    assert_equal %w[member1 member2], result
   end
 
   # ============================================================
@@ -474,22 +529,26 @@ class SortedSetsBranchTest < Minitest::Test
 
   def test_zrevrangebyscore_fast_path_no_options
     @client.zrevrangebyscore("myset", "+inf", "-inf")
+
     assert_equal ["ZREVRANGEBYSCORE", "myset", "+inf", "-inf"], @client.last_command
   end
 
   def test_zrevrangebyscore_with_withscores
     result = @client.zrevrangebyscore("myset", 100, 0, withscores: true)
+
     assert_includes @client.last_command, "WITHSCORES"
     assert_equal [["member1", 1.0], ["member2", 2.0]], result
   end
 
   def test_zrevrangebyscore_with_limit
     @client.zrevrangebyscore("myset", 100, 0, limit: [0, 10])
+
     assert_includes @client.last_command, "LIMIT"
   end
 
   def test_zrevrangebyscore_with_limit_and_withscores
     result = @client.zrevrangebyscore("myset", 100, 0, withscores: true, limit: [0, 10])
+
     assert_includes @client.last_command, "WITHSCORES"
     assert_includes @client.last_command, "LIMIT"
     assert_equal [["member1", 1.0], ["member2", 2.0]], result
@@ -497,8 +556,9 @@ class SortedSetsBranchTest < Minitest::Test
 
   def test_zrevrangebyscore_without_withscores_returns_raw_result
     result = @client.zrevrangebyscore("myset", 100, 0, limit: [0, 10])
+
     refute_includes @client.last_command, "WITHSCORES"
-    assert_equal ["member1", "member2"], result
+    assert_equal %w[member1 member2], result
   end
 
   # ============================================================
@@ -507,6 +567,7 @@ class SortedSetsBranchTest < Minitest::Test
 
   def test_zincrby
     result = @client.zincrby("myset", 2.5, "member1")
+
     assert_equal ["ZINCRBY", "myset", 2.5, "member1"], @client.last_command
     assert_in_delta 1.5, result, 0.001
   end
@@ -517,6 +578,7 @@ class SortedSetsBranchTest < Minitest::Test
 
   def test_zremrangebyrank
     @client.zremrangebyrank("myset", 0, 5)
+
     assert_equal ["ZREMRANGEBYRANK", "myset", 0, 5], @client.last_command
   end
 
@@ -526,6 +588,7 @@ class SortedSetsBranchTest < Minitest::Test
 
   def test_zremrangebyscore
     @client.zremrangebyscore("myset", "-inf", "+inf")
+
     assert_equal ["ZREMRANGEBYSCORE", "myset", "-inf", "+inf"], @client.last_command
   end
 
@@ -535,12 +598,14 @@ class SortedSetsBranchTest < Minitest::Test
 
   def test_zpopmin_without_count
     result = @client.zpopmin("myset")
-    assert_equal ["ZPOPMIN", "myset"], @client.last_command
+
+    assert_equal %w[ZPOPMIN myset], @client.last_command
     assert_equal ["member1", 1.0], result
   end
 
   def test_zpopmin_with_count
     result = @client.zpopmin("myset", 2)
+
     assert_equal ["ZPOPMIN", "myset", 2], @client.last_command
     assert_equal [["member1", 1.0]], result
   end
@@ -548,6 +613,7 @@ class SortedSetsBranchTest < Minitest::Test
   def test_zpopmin_nil_result
     @client.set_mock_override(nil)
     result = @client.zpopmin("myset")
+
     assert_nil result
     @client.clear_mock_override
   end
@@ -555,6 +621,7 @@ class SortedSetsBranchTest < Minitest::Test
   def test_zpopmin_empty_result
     @client.set_mock_override([])
     result = @client.zpopmin("myset")
+
     assert_nil result
     @client.clear_mock_override
   end
@@ -565,12 +632,14 @@ class SortedSetsBranchTest < Minitest::Test
 
   def test_zpopmax_without_count
     result = @client.zpopmax("myset")
-    assert_equal ["ZPOPMAX", "myset"], @client.last_command
+
+    assert_equal %w[ZPOPMAX myset], @client.last_command
     assert_equal ["member1", 1.0], result
   end
 
   def test_zpopmax_with_count
     result = @client.zpopmax("myset", 3)
+
     assert_equal ["ZPOPMAX", "myset", 3], @client.last_command
     assert_equal [["member1", 1.0]], result
   end
@@ -578,6 +647,7 @@ class SortedSetsBranchTest < Minitest::Test
   def test_zpopmax_nil_result
     @client.set_mock_override(nil)
     result = @client.zpopmax("myset")
+
     assert_nil result
     @client.clear_mock_override
   end
@@ -585,6 +655,7 @@ class SortedSetsBranchTest < Minitest::Test
   def test_zpopmax_empty_result
     @client.set_mock_override([])
     result = @client.zpopmax("myset")
+
     assert_nil result
     @client.clear_mock_override
   end
@@ -595,6 +666,7 @@ class SortedSetsBranchTest < Minitest::Test
 
   def test_bzpopmin_with_result
     result = @client.bzpopmin("key1", "key2", timeout: 5)
+
     assert_equal ["BZPOPMIN", "key1", "key2", 5], @client.last_command
     assert_equal ["key", "member", 1.0], result
   end
@@ -602,12 +674,14 @@ class SortedSetsBranchTest < Minitest::Test
   def test_bzpopmin_nil_result
     @client.set_mock_override(nil)
     result = @client.bzpopmin("key1", timeout: 1)
+
     assert_nil result
     @client.clear_mock_override
   end
 
   def test_bzpopmin_default_timeout
     @client.bzpopmin("key1")
+
     assert_equal ["BZPOPMIN", "key1", 0], @client.last_command
   end
 
@@ -617,6 +691,7 @@ class SortedSetsBranchTest < Minitest::Test
 
   def test_bzpopmax_with_result
     result = @client.bzpopmax("key1", "key2", timeout: 5)
+
     assert_equal ["BZPOPMAX", "key1", "key2", 5], @client.last_command
     assert_equal ["key", "member", 1.0], result
   end
@@ -624,12 +699,14 @@ class SortedSetsBranchTest < Minitest::Test
   def test_bzpopmax_nil_result
     @client.set_mock_override(nil)
     result = @client.bzpopmax("key1", timeout: 1)
+
     assert_nil result
     @client.clear_mock_override
   end
 
   def test_bzpopmax_default_timeout
     @client.bzpopmax("key1")
+
     assert_equal ["BZPOPMAX", "key1", 0], @client.last_command
   end
 
@@ -639,13 +716,15 @@ class SortedSetsBranchTest < Minitest::Test
 
   def test_zscan_fast_path_no_match_no_count
     cursor, members = @client.zscan("myset", "0")
-    assert_equal ["ZSCAN", "myset", "0"], @client.last_command
+
+    assert_equal %w[ZSCAN myset 0], @client.last_command
     assert_equal "0", cursor
     assert_equal [["member1", 1.0], ["member2", 2.0]], members
   end
 
   def test_zscan_with_match
     cursor, members = @client.zscan("myset", "0", match: "mem*")
+
     assert_equal ["ZSCAN", "myset", "0", "MATCH", "mem*"], @client.last_command
     assert_equal "0", cursor
     assert_equal [["member1", 1.0], ["member2", 2.0]], members
@@ -653,6 +732,7 @@ class SortedSetsBranchTest < Minitest::Test
 
   def test_zscan_with_count
     cursor, members = @client.zscan("myset", "0", count: 100)
+
     assert_equal ["ZSCAN", "myset", "0", "COUNT", 100], @client.last_command
     assert_equal "0", cursor
     assert_equal [["member1", 1.0], ["member2", 2.0]], members
@@ -660,6 +740,7 @@ class SortedSetsBranchTest < Minitest::Test
 
   def test_zscan_with_match_and_count
     cursor, members = @client.zscan("myset", "0", match: "prefix:*", count: 50)
+
     assert_equal ["ZSCAN", "myset", "0", "MATCH", "prefix:*", "COUNT", 50], @client.last_command
     assert_equal "0", cursor
     assert_equal [["member1", 1.0], ["member2", 2.0]], members
@@ -671,18 +752,22 @@ class SortedSetsBranchTest < Minitest::Test
 
   def test_zscan_iter_basic_iteration
     enumerator = @client.zscan_iter("myset")
+
     assert_instance_of Enumerator, enumerator
 
     # The mock returns cursor "0" immediately, so only one iteration
     results = enumerator.to_a
+
     assert_equal [["member1", 1.0], ["member2", 2.0]], results
   end
 
   def test_zscan_iter_with_match_and_count
     enumerator = @client.zscan_iter("myset", match: "player:*", count: 20)
+
     assert_instance_of Enumerator, enumerator
 
     results = enumerator.to_a
+
     assert_equal [["member1", 1.0], ["member2", 2.0]], results
   end
 
@@ -691,37 +776,44 @@ class SortedSetsBranchTest < Minitest::Test
   # ============================================================
 
   def test_zinterstore_basic
-    @client.zinterstore("dest", ["key1", "key2"])
+    @client.zinterstore("dest", %w[key1 key2])
+
     assert_equal ["ZINTERSTORE", "dest", 2, "key1", "key2"], @client.last_command
   end
 
   def test_zinterstore_with_weights
-    @client.zinterstore("dest", ["key1", "key2"], weights: [1, 2])
+    @client.zinterstore("dest", %w[key1 key2], weights: [1, 2])
+
     assert_equal ["ZINTERSTORE", "dest", 2, "key1", "key2", "WEIGHTS", 1, 2], @client.last_command
   end
 
   def test_zinterstore_with_aggregate
-    @client.zinterstore("dest", ["key1", "key2"], aggregate: :sum)
+    @client.zinterstore("dest", %w[key1 key2], aggregate: :sum)
+
     assert_equal ["ZINTERSTORE", "dest", 2, "key1", "key2", "AGGREGATE", "SUM"], @client.last_command
   end
 
   def test_zinterstore_with_aggregate_min
-    @client.zinterstore("dest", ["key1", "key2"], aggregate: :min)
+    @client.zinterstore("dest", %w[key1 key2], aggregate: :min)
+
     assert_includes @client.last_command, "MIN"
   end
 
   def test_zinterstore_with_aggregate_max
-    @client.zinterstore("dest", ["key1", "key2"], aggregate: :max)
+    @client.zinterstore("dest", %w[key1 key2], aggregate: :max)
+
     assert_includes @client.last_command, "MAX"
   end
 
   def test_zinterstore_with_weights_and_aggregate
-    @client.zinterstore("dest", ["k1", "k2"], weights: [2, 3], aggregate: :max)
+    @client.zinterstore("dest", %w[k1 k2], weights: [2, 3], aggregate: :max)
+
     assert_equal ["ZINTERSTORE", "dest", 2, "k1", "k2", "WEIGHTS", 2, 3, "AGGREGATE", "MAX"], @client.last_command
   end
 
   def test_zinterstore_without_weights_or_aggregate
-    @client.zinterstore("dest", ["key1", "key2"])
+    @client.zinterstore("dest", %w[key1 key2])
+
     refute_includes @client.last_command, "WEIGHTS"
     refute_includes @client.last_command, "AGGREGATE"
   end
@@ -731,27 +823,32 @@ class SortedSetsBranchTest < Minitest::Test
   # ============================================================
 
   def test_zunionstore_basic
-    @client.zunionstore("dest", ["key1", "key2"])
+    @client.zunionstore("dest", %w[key1 key2])
+
     assert_equal ["ZUNIONSTORE", "dest", 2, "key1", "key2"], @client.last_command
   end
 
   def test_zunionstore_with_weights
-    @client.zunionstore("dest", ["key1", "key2"], weights: [1, 2])
+    @client.zunionstore("dest", %w[key1 key2], weights: [1, 2])
+
     assert_equal ["ZUNIONSTORE", "dest", 2, "key1", "key2", "WEIGHTS", 1, 2], @client.last_command
   end
 
   def test_zunionstore_with_aggregate
-    @client.zunionstore("dest", ["key1", "key2"], aggregate: :sum)
+    @client.zunionstore("dest", %w[key1 key2], aggregate: :sum)
+
     assert_equal ["ZUNIONSTORE", "dest", 2, "key1", "key2", "AGGREGATE", "SUM"], @client.last_command
   end
 
   def test_zunionstore_with_weights_and_aggregate
-    @client.zunionstore("dest", ["k1", "k2"], weights: [2, 3], aggregate: :min)
+    @client.zunionstore("dest", %w[k1 k2], weights: [2, 3], aggregate: :min)
+
     assert_equal ["ZUNIONSTORE", "dest", 2, "k1", "k2", "WEIGHTS", 2, 3, "AGGREGATE", "MIN"], @client.last_command
   end
 
   def test_zunionstore_without_weights_or_aggregate
     @client.zunionstore("dest", ["key1"])
+
     refute_includes @client.last_command, "WEIGHTS"
     refute_includes @client.last_command, "AGGREGATE"
   end
@@ -761,36 +858,42 @@ class SortedSetsBranchTest < Minitest::Test
   # ============================================================
 
   def test_zunion_basic
-    result = @client.zunion(["key1", "key2"])
+    result = @client.zunion(%w[key1 key2])
+
     assert_equal ["ZUNION", 2, "key1", "key2"], @client.last_command
-    assert_equal ["member1", "member2"], result
+    assert_equal %w[member1 member2], result
   end
 
   def test_zunion_with_weights
-    @client.zunion(["key1", "key2"], weights: [1, 2])
+    @client.zunion(%w[key1 key2], weights: [1, 2])
+
     assert_includes @client.last_command, "WEIGHTS"
   end
 
   def test_zunion_with_aggregate
-    @client.zunion(["key1", "key2"], aggregate: :sum)
+    @client.zunion(%w[key1 key2], aggregate: :sum)
+
     assert_includes @client.last_command, "AGGREGATE"
     assert_includes @client.last_command, "SUM"
   end
 
   def test_zunion_with_withscores
-    result = @client.zunion(["key1", "key2"], withscores: true)
+    result = @client.zunion(%w[key1 key2], withscores: true)
+
     assert_includes @client.last_command, "WITHSCORES"
     assert_equal [["member1", 1.0], ["member2", 2.0]], result
   end
 
   def test_zunion_without_withscores_returns_raw
-    result = @client.zunion(["key1", "key2"])
+    result = @client.zunion(%w[key1 key2])
+
     refute_includes @client.last_command, "WITHSCORES"
-    assert_equal ["member1", "member2"], result
+    assert_equal %w[member1 member2], result
   end
 
   def test_zunion_all_options
-    result = @client.zunion(["k1", "k2"], weights: [1, 2], aggregate: :max, withscores: true)
+    result = @client.zunion(%w[k1 k2], weights: [1, 2], aggregate: :max, withscores: true)
+
     assert_includes @client.last_command, "WEIGHTS"
     assert_includes @client.last_command, "AGGREGATE"
     assert_includes @client.last_command, "MAX"
@@ -803,36 +906,42 @@ class SortedSetsBranchTest < Minitest::Test
   # ============================================================
 
   def test_zinter_basic
-    result = @client.zinter(["key1", "key2"])
+    result = @client.zinter(%w[key1 key2])
+
     assert_equal ["ZINTER", 2, "key1", "key2"], @client.last_command
-    assert_equal ["member1", "member2"], result
+    assert_equal %w[member1 member2], result
   end
 
   def test_zinter_with_weights
-    @client.zinter(["key1", "key2"], weights: [1, 2])
+    @client.zinter(%w[key1 key2], weights: [1, 2])
+
     assert_includes @client.last_command, "WEIGHTS"
   end
 
   def test_zinter_with_aggregate
-    @client.zinter(["key1", "key2"], aggregate: :min)
+    @client.zinter(%w[key1 key2], aggregate: :min)
+
     assert_includes @client.last_command, "AGGREGATE"
     assert_includes @client.last_command, "MIN"
   end
 
   def test_zinter_with_withscores
-    result = @client.zinter(["key1", "key2"], withscores: true)
+    result = @client.zinter(%w[key1 key2], withscores: true)
+
     assert_includes @client.last_command, "WITHSCORES"
     assert_equal [["member1", 1.0], ["member2", 2.0]], result
   end
 
   def test_zinter_without_withscores_returns_raw
-    result = @client.zinter(["key1", "key2"])
+    result = @client.zinter(%w[key1 key2])
+
     refute_includes @client.last_command, "WITHSCORES"
-    assert_equal ["member1", "member2"], result
+    assert_equal %w[member1 member2], result
   end
 
   def test_zinter_all_options
-    result = @client.zinter(["k1", "k2"], weights: [3, 4], aggregate: :sum, withscores: true)
+    result = @client.zinter(%w[k1 k2], weights: [3, 4], aggregate: :sum, withscores: true)
+
     assert_includes @client.last_command, "WEIGHTS"
     assert_includes @client.last_command, "AGGREGATE"
     assert_includes @client.last_command, "SUM"
@@ -845,13 +954,15 @@ class SortedSetsBranchTest < Minitest::Test
   # ============================================================
 
   def test_zdiff_without_withscores
-    result = @client.zdiff(["key1", "key2"])
+    result = @client.zdiff(%w[key1 key2])
+
     assert_equal ["ZDIFF", 2, "key1", "key2"], @client.last_command
-    assert_equal ["member1", "member2"], result
+    assert_equal %w[member1 member2], result
   end
 
   def test_zdiff_with_withscores
-    result = @client.zdiff(["key1", "key2"], withscores: true)
+    result = @client.zdiff(%w[key1 key2], withscores: true)
+
     assert_includes @client.last_command, "WITHSCORES"
     assert_equal [["member1", 1.0], ["member2", 2.0]], result
   end
@@ -861,7 +972,8 @@ class SortedSetsBranchTest < Minitest::Test
   # ============================================================
 
   def test_zdiffstore
-    @client.zdiffstore("dest", ["key1", "key2", "key3"])
+    @client.zdiffstore("dest", %w[key1 key2 key3])
+
     assert_equal ["ZDIFFSTORE", "dest", 3, "key1", "key2", "key3"], @client.last_command
   end
 
@@ -871,16 +983,19 @@ class SortedSetsBranchTest < Minitest::Test
 
   def test_zintercard_without_limit
     @client.zintercard("key1", "key2")
+
     assert_equal ["ZINTERCARD", 2, "key1", "key2"], @client.last_command
   end
 
   def test_zintercard_with_limit
     @client.zintercard("key1", "key2", limit: 10)
+
     assert_equal ["ZINTERCARD", 2, "key1", "key2", "LIMIT", 10], @client.last_command
   end
 
   def test_zintercard_without_limit_does_not_include_limit
     @client.zintercard("key1", "key2")
+
     refute_includes @client.last_command, "LIMIT"
   end
 
@@ -890,6 +1005,7 @@ class SortedSetsBranchTest < Minitest::Test
 
   def test_zmpop_basic
     result = @client.zmpop("key1", "key2")
+
     assert_equal ["ZMPOP", 2, "key1", "key2", "MIN"], @client.last_command
     assert_equal "key", result[0]
     assert_equal [["m1", 1.0], ["m2", 2.0]], result[1]
@@ -897,28 +1013,33 @@ class SortedSetsBranchTest < Minitest::Test
 
   def test_zmpop_with_modifier_max
     @client.zmpop("key1", modifier: :max)
+
     assert_includes @client.last_command, "MAX"
   end
 
   def test_zmpop_with_modifier_min
     @client.zmpop("key1", modifier: :min)
+
     assert_includes @client.last_command, "MIN"
   end
 
   def test_zmpop_with_count
     @client.zmpop("key1", count: 5)
+
     assert_includes @client.last_command, "COUNT"
     assert_includes @client.last_command, 5
   end
 
   def test_zmpop_without_count
     @client.zmpop("key1")
+
     refute_includes @client.last_command, "COUNT"
   end
 
   def test_zmpop_nil_result
     @client.set_mock_override(nil)
     result = @client.zmpop("key1")
+
     assert_nil result
     @client.clear_mock_override
   end
@@ -929,6 +1050,7 @@ class SortedSetsBranchTest < Minitest::Test
 
   def test_bzmpop_basic
     result = @client.bzmpop(5, "key1", "key2")
+
     assert_equal ["BZMPOP", 5, 2, "key1", "key2", "MIN"], @client.last_command
     assert_equal "key", result[0]
     assert_equal [["m1", 1.0], ["m2", 2.0]], result[1]
@@ -936,23 +1058,27 @@ class SortedSetsBranchTest < Minitest::Test
 
   def test_bzmpop_with_modifier_max
     @client.bzmpop(0, "key1", modifier: :max)
+
     assert_includes @client.last_command, "MAX"
   end
 
   def test_bzmpop_with_count
     @client.bzmpop(0, "key1", count: 3)
+
     assert_includes @client.last_command, "COUNT"
     assert_includes @client.last_command, 3
   end
 
   def test_bzmpop_without_count
     @client.bzmpop(0, "key1")
+
     refute_includes @client.last_command, "COUNT"
   end
 
   def test_bzmpop_nil_result
     @client.set_mock_override(nil)
     result = @client.bzmpop(1, "key1")
+
     assert_nil result
     @client.clear_mock_override
   end
@@ -963,6 +1089,7 @@ class SortedSetsBranchTest < Minitest::Test
 
   def test_zlexcount
     @client.zlexcount("myset", "-", "+")
+
     assert_equal ["ZLEXCOUNT", "myset", "-", "+"], @client.last_command
   end
 
@@ -972,11 +1099,13 @@ class SortedSetsBranchTest < Minitest::Test
 
   def test_zrangebylex_fast_path_no_limit
     @client.zrangebylex("myset", "[a", "[z")
+
     assert_equal ["ZRANGEBYLEX", "myset", "[a", "[z"], @client.last_command
   end
 
   def test_zrangebylex_with_limit
     @client.zrangebylex("myset", "[a", "[z", limit: [0, 10])
+
     assert_equal ["ZRANGEBYLEX", "myset", "[a", "[z", "LIMIT", 0, 10], @client.last_command
   end
 
@@ -986,11 +1115,13 @@ class SortedSetsBranchTest < Minitest::Test
 
   def test_zrevrangebylex_fast_path_no_limit
     @client.zrevrangebylex("myset", "[z", "[a")
+
     assert_equal ["ZREVRANGEBYLEX", "myset", "[z", "[a"], @client.last_command
   end
 
   def test_zrevrangebylex_with_limit
     @client.zrevrangebylex("myset", "[z", "[a", limit: [0, 10])
+
     assert_equal ["ZREVRANGEBYLEX", "myset", "[z", "[a", "LIMIT", 0, 10], @client.last_command
   end
 
@@ -1000,6 +1131,7 @@ class SortedSetsBranchTest < Minitest::Test
 
   def test_zremrangebylex
     @client.zremrangebylex("myset", "[a", "[z")
+
     assert_equal ["ZREMRANGEBYLEX", "myset", "[a", "[z"], @client.last_command
   end
 
@@ -1009,18 +1141,21 @@ class SortedSetsBranchTest < Minitest::Test
 
   def test_zrandmember_just_key
     result = @client.zrandmember("myset")
-    assert_equal ["ZRANDMEMBER", "myset"], @client.last_command
+
+    assert_equal %w[ZRANDMEMBER myset], @client.last_command
     assert_equal "member1", result
   end
 
   def test_zrandmember_with_count_no_withscores
     result = @client.zrandmember("myset", 3)
+
     assert_equal ["ZRANDMEMBER", "myset", 3], @client.last_command
-    assert_equal ["member1", "member2"], result
+    assert_equal %w[member1 member2], result
   end
 
   def test_zrandmember_with_count_and_withscores
     result = @client.zrandmember("myset", 3, withscores: true)
+
     assert_includes @client.last_command, "WITHSCORES"
     assert_equal [["member1", 1.0], ["member2", 2.0]], result
   end
@@ -1028,17 +1163,20 @@ class SortedSetsBranchTest < Minitest::Test
   def test_zrandmember_withscores_without_count_does_not_include_withscores
     # When withscores is true but count is nil, WITHSCORES is not added
     # because the code has: args.push(OPT_WITHSCORES) if withscores && count
-    result = @client.zrandmember("myset", nil, withscores: true)
+    @client.zrandmember("myset", nil, withscores: true)
+
     refute_includes @client.last_command, "WITHSCORES"
   end
 
   def test_zrandmember_nil_count_no_withscores_uses_fast_path
     @client.zrandmember("myset")
-    assert_equal ["ZRANDMEMBER", "myset"], @client.last_command
+
+    assert_equal %w[ZRANDMEMBER myset], @client.last_command
   end
 
   def test_zrandmember_count_no_withscores_uses_fast_path
     @client.zrandmember("myset", 5)
+
     assert_equal ["ZRANDMEMBER", "myset", 5], @client.last_command
   end
 
@@ -1064,6 +1202,7 @@ class SortedSetsBranchTest < Minitest::Test
 
   def test_zpopmin_with_count_returns_array_of_pairs
     result = @client.zpopmin("myset", 1)
+
     assert_instance_of Array, result
     # With count, returns [[member, score], ...]
     assert_instance_of Array, result[0]
@@ -1071,6 +1210,7 @@ class SortedSetsBranchTest < Minitest::Test
 
   def test_zpopmin_without_count_returns_single_pair
     result = @client.zpopmin("myset")
+
     assert_instance_of Array, result
     # Without count, returns [member, score]
     assert_equal "member1", result[0]
@@ -1079,12 +1219,14 @@ class SortedSetsBranchTest < Minitest::Test
 
   def test_zpopmax_with_count_returns_array_of_pairs
     result = @client.zpopmax("myset", 1)
+
     assert_instance_of Array, result
     assert_instance_of Array, result[0]
   end
 
   def test_zpopmax_without_count_returns_single_pair
     result = @client.zpopmax("myset")
+
     assert_instance_of Array, result
     assert_equal "member1", result[0]
     assert_in_delta 1.0, result[1], 0.001
@@ -1092,46 +1234,53 @@ class SortedSetsBranchTest < Minitest::Test
 
   def test_bzpopmin_parses_score
     result = @client.bzpopmin("key1", timeout: 0)
+
     assert_in_delta 1.0, result[2], 0.001
   end
 
   def test_bzpopmax_parses_score
     result = @client.bzpopmax("key1", timeout: 0)
+
     assert_in_delta 1.0, result[2], 0.001
   end
 
   def test_zrange_fast_path_returns_without_processing
     # Fast path: no options at all - returns call_3args result directly
-    result = @client.zrange("myset", 0, -1)
+    @client.zrange("myset", 0, -1)
     # Should use the call_3args path (last_command has exactly 4 elements)
     assert_equal 4, @client.last_command.length
   end
 
   def test_zrange_byscore_false_bylex_false_rev_false_limit_nil_withscores_false_is_fast_path
     # Explicitly pass all false/nil defaults to verify fast path
-    result = @client.zrange("myset", 0, -1, byscore: false, bylex: false, rev: false, limit: nil, withscores: false)
+    @client.zrange("myset", 0, -1, byscore: false, bylex: false, rev: false, limit: nil, withscores: false)
+
     assert_equal ["ZRANGE", "myset", 0, -1], @client.last_command
   end
 
   def test_zrangestore_with_limit_nil_does_not_add_limit
     @client.zrangestore("dest", "src", 0, -1, byscore: true, limit: nil)
+
     refute_includes @client.last_command, "LIMIT"
   end
 
   def test_zscan_match_nil_count_nil_uses_fast_path
     # Explicitly pass nil to verify fast path
     @client.zscan("myset", "0", match: nil, count: nil)
-    assert_equal ["ZSCAN", "myset", "0"], @client.last_command
+
+    assert_equal %w[ZSCAN myset 0], @client.last_command
   end
 
   def test_zscan_match_only
     @client.zscan("myset", "0", match: "test*")
+
     assert_includes @client.last_command, "MATCH"
     refute_includes @client.last_command, "COUNT"
   end
 
   def test_zscan_count_only
     @client.zscan("myset", "0", count: 200)
+
     refute_includes @client.last_command, "MATCH"
     assert_includes @client.last_command, "COUNT"
   end

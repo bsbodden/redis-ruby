@@ -11,7 +11,7 @@ class RedisRbPipeliningTest < Minitest::Test
   end
 
   def teardown
-    @redis.flushdb if @redis
+    @redis&.flushdb
   end
 
   def r
@@ -92,8 +92,8 @@ class RedisRbPipeliningTest < Minitest::Test
       @second = p.sadd?("foo", 1)
     end
 
-    assert_equal true, @first.value
-    assert_equal false, @second.value
+    assert @first.value
+    refute @second.value
   end
 
   def test_assignment_of_results_inside_the_block_with_errors
@@ -118,8 +118,8 @@ class RedisRbPipeliningTest < Minitest::Test
       end
     end
 
-    assert_equal true, @first.value
-    assert_equal false, @second.value
+    assert @first.value
+    refute @second.value
   end
 
   def test_futures_raise_when_confused_with_something_else
@@ -143,15 +143,15 @@ class RedisRbPipeliningTest < Minitest::Test
       @result = p.sadd("foo", 1)
     end
 
-    assert_equal true, @result.is_a?(Redis::Future)
-    assert_equal Redis::Future, @result.class
+    assert_kind_of Redis::Future, @result
+    assert_instance_of Redis::Future, @result
   end
 
   def test_returning_the_result_of_an_empty_pipeline
     result = r.pipelined do
     end
 
-    assert_equal [], result
+    assert_empty result
   end
 
   def test_nesting_pipeline_blocks
@@ -167,11 +167,9 @@ class RedisRbPipeliningTest < Minitest::Test
   end
 
   def test_info_in_a_pipeline_returns_hash
-    result = r.pipelined do |p|
-      p.info
-    end
+    result = r.pipelined(&:info)
 
-    assert result.first.is_a?(Hash)
+    assert_kind_of Hash, result.first
   end
 
   def test_config_get_in_a_pipeline_returns_hash
@@ -179,7 +177,7 @@ class RedisRbPipeliningTest < Minitest::Test
       p.config(:get, "*")
     end
 
-    assert result.first.is_a?(Hash)
+    assert_kind_of Hash, result.first
   end
 
   def test_hgetall_in_a_pipeline_returns_hash
@@ -216,6 +214,7 @@ class RedisRbPipeliningTest < Minitest::Test
     # In a pipeline, multi returns: [OK, QUEUED, QUEUED, [result1, result2]]
     # The last element is the EXEC result array
     exec_result = result.last
+
     assert_equal({ "field" => "value", "field2" => "value2" }, exec_result.last)
     assert_equal({ "field" => "value", "field2" => "value2" }, future.value)
   end
@@ -247,9 +246,11 @@ class RedisRbPipeliningTest < Minitest::Test
     end
 
     r.select 1
+
     assert_equal "1", r.get("db")
 
     r.select 2
+
     assert_equal "2", r.get("db")
   end
 end

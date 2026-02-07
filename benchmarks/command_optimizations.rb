@@ -14,7 +14,7 @@ redis_ruby = RedisRuby.new(url: REDIS_URL)
 # Setup test data
 redis_rb.set("bench:key", "value")
 redis_rb.hset("bench:hash", "field1", "value1")
-redis_rb.lpush("bench:list", ["item1", "item2", "item3"])
+redis_rb.lpush("bench:list", %w[item1 item2 item3])
 10.times { |i| redis_rb.set("bench:key:#{i}", "value#{i}") }
 
 puts "=" * 70
@@ -37,13 +37,13 @@ def run_benchmark(name, results)
   rb_entry = report.entries.find { |e| e.label.include?("redis-rb") }
   ruby_entry = report.entries.find { |e| e.label.include?("redis-ruby") }
 
-  if rb_entry && ruby_entry
-    results[name] = {
-      rb: rb_entry.stats.central_tendency,
-      ruby: ruby_entry.stats.central_tendency,
-      speedup: ruby_entry.stats.central_tendency / rb_entry.stats.central_tendency
-    }
-  end
+  return unless rb_entry && ruby_entry
+
+  results[name] = {
+    rb: rb_entry.stats.central_tendency,
+    ruby: ruby_entry.stats.central_tendency,
+    speedup: ruby_entry.stats.central_tendency / rb_entry.stats.central_tendency,
+  }
 end
 
 # Hash Commands
@@ -77,13 +77,25 @@ run_benchmark("LPOP", results) do |x|
   # Ensure list has items
   redis_rb.lpush("bench:poplist", "a")
   redis_ruby.lpush("bench:poplist", "a")
-  x.report("redis-rb LPOP") { redis_rb.lpush("bench:poplist", "x"); redis_rb.lpop("bench:poplist") }
-  x.report("redis-ruby LPOP") { redis_ruby.lpush("bench:poplist", "x"); redis_ruby.lpop("bench:poplist") }
+  x.report("redis-rb LPOP") do
+    redis_rb.lpush("bench:poplist", "x")
+    redis_rb.lpop("bench:poplist")
+  end
+  x.report("redis-ruby LPOP") do
+    redis_ruby.lpush("bench:poplist", "x")
+    redis_ruby.lpop("bench:poplist")
+  end
 end
 
 run_benchmark("RPOP", results) do |x|
-  x.report("redis-rb RPOP") { redis_rb.rpush("bench:poplist", "x"); redis_rb.rpop("bench:poplist") }
-  x.report("redis-ruby RPOP") { redis_ruby.rpush("bench:poplist", "x"); redis_ruby.rpop("bench:poplist") }
+  x.report("redis-rb RPOP") do
+    redis_rb.rpush("bench:poplist", "x")
+    redis_rb.rpop("bench:poplist")
+  end
+  x.report("redis-ruby RPOP") do
+    redis_ruby.rpush("bench:poplist", "x")
+    redis_ruby.rpop("bench:poplist")
+  end
 end
 
 # Key Commands
@@ -110,15 +122,15 @@ run_benchmark("MSET (5 keys)", results) do |x|
 end
 
 # Summary
-puts "\n" + "=" * 70
+puts "\n#{"=" * 70}"
 puts "SUMMARY"
 puts "=" * 70
-puts format("%-20s %15s %15s %10s", "Command", "redis-rb", "redis-ruby", "Speedup")
+puts "Command                     redis-rb      redis-ruby    Speedup"
 puts "-" * 70
 
 results.each do |name, data|
   speedup_str = format("%.2fx", data[:speedup])
-  speedup_str = data[:speedup] >= 1.0 ? speedup_str : speedup_str
+  speedup_str = speedup_str unless data[:speedup] >= 1.0
   puts format("%-20s %12.1f i/s %12.1f i/s %10s",
               name, data[:rb], data[:ruby], speedup_str)
 end

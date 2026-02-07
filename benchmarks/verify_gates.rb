@@ -161,7 +161,7 @@ class GateVerifier
   end
 
   def verify_all
-    puts "\n" + "=" * 70
+    puts "\n#{"=" * 70}"
     puts "PERFORMANCE GATE VERIFICATION"
     puts "=" * 70
 
@@ -218,7 +218,7 @@ ensure
   verifier.cleanup
 end
 
-puts "\n" + "=" * 70
+puts "\n#{"=" * 70}"
 if verifier.success?
   puts "ALL PERFORMANCE GATES PASSED!"
   puts "=" * 70

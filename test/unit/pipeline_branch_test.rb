@@ -12,66 +12,75 @@ class FutureBranchTest < Minitest::Test
   # ---------- Initialization ----------
 
   def test_future_stores_command
-    future = Redis::Future.new(["GET", "key"])
-    assert_equal ["GET", "key"], future.command
+    future = Redis::Future.new(%w[GET key])
+
+    assert_equal %w[GET key], future.command
   end
 
   def test_future_starts_unresolved
-    future = Redis::Future.new(["GET", "key"])
-    refute future.resolved?
+    future = Redis::Future.new(%w[GET key])
+
+    refute_predicate future, :resolved?
   end
 
   # ---------- value branches ----------
 
   def test_value_raises_when_not_resolved
-    future = Redis::Future.new(["GET", "key"])
+    future = Redis::Future.new(%w[GET key])
     assert_raises(Redis::FutureNotReady) { future.value }
   end
 
   def test_value_returns_value_when_resolved
-    future = Redis::Future.new(["GET", "key"])
+    future = Redis::Future.new(%w[GET key])
     future._set_value("hello")
+
     assert_equal "hello", future.value
   end
 
   def test_value_returns_nil_when_resolved_with_nil
-    future = Redis::Future.new(["GET", "key"])
+    future = Redis::Future.new(%w[GET key])
     future._set_value(nil)
+
     assert_nil future.value
   end
 
   def test_value_returns_integer_when_resolved
-    future = Redis::Future.new(["INCR", "key"])
+    future = Redis::Future.new(%w[INCR key])
     future._set_value(42)
+
     assert_equal 42, future.value
   end
 
   # ---------- value with transformation ----------
 
   def test_value_with_transformation
-    future = Redis::Future.new(["GET", "key"])
-    future.then { |v| v.upcase }
+    future = Redis::Future.new(%w[GET key])
+    future.then(&:upcase)
     future._set_value("hello")
+
     assert_equal "HELLO", future.value
   end
 
   def test_value_without_transformation
-    future = Redis::Future.new(["GET", "key"])
+    future = Redis::Future.new(%w[GET key])
     future._set_value("hello")
+
     assert_equal "hello", future.value
   end
 
   def test_then_returns_self
-    future = Redis::Future.new(["GET", "key"])
+    future = Redis::Future.new(%w[GET key])
     result = future.then { |v| v }
+
     assert_same future, result
   end
 
   def test_chained_transformation
-    future = Redis::Future.new(["GET", "key"])
+    future = Redis::Future.new(%w[GET key])
     # Only the last transformation applies
     future.then { |v| v.to_i * 2 }
     future._set_value("5")
+
     assert_equal 10, future.value
   end
 
@@ -79,181 +88,211 @@ class FutureBranchTest < Minitest::Test
 
   def test_resolved_false_before_set
     future = Redis::Future.new(["PING"])
-    refute future.resolved?
+
+    refute_predicate future, :resolved?
   end
 
   def test_resolved_true_after_set
     future = Redis::Future.new(["PING"])
     future._set_value("PONG")
-    assert future.resolved?
+
+    assert_predicate future, :resolved?
   end
 
   # ---------- _set_value ----------
 
   def test_set_value_marks_as_resolved
-    future = Redis::Future.new(["GET", "key"])
+    future = Redis::Future.new(%w[GET key])
     future._set_value("val")
-    assert future.resolved?
+
+    assert_predicate future, :resolved?
   end
 
   def test_set_value_stores_the_value
-    future = Redis::Future.new(["GET", "key"])
+    future = Redis::Future.new(%w[GET key])
     future._set_value([1, 2, 3])
+
     assert_equal [1, 2, 3], future.value
   end
 
   # ---------- inspect branches ----------
 
   def test_inspect_when_resolved
-    future = Redis::Future.new(["GET", "key"])
+    future = Redis::Future.new(%w[GET key])
     future._set_value("hello")
     result = future.inspect
+
     assert_includes result, "@value="
     assert_includes result, "hello"
   end
 
   def test_inspect_when_pending
-    future = Redis::Future.new(["GET", "key"])
+    future = Redis::Future.new(%w[GET key])
     result = future.inspect
+
     assert_includes result, "(pending)"
   end
 
   # ---------- class / is_a? / instance_of? / kind_of? ----------
 
   def test_class_returns_future
-    future = Redis::Future.new(["GET", "key"])
-    assert_equal Redis::Future, future.class
+    future = Redis::Future.new(%w[GET key])
+
+    assert_instance_of Redis::Future, future
   end
 
   def test_is_a_future
-    future = Redis::Future.new(["GET", "key"])
-    assert future.is_a?(Redis::Future)
+    future = Redis::Future.new(%w[GET key])
+
+    assert_kind_of Redis::Future, future
   end
 
   def test_is_a_basic_object
-    future = Redis::Future.new(["GET", "key"])
-    assert future.is_a?(BasicObject)
+    future = Redis::Future.new(%w[GET key])
+
+    assert_kind_of BasicObject, future
   end
 
   def test_is_not_a_string
-    future = Redis::Future.new(["GET", "key"])
-    refute future.is_a?(String)
+    future = Redis::Future.new(%w[GET key])
+
+    refute_kind_of String, future
   end
 
   def test_instance_of_future
-    future = Redis::Future.new(["GET", "key"])
-    assert future.instance_of?(Redis::Future)
+    future = Redis::Future.new(%w[GET key])
+
+    assert_instance_of Redis::Future, future
   end
 
   def test_not_instance_of_string
-    future = Redis::Future.new(["GET", "key"])
-    refute future.instance_of?(String)
+    future = Redis::Future.new(%w[GET key])
+
+    refute_instance_of String, future
   end
 
   def test_kind_of_is_alias_for_is_a
-    future = Redis::Future.new(["GET", "key"])
-    assert future.kind_of?(Redis::Future) # rubocop:disable Style/ClassCheck
-    refute future.kind_of?(String)         # rubocop:disable Style/ClassCheck
+    future = Redis::Future.new(%w[GET key])
+
+    assert_kind_of Redis::Future, future
+    refute_kind_of String, future
   end
 
   # ---------- instance_variable_defined? branches ----------
 
   def test_instance_variable_defined_command
-    future = Redis::Future.new(["GET", "key"])
+    future = Redis::Future.new(%w[GET key])
+
     assert future.instance_variable_defined?(:@command)
   end
 
   def test_instance_variable_defined_value
-    future = Redis::Future.new(["GET", "key"])
+    future = Redis::Future.new(%w[GET key])
+
     assert future.instance_variable_defined?(:@value)
   end
 
   def test_instance_variable_defined_resolved
-    future = Redis::Future.new(["GET", "key"])
+    future = Redis::Future.new(%w[GET key])
+
     assert future.instance_variable_defined?(:@resolved)
   end
 
   def test_instance_variable_defined_transformation
-    future = Redis::Future.new(["GET", "key"])
+    future = Redis::Future.new(%w[GET key])
+
     assert future.instance_variable_defined?(:@transformation)
   end
 
   def test_instance_variable_defined_inner_futures_before_set
-    future = Redis::Future.new(["GET", "key"])
+    future = Redis::Future.new(%w[GET key])
+
     refute future.instance_variable_defined?(:@inner_futures)
   end
 
   def test_instance_variable_defined_inner_futures_after_set
     future = Redis::Future.new(["EXEC"])
     future.instance_variable_set(:@inner_futures, [])
+
     assert future.instance_variable_defined?(:@inner_futures)
   end
 
   def test_instance_variable_defined_unknown
-    future = Redis::Future.new(["GET", "key"])
+    future = Redis::Future.new(%w[GET key])
+
     refute future.instance_variable_defined?(:@nonexistent)
   end
 
   # ---------- instance_variable_get branches ----------
 
   def test_instance_variable_get_command
-    future = Redis::Future.new(["GET", "key"])
-    assert_equal ["GET", "key"], future.instance_variable_get(:@command)
+    future = Redis::Future.new(%w[GET key])
+
+    assert_equal %w[GET key], future.instance_variable_get(:@command)
   end
 
   def test_instance_variable_get_value
-    future = Redis::Future.new(["GET", "key"])
+    future = Redis::Future.new(%w[GET key])
     future._set_value("hello")
+
     assert_equal "hello", future.instance_variable_get(:@value)
   end
 
   def test_instance_variable_get_resolved
-    future = Redis::Future.new(["GET", "key"])
-    assert_equal false, future.instance_variable_get(:@resolved)
+    future = Redis::Future.new(%w[GET key])
+
+    refute future.instance_variable_get(:@resolved)
   end
 
   def test_instance_variable_get_transformation
-    future = Redis::Future.new(["GET", "key"])
+    future = Redis::Future.new(%w[GET key])
+
     assert_nil future.instance_variable_get(:@transformation)
   end
 
   def test_instance_variable_get_inner_futures
     future = Redis::Future.new(["EXEC"])
-    inner = [Redis::Future.new(["SET", "k", "v"])]
+    inner = [Redis::Future.new(%w[SET k v])]
     future.instance_variable_set(:@inner_futures, inner)
+
     assert_equal inner, future.instance_variable_get(:@inner_futures)
   end
 
   def test_instance_variable_get_unknown
-    future = Redis::Future.new(["GET", "key"])
+    future = Redis::Future.new(%w[GET key])
+
     assert_nil future.instance_variable_get(:@unknown)
   end
 
   # ---------- instance_variable_set branches ----------
 
   def test_instance_variable_set_command
-    future = Redis::Future.new(["GET", "key"])
-    future.instance_variable_set(:@command, ["SET", "k", "v"])
-    assert_equal ["SET", "k", "v"], future.instance_variable_get(:@command)
+    future = Redis::Future.new(%w[GET key])
+    future.instance_variable_set(:@command, %w[SET k v])
+
+    assert_equal %w[SET k v], future.instance_variable_get(:@command)
   end
 
   def test_instance_variable_set_value
-    future = Redis::Future.new(["GET", "key"])
+    future = Redis::Future.new(%w[GET key])
     future.instance_variable_set(:@value, "test")
+
     assert_equal "test", future.instance_variable_get(:@value)
   end
 
   def test_instance_variable_set_resolved
-    future = Redis::Future.new(["GET", "key"])
+    future = Redis::Future.new(%w[GET key])
     future.instance_variable_set(:@resolved, true)
-    assert future.resolved?
+
+    assert_predicate future, :resolved?
   end
 
   def test_instance_variable_set_transformation
-    block = proc { |v| v.to_i }
-    future = Redis::Future.new(["GET", "key"])
+    block = proc(&:to_i)
+    future = Redis::Future.new(%w[GET key])
     future.instance_variable_set(:@transformation, block)
     future._set_value("42")
+
     assert_equal 42, future.value
   end
 
@@ -261,6 +300,7 @@ class FutureBranchTest < Minitest::Test
     future = Redis::Future.new(["EXEC"])
     inner = []
     future.instance_variable_set(:@inner_futures, inner)
+
     assert_equal inner, future.instance_variable_get(:@inner_futures)
   end
 end
@@ -271,6 +311,7 @@ end
 class FutureNotReadyTest < Minitest::Test
   def test_future_not_ready_message
     error = Redis::FutureNotReady.new
+
     assert_includes error.message, "pipeline"
   end
 
@@ -297,8 +338,9 @@ class PipelinedConnectionBranchTest < Minitest::Test
   def test_call_returns_future
     pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
     future = pc.call("GET", "key")
+
     assert_instance_of Redis::Future, future
-    assert_equal ["GET", "key"], future.command
+    assert_equal %w[GET key], future.command
   end
 
   def test_call_queues_in_pipeline
@@ -312,22 +354,25 @@ class PipelinedConnectionBranchTest < Minitest::Test
   def test_call_1arg_returns_future
     pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
     future = pc.call_1arg("GET", "key")
+
     assert_instance_of Redis::Future, future
-    assert_equal ["GET", "key"], future.command
+    assert_equal %w[GET key], future.command
   end
 
   def test_call_2args_returns_future
     pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
     future = pc.call_2args("SET", "k", "v")
+
     assert_instance_of Redis::Future, future
-    assert_equal ["SET", "k", "v"], future.command
+    assert_equal %w[SET k v], future.command
   end
 
   def test_call_3args_returns_future
     pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
     future = pc.call_3args("HSET", "h", "f", "v")
+
     assert_instance_of Redis::Future, future
-    assert_equal ["HSET", "h", "f", "v"], future.command
+    assert_equal %w[HSET h f v], future.command
   end
 
   # ---------- _resolve_futures branches ----------
@@ -337,7 +382,8 @@ class PipelinedConnectionBranchTest < Minitest::Test
     f1 = pc.call("SET", "k", "v")
     f2 = pc.call_1arg("GET", "k")
 
-    pc._resolve_futures(["OK", "value"])
+    pc._resolve_futures(%w[OK value])
+
     assert_equal "OK", f1.value
     assert_equal "value", f2.value
   end
@@ -346,25 +392,25 @@ class PipelinedConnectionBranchTest < Minitest::Test
     pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
     exec_future = pc.call("EXEC")
 
-    inner1 = Redis::Future.new(["SET", "k", "v"])
-    inner2 = Redis::Future.new(["GET", "k"])
+    inner1 = Redis::Future.new(%w[SET k v])
+    inner2 = Redis::Future.new(%w[GET k])
     exec_future.instance_variable_set(:@inner_futures, [inner1, inner2])
 
     # EXEC returns an array of results
-    pc._resolve_futures([["OK", "value"]])
+    pc._resolve_futures([%w[OK value]])
 
     # Inner futures should be resolved
     assert_equal "OK", inner1.value
     assert_equal "value", inner2.value
     # exec_future should have the transformed result
-    assert_equal ["OK", "value"], exec_future.value
+    assert_equal %w[OK value], exec_future.value
   end
 
   def test_resolve_futures_with_inner_futures_non_array_result
     pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
     exec_future = pc.call("EXEC")
 
-    inner1 = Redis::Future.new(["SET", "k", "v"])
+    inner1 = Redis::Future.new(%w[SET k v])
     exec_future.instance_variable_set(:@inner_futures, [inner1])
 
     # EXEC returns nil (aborted transaction)
@@ -378,6 +424,7 @@ class PipelinedConnectionBranchTest < Minitest::Test
     pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
     f1 = pc.call("PING")
     pc._resolve_futures(["PONG"])
+
     assert_equal "PONG", f1.value
   end
 
@@ -385,31 +432,32 @@ class PipelinedConnectionBranchTest < Minitest::Test
     pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
     exec_future = pc.call("EXEC")
 
-    inner1 = Redis::Future.new(["SET", "k1", "v1"])
-    inner2 = Redis::Future.new(["SET", "k2", "v2"])
+    inner1 = Redis::Future.new(%w[SET k1 v1])
+    inner2 = Redis::Future.new(%w[SET k2 v2])
     exec_future.instance_variable_set(:@inner_futures, [inner1, inner2])
 
     # Result has matching number of items
-    pc._resolve_futures([["OK", "OK"]])
+    pc._resolve_futures([%w[OK OK]])
 
     assert_equal "OK", inner1.value
     assert_equal "OK", inner2.value
     # The exec_future value should be the mapped values from inner futures
-    assert_equal ["OK", "OK"], exec_future.value
+    assert_equal %w[OK OK], exec_future.value
   end
 
   # ---------- _get_values ----------
 
   def test_get_values_returns_transformed_values
     pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
-    f1 = pc.call("SET", "k", "v")
+    pc.call("SET", "k", "v")
     f2 = pc.call_1arg("GET", "k")
     f2.then { |v| v&.upcase }
 
-    pc._resolve_futures(["OK", "hello"])
+    pc._resolve_futures(%w[OK hello])
 
     values = pc._get_values
-    assert_equal ["OK", "HELLO"], values
+
+    assert_equal %w[OK HELLO], values
   end
 
   # ---------- Command delegation methods ----------
@@ -417,6 +465,7 @@ class PipelinedConnectionBranchTest < Minitest::Test
   def test_ping
     pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
     future = pc.ping
+
     assert_instance_of Redis::Future, future
   end
 
@@ -424,6 +473,7 @@ class PipelinedConnectionBranchTest < Minitest::Test
     pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
     @mock_pipeline.expects(:call_2args).with("SET", "k", "v")
     future = pc.set("k", "v")
+
     assert_instance_of Redis::Future, future
   end
 
@@ -431,6 +481,7 @@ class PipelinedConnectionBranchTest < Minitest::Test
     pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
     @mock_pipeline.expects(:call).with("SET", "k", "v", "EX", 100)
     future = pc.set("k", "v", ex: 100)
+
     assert_instance_of Redis::Future, future
   end
 
@@ -438,6 +489,7 @@ class PipelinedConnectionBranchTest < Minitest::Test
     pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
     @mock_pipeline.expects(:call).with("SET", "k", "v", "NX")
     future = pc.set("k", "v", nx: true)
+
     assert_instance_of Redis::Future, future
   end
 
@@ -480,6 +532,7 @@ class PipelinedConnectionBranchTest < Minitest::Test
   def test_get
     pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
     future = pc.get("key")
+
     assert_instance_of Redis::Future, future
   end
 
@@ -510,12 +563,14 @@ class PipelinedConnectionBranchTest < Minitest::Test
   def test_incr
     pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
     future = pc.incr("counter")
+
     assert_instance_of Redis::Future, future
   end
 
   def test_decr
     pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
     future = pc.decr("counter")
+
     assert_instance_of Redis::Future, future
   end
 
@@ -547,6 +602,7 @@ class PipelinedConnectionBranchTest < Minitest::Test
   def test_hget
     pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
     future = pc.hget("h", "f")
+
     assert_instance_of Redis::Future, future
   end
 
@@ -632,48 +688,56 @@ class PipelinedConnectionBranchTest < Minitest::Test
   def test_sadd_boolean_single
     pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
     future = pc.sadd?("set", "member")
+
     assert_instance_of Redis::Future, future
   end
 
   def test_srem_boolean_single
     pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
     future = pc.srem?("set", "member")
+
     assert_instance_of Redis::Future, future
   end
 
   def test_zpopmin_without_count
     pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
     future = pc.zpopmin("zset")
+
     assert_instance_of Redis::Future, future
   end
 
   def test_zpopmin_with_count
     pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
     future = pc.zpopmin("zset", 3)
+
     assert_instance_of Redis::Future, future
   end
 
   def test_zpopmax_without_count
     pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
     future = pc.zpopmax("zset")
+
     assert_instance_of Redis::Future, future
   end
 
   def test_zpopmax_with_count
     pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
     future = pc.zpopmax("zset", 3)
+
     assert_instance_of Redis::Future, future
   end
 
   def test_zadd_basic
     pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
     future = pc.zadd("zset", 1.0, "member")
+
     assert_instance_of Redis::Future, future
   end
 
   def test_zadd_with_options
     pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
     future = pc.zadd("zset", 1.0, "member", nx: true, ch: true)
+
     assert_instance_of Redis::Future, future
   end
 
@@ -732,30 +796,35 @@ class PipelinedConnectionBranchTest < Minitest::Test
   def test_zincrby
     pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
     future = pc.zincrby("zset", 1.5, "member")
+
     assert_instance_of Redis::Future, future
   end
 
   def test_info_with_section
     pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
     future = pc.info("server")
+
     assert_instance_of Redis::Future, future
   end
 
   def test_info_without_section
     pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
     future = pc.info
+
     assert_instance_of Redis::Future, future
   end
 
   def test_config_get
     pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
     future = pc.config("get", "maxmemory")
+
     assert_instance_of Redis::Future, future
   end
 
   def test_config_set
     pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
     future = pc.config("set", "maxmemory", "100mb")
+
     assert_instance_of Redis::Future, future
   end
 
@@ -767,6 +836,7 @@ class PipelinedConnectionBranchTest < Minitest::Test
       tx.set("k", "v")
       tx.get("k")
     end
+
     assert_instance_of Redis::Future, exec_future
     # exec_future should have @inner_futures set
     assert exec_future.instance_variable_defined?(:@inner_futures)
@@ -775,6 +845,7 @@ class PipelinedConnectionBranchTest < Minitest::Test
   def test_multi_without_block
     pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
     exec_future = pc.multi
+
     assert_instance_of Redis::Future, exec_future
   end
 
@@ -784,6 +855,7 @@ class PipelinedConnectionBranchTest < Minitest::Test
     pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
     yielded = nil
     pc.pipelined { |p| yielded = p }
+
     assert_same pc, yielded
   end
 
@@ -797,11 +869,13 @@ class PipelinedConnectionBranchTest < Minitest::Test
   def test_method_missing_delegates_to_call
     pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
     future = pc.custom_command("arg1")
+
     assert_instance_of Redis::Future, future
   end
 
   def test_respond_to_missing_returns_true
     pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
+
     assert_respond_to pc, :any_arbitrary_method
   end
 
@@ -812,6 +886,7 @@ class PipelinedConnectionBranchTest < Minitest::Test
     future = pc.zpopmin("zset")
     future._set_value(nil)
     result = future.value
+
     assert_nil result
   end
 
@@ -820,6 +895,7 @@ class PipelinedConnectionBranchTest < Minitest::Test
     future = pc.zpopmin("zset")
     future._set_value([])
     result = future.value
+
     assert_nil result
   end
 
@@ -828,6 +904,7 @@ class PipelinedConnectionBranchTest < Minitest::Test
     future = pc.zpopmin("zset")
     future._set_value(["member", "1.5"])
     result = future.value
+
     assert_equal ["member", 1.5], result
   end
 
@@ -836,6 +913,7 @@ class PipelinedConnectionBranchTest < Minitest::Test
     future = pc.zpopmin("zset")
     future._set_value([["member", "2.0"]])
     result = future.value
+
     assert_equal ["member", 2.0], result
   end
 
@@ -844,6 +922,7 @@ class PipelinedConnectionBranchTest < Minitest::Test
     future = pc.zpopmin("zset", 2)
     future._set_value([["m1", "1.0"], ["m2", "2.0"]])
     result = future.value
+
     assert_equal [["m1", 1.0], ["m2", 2.0]], result
   end
 
@@ -852,6 +931,7 @@ class PipelinedConnectionBranchTest < Minitest::Test
     future = pc.zpopmin("zset")
     future._set_value("unexpected")
     result = future.value
+
     assert_equal "unexpected", result
   end
 
@@ -862,6 +942,7 @@ class PipelinedConnectionBranchTest < Minitest::Test
     future = pc.zincrby("zset", 1, "member")
     future._set_value(nil)
     result = future.value
+
     assert_nil result
   end
 
@@ -870,7 +951,8 @@ class PipelinedConnectionBranchTest < Minitest::Test
     future = pc.zincrby("zset", 1, "member")
     future._set_value(3.14)
     result = future.value
-    assert_equal 3.14, result
+
+    assert_in_delta(3.14, result)
   end
 
   def test_parse_score_inf
@@ -878,6 +960,7 @@ class PipelinedConnectionBranchTest < Minitest::Test
     future = pc.zincrby("zset", 1, "member")
     future._set_value("inf")
     result = future.value
+
     assert_equal Float::INFINITY, result
   end
 
@@ -886,6 +969,7 @@ class PipelinedConnectionBranchTest < Minitest::Test
     future = pc.zincrby("zset", 1, "member")
     future._set_value("+inf")
     result = future.value
+
     assert_equal Float::INFINITY, result
   end
 
@@ -894,6 +978,7 @@ class PipelinedConnectionBranchTest < Minitest::Test
     future = pc.zincrby("zset", 1, "member")
     future._set_value("-inf")
     result = future.value
+
     assert_equal(-Float::INFINITY, result)
   end
 
@@ -902,7 +987,8 @@ class PipelinedConnectionBranchTest < Minitest::Test
     future = pc.zincrby("zset", 1, "member")
     future._set_value("42.5")
     result = future.value
-    assert_equal 42.5, result
+
+    assert_in_delta(42.5, result)
   end
 
   # ---------- parse_info branches ----------
@@ -912,6 +998,7 @@ class PipelinedConnectionBranchTest < Minitest::Test
     future = pc.info
     future._set_value(42)
     result = future.value
+
     assert_equal 42, result
   end
 
@@ -920,6 +1007,7 @@ class PipelinedConnectionBranchTest < Minitest::Test
     future = pc.info
     future._set_value("# Server\nredis_version:7.0.0\nused_memory:1024\n\n# Comment\n")
     result = future.value
+
     assert_instance_of Hash, result
     assert_equal "7.0.0", result["redis_version"]
     assert_equal "1024", result["used_memory"]
@@ -930,18 +1018,21 @@ class PipelinedConnectionBranchTest < Minitest::Test
   def test_select
     pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
     future = pc.select(5)
+
     assert_instance_of Redis::Future, future
   end
 
   def test_keys_default_pattern
     pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
     future = pc.keys
+
     assert_instance_of Redis::Future, future
   end
 
   def test_keys_custom_pattern
     pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
     future = pc.keys("user:*")
+
     assert_instance_of Redis::Future, future
   end
 
@@ -950,30 +1041,35 @@ class PipelinedConnectionBranchTest < Minitest::Test
   def test_mapped_hmget
     pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
     future = pc.mapped_hmget("h", "f1", "f2")
+
     assert_instance_of Redis::Future, future
   end
 
   def test_hsetnx
     pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
     future = pc.hsetnx("h", "f", "v")
+
     assert_instance_of Redis::Future, future
   end
 
   def test_hmget
     pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
     future = pc.hmget("h", "f1", "f2")
+
     assert_instance_of Redis::Future, future
   end
 
   def test_hmset
     pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
     future = pc.hmset("h", "f", "v")
+
     assert_instance_of Redis::Future, future
   end
 
   def test_hexists
     pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
     future = pc.hexists("h", "f")
+
     assert_instance_of Redis::Future, future
   end
 
@@ -982,18 +1078,21 @@ class PipelinedConnectionBranchTest < Minitest::Test
   def test_sismember
     pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
     future = pc.sismember("s", "m")
+
     assert_instance_of Redis::Future, future
   end
 
   def test_smembers
     pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
     future = pc.smembers("s")
+
     assert_instance_of Redis::Future, future
   end
 
   def test_scard
     pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
     future = pc.scard("s")
+
     assert_instance_of Redis::Future, future
   end
 
@@ -1026,48 +1125,56 @@ class PipelinedConnectionBranchTest < Minitest::Test
   def test_expire
     pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
     future = pc.expire("k", 100)
+
     assert_instance_of Redis::Future, future
   end
 
   def test_pexpire
     pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
     future = pc.pexpire("k", 5000)
+
     assert_instance_of Redis::Future, future
   end
 
   def test_ttl
     pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
     future = pc.ttl("k")
+
     assert_instance_of Redis::Future, future
   end
 
   def test_pttl
     pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
     future = pc.pttl("k")
+
     assert_instance_of Redis::Future, future
   end
 
   def test_persist
     pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
     future = pc.persist("k")
+
     assert_instance_of Redis::Future, future
   end
 
   def test_type
     pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
     future = pc.type("k")
+
     assert_instance_of Redis::Future, future
   end
 
   def test_rename
     pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
     future = pc.rename("old", "new")
+
     assert_instance_of Redis::Future, future
   end
 
   def test_renamenx
     pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
     future = pc.renamenx("old", "new")
+
     assert_instance_of Redis::Future, future
   end
 end
@@ -1089,29 +1196,33 @@ class MultiConnectionBranchTest < Minitest::Test
   def test_call_returns_future
     mc = Redis::MultiConnection.new(@mock_transaction)
     future = mc.call("SET", "k", "v")
+
     assert_instance_of Redis::Future, future
-    assert_equal ["SET", "k", "v"], future.command
+    assert_equal %w[SET k v], future.command
   end
 
   def test_call_1arg_returns_future
     mc = Redis::MultiConnection.new(@mock_transaction)
     future = mc.call_1arg("GET", "k")
+
     assert_instance_of Redis::Future, future
-    assert_equal ["GET", "k"], future.command
+    assert_equal %w[GET k], future.command
   end
 
   def test_call_2args_returns_future
     mc = Redis::MultiConnection.new(@mock_transaction)
     future = mc.call_2args("HGET", "h", "f")
+
     assert_instance_of Redis::Future, future
-    assert_equal ["HGET", "h", "f"], future.command
+    assert_equal %w[HGET h f], future.command
   end
 
   def test_call_3args_returns_future
     mc = Redis::MultiConnection.new(@mock_transaction)
     future = mc.call_3args("HSET", "h", "f", "v")
+
     assert_instance_of Redis::Future, future
-    assert_equal ["HSET", "h", "f", "v"], future.command
+    assert_equal %w[HSET h f v], future.command
   end
 
   # ---------- _resolve_futures branches ----------
@@ -1121,7 +1232,8 @@ class MultiConnectionBranchTest < Minitest::Test
     f1 = mc.call("SET", "k", "v")
     f2 = mc.call_1arg("GET", "k")
 
-    mc._resolve_futures(["OK", "value"])
+    mc._resolve_futures(%w[OK value])
+
     assert_equal "OK", f1.value
     assert_equal "value", f2.value
   end
@@ -1141,6 +1253,7 @@ class MultiConnectionBranchTest < Minitest::Test
 
     # Fewer results than futures
     mc._resolve_futures(["OK"])
+
     assert_equal "OK", f1.value
     assert_raises(Redis::FutureNotReady) { f2.value }
   end
@@ -1153,6 +1266,7 @@ class MultiConnectionBranchTest < Minitest::Test
     mc.call_1arg("GET", "k")
 
     futures = mc._futures
+
     assert_instance_of Array, futures
     assert_equal 2, futures.length
   end
@@ -1162,6 +1276,7 @@ class MultiConnectionBranchTest < Minitest::Test
   def test_ping
     mc = Redis::MultiConnection.new(@mock_transaction)
     future = mc.ping
+
     assert_instance_of Redis::Future, future
   end
 
@@ -1186,6 +1301,7 @@ class MultiConnectionBranchTest < Minitest::Test
   def test_get
     mc = Redis::MultiConnection.new(@mock_transaction)
     future = mc.get("key")
+
     assert_instance_of Redis::Future, future
   end
 
@@ -1204,30 +1320,35 @@ class MultiConnectionBranchTest < Minitest::Test
   def test_incr
     mc = Redis::MultiConnection.new(@mock_transaction)
     future = mc.incr("counter")
+
     assert_instance_of Redis::Future, future
   end
 
   def test_decr
     mc = Redis::MultiConnection.new(@mock_transaction)
     future = mc.decr("counter")
+
     assert_instance_of Redis::Future, future
   end
 
   def test_incrby
     mc = Redis::MultiConnection.new(@mock_transaction)
     future = mc.incrby("counter", 5)
+
     assert_instance_of Redis::Future, future
   end
 
   def test_decrby
     mc = Redis::MultiConnection.new(@mock_transaction)
     future = mc.decrby("counter", 3)
+
     assert_instance_of Redis::Future, future
   end
 
   def test_incrbyfloat
     mc = Redis::MultiConnection.new(@mock_transaction)
     future = mc.incrbyfloat("counter", 1.5)
+
     assert_instance_of Redis::Future, future
   end
 
@@ -1246,12 +1367,14 @@ class MultiConnectionBranchTest < Minitest::Test
   def test_hget
     mc = Redis::MultiConnection.new(@mock_transaction)
     future = mc.hget("h", "f")
+
     assert_instance_of Redis::Future, future
   end
 
   def test_hgetall
     mc = Redis::MultiConnection.new(@mock_transaction)
     future = mc.hgetall("myhash")
+
     assert_instance_of Redis::Future, future
   end
 
@@ -1282,6 +1405,7 @@ class MultiConnectionBranchTest < Minitest::Test
   def test_sadd_boolean
     mc = Redis::MultiConnection.new(@mock_transaction)
     future = mc.sadd?("s", "m")
+
     assert_instance_of Redis::Future, future
   end
 
@@ -1300,6 +1424,7 @@ class MultiConnectionBranchTest < Minitest::Test
   def test_srem_boolean
     mc = Redis::MultiConnection.new(@mock_transaction)
     future = mc.srem?("s", "m")
+
     assert_instance_of Redis::Future, future
   end
 
@@ -1318,24 +1443,28 @@ class MultiConnectionBranchTest < Minitest::Test
   def test_exists_boolean
     mc = Redis::MultiConnection.new(@mock_transaction)
     future = mc.exists?("key")
+
     assert_instance_of Redis::Future, future
   end
 
   def test_exists_boolean_multiple
     mc = Redis::MultiConnection.new(@mock_transaction)
     future = mc.exists?("k1", "k2")
+
     assert_instance_of Redis::Future, future
   end
 
   def test_lpush
     mc = Redis::MultiConnection.new(@mock_transaction)
     future = mc.lpush("list", "val")
+
     assert_instance_of Redis::Future, future
   end
 
   def test_rpush
     mc = Redis::MultiConnection.new(@mock_transaction)
     future = mc.rpush("list", "val")
+
     assert_instance_of Redis::Future, future
   end
 
@@ -1366,6 +1495,7 @@ class MultiConnectionBranchTest < Minitest::Test
   def test_zadd_basic
     mc = Redis::MultiConnection.new(@mock_transaction)
     future = mc.zadd("zset", 1.0, "m")
+
     assert_instance_of Redis::Future, future
   end
 
@@ -1463,23 +1593,27 @@ class MultiConnectionBranchTest < Minitest::Test
   def test_info_with_section
     mc = Redis::MultiConnection.new(@mock_transaction)
     future = mc.info("server")
+
     assert_instance_of Redis::Future, future
   end
 
   def test_info_without_section
     mc = Redis::MultiConnection.new(@mock_transaction)
     future = mc.info
+
     assert_instance_of Redis::Future, future
   end
 
   def test_method_missing
     mc = Redis::MultiConnection.new(@mock_transaction)
     future = mc.custom_command("arg1")
+
     assert_instance_of Redis::Future, future
   end
 
   def test_respond_to_missing
     mc = Redis::MultiConnection.new(@mock_transaction)
+
     assert_respond_to mc, :anything_at_all
   end
 
@@ -1490,6 +1624,7 @@ class MultiConnectionBranchTest < Minitest::Test
     future = mc.info
     future._set_value(42)
     result = future.value
+
     assert_equal 42, result
   end
 
@@ -1498,6 +1633,7 @@ class MultiConnectionBranchTest < Minitest::Test
     future = mc.info
     future._set_value("# Server\nredis_version:7.0.0\nused_memory:1024\n\n")
     result = future.value
+
     assert_instance_of Hash, result
     assert_equal "7.0.0", result["redis_version"]
   end
@@ -1507,42 +1643,49 @@ class MultiConnectionBranchTest < Minitest::Test
   def test_expire
     mc = Redis::MultiConnection.new(@mock_transaction)
     future = mc.expire("k", 100)
+
     assert_instance_of Redis::Future, future
   end
 
   def test_ttl
     mc = Redis::MultiConnection.new(@mock_transaction)
     future = mc.ttl("k")
+
     assert_instance_of Redis::Future, future
   end
 
   def test_persist
     mc = Redis::MultiConnection.new(@mock_transaction)
     future = mc.persist("k")
+
     assert_instance_of Redis::Future, future
   end
 
   def test_type
     mc = Redis::MultiConnection.new(@mock_transaction)
     future = mc.type("k")
+
     assert_instance_of Redis::Future, future
   end
 
   def test_rename
     mc = Redis::MultiConnection.new(@mock_transaction)
     future = mc.rename("old", "new")
+
     assert_instance_of Redis::Future, future
   end
 
   def test_select
     mc = Redis::MultiConnection.new(@mock_transaction)
     future = mc.select(2)
+
     assert_instance_of Redis::Future, future
   end
 
   def test_keys
     mc = Redis::MultiConnection.new(@mock_transaction)
     future = mc.keys("*")
+
     assert_instance_of Redis::Future, future
   end
 end
@@ -1577,7 +1720,7 @@ class PipelineMultiWrapperBranchTest < Minitest::Test
     assert_instance_of Redis::Future, user_future
     assert_equal 1, @pipeline_futures.length
     assert_equal 1, @inner_futures.length
-    assert_equal ["GET", "k"], user_future.command
+    assert_equal %w[GET k], user_future.command
   end
 
   def test_call_2args_creates_both_futures
@@ -1587,7 +1730,7 @@ class PipelineMultiWrapperBranchTest < Minitest::Test
     assert_instance_of Redis::Future, user_future
     assert_equal 1, @pipeline_futures.length
     assert_equal 1, @inner_futures.length
-    assert_equal ["SET", "k", "v"], user_future.command
+    assert_equal %w[SET k v], user_future.command
   end
 
   def test_call_3args_creates_both_futures
@@ -1597,7 +1740,7 @@ class PipelineMultiWrapperBranchTest < Minitest::Test
     assert_instance_of Redis::Future, user_future
     assert_equal 1, @pipeline_futures.length
     assert_equal 1, @inner_futures.length
-    assert_equal ["HSET", "h", "f", "v"], user_future.command
+    assert_equal %w[HSET h f v], user_future.command
   end
 
   # ---------- Command shortcuts ----------
@@ -1652,6 +1795,7 @@ class PipelineMultiWrapperBranchTest < Minitest::Test
   def test_get
     wrapper = Redis::PipelineMultiWrapper.new(@mock_pipeline, @pipeline_futures, @inner_futures)
     future = wrapper.get("k")
+
     assert_instance_of Redis::Future, future
   end
 
@@ -1670,12 +1814,14 @@ class PipelineMultiWrapperBranchTest < Minitest::Test
   def test_incr
     wrapper = Redis::PipelineMultiWrapper.new(@mock_pipeline, @pipeline_futures, @inner_futures)
     future = wrapper.incr("counter")
+
     assert_instance_of Redis::Future, future
   end
 
   def test_decr
     wrapper = Redis::PipelineMultiWrapper.new(@mock_pipeline, @pipeline_futures, @inner_futures)
     future = wrapper.decr("counter")
+
     assert_instance_of Redis::Future, future
   end
 
@@ -1716,12 +1862,14 @@ class PipelineMultiWrapperBranchTest < Minitest::Test
   def test_hget
     wrapper = Redis::PipelineMultiWrapper.new(@mock_pipeline, @pipeline_futures, @inner_futures)
     future = wrapper.hget("h", "f")
+
     assert_instance_of Redis::Future, future
   end
 
   def test_hgetall
     wrapper = Redis::PipelineMultiWrapper.new(@mock_pipeline, @pipeline_futures, @inner_futures)
     future = wrapper.hgetall("h")
+
     assert_instance_of Redis::Future, future
   end
 
@@ -1733,11 +1881,13 @@ class PipelineMultiWrapperBranchTest < Minitest::Test
   def test_method_missing
     wrapper = Redis::PipelineMultiWrapper.new(@mock_pipeline, @pipeline_futures, @inner_futures)
     future = wrapper.custom_command("arg")
+
     assert_instance_of Redis::Future, future
   end
 
   def test_respond_to_missing
     wrapper = Redis::PipelineMultiWrapper.new(@mock_pipeline, @pipeline_futures, @inner_futures)
+
     assert_respond_to wrapper, :anything
   end
 end

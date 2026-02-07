@@ -21,20 +21,23 @@ class TCPConnectionBranchTest < Minitest::Test
 
   def test_default_initialization
     conn = RedisRuby::Connection::TCP.new
+
     assert_equal "localhost", conn.host
     assert_equal 6379, conn.port
-    assert_equal 5.0, conn.timeout
+    assert_in_delta(5.0, conn.timeout)
   end
 
   def test_custom_host_port_timeout
     conn = RedisRuby::Connection::TCP.new(host: "10.0.0.1", port: 7000, timeout: 10.0)
+
     assert_equal "10.0.0.1", conn.host
     assert_equal 7000, conn.port
-    assert_equal 10.0, conn.timeout
+    assert_in_delta(10.0, conn.timeout)
   end
 
   def test_initialize_sets_pid
     conn = RedisRuby::Connection::TCP.new
+
     assert_equal Process.pid, conn.instance_variable_get(:@pid)
   end
 
@@ -43,19 +46,22 @@ class TCPConnectionBranchTest < Minitest::Test
   def test_connected_true_when_socket_open
     conn = RedisRuby::Connection::TCP.new
     @mock_socket.stubs(:closed?).returns(false)
-    assert conn.connected?
+
+    assert_predicate conn, :connected?
   end
 
   def test_connected_false_when_socket_closed
     conn = RedisRuby::Connection::TCP.new
     @mock_socket.stubs(:closed?).returns(true)
-    refute conn.connected?
+
+    refute_predicate conn, :connected?
   end
 
   def test_connected_false_when_socket_nil
     conn = RedisRuby::Connection::TCP.new
     conn.instance_variable_set(:@socket, nil)
-    refute conn.connected?
+
+    refute_predicate conn, :connected?
   end
 
   # ---------- ensure_connected branches ----------
@@ -66,7 +72,8 @@ class TCPConnectionBranchTest < Minitest::Test
     # Should not try to reconnect
     TCPSocket.expects(:new).never # Already stubbed, but we check no extra calls
     conn.ensure_connected
-    assert conn.connected?
+
+    assert_predicate conn, :connected?
   end
 
   def test_ensure_connected_reconnects_when_socket_nil
@@ -82,7 +89,8 @@ class TCPConnectionBranchTest < Minitest::Test
     TCPSocket.stubs(:new).returns(new_socket)
 
     conn.ensure_connected
-    assert conn.connected?
+
+    assert_predicate conn, :connected?
   end
 
   def test_ensure_connected_reconnects_when_socket_closed
@@ -97,7 +105,8 @@ class TCPConnectionBranchTest < Minitest::Test
     TCPSocket.stubs(:new).returns(new_socket)
 
     conn.ensure_connected
-    assert conn.connected?
+
+    assert_predicate conn, :connected?
   end
 
   def test_ensure_connected_fork_detection_different_pid
@@ -115,7 +124,8 @@ class TCPConnectionBranchTest < Minitest::Test
     TCPSocket.stubs(:new).returns(new_socket)
 
     conn.ensure_connected
-    assert conn.connected?
+
+    assert_predicate conn, :connected?
   end
 
   def test_ensure_connected_fork_detection_sets_socket_nil
@@ -134,7 +144,7 @@ class TCPConnectionBranchTest < Minitest::Test
 
     conn.ensure_connected
     # After reconnect, socket should be the new one
-    assert conn.connected?
+    assert_predicate conn, :connected?
   end
 
   def test_ensure_connected_no_pid_check_when_pid_nil
@@ -150,7 +160,8 @@ class TCPConnectionBranchTest < Minitest::Test
     TCPSocket.stubs(:new).returns(new_socket)
 
     conn.ensure_connected
-    assert conn.connected?
+
+    assert_predicate conn, :connected?
   end
 
   # ---------- reconnect branches ----------
@@ -167,7 +178,8 @@ class TCPConnectionBranchTest < Minitest::Test
     TCPSocket.stubs(:new).returns(new_socket)
 
     conn.reconnect
-    assert conn.connected?
+
+    assert_predicate conn, :connected?
   end
 
   def test_reconnect_swallows_close_errors
@@ -183,7 +195,8 @@ class TCPConnectionBranchTest < Minitest::Test
 
     # Should not raise despite close error
     conn.reconnect
-    assert conn.connected?
+
+    assert_predicate conn, :connected?
   end
 
   # ---------- close branches ----------
@@ -212,6 +225,7 @@ class TCPConnectionBranchTest < Minitest::Test
     @mock_socket.stubs(:read_nonblock).returns("+PONG\r\n")
 
     result = conn.call("PING")
+
     assert_equal "PONG", result
   end
 
@@ -224,6 +238,7 @@ class TCPConnectionBranchTest < Minitest::Test
     @mock_socket.stubs(:read_nonblock).returns("+OK\r\n")
 
     result = conn.call("SET", "k", "v")
+
     assert_equal "OK", result
   end
 
@@ -238,6 +253,7 @@ class TCPConnectionBranchTest < Minitest::Test
     @mock_socket.stubs(:read_nonblock).returns("$5\r\nhello\r\n")
 
     result = conn.call_1arg("GET", "mykey")
+
     assert_equal "hello", result
   end
 
@@ -250,6 +266,7 @@ class TCPConnectionBranchTest < Minitest::Test
     @mock_socket.stubs(:read_nonblock).returns("+OK\r\n")
 
     result = conn.call_2args("SET", "k", "v")
+
     assert_equal "OK", result
   end
 
@@ -262,6 +279,7 @@ class TCPConnectionBranchTest < Minitest::Test
     @mock_socket.stubs(:read_nonblock).returns(":1\r\n")
 
     result = conn.call_3args("HSET", "h", "f", "v")
+
     assert_equal 1, result
   end
 
@@ -288,6 +306,7 @@ class TCPConnectionBranchTest < Minitest::Test
     @mock_socket.stubs(:read_nonblock).returns("+PONG\r\n")
 
     result = conn.read_response
+
     assert_equal "PONG", result
   end
 
@@ -295,6 +314,7 @@ class TCPConnectionBranchTest < Minitest::Test
     # Connection#read_response with timeout delegates to buffered_io
     # Just verify the method exists and accepts timeout kwarg
     conn = RedisRuby::Connection::TCP.new
+
     assert_respond_to conn, :read_response
   end
 
@@ -310,6 +330,7 @@ class TCPConnectionBranchTest < Minitest::Test
       %w[SET key value],
       %w[GET key],
     ])
+
     assert_equal 2, results.length
     assert_equal "OK", results[0]
     assert_equal "hello", results[1]
@@ -353,16 +374,18 @@ class SSLConnectionBranchTest < Minitest::Test
 
   def test_default_initialization
     conn = RedisRuby::Connection::SSL.new
+
     assert_equal "localhost", conn.host
     assert_equal 6379, conn.port
-    assert_equal 5.0, conn.timeout
+    assert_in_delta(5.0, conn.timeout)
   end
 
   def test_custom_parameters
     conn = RedisRuby::Connection::SSL.new(host: "secure.example.com", port: 6380, timeout: 10.0)
+
     assert_equal "secure.example.com", conn.host
     assert_equal 6380, conn.port
-    assert_equal 10.0, conn.timeout
+    assert_in_delta(10.0, conn.timeout)
   end
 
   # ---------- SSL context branches ----------
@@ -468,7 +491,8 @@ class SSLConnectionBranchTest < Minitest::Test
     OpenSSL::SSL::SSLContext.any_instance.stubs(:min_version=)
     conn = RedisRuby::Connection::SSL.new
     @mock_ssl_socket.stubs(:closed?).returns(false)
-    assert conn.connected?
+
+    assert_predicate conn, :connected?
   end
 
   def test_connected_false_when_closed
@@ -476,7 +500,8 @@ class SSLConnectionBranchTest < Minitest::Test
     OpenSSL::SSL::SSLContext.any_instance.stubs(:min_version=)
     conn = RedisRuby::Connection::SSL.new
     @mock_ssl_socket.stubs(:closed?).returns(true)
-    refute conn.connected?
+
+    refute_predicate conn, :connected?
   end
 
   def test_connected_false_when_nil
@@ -484,7 +509,8 @@ class SSLConnectionBranchTest < Minitest::Test
     OpenSSL::SSL::SSLContext.any_instance.stubs(:min_version=)
     conn = RedisRuby::Connection::SSL.new
     conn.instance_variable_set(:@ssl_socket, nil)
-    refute conn.connected?
+
+    refute_predicate conn, :connected?
   end
 
   # ---------- ensure_connected branches ----------
@@ -496,7 +522,8 @@ class SSLConnectionBranchTest < Minitest::Test
     @mock_ssl_socket.stubs(:closed?).returns(false)
     # Should not try to reconnect
     conn.ensure_connected
-    assert conn.connected?
+
+    assert_predicate conn, :connected?
   end
 
   def test_ensure_connected_reconnects_when_not_connected
@@ -520,7 +547,8 @@ class SSLConnectionBranchTest < Minitest::Test
     OpenSSL::SSL::SSLSocket.stubs(:new).returns(new_ssl)
 
     conn.ensure_connected
-    assert conn.connected?
+
+    assert_predicate conn, :connected?
   end
 
   def test_ensure_connected_fork_detection
@@ -547,7 +575,7 @@ class SSLConnectionBranchTest < Minitest::Test
 
     conn.ensure_connected
     # Should have nullified and reconnected
-    assert conn.connected?
+    assert_predicate conn, :connected?
   end
 
   # ---------- reconnect branches ----------
@@ -575,7 +603,8 @@ class SSLConnectionBranchTest < Minitest::Test
     OpenSSL::SSL::SSLSocket.stubs(:new).returns(new_ssl)
 
     conn.reconnect
-    assert conn.connected?
+
+    assert_predicate conn, :connected?
   end
 
   # ---------- close branches ----------
@@ -611,6 +640,7 @@ class SSLConnectionBranchTest < Minitest::Test
     @mock_ssl_socket.stubs(:read_nonblock).returns("+OK\r\n+PONG\r\n")
 
     results = conn.pipeline([%w[SET k v], ["PING"]])
+
     assert_equal 2, results.length
   end
 end
@@ -631,33 +661,38 @@ class UnixConnectionBranchTest < Minitest::Test
 
   def test_default_initialization
     conn = RedisRuby::Connection::Unix.new
+
     assert_equal "/var/run/redis/redis.sock", conn.path
-    assert_equal 5.0, conn.timeout
+    assert_in_delta(5.0, conn.timeout)
   end
 
   def test_custom_path_and_timeout
     conn = RedisRuby::Connection::Unix.new(path: "/tmp/redis.sock", timeout: 10.0)
+
     assert_equal "/tmp/redis.sock", conn.path
-    assert_equal 10.0, conn.timeout
+    assert_in_delta(10.0, conn.timeout)
   end
 
   # ---------- connected? branches ----------
 
   def test_connected_true
     conn = RedisRuby::Connection::Unix.new
-    assert conn.connected?
+
+    assert_predicate conn, :connected?
   end
 
   def test_connected_false_when_closed
     conn = RedisRuby::Connection::Unix.new
     @mock_socket.stubs(:closed?).returns(true)
-    refute conn.connected?
+
+    refute_predicate conn, :connected?
   end
 
   def test_connected_false_when_nil
     conn = RedisRuby::Connection::Unix.new
     conn.instance_variable_set(:@socket, nil)
-    refute conn.connected?
+
+    refute_predicate conn, :connected?
   end
 
   # ---------- Error handling branches ----------
@@ -709,6 +744,7 @@ class UnixConnectionBranchTest < Minitest::Test
     @mock_socket.stubs(:read_nonblock).returns("+PONG\r\n")
 
     result = conn.call("PING")
+
     assert_equal "PONG", result
   end
 
@@ -719,6 +755,7 @@ class UnixConnectionBranchTest < Minitest::Test
     @mock_socket.stubs(:read_nonblock).returns("$5\r\nhello\r\n")
 
     result = conn.call_1arg("GET", "key")
+
     assert_equal "hello", result
   end
 
@@ -729,6 +766,7 @@ class UnixConnectionBranchTest < Minitest::Test
     @mock_socket.stubs(:read_nonblock).returns("+OK\r\n")
 
     result = conn.call_2args("SET", "k", "v")
+
     assert_equal "OK", result
   end
 
@@ -739,6 +777,7 @@ class UnixConnectionBranchTest < Minitest::Test
     @mock_socket.stubs(:read_nonblock).returns(":1\r\n")
 
     result = conn.call_3args("HSET", "h", "f", "v")
+
     assert_equal 1, result
   end
 
@@ -749,6 +788,7 @@ class UnixConnectionBranchTest < Minitest::Test
     @mock_socket.stubs(:read_nonblock).returns("+OK\r\n$5\r\nhello\r\n")
 
     results = conn.pipeline([%w[SET k v], %w[GET k]])
+
     assert_equal 2, results.length
   end
 end
@@ -770,6 +810,7 @@ class ConnectionPoolBranchTest < Minitest::Test
 
   def test_default_pool_size
     pool = RedisRuby::Connection::Pool.new
+
     assert_equal 5, pool.size
     assert_equal 5, pool.timeout
     pool.close
@@ -777,6 +818,7 @@ class ConnectionPoolBranchTest < Minitest::Test
 
   def test_custom_pool_size
     pool = RedisRuby::Connection::Pool.new(size: 10, pool_timeout: 2)
+
     assert_equal 10, pool.size
     assert_equal 2, pool.timeout
     pool.close
@@ -784,6 +826,7 @@ class ConnectionPoolBranchTest < Minitest::Test
 
   def test_with_yields_connection
     pool = RedisRuby::Connection::Pool.new(size: 1)
+
     pool.with do |conn|
       assert_instance_of RedisRuby::Connection::TCP, conn
     end
@@ -792,6 +835,7 @@ class ConnectionPoolBranchTest < Minitest::Test
 
   def test_shutdown_alias
     pool = RedisRuby::Connection::Pool.new
+
     assert_respond_to pool, :shutdown
     pool.close
   end
@@ -799,6 +843,7 @@ class ConnectionPoolBranchTest < Minitest::Test
   def test_create_connection_with_password
     @mock_socket.stubs(:read_nonblock).returns("+OK\r\n")
     pool = RedisRuby::Connection::Pool.new(password: "secret", size: 1)
+
     pool.with do |conn|
       assert_instance_of RedisRuby::Connection::TCP, conn
     end
@@ -808,6 +853,7 @@ class ConnectionPoolBranchTest < Minitest::Test
   def test_create_connection_with_db_selection
     @mock_socket.stubs(:read_nonblock).returns("+OK\r\n")
     pool = RedisRuby::Connection::Pool.new(db: 5, size: 1)
+
     pool.with do |conn|
       assert_instance_of RedisRuby::Connection::TCP, conn
     end
@@ -816,6 +862,7 @@ class ConnectionPoolBranchTest < Minitest::Test
 
   def test_create_connection_without_password_no_auth
     pool = RedisRuby::Connection::Pool.new(size: 1)
+
     pool.with do |conn|
       # No AUTH should have been sent
       assert_instance_of RedisRuby::Connection::TCP, conn
@@ -825,6 +872,7 @@ class ConnectionPoolBranchTest < Minitest::Test
 
   def test_create_connection_with_db_0_no_select
     pool = RedisRuby::Connection::Pool.new(db: 0, size: 1)
+
     pool.with do |conn|
       # No SELECT should have been sent for db 0
       assert_instance_of RedisRuby::Connection::TCP, conn

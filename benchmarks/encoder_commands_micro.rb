@@ -48,6 +48,6 @@ Benchmark.ips do |x|
   x.compare!
 end
 
-puts "\n" + "=" * 70
+puts "\n#{"=" * 70}"
 puts "Fast-path commands should be 2-3x faster than slow-path (ZADD)"
 puts "=" * 70
