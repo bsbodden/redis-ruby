@@ -347,6 +347,21 @@ class ServerBranchTest < Minitest::Test
     assert_equal ["LATENCY", "RESET", "command", "fast-command"], @client.last_command
   end
 
+  def test_latency_doctor
+    @client.latency_doctor
+    assert_equal ["LATENCY", "DOCTOR"], @client.last_command
+  end
+
+  def test_latency_graph
+    @client.latency_graph("command")
+    assert_equal ["LATENCY", "GRAPH", "command"], @client.last_command
+  end
+
+  def test_client_trackinginfo
+    @client.client_trackinginfo
+    assert_equal ["CLIENT", "TRACKINGINFO"], @client.last_command
+  end
+
   # module
   def test_module_list
     @client.module_list

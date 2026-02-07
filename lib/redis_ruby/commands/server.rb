@@ -70,6 +70,8 @@ module RedisRuby
       SUBCMD_LOAD = "LOAD"
       SUBCMD_UNLOAD = "UNLOAD"
       SUBCMD_OBJECT = "OBJECT"
+      SUBCMD_GRAPH = "GRAPH"
+      SUBCMD_TRACKINGINFO = "TRACKINGINFO"
 
       # Frozen options
       OPT_TYPE = "TYPE"
@@ -318,6 +320,18 @@ module RedisRuby
         call_2args(CMD_CLIENT, SUBCMD_NO_EVICT, enabled ? OPT_ON : OPT_OFF)
       end
 
+      # Get client tracking information
+      #
+      # Returns information about the current client's tracking status,
+      # including whether tracking is enabled, redirect client ID,
+      # tracked prefixes, and flags.
+      #
+      # @return [Array] Tracking information
+      # @see https://redis.io/commands/client-trackinginfo/
+      def client_trackinginfo
+        call_1arg(CMD_CLIENT, SUBCMD_TRACKINGINFO)
+      end
+
       # --- SLOWLOG ---
 
       # Get the slow log entries
@@ -477,6 +491,26 @@ module RedisRuby
         return call_2args(CMD_LATENCY, SUBCMD_RESET, events[0]) if events.size == 1
 
         call(CMD_LATENCY, SUBCMD_RESET, *events)
+      end
+
+      # Get a human-readable latency analysis report
+      #
+      # Analyzes latency data and provides advice about possible
+      # latency sources and remediation steps.
+      #
+      # @return [String] Human-readable latency report
+      # @see https://redis.io/commands/latency-doctor/
+      def latency_doctor
+        call_1arg(CMD_LATENCY, SUBCMD_DOCTOR)
+      end
+
+      # Get a latency event's history as an ASCII-art graph
+      #
+      # @param event [String] The latency event name (e.g., "command", "fast-command")
+      # @return [String] ASCII-art graph of latency history
+      # @see https://redis.io/commands/latency-graph/
+      def latency_graph(event)
+        call_2args(CMD_LATENCY, SUBCMD_GRAPH, event)
       end
 
       # --- MODULE ---
