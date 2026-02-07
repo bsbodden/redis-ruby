@@ -1,0 +1,151 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.event.pull_request.number || github.ref }}-ci
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+
+      - name: Run RuboCop
+        run: bundle exec rubocop
+
+  test:
+    name: Ruby ${{ matrix.ruby-version }} Unit Tests
+    needs: lint
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby-version: ['3.2', '3.3', '3.4']
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Ruby ${{ matrix.ruby-version }}
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby-version }}
+          bundler-cache: true
+
+      - name: Run unit tests
+        run: bundle exec rake test:unit
+
+      - name: Upload coverage
+        if: matrix.ruby-version == '3.4'
+        uses: codecov/codecov-action@v4
+        with:
+          files: coverage/.resultset.json
+          flags: unit
+          fail_ci_if_error: false
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+  integration:
+    name: Redis ${{ matrix.redis-version }} Integration
+    needs: lint
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        redis-version: ['7.2', '7.4', '8.0']
+    env:
+      REDIS_URL: redis://localhost:6379
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+
+      - name: Determine Redis image
+        id: redis-image
+        run: |
+          VERSION="${{ matrix.redis-version }}"
+          MAJOR=$(echo "$VERSION" | cut -d. -f1)
+          if [ "$MAJOR" -ge 8 ]; then
+            echo "image=redis:${VERSION}" >> "$GITHUB_OUTPUT"
+          else
+            echo "image=redis/redis-stack-server:${VERSION}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Start Redis
+        run: |
+          docker run -d --name redis -p 6379:6379 ${{ steps.redis-image.outputs.image }}
+          timeout 30 bash -c 'until docker exec redis redis-cli ping 2>/dev/null | grep -q PONG; do sleep 1; done'
+
+      - name: Run integration tests
+        run: bundle exec rake test:integration
+
+      - name: Stop Redis
+        if: always()
+        run: docker rm -f redis || true
+
+  coverage:
+    name: Coverage Gate
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4'
+          bundler-cache: true
+
+      - name: Run tests with coverage
+        run: COVERAGE=1 bundle exec rake test:unit
+
+      - name: Check coverage thresholds
+        run: |
+          ruby -e '
+            require "json"
+            results = JSON.parse(File.read("coverage/.resultset.json"))
+            # SimpleCov stores results under the test suite name
+            suite = results.values.first
+            covered = suite["coverage"].values.flat_map { |f| f["lines"] || f }.compact
+            total = covered.count { |l| !l.nil? }
+            hit = covered.count { |l| l.is_a?(Integer) && l > 0 }
+            pct = (hit.to_f / total * 100).round(2)
+            puts "Line coverage: #{pct}%"
+            if pct < 85
+              warn "Coverage #{pct}% is below the 85% threshold"
+              exit 1
+            end
+          '
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: coverage/.resultset.json
+          flags: full
+          fail_ci_if_error: false
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

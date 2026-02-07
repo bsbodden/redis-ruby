@@ -1,133 +1,175 @@
 <div align="center">
 
+[![Redis](https://redis.io/wp-content/uploads/2024/04/Logotype.svg?auto=webp&quality=85,75&width=120)](https://redis.io)
+
 # redis-ruby
 
 **A next-generation Redis client for Ruby**
 
-*Pure Ruby • RESP3 Protocol • Full Redis Stack • Production Ready*
+*Pure Ruby RESP3 &bull; 500+ Commands &bull; Full Redis Stack &bull; Production Ready*
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Ruby](https://img.shields.io/badge/Ruby-3.1%2B-red.svg)](https://www.ruby-lang.org/)
-[![Redis](https://img.shields.io/badge/Redis-6.0%2B-dc382d.svg)](https://redis.io/)
+[![CI](https://github.com/redis/redis-ruby/actions/workflows/ci.yml/badge.svg)](https://github.com/redis/redis-ruby/actions)
+[![codecov](https://codecov.io/gh/redis/redis-ruby/graph/badge.svg)](https://codecov.io/gh/redis/redis-ruby)
+[![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/redis/redis-ruby/blob/main/LICENSE)
 
-[Getting Started](#getting-started) • [Documentation](#documentation) • [API Reference](#command-reference) • [Contributing](#contributing)
+[![Gem Version](https://badge.fury.io/rb/redis-ruby.svg)](https://rubygems.org/gems/redis-ruby)
+![Gem Downloads](https://img.shields.io/gem/dt/redis-ruby)
+![Ruby](https://img.shields.io/badge/Ruby-3.2%2B-red.svg)
+
+[![Code style: RuboCop](https://img.shields.io/badge/code%20style-RuboCop-blue.svg)](https://github.com/rubocop/rubocop)
+![Language](https://img.shields.io/github/languages/top/redis/redis-ruby)
+![GitHub last commit](https://img.shields.io/github/last-commit/redis/redis-ruby)
+
+[Installation](#installation) &bull; [Usage](#usage) &bull; [Command Reference](#command-reference) &bull; [Advanced Topics](#advanced-topics) &bull; [Contributing](#contributing)
 
 </div>
 
 ---
 
-## Why redis-ruby?
+## How do I Redis?
 
-| **Performance** | **Complete** | **Modern** |
-|:---:|:---:|:---:|
-| 2x faster pipelines than redis-rb | 500+ commands across all Redis modules | Pure Ruby RESP3, no native extensions |
-| 49% fewer memory allocations | JSON, Search, TimeSeries, Vector, Bloom | Async/Fibers, Connection Pooling |
-| YJIT optimized for Ruby 3.4+ | Cluster, Sentinel, Pub/Sub, Streams | Distributed Locks, Client Caching |
+[Learn for free at Redis University](https://redis.io/learn/university)
 
----
+[Try the Redis Cloud](https://redis.io/try-free/)
 
-## Getting Started
+[Dive in developer tutorials](https://redis.io/learn)
 
-### Installation
+[Join the Redis community](https://redis.io/community/)
 
-Add to your Gemfile:
+[Work at Redis](https://redis.io/careers/)
 
-```ruby
-gem "redis-ruby"
-```
+## Installation
 
-Or install directly:
+Install via RubyGems:
 
 ```bash
 gem install redis-ruby
 ```
 
-### Quick Example
+Or add to your Gemfile:
+
+```ruby
+gem "redis-ruby"
+```
+
+### Docker Setup
+
+To run a local Redis instance with all modules:
+
+```bash
+docker run -p 6379:6379 redis/redis-stack
+```
+
+## Supported Redis Versions
+
+redis-ruby is tested against the following Redis versions:
+
+| Redis Version | Status | Notes |
+|:---:|:---:|:---|
+| **8.0** | Supported | Full feature support including Vector Sets |
+| **7.4** | Supported | All Redis Stack modules |
+| **7.2** | Supported | All Redis Stack modules |
+| **6.2+** | Compatible | Core commands; modules require Redis Stack |
+
+## Usage
+
+### Basic Example
 
 ```ruby
 require "redis_ruby"
 
-# Connect to Redis
 redis = RedisRuby.new(url: "redis://localhost:6379")
 
-# Basic operations
 redis.set("user:1:name", "Alice")
 redis.get("user:1:name")  # => "Alice"
-
-# JSON documents
-redis.json_set("user:1", "$", { name: "Alice", age: 30, tags: ["admin"] })
-redis.json_get("user:1", "$.name")  # => ["Alice"]
-
-# Full-text search
-redis.ft_search("idx:users", "@name:Alice")
-
-# Vector similarity
-redis.vadd("embeddings", "doc:1", embedding_vector, "{\"title\": \"Hello\"}")
-redis.vsim("embeddings", embedding_vector, count: 10)
 
 redis.close
 ```
 
-### Redis Setup
-
-redis-ruby works with any Redis deployment:
-
-| Deployment | Connection |
-|------------|------------|
-| **Local Redis** | `redis://localhost:6379` |
-| **Redis Cloud** | `rediss://user:pass@host:port` |
-| **Docker** | `docker run -p 6379:6379 redis/redis-stack` |
-| **Sentinel** | Use `RedisRuby.sentinel(...)` |
-| **Cluster** | Use `RedisRuby.cluster(...)` |
-
----
-
-## Features
-
-### Client Types
+### Connection Options
 
 ```ruby
-# Synchronous - simple, blocking operations
+# Standard TCP
 redis = RedisRuby.new(url: "redis://localhost:6379")
 
-# Pooled - thread-safe with connection pooling
-redis = RedisRuby.pooled(url: "redis://localhost:6379", pool: { size: 10 })
+# TLS (Redis Cloud, production)
+redis = RedisRuby.new(url: "rediss://user:pass@host:port")
 
-# Async - fiber-aware for concurrent operations
-Async do
-  redis = RedisRuby.async(url: "redis://localhost:6379")
-  redis.set("key", "value")
-end
+# Unix socket
+redis = RedisRuby.new(path: "/var/run/redis.sock")
 
-# Async Pooled - fiber-safe pooling for maximum concurrency
-Async do
-  redis = RedisRuby.async_pooled(url: "redis://localhost:6379", pool: { limit: 10 })
-end
-
-# Sentinel - automatic failover
-redis = RedisRuby.sentinel(
-  sentinels: [{ host: "sentinel1", port: 26379 }],
-  service_name: "mymaster"
-)
-
-# Cluster - automatic sharding
-redis = RedisRuby.cluster(
-  nodes: ["redis://node1:6379", "redis://node2:6379", "redis://node3:6379"]
+# With options
+redis = RedisRuby.new(
+  url: "redis://localhost:6379",
+  db: 0,
+  timeout: 5.0,
+  reconnect_attempts: 3
 )
 ```
 
-### Pipelines & Transactions
+### Connection Pools
 
 ```ruby
-# Pipeline - batch commands, single round-trip
+# Thread-safe pooled client
+redis = RedisRuby.pooled(url: "redis://localhost:6379", pool: { size: 10 })
+
+# Async fiber-safe pool
+Async do
+  redis = RedisRuby.async_pooled(url: "redis://localhost:6379", pool: { limit: 10 })
+  redis.set("key", "value")
+end
+```
+
+### Redis Commands
+
+```ruby
+# Strings
+redis.set("key", "value", ex: 3600, nx: true)
+redis.get("key")
+redis.mset("k1", "v1", "k2", "v2")
+redis.incr("counter")
+
+# Hashes
+redis.hset("user:1", "name", "Alice", "age", 30)
+redis.hgetall("user:1")  # => {"name"=>"Alice", "age"=>"30"}
+
+# Lists
+redis.lpush("queue", "task1", "task2")
+redis.rpop("queue")
+
+# Sets
+redis.sadd("tags", "ruby", "redis")
+redis.smembers("tags")
+
+# Sorted Sets
+redis.zadd("leaderboard", 100, "alice", 95, "bob")
+redis.zrange("leaderboard", 0, -1, withscores: true)
+
+# Geo
+redis.geoadd("locations", -122.4194, 37.7749, "San Francisco")
+redis.geosearch("locations", longitude: -122.4, latitude: 37.8, byradius: 10, unit: "mi")
+```
+
+## Advanced Topics
+
+### Pipelines
+
+Batch commands in a single round-trip for dramatically improved throughput:
+
+```ruby
 results = redis.pipelined do |pipe|
   pipe.set("key1", "value1")
   pipe.set("key2", "value2")
   pipe.get("key1")
 end
 # => ["OK", "OK", "value1"]
+```
 
-# Transaction - atomic execution with MULTI/EXEC
+### Transactions
+
+Atomic execution with `MULTI`/`EXEC`:
+
+```ruby
 results = redis.multi do |tx|
   tx.incr("counter")
   tx.incr("counter")
@@ -143,27 +185,6 @@ redis.watch("balance") do
 end
 ```
 
-### Distributed Locking
-
-```ruby
-lock = RedisRuby::Lock.new(redis, "resource:1", timeout: 30)
-
-# Block syntax - automatically releases
-lock.synchronize do
-  # Critical section
-end
-
-# Manual control
-if lock.acquire(blocking: true, blocking_timeout: 5)
-  begin
-    # Do work
-    lock.extend(additional_time: 10)  # Extend if needed
-  ensure
-    lock.release
-  end
-end
-```
-
 ### Pub/Sub
 
 ```ruby
@@ -175,15 +196,28 @@ redis.subscribe("events", "alerts") do |on|
   on.message { |channel, message| puts "#{channel}: #{message}" }
 end
 
-# Background subscriber (non-blocking)
-subscriber = RedisRuby::Subscriber.new(redis)
-subscriber.on_message { |channel, msg| process(msg) }
-subscriber.subscribe("events")
-thread = subscriber.run_in_thread
-
 # Pattern subscriptions
 redis.psubscribe("user:*") do |on|
   on.pmessage { |pattern, channel, message| puts message }
+end
+```
+
+### Distributed Locks
+
+```ruby
+lock = RedisRuby::Lock.new(redis, "resource:1", timeout: 30)
+
+lock.synchronize do
+  # Critical section - lock auto-releases
+end
+
+# Manual control
+if lock.acquire(blocking: true, blocking_timeout: 5)
+  begin
+    lock.extend(additional_time: 10)
+  ensure
+    lock.release
+  end
 end
 ```
 
@@ -220,11 +254,29 @@ redis.fcall("myfunc", keys: ["key1"], args: ["arg1"])
 cache = RedisRuby::Cache.new(redis, max_entries: 10_000, ttl: 60)
 cache.enable!
 
-# Cached reads - automatic invalidation via RESP3
-value = cache.get("frequently:read:key")  # From cache after first read
+value = cache.get("frequently:read:key")  # Cached after first read, auto-invalidated via RESP3
 ```
 
----
+### Topologies
+
+```ruby
+# Sentinel - automatic failover
+redis = RedisRuby.sentinel(
+  sentinels: [{ host: "sentinel1", port: 26379 }],
+  service_name: "mymaster"
+)
+
+# Cluster - automatic sharding
+redis = RedisRuby.cluster(
+  nodes: ["redis://node1:6379", "redis://node2:6379", "redis://node3:6379"]
+)
+
+# Async - fiber-aware for concurrent operations
+Async do
+  redis = RedisRuby.async(url: "redis://localhost:6379")
+  redis.set("key", "value")
+end
+```
 
 ## Redis Stack Modules
 
@@ -250,14 +302,8 @@ redis.ft_create("idx:products",
   ]
 )
 
-# Search with query builder
-query = RedisRuby::Search::Query.new("laptop")
-  .filter_numeric("price", 500, 1500)
-  .sort_by("price", :asc)
-  .limit(0, 10)
-  .highlight(fields: ["name"])
-
-results = query.execute(redis, "idx:products")
+# Full-text search
+results = redis.ft_search("idx:products", "@name:laptop")
 
 # Aggregation
 agg = RedisRuby::Search::AggregateQuery.new("*")
@@ -316,8 +362,6 @@ redis.vdim("embeddings")
 redis.vcard("embeddings")
 ```
 
----
-
 ## Command Reference
 
 | Category | Commands | Examples |
@@ -346,8 +390,6 @@ redis.vcard("embeddings")
 | **Server** | 53 | `info`, `config_get`, `client_list` |
 | **Total** | **500+** | |
 
----
-
 ## Performance
 
 Benchmarked with Ruby 3.4 + YJIT against redis-rb with hiredis:
@@ -359,82 +401,44 @@ Single operations:      redis-ruby is 1.15x faster
 Memory allocations:     49% fewer than redis-rb
 ```
 
-### YJIT Optimization
-
-redis-ruby is optimized for YJIT with consistent object shapes:
-
-```ruby
-# Check YJIT status
-RedisRuby::Utils::YJITMonitor.enabled?       # => true
-RedisRuby::Utils::YJITMonitor.ratio_in_yjit  # => 97.5
-RedisRuby::Utils::YJITMonitor.status_report  # Detailed report
-```
-
----
-
-## Requirements
-
-- **Ruby** 3.1+ (3.4+ recommended for YJIT)
-- **Redis** 6.0+ (Redis Stack 7.2+ for modules, Redis 8+ for Vector Sets)
-
-### Optional Dependencies
-
-```ruby
-gem "async"       # For AsyncClient
-gem "async-pool"  # For AsyncPooledClient
-```
-
----
-
-## Development
-
-```bash
-# Clone and setup
-git clone https://github.com/yourname/redis-ruby.git
-cd redis-ruby
-bundle install
-
-# Run tests
-bundle exec rake test          # All tests
-bundle exec rake test:unit     # Unit tests only
-bundle exec rake test:integration  # Integration tests
-
-# Run benchmarks
-RUBYOPT="--yjit" bundle exec rake benchmark
-
-# Linting
-bundle exec rubocop -A
-```
-
-### DevContainer
-
-This project includes a devcontainer with Redis Stack:
-
-1. Open in VS Code with Dev Containers extension
-2. Click "Reopen in Container"
-3. Run `bundle exec rake test`
-
----
+redis-ruby achieves this without any native extensions through careful YJIT optimization
+and consistent object shapes. See the [benchmarks/](benchmarks/) directory for full results.
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub. This project is intended to be a safe, welcoming space for collaboration.
+Bug reports and pull requests are welcome on [GitHub](https://github.com/redis/redis-ruby).
 
-1. Fork it
+1. Fork the repository
 2. Create your feature branch (`git checkout -b my-new-feature`)
-3. Commit your changes (`git commit -am 'Add some feature'`)
-4. Push to the branch (`git push origin my-new-feature`)
-5. Create a new Pull Request
+3. Write tests for your changes
+4. Ensure all tests pass (`bundle exec rake test`)
+5. Ensure code style passes (`bundle exec rubocop`)
+6. Commit your changes (`git commit -am 'feat: add some feature'`)
+7. Push to the branch (`git push origin my-new-feature`)
+8. Create a Pull Request
 
----
+### Development Setup
+
+```bash
+git clone https://github.com/redis/redis-ruby.git
+cd redis-ruby
+bundle install
+
+bundle exec rake test          # All tests
+bundle exec rake test:unit     # Unit tests only
+bundle exec rake test:integration  # Integration tests (requires Redis)
+bundle exec rubocop            # Linting
+```
+
+This project includes a devcontainer with Redis Stack pre-configured.
+Open in VS Code with the Dev Containers extension and click "Reopen in Container".
 
 ## License
 
-The gem is available as open source under the terms of the [MIT License](LICENSE).
+Distributed under the [MIT License](LICENSE).
 
----
+## Author
 
-## Acknowledgments
+redis-ruby is developed and maintained by [Redis Inc](https://redis.io). It can be found [here](https://github.com/redis/redis-ruby), or downloaded from [RubyGems](https://rubygems.org/gems/redis-ruby).
 
-Inspired by [Lettuce](https://github.com/redis/lettuce), [redis-py](https://github.com/redis/redis-py), [Jedis](https://github.com/redis/jedis), and [async-redis](https://github.com/socketry/async-redis).
-
+[![Redis](https://redis.io/wp-content/uploads/2024/04/Logotype.svg?auto=webp&quality=85,75&width=120)](https://redis.io)
