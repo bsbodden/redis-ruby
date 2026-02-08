@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "uri"
+require_relative "client_url_parsing"
 
 module RedisRuby
   # The main synchronous Redis client
@@ -18,15 +19,6 @@ module RedisRuby
   #
   # @example Unix socket connection
   #   client = RedisRuby::Client.new(url: "unix:///var/run/redis/redis.sock")
-  #
-  # @example SSL with custom parameters
-  #   client = RedisRuby::Client.new(
-  #     url: "rediss://redis.example.com:6379",
-  #     ssl_params: {
-  #       ca_file: "/path/to/ca.crt",
-  #       verify_mode: OpenSSL::SSL::VERIFY_PEER
-  #     }
-  #   )
   #
   class Client
     include Commands::Strings
@@ -49,6 +41,7 @@ module RedisRuby
     include Commands::Functions
     include Commands::ACL
     include Commands::Server
+    include ClientUrlParsing
 
     attr_reader :host, :port, :path, :db, :timeout
 
@@ -85,7 +78,6 @@ module RedisRuby
                    db: DEFAULT_DB, password: nil, username: nil, timeout: DEFAULT_TIMEOUT,
                    ssl: false, ssl_params: {}, retry_policy: nil, reconnect_attempts: 0,
                    decode_responses: false, encoding: "UTF-8")
-      # Initialize ALL instance variables upfront for consistent object shapes (YJIT optimization)
       @host = host
       @port = port
       @path = path
@@ -99,7 +91,6 @@ module RedisRuby
       @decode_responses = decode_responses
       @encoding = encoding
 
-      # Override from URL if provided
       parse_url(url) if url
 
       @retry_policy = retry_policy || build_default_retry_policy(reconnect_attempts)
@@ -107,16 +98,13 @@ module RedisRuby
 
     # Execute a Redis command
     #
-    # Automatically retries on transient connection/timeout errors
-    # when a retry policy is configured.
-    #
     # @param command [String] Command name
     # @param args [Array] Command arguments
     # @return [Object] Command result
-    def call(command, *)
+    def call(command, *args)
       @retry_policy.call do
         ensure_connected
-        result = @connection.call_direct(command, *)
+        result = @connection.call_direct(command, *args)
         raise result if result.is_a?(CommandError)
 
         @decode_responses ? decode_result(result) : result
@@ -124,7 +112,6 @@ module RedisRuby
     end
 
     # Fast path for single-argument commands (GET, DEL, EXISTS, etc.)
-    # Avoids splat allocation overhead - ~15% faster than call() for simple ops
     # @api private
     def call_1arg(command, arg)
       @retry_policy.call do
@@ -137,7 +124,6 @@ module RedisRuby
     end
 
     # Fast path for two-argument commands (HGET, simple SET, etc.)
-    # Avoids splat allocation overhead
     # @api private
     def call_2args(command, arg1, arg2)
       @retry_policy.call do
@@ -150,7 +136,6 @@ module RedisRuby
     end
 
     # Fast path for three-argument commands (HSET, etc.)
-    # Avoids splat allocation overhead
     # @api private
     def call_3args(command, arg1, arg2, arg3)
       @retry_policy.call do
@@ -163,7 +148,6 @@ module RedisRuby
     end
 
     # Ping the Redis server
-    #
     # @return [String] "PONG"
     def ping
       call(CMD_PING)
@@ -173,17 +157,11 @@ module RedisRuby
     #
     # @yield [Pipeline] pipeline object to queue commands
     # @return [Array] results from all commands
-    # @example
-    #   results = client.pipelined do |pipe|
-    #     pipe.set("key1", "value1")
-    #     pipe.get("key1")
-    #   end
     def pipelined
       ensure_connected
       pipeline = Pipeline.new(@connection)
       yield pipeline
       results = pipeline.execute
-      # Raise any errors that occurred (most pipelines have no errors)
       results.each { |r| raise r if r.is_a?(CommandError) }
       results
     end
@@ -192,11 +170,6 @@ module RedisRuby
     #
     # @yield [Transaction] transaction object to queue commands
     # @return [Array, nil] results from all commands, or nil if aborted
-    # @example
-    #   results = client.multi do |tx|
-    #     tx.set("key1", "value1")
-    #     tx.incr("counter")
-    #   end
     def multi
       ensure_connected
       transaction = Transaction.new(@connection)
@@ -204,33 +177,17 @@ module RedisRuby
       results = transaction.execute
       return nil if results.nil?
 
-      # Handle case where transaction itself failed (e.g., MISCONF)
       raise results if results.is_a?(CommandError)
 
-      # Raise any errors in results (most transactions have no errors)
       results.each { |r| raise r if r.is_a?(CommandError) }
       results
     end
 
     # Watch keys for changes (optimistic locking)
     #
-    # If any watched key is modified before EXEC, the transaction aborts.
-    #
     # @param keys [Array<String>] keys to watch
     # @yield [optional] block to execute while watching
     # @return [Object] result of block, or "OK" if no block
-    # @example With block (auto-unwatch)
-    #   client.watch("counter") do
-    #     current = client.get("counter").to_i
-    #     client.multi do |tx|
-    #       tx.set("counter", current + 1)
-    #     end
-    #   end
-    # @example Without block (manual unwatch)
-    #   client.watch("counter")
-    #   current = client.get("counter").to_i
-    #   client.multi { |tx| tx.set("counter", current + 1) }
-    #   client.unwatch
     def watch(*keys, &block)
       ensure_connected
       result = @connection.call(CMD_WATCH, *keys)
@@ -244,7 +201,6 @@ module RedisRuby
     end
 
     # Discard a transaction in progress
-    #
     # @return [String] "OK"
     def discard
       ensure_connected
@@ -252,7 +208,6 @@ module RedisRuby
     end
 
     # Unwatch all watched keys
-    #
     # @return [String] "OK"
     def unwatch
       ensure_connected
@@ -269,21 +224,18 @@ module RedisRuby
     alias quit close
 
     # Check if connected
-    #
     # @return [Boolean]
     def connected?
       @connection&.connected? || false
     end
 
     # Check if using SSL/TLS
-    #
     # @return [Boolean]
     def ssl?
       @ssl || false
     end
 
     # Check if using Unix socket
-    #
     # @return [Boolean]
     def unix?
       !@path.nil?
@@ -291,118 +243,17 @@ module RedisRuby
 
     private
 
-    # Parse Redis URL
-    # Supports: redis://, rediss://, unix://
-    def parse_url(url)
-      uri = URI.parse(url)
-
-      case uri.scheme
-      when "redis"
-        parse_tcp_url(uri)
-        @ssl = false
-      when "rediss"
-        parse_tcp_url(uri)
-        @ssl = true
-      when "unix"
-        parse_unix_url(uri)
-      else
-        raise ArgumentError, "Unsupported URL scheme: #{uri.scheme}. Use redis://, rediss://, or unix://"
-      end
-    end
-
-    # Parse TCP/SSL URL
-    def parse_tcp_url(uri)
-      @host = uri.host || DEFAULT_HOST
-      @port = uri.port || DEFAULT_PORT
-      @db = uri.path&.delete_prefix("/")&.to_i || DEFAULT_DB
-      @password = uri.password
-      @username = uri.user == "" ? nil : uri.user
-      # When only password is provided (redis://:password@host), user is empty string
-      @username = nil if @username && @password && @username == @password
-      @path = nil
-    end
-
-    # Parse Unix socket URL
-    def parse_unix_url(uri)
-      @path = uri.path
-      @host = nil
-      @port = nil
-
-      # Parse query string for db
-      if uri.query
-        params = URI.decode_www_form(uri.query).to_h
-        @db = params["db"]&.to_i || DEFAULT_DB
-      else
-        @db = DEFAULT_DB
-      end
-
-      @password = uri.user # unix://password@/path/to/socket
-    end
-
-    # Ensure connection is established
-    # Optimized: avoid safe navigation for hot path
-    def ensure_connected
-      return if @connection&.connected?
-
-      @connection = create_connection
-      authenticate if @password
-      select_db if @db.positive?
-    end
-
-    # Create appropriate connection based on configuration
-    def create_connection
-      if @path
-        Connection::Unix.new(path: @path, timeout: @timeout)
-      elsif @ssl
-        Connection::SSL.new(host: @host, port: @port, timeout: @timeout, ssl_params: @ssl_params)
-      else
-        Connection::TCP.new(host: @host, port: @port, timeout: @timeout)
-      end
-    end
-
-    # Authenticate with password (and optional username for ACL)
-    def authenticate
-      if @username
-        @connection.call(CMD_AUTH, @username, @password)
-      else
-        @connection.call(CMD_AUTH, @password)
-      end
-    end
-
-    # Select database
-    def select_db
-      @connection.call(CMD_SELECT, @db.to_s)
-    end
-
     # Decode a result to the configured encoding
     def decode_result(result)
       case result
       when String
-        if result.frozen?
-          result.encode(@encoding)
-        else
-          result.force_encoding(@encoding)
-        end
+        result.frozen? ? result.encode(@encoding) : result.force_encoding(@encoding)
       when Array
         result.map { |v| decode_result(v) }
       when Hash
         result.each_with_object({}) { |(k, v), h| h[decode_result(k)] = decode_result(v) }
       else
         result
-      end
-    end
-
-    # Build a default retry policy from reconnect_attempts count
-    def build_default_retry_policy(reconnect_attempts)
-      if reconnect_attempts.positive?
-        Retry.new(
-          retries: reconnect_attempts,
-          backoff: ExponentialWithJitterBackoff.new(base: 0.025, cap: 2.0),
-          on_retry: ->(_error, _attempt) { @connection = nil }
-        )
-      else
-        # No-op retry policy (zero retries, just executes once)
-        Retry.new(retries: 0)
       end
     end
   end

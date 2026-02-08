@@ -33,7 +33,6 @@ module RedisRuby
   #     service_name: "mymaster"
   #   )
   #
-  # rubocop:disable Metrics/ClassLength
   class SentinelClient
     include Concerns::SingleConnectionOperations
     include Commands::Strings
@@ -107,32 +106,15 @@ module RedisRuby
     # @param command [String] Command name
     # @param args [Array] Command arguments
     # @return [Object] Command result
-    def call(command, *)
+    def call(command, *args)
       attempts = 0
 
       begin
         ensure_connected
-        result = @connection.call(command, *)
-
-        # Handle various error types
-        case result
-        when CommandError
-          raise result unless readonly_error?(result)
-
-          handle_failover
-          raise ReadOnlyError, result.message
-
-        else
-          result
-        end
+        handle_call_result(@connection.call(command, *args))
       rescue ConnectionError, ReadOnlyError, FailoverError
         attempts += 1
-        if attempts <= @reconnect_attempts
-          # Exponential backoff: 0.1s, 0.2s, 0.4s, 0.8s...
-          sleep(0.1 * (2**(attempts - 1))) if attempts > 1
-          reconnect
-          retry
-        end
+        retry if retry_with_backoff?(attempts)
         raise
       end
     end
@@ -191,6 +173,26 @@ module RedisRuby
     attr_reader :sentinel_manager
 
     private
+
+    def handle_call_result(result)
+      case result
+      when CommandError
+        raise result unless readonly_error?(result)
+
+        handle_failover
+        raise ReadOnlyError, result.message
+      else
+        result
+      end
+    end
+
+    def retry_with_backoff?(attempts)
+      return false if attempts > @reconnect_attempts
+
+      sleep(0.1 * (2**(attempts - 1))) if attempts > 1
+      reconnect
+      true
+    end
 
     # Validate role parameter
     def validate_role!(role)
@@ -296,5 +298,4 @@ module RedisRuby
       end
     end
   end
-  # rubocop:enable Metrics/ClassLength
 end

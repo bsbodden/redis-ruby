@@ -38,13 +38,25 @@ module RedisRuby
       def initialize(query_string = "*")
         @query_string = query_string
         @filters = []
+        @params = {}
+        initialize_field_options
+        initialize_flags
+      end
+
+      private
+
+      # Initialize field, sort, and pagination options
+      def initialize_field_options
         @return_fields = nil
         @sort_by = nil
         @limit_offset = 0
         @limit_num = 10
         @highlight_opts = nil
         @summarize_opts = nil
-        @params = {}
+      end
+
+      # Initialize boolean flags and advanced search options
+      def initialize_flags
         @dialect = nil
         @verbatim = false
         @no_content = false
@@ -52,13 +64,15 @@ module RedisRuby
         @with_scores = false
         @with_payloads = false
         @with_sort_keys = false
+        @in_order = false
         @scorer = nil
         @expander = nil
         @slop = nil
-        @in_order = false
         @language = nil
         @geo_filter = nil
       end
+
+      public
 
       # Add a numeric filter
       #
@@ -157,7 +171,6 @@ module RedisRuby
       end
 
       # Add query parameters (for parameterized queries)
-      #
       # @param params [Hash] Parameter name => value
       # @return [self]
       def params(params)
@@ -166,7 +179,6 @@ module RedisRuby
       end
 
       # Set query dialect
-      #
       # @param version [Integer] Dialect version (1, 2, or 3)
       # @return [self]
       def dialect(version)
@@ -175,7 +187,6 @@ module RedisRuby
       end
 
       # Enable verbatim mode (no stemming)
-      #
       # @return [self]
       def verbatim
         @verbatim = true
@@ -183,7 +194,6 @@ module RedisRuby
       end
 
       # Don't return document content
-      #
       # @return [self]
       def no_content
         @no_content = true
@@ -289,69 +299,77 @@ module RedisRuby
       # @return [Hash]
       def options
         opts = {}
+        build_field_and_sort_options(opts)
+        build_highlight_options(opts)
+        build_summarize_options(opts)
+        build_query_flags(opts)
+        build_advanced_options(opts)
+        opts
+      end
 
-        # Return fields
+      private
+
+      # Build return fields, sorting, and pagination options
+      def build_field_and_sort_options(opts)
         opts[:return] = @return_fields if @return_fields
-
-        # Sorting
         if @sort_by
           opts[:sortby] = @sort_by[:field]
           opts[:sortby_order] = @sort_by[:order]
         end
-
-        # Pagination
         opts[:limit] = [@limit_offset, @limit_num]
+      end
 
-        # Highlighting
-        if @highlight_opts
-          opts[:highlight] = true
-          opts[:highlight_fields] = @highlight_opts[:fields] if @highlight_opts[:fields]
-          opts[:highlight_tags] = @highlight_opts[:tags]
-        end
+      # Build highlight options
+      def build_highlight_options(opts)
+        return unless @highlight_opts
 
-        # Summarization
-        if @summarize_opts
-          opts[:summarize] = true
-          opts[:summarize_fields] = @summarize_opts[:fields] if @summarize_opts[:fields]
-          opts[:summarize_frags] = @summarize_opts[:frags]
-          opts[:summarize_len] = @summarize_opts[:len]
-          opts[:summarize_separator] = @summarize_opts[:separator]
-        end
+        opts[:highlight] = true
+        opts[:highlight_fields] = @highlight_opts[:fields] if @highlight_opts[:fields]
+        opts[:highlight_tags] = @highlight_opts[:tags]
+      end
 
-        # Parameters
+      # Build summarize options
+      def build_summarize_options(opts)
+        return unless @summarize_opts
+
+        opts[:summarize] = true
+        opts[:summarize_fields] = @summarize_opts[:fields] if @summarize_opts[:fields]
+        opts[:summarize_frags] = @summarize_opts[:frags]
+        opts[:summarize_len] = @summarize_opts[:len]
+        opts[:summarize_separator] = @summarize_opts[:separator]
+      end
+
+      # Build params and dialect options
+      def build_query_flags(opts)
         opts[:params] = @params unless @params.empty?
-
-        # Dialect
         opts[:dialect] = @dialect if @dialect
+        build_boolean_flags(opts)
+      end
 
-        # Flags
+      # Build boolean on/off flags
+      def build_boolean_flags(opts)
         opts[:verbatim] = true if @verbatim
         opts[:nocontent] = true if @no_content
         opts[:nostopwords] = true if @no_stopwords
         opts[:withscores] = true if @with_scores
         opts[:withpayloads] = true if @with_payloads
         opts[:withsortkeys] = true if @with_sort_keys
+      end
 
-        # Advanced options
+      # Build advanced search options (scorer, expander, slop, geo)
+      def build_advanced_options(opts)
         opts[:scorer] = @scorer if @scorer
         opts[:expander] = @expander if @expander
         opts[:slop] = @slop if @slop
         opts[:inorder] = true if @in_order
         opts[:language] = @language if @language
+        return unless @geo_filter
 
-        # Geo filter
-        if @geo_filter
-          opts[:geofilter] = [
-            @geo_filter[:field],
-            @geo_filter[:lon],
-            @geo_filter[:lat],
-            @geo_filter[:radius],
-            @geo_filter[:unit].to_s,
-          ]
-        end
-
-        opts
+        gf = @geo_filter
+        opts[:geofilter] = [gf[:field], gf[:lon], gf[:lat], gf[:radius], gf[:unit].to_s]
       end
+
+      public
 
       # Execute the query
       #
@@ -470,33 +488,41 @@ module RedisRuby
       # @return [Hash]
       def options
         opts = {}
+        build_aggregate_load_and_group(opts)
+        build_aggregate_sort_and_limit(opts)
+        build_aggregate_pipeline_options(opts)
+        opts
+      end
 
+      private
+
+      # Build load and groupby options
+      def build_aggregate_load_and_group(opts)
         opts[:load] = @load_fields if @load_fields
+        return if @group_by.empty?
 
-        unless @group_by.empty?
-          opts[:groupby] = @group_by.map do |g|
-            {
-              fields: g[:fields],
-              reducers: g[:reducers].map(&:to_args),
-            }
-          end
+        opts[:groupby] = @group_by.map do |g|
+          { fields: g[:fields], reducers: g[:reducers].map(&:to_args) }
         end
+      end
 
+      # Build sort and limit options
+      def build_aggregate_sort_and_limit(opts)
         if @sort_by
           opts[:sortby] = @sort_by[:field]
           opts[:sortby_order] = @sort_by[:order]
         end
-
         opts[:limit] = [@limit_offset, @limit_num]
-
-        opts[:apply] = @apply unless @apply.empty?
-
-        opts[:filter] = @filter unless @filter.empty?
-
-        opts[:dialect] = @dialect if @dialect
-
-        opts
       end
+
+      # Build apply, filter, and dialect pipeline options
+      def build_aggregate_pipeline_options(opts)
+        opts[:apply] = @apply unless @apply.empty?
+        opts[:filter] = @filter unless @filter.empty?
+        opts[:dialect] = @dialect if @dialect
+      end
+
+      public
 
       # Execute the aggregation
       #

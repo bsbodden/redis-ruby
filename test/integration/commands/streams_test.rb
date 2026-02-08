@@ -424,18 +424,6 @@ class StreamsIntegrationTest < RedisRubyTestCase
     assert_operator len, :>=, 10  # At least target maxlen
   end
 
-  # XGROUP CREATE with MKSTREAM tests
-  def test_xgroup_create_mkstream
-    redis.del("stream:newstream")
-
-    result = redis.xgroup_create("stream:newstream", "mygroup", "$", mkstream: true)
-
-    assert_equal "OK", result
-    assert_equal 1, redis.exists("stream:newstream")
-  ensure
-    redis.del("stream:newstream")
-  end
-
   # XGROUP CREATE with ENTRIESREAD tests (Redis 7.0+)
   def test_xgroup_create_entriesread
     redis.xadd(@stream_key, { "a" => "1" })

@@ -51,6 +51,20 @@ module RedisRuby
       FALSE_BYTE = 102 # 'f'
       MINUS_BYTE = 45  # '-'
 
+      # Dispatch table for less common RESP3 types
+      EXTENDED_TYPE_METHODS = {
+        SIMPLE_ERROR => :decode_simple_error,
+        NULL => :decode_null,
+        BOOLEAN => :decode_boolean,
+        DOUBLE => :decode_double,
+        BIG_NUMBER => :decode_big_number,
+        BULK_ERROR => :decode_bulk_error,
+        VERBATIM => :decode_verbatim,
+        MAP => :decode_map,
+        SET => :decode_set,
+        PUSH => :decode_push,
+      }.freeze
+
       def initialize(stream)
         @stream = stream
         @buffered = stream.respond_to?(:gets_integer)
@@ -62,54 +76,41 @@ module RedisRuby
       # checked first and inlined for better performance.
       #
       # @return [Object] Decoded Ruby value
-      # rubocop:disable Metrics/CyclomaticComplexity
-      # rubocop:disable Metrics/PerceivedComplexity
       def decode
         type_byte = @stream.getbyte
         return nil if type_byte.nil?
 
-        # Fast path: BULK_STRING is most common (GET responses)
-        if type_byte == BULK_STRING
-          length = read_integer
-          return nil if length == -1
-
-          return read_bytes_chomp(length)
-        end
-
-        # Fast path: INTEGER is very common (INCR, EXISTS, etc.)
+        # Fast path: most common types checked first
+        return decode_bulk_string if type_byte == BULK_STRING
         return read_integer if type_byte == INTEGER
-
-        # Fast path: SIMPLE_STRING (OK response from SET)
         return read_line if type_byte == SIMPLE_STRING
+        return decode_array if type_byte == ARRAY
 
-        # Fast path: ARRAY (pipeline responses, MGET, etc.)
-        if type_byte == ARRAY
-          count = read_integer
-          return nil if count == -1
-
-          return Array.new(count) { decode }
-        end
-
-        # Less common types use case statement
-        case type_byte
-        when SIMPLE_ERROR  then decode_simple_error
-        when NULL          then decode_null
-        when BOOLEAN       then decode_boolean
-        when DOUBLE        then decode_double
-        when BIG_NUMBER    then decode_big_number
-        when BULK_ERROR    then decode_bulk_error
-        when VERBATIM      then decode_verbatim
-        when MAP           then decode_map
-        when SET           then decode_set
-        when PUSH          then decode_push
-        else
-          raise ProtocolError, "Unknown RESP3 type: #{type_byte.chr}"
-        end
+        decode_extended_type(type_byte)
       end
-      # rubocop:enable Metrics/PerceivedComplexity
-      # rubocop:enable Metrics/CyclomaticComplexity
 
       private
+
+      def decode_bulk_string
+        length = read_integer
+        return nil if length == -1
+
+        read_bytes_chomp(length)
+      end
+
+      def decode_array
+        count = read_integer
+        return nil if count == -1
+
+        Array.new(count) { decode }
+      end
+
+      def decode_extended_type(type_byte)
+        method_name = EXTENDED_TYPE_METHODS[type_byte]
+        raise ProtocolError, "Unknown RESP3 type: #{type_byte.chr}" unless method_name
+
+        send(method_name)
+      end
 
       # Read a line (up to CRLF) and return without the terminator
       # Uses optimized method if available
@@ -174,24 +175,6 @@ module RedisRuby
       # :1000\r\n -> 1000
       def decode_integer
         read_integer
-      end
-
-      # $5\r\nhello\r\n -> "hello"
-      # $-1\r\n -> nil
-      def decode_bulk_string
-        length = read_integer
-        return nil if length == -1
-
-        read_bytes_chomp(length)
-      end
-
-      # *2\r\n... -> [...]
-      # *-1\r\n -> nil
-      def decode_array
-        count = read_integer
-        return nil if count == -1
-
-        Array.new(count) { decode }
       end
 
       # _\r\n -> nil

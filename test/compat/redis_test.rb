@@ -3,7 +3,7 @@
 require_relative "../test_helper"
 require "redis"
 
-class RedisCompatTest < Minitest::Test
+class RedisCompatIntegrationTest < Minitest::Test
   def setup
     @redis = Redis.new(url: "redis://#{ENV.fetch("REDIS_HOST", "localhost")}:#{ENV.fetch("REDIS_PORT", 6379)}")
     @redis.flushdb

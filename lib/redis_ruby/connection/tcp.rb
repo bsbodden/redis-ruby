@@ -51,15 +51,15 @@ module RedisRuby
       # @param command [String] Command name
       # @param args [Array] Command arguments
       # @return [Object] Command result
-      def call(command, *)
+      def call(command, *args)
         ensure_connected
-        call_direct(command, *)
+        call_direct(command, *args)
       end
 
       # Direct call without connection check - use when caller already verified connection
       # @api private
-      def call_direct(command, *)
-        write_command_fast(command, *)
+      def call_direct(command, *args)
+        write_command_fast(command, *args)
         @decoder.decode
       end
 
@@ -150,11 +150,11 @@ module RedisRuby
       # @param command [String, Array] Command (can be pre-built array)
       # @param args [Array] Command arguments
       # @return [void]
-      def write_command(command, *)
+      def write_command(command, *args)
         encoded = if command.is_a?(Array)
                     @encoder.encode_pipeline([command])
                   else
-                    @encoder.encode_command(command, *)
+                    @encoder.encode_command(command, *args)
                   end
         @socket.write(encoded)
         @socket.flush
@@ -162,8 +162,8 @@ module RedisRuby
 
       # Fast path write - assumes command is a string (99% of calls)
       # @api private
-      def write_command_fast(command, *)
-        @socket.write(@encoder.encode_command(command, *))
+      def write_command_fast(command, *args)
+        @socket.write(@encoder.encode_command(command, *args))
         @socket.flush
       end
 

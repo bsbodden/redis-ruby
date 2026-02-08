@@ -126,22 +126,31 @@ module RedisRuby
           line = line.strip
           next if line.empty?
 
-          if line.start_with?("#")
-            current_section = line[1..].strip.downcase.to_sym
-            result[current_section] ||= {}
-          elsif line.include?(":")
-            key, value = line.split(":", 2)
-            parsed_value = parse_info_value(value)
-
-            if current_section
-              result[current_section][key] = parsed_value
-            else
-              result[key] = parsed_value
-            end
-          end
+          current_section = process_info_line(line, result, current_section)
         end
 
         result
+      end
+
+      def process_info_line(line, result, current_section)
+        if line.start_with?("#")
+          current_section = line[1..].strip.downcase.to_sym
+          result[current_section] ||= {}
+        elsif line.include?(":")
+          store_info_entry(line, result, current_section)
+        end
+        current_section
+      end
+
+      def store_info_entry(line, result, current_section)
+        key, value = line.split(":", 2)
+        parsed_value = parse_info_value(value)
+
+        if current_section
+          result[current_section][key] = parsed_value
+        else
+          result[key] = parsed_value
+        end
       end
 
       # Parse a single INFO value

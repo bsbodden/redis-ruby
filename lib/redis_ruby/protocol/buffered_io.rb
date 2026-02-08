@@ -92,39 +92,12 @@ module RedisRuby
       #
       # @return [Integer] parsed integer
       def gets_integer
-        int = 0
-        negative = false
         offset = @offset
-
-        # Ensure we have data
         fill_buffer(1) if offset >= @buffer.bytesize
 
-        # Check for negative sign
-        first_byte = @buffer.getbyte(offset)
-        if first_byte == 45 # '-'.ord
-          negative = true
-          offset += 1
-        end
-
-        loop do
-          chr = @buffer.getbyte(offset)
-
-          if chr.nil?
-            # Need more data - refill and continue
-            @offset = offset
-            fill_buffer(1)
-            offset = @offset
-            next
-          end
-
-          if chr == 13 # '\r'.ord
-            @offset = offset + 2 # Skip \r\n
-            break
-          end
-
-          int = (int * 10) + (chr - 48)
-          offset += 1
-        end
+        negative, offset = check_negative_sign(offset)
+        int, offset = parse_integer_digits(offset)
+        @offset = offset + 2 # Skip \r\n
 
         negative ? -int : int
       end
@@ -167,17 +140,8 @@ module RedisRuby
       def write(data)
         total = remaining = data.bytesize
         while remaining.positive?
-          case bytes_written = @io.write_nonblock(data, exception: false)
-          when Integer
-            remaining -= bytes_written
-            data = data.byteslice(bytes_written..-1) if remaining.positive?
-          when :wait_readable
-            @io.wait_readable(@read_timeout) or raise(TimeoutError, "Read timeout after #{@read_timeout}s")
-          when :wait_writable
-            @io.wait_writable(@write_timeout) or raise(TimeoutError, "Write timeout after #{@write_timeout}s")
-          when nil
-            raise ConnectionError, "Connection closed"
-          end
+          bytes_written = @io.write_nonblock(data, exception: false)
+          remaining, data = handle_write_result(bytes_written, remaining, data)
         end
         total
       end
@@ -221,6 +185,52 @@ module RedisRuby
 
       private
 
+      # Handle result from write_nonblock
+      # @return [Array(Integer, String)] [remaining_bytes, data]
+      def handle_write_result(result, remaining, data)
+        case result
+        when Integer
+          remaining -= result
+          data = data.byteslice(result..-1) if remaining.positive?
+        when :wait_readable
+          wait_readable_or_timeout!
+        when :wait_writable
+          wait_writable_or_timeout!
+        when nil
+          raise ConnectionError, "Connection closed"
+        end
+        [remaining, data]
+      end
+
+      # Check for negative sign at current offset
+      # @return [Array(Boolean, Integer)] [negative?, new_offset]
+      def check_negative_sign(offset)
+        if @buffer.getbyte(offset) == 45 # '-'.ord
+          [true, offset + 1]
+        else
+          [false, offset]
+        end
+      end
+
+      # Parse digit bytes until CR, refilling buffer as needed
+      # @return [Array(Integer, Integer)] [parsed_int, offset_at_cr]
+      def parse_integer_digits(offset)
+        int = 0
+        loop do
+          chr = @buffer.getbyte(offset)
+          if chr.nil?
+            @offset = offset
+            fill_buffer(1)
+            offset = @offset
+            next
+          end
+          return [int, offset] if chr == 13 # '\r'.ord
+
+          int = (int * 10) + (chr - 48)
+          offset += 1
+        end
+      end
+
       # Ensure at least `bytes` bytes are available in the buffer
       def ensure_remaining(bytes)
         needed = bytes - (@buffer.bytesize - @offset)
@@ -229,61 +239,84 @@ module RedisRuby
 
       # Fill the buffer with more data from the underlying IO
       #
-      # Optimized: Uses in-place buffer filling when buffer is empty to avoid
-      # intermediate string allocations. This matches redis-client's approach.
+      # Uses in-place buffer filling when buffer is empty to avoid
+      # intermediate string allocations. Matches redis-client's approach.
       #
       # @param min_bytes [Integer] minimum bytes needed
       def fill_buffer(min_bytes)
-        buffer_size = @buffer.bytesize
-        start = @offset
-
-        # Check if buffer can be reused (all data consumed)
-        empty_buffer = start >= buffer_size
-
-        # Reset oversized buffer to prevent memory bloat
-        if empty_buffer && buffer_size > BUFFER_CUTOFF
-          @buffer = String.new(encoding: Encoding::BINARY, capacity: @chunk_size)
-          0
-        end
+        empty_buffer = reset_buffer_if_consumed
 
         remaining = min_bytes
         while remaining.positive?
-          begin
-            bytes = if empty_buffer
-                      # In-place fill: read directly into @buffer (avoids allocation)
-                      @io.read_nonblock(@chunk_size, @buffer, exception: false)
-                    else
-                      # Append mode: read into new string then concat
-                      @io.read_nonblock(@chunk_size, exception: false)
-                    end
-          rescue IOError, Errno::ECONNRESET => e
-            raise ConnectionError, "Connection error: #{e.message}"
-          end
-
-          case bytes
-          when String
-            if empty_buffer && bytes.equal?(@buffer)
-              # Real IO behavior: data written directly into @buffer, reset offset
-              @offset = 0
-              empty_buffer = false
-            elsif empty_buffer
-              # Mock behavior: returned different string, clear buffer and append
-              @buffer.clear
-              @buffer << bytes
-              @offset = 0
-              empty_buffer = false
-            else
-              @buffer << bytes
-            end
-            remaining -= bytes.bytesize
-          when :wait_readable
-            @io.wait_readable(@read_timeout) or raise(TimeoutError, "Read timeout after #{@read_timeout}s")
-          when :wait_writable
-            @io.wait_writable(@write_timeout) or raise(TimeoutError, "Write timeout after #{@write_timeout}s")
-          when nil
-            raise ConnectionError, "Connection closed (EOF)"
-          end
+          bytes = read_nonblock_safe(empty_buffer)
+          remaining, empty_buffer = process_read_result(bytes, remaining, empty_buffer)
         end
+      end
+
+      # Reset buffer if all data has been consumed
+      # @return [Boolean] whether buffer is empty
+      def reset_buffer_if_consumed
+        empty = @offset >= @buffer.bytesize
+        if empty && @buffer.bytesize > BUFFER_CUTOFF
+          @buffer = String.new(encoding: Encoding::BINARY, capacity: @chunk_size)
+        end
+        empty
+      end
+
+      # Perform a non-blocking read, raising ConnectionError on IO failures
+      def read_nonblock_safe(empty_buffer)
+        if empty_buffer
+          @io.read_nonblock(@chunk_size, @buffer, exception: false)
+        else
+          @io.read_nonblock(@chunk_size, exception: false)
+        end
+      rescue IOError, Errno::ECONNRESET => e
+        raise ConnectionError, "Connection error: #{e.message}"
+      end
+
+      # Process the result of a read_nonblock call
+      # @return [Array(Integer, Boolean)] [remaining_bytes, empty_buffer]
+      def process_read_result(bytes, remaining, empty_buffer)
+        case bytes
+        when String
+          empty_buffer = append_read_data(bytes, empty_buffer)
+          [remaining - bytes.bytesize, empty_buffer]
+        when :wait_readable
+          wait_readable_or_timeout!
+          [remaining, empty_buffer]
+        when :wait_writable
+          wait_writable_or_timeout!
+          [remaining, empty_buffer]
+        when nil
+          raise ConnectionError, "Connection closed (EOF)"
+        end
+      end
+
+      # Append read data to the buffer, handling in-place vs append modes
+      # @return [Boolean] updated empty_buffer flag
+      def append_read_data(bytes, empty_buffer)
+        if empty_buffer && bytes.equal?(@buffer)
+          @offset = 0
+          false
+        elsif empty_buffer
+          @buffer.clear
+          @buffer << bytes
+          @offset = 0
+          false
+        else
+          @buffer << bytes
+          empty_buffer
+        end
+      end
+
+      # Wait for readable or raise timeout
+      def wait_readable_or_timeout!
+        @io.wait_readable(@read_timeout) or raise(TimeoutError, "Read timeout after #{@read_timeout}s")
+      end
+
+      # Wait for writable or raise timeout
+      def wait_writable_or_timeout!
+        @io.wait_writable(@write_timeout) or raise(TimeoutError, "Write timeout after #{@write_timeout}s")
       end
     end
   end

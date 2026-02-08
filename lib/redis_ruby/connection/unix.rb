@@ -42,15 +42,15 @@ module RedisRuby
       # @param command [String] Command name
       # @param args [Array] Command arguments
       # @return [Object] Command result
-      def call(command, *)
-        write_command(command, *)
+      def call(command, *args)
+        write_command(command, *args)
         read_response
       end
 
       # Direct call without connection check - use when caller already verified connection
       # @api private
-      def call_direct(command, *)
-        write_command(command, *)
+      def call_direct(command, *args)
+        write_command(command, *args)
         read_response
       end
 
@@ -127,8 +127,8 @@ module RedisRuby
       end
 
       # Write a single command to the socket
-      def write_command(command, *)
-        encoded = @encoder.encode_command(command, *)
+      def write_command(command, *args)
+        encoded = @encoder.encode_command(command, *args)
         @socket.write(encoded)
         @socket.flush
       end

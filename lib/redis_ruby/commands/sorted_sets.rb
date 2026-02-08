@@ -202,13 +202,9 @@ module RedisRuby
       #   redis.zrange("zset", "[c", "[a", bylex: true, rev: true, limit: [0, 5])
       def zrange(key, start, stop, byscore: false, bylex: false, rev: false, limit: nil, withscores: false)
         # Fast path: simple index range without options
-        return call_3args(CMD_ZRANGE, key, start, stop) if !byscore && !bylex && !rev && limit.nil? && !withscores
+        return call_3args(CMD_ZRANGE, key, start, stop) if zrange_simple?(byscore, bylex, rev, limit, withscores)
 
-        args = [CMD_ZRANGE, key, start, stop]
-        args.push(OPT_BYSCORE) if byscore
-        args.push(OPT_BYLEX) if bylex
-        args.push(OPT_REV) if rev
-        args.push(OPT_LIMIT, *limit) if limit && (byscore || bylex)
+        args = build_zrange_args(key, start, stop, byscore: byscore, bylex: bylex, rev: rev, limit: limit)
         args.push(OPT_WITHSCORES) if withscores
         result = call(*args)
         withscores ? parse_withscores_result(result) : result
@@ -576,21 +572,32 @@ module RedisRuby
         # Fast path: key + count, no withscores
         return call_2args(CMD_ZRANDMEMBER, key, count) if count && !withscores
 
-        args = [CMD_ZRANDMEMBER, key]
-        args.push(count) if count
-        args.push(OPT_WITHSCORES) if withscores && count
-
-        result = call(*args)
-
-        # Handle withscores response
-        if withscores && count && result
-          parse_withscores_result(result)
-        else
-          result
-        end
+        # Slow path: withscores
+        zrandmember_with_scores(key, count)
       end
 
       private
+
+      def zrange_simple?(byscore, bylex, rev, limit, withscores)
+        !byscore && !bylex && !rev && limit.nil? && !withscores
+      end
+
+      def build_zrange_args(key, start, stop, byscore:, bylex:, rev:, limit:)
+        args = [CMD_ZRANGE, key, start, stop]
+        args.push(OPT_BYSCORE) if byscore
+        args.push(OPT_BYLEX) if bylex
+        args.push(OPT_REV) if rev
+        args.push(OPT_LIMIT, *limit) if limit && (byscore || bylex)
+        args
+      end
+
+      def zrandmember_with_scores(key, count)
+        args = [CMD_ZRANDMEMBER, key]
+        args.push(count) if count
+        args.push(OPT_WITHSCORES) if count
+        result = call(*args)
+        count && result ? parse_withscores_result(result) : result
+      end
 
       def parse_withscores_result(result)
         result.each_slice(2).map { |m, s| [m, parse_score(s)] }

@@ -30,7 +30,7 @@ require_relative "redis/pipeline"
 #   end
 #   f.value  # => "value"
 #
-class Redis
+class Redis # rubocop:disable Metrics/ClassLength
   include Commands
 
   # VERSION from redis-ruby
@@ -197,44 +197,16 @@ class Redis
   # @return [Array, nil] results or nil if aborted
   def multi
     with_error_translation do
-      # Get the underlying connection for the transaction
-      @client.send(:ensure_connected)
-      connection = @client.instance_variable_get(:@connection)
-      transaction = ::RedisRuby::Transaction.new(connection)
-
-      # Wrap in MultiConnection to return Futures
+      transaction = build_transaction
       multi_connection = MultiConnection.new(transaction)
 
-      # Execute the block
       yield multi_connection
 
-      # Execute the transaction
       results = transaction.execute
-
-      # Handle aborted transaction
       return nil if results.nil?
-
-      # Handle transaction-level error
       raise ErrorTranslation.translate(results) if results.is_a?(::RedisRuby::CommandError)
 
-      # Resolve futures - but only for non-error results
-      # Error futures stay unresolved (FutureNotReady)
-      first_error = nil
-      futures = multi_connection._futures
-      results.each_with_index do |result, index|
-        if result.is_a?(::RedisRuby::CommandError)
-          first_error ||= result
-          # Don't resolve error futures - they stay FutureNotReady
-        elsif index < futures.length
-          futures[index]._set_value(result)
-        end
-      end
-
-      # Raise the first command error
-      raise ErrorTranslation.translate(first_error) if first_error
-
-      # Return the transformed results (via future.value)
-      futures.map(&:value)
+      resolve_multi_futures(multi_connection._futures, results)
     end
   end
 
@@ -741,40 +713,14 @@ class Redis
 
   # Delegate sorted set commands
   def zadd(key, *args, nx: false, xx: false, gt: false, lt: false, ch: false, incr: false)
-    # Handle different argument formats:
-    # zadd(key, score, member) - returns boolean
-    # zadd(key, [score, member, ...]) - returns count
-    # zadd(key, [[score, member], ...]) - returns count
-    score_members = if args.length == 1 && args[0].is_a?(Array)
-                      arr = args[0]
-                      return 0 if arr.empty?
-
-                      if arr[0].is_a?(Array)
-                        # Nested: [[score, member], ...]
-                        arr.flatten
-                      else
-                        # Flat: [score, member, score, member, ...]
-                        arr
-                      end
-                    elsif args.length == 2
-                      # Direct: zadd(key, score, member)
-                      args
-                    else
-                      args.flatten
-                    end
+    score_members = normalize_zadd_args(args)
+    return 0 if score_members.nil?
 
     result = with_error_translation do
       @client.zadd(key, *score_members, nx: nx, xx: xx, gt: gt, lt: lt, ch: ch, incr: incr)
     end
 
-    # Return boolean for single member add (without incr), count otherwise
-    if incr
-      parse_float(result)
-    elsif args.length == 2 && !args[0].is_a?(Array)
-      result.positive?
-    else
-      result
-    end
+    format_zadd_result(result, args, incr: incr)
   end
 
   def zrem(key, *members)
@@ -993,6 +939,59 @@ class Redis
       -Float::INFINITY
     else
       Float(value)
+    end
+  end
+
+  # Build a Transaction object from the current connection
+  def build_transaction
+    @client.send(:ensure_connected)
+    connection = @client.instance_variable_get(:@connection)
+    ::RedisRuby::Transaction.new(connection)
+  end
+
+  # Resolve futures from a multi/transaction, raising on first command error
+  def resolve_multi_futures(futures, results)
+    first_error = nil
+    results.each_with_index do |result, index|
+      if result.is_a?(::RedisRuby::CommandError)
+        first_error ||= result
+      elsif index < futures.length
+        futures[index]._set_value(result)
+      end
+    end
+    raise ErrorTranslation.translate(first_error) if first_error
+
+    futures.map(&:value)
+  end
+
+  # Normalize zadd argument formats into a flat score-member array
+  #
+  # Returns nil if the input is an empty array (caller should return 0).
+  def normalize_zadd_args(args)
+    if args.length == 1 && args[0].is_a?(Array)
+      normalize_zadd_array_arg(args[0])
+    elsif args.length == 2
+      args
+    else
+      args.flatten
+    end
+  end
+
+  # Handle the single-array form of zadd args
+  def normalize_zadd_array_arg(arr)
+    return nil if arr.empty?
+
+    arr[0].is_a?(Array) ? arr.flatten : arr
+  end
+
+  # Format zadd result based on input format and incr flag
+  def format_zadd_result(result, args, incr:)
+    if incr
+      parse_float(result)
+    elsif args.length == 2 && !args[0].is_a?(Array)
+      result.positive?
+    else
+      result
     end
   end
 
@@ -1246,8 +1245,8 @@ class Redis
     with_error_translation { @client.client_setname(name) }
   end
 
-  def client_kill(filters = {})
-    with_error_translation { @client.client_kill(filters) }
+  def client_kill(**filters)
+    with_error_translation { @client.client_kill(**filters) }
   end
 
   def debug_object(key)

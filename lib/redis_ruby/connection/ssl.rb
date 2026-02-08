@@ -75,16 +75,16 @@ module RedisRuby
       # @param command [String] Command name
       # @param args [Array] Command arguments
       # @return [Object] Command result
-      def call(command, *)
+      def call(command, *args)
         ensure_connected
-        write_command(command, *)
+        write_command(command, *args)
         read_response
       end
 
       # Direct call without connection check - use when caller already verified connection
       # @api private
-      def call_direct(command, *)
-        write_command(command, *)
+      def call_direct(command, *args)
+        write_command(command, *args)
         read_response
       end
 
@@ -195,31 +195,27 @@ module RedisRuby
       # Create SSL context with configured parameters
       def create_ssl_context
         context = OpenSSL::SSL::SSLContext.new
-
-        # Set verification mode
         context.verify_mode = @ssl_params.fetch(:verify_mode) { OpenSSL::SSL::VERIFY_PEER }
+        configure_ca_certificates(context)
+        configure_client_certificates(context)
+        context.ciphers = @ssl_params[:ciphers] if @ssl_params[:ciphers]
+        context.min_version = @ssl_params.fetch(:min_version) { OpenSSL::SSL::TLS1_2_VERSION }
+        context
+      end
 
-        # Set CA certificate
+      def configure_ca_certificates(context)
         if @ssl_params[:ca_file]
           context.ca_file = @ssl_params[:ca_file]
         elsif @ssl_params[:ca_path]
           context.ca_path = @ssl_params[:ca_path]
         else
-          # Use system CA certificates
           context.set_params(verify_mode: context.verify_mode)
         end
+      end
 
-        # Set client certificate for mTLS
+      def configure_client_certificates(context)
         context.cert = @ssl_params[:cert] if @ssl_params[:cert]
         context.key = @ssl_params[:key] if @ssl_params[:key]
-
-        # Set ciphers
-        context.ciphers = @ssl_params[:ciphers] if @ssl_params[:ciphers]
-
-        # Set minimum TLS version (default to TLS 1.2)
-        context.min_version = @ssl_params.fetch(:min_version) { OpenSSL::SSL::TLS1_2_VERSION }
-
-        context
       end
 
       # Check if peer verification is enabled
@@ -228,8 +224,8 @@ module RedisRuby
       end
 
       # Write a single command to the socket
-      def write_command(command, *)
-        encoded = @encoder.encode_command(command, *)
+      def write_command(command, *args)
+        encoded = @encoder.encode_command(command, *args)
         @ssl_socket.write(encoded)
         @ssl_socket.flush
       end

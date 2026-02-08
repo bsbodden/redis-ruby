@@ -92,7 +92,13 @@ module RedisRuby
           lines = []
           lines << "YJIT Status Report"
           lines << ("-" * 40)
+          append_status_details(lines)
+          lines.join("\n")
+        end
 
+        private
+
+        def append_status_details(lines)
           if !available?
             lines << "YJIT: Not available (Ruby built without YJIT)"
             lines << "Recommendation: Use Ruby 3.1+ with --yjit flag"
@@ -100,24 +106,20 @@ module RedisRuby
             lines << "YJIT: Available but not enabled"
             lines << "Recommendation: Start Ruby with --yjit or call YJITMonitor.enable!"
           else
-            s = stats
-            lines << "YJIT: Enabled"
-            lines << "Ratio in YJIT: #{format("%.1f", s[:ratio_in_yjit] || 0)}%"
-            lines << "Code size: #{format_bytes(s[:code_region_size] || 0)}"
-            lines << "YJIT alloc: #{format_bytes(s[:yjit_alloc_size] || 0)}"
-            lines << ""
-            if healthy?
-              lines << "Status: Healthy (ratio >= 90%)"
-            else
-              lines << "Status: Suboptimal (ratio < 90%)"
-              lines << "Consider increasing --yjit-mem-size"
-            end
+            append_enabled_stats(lines)
           end
-
-          lines.join("\n")
         end
 
-        private
+        def append_enabled_stats(lines)
+          s = stats
+          lines << "YJIT: Enabled"
+          lines << "Ratio in YJIT: #{format("%.1f", s[:ratio_in_yjit] || 0)}%"
+          lines << "Code size: #{format_bytes(s[:code_region_size] || 0)}"
+          lines << "YJIT alloc: #{format_bytes(s[:yjit_alloc_size] || 0)}"
+          lines << ""
+          lines << (healthy? ? "Status: Healthy (ratio >= 90%)" : "Status: Suboptimal (ratio < 90%)")
+          lines << "Consider increasing --yjit-mem-size" unless healthy?
+        end
 
         def format_bytes(bytes)
           return "0 B" if bytes.zero?

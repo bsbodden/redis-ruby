@@ -100,11 +100,7 @@ module RedisRuby
         # Fast path: range without mode
         return call(CMD_BITPOS, key, bit, start, stop) if start && stop && mode.nil?
 
-        cmd = [CMD_BITPOS, key, bit]
-        cmd << start if start
-        cmd << stop if stop
-        cmd << mode.to_s.upcase if mode
-        call(*cmd)
+        call(*build_bitpos_args(key, bit, start, stop, mode))
       end
 
       # Perform bitwise operations between strings
@@ -165,6 +161,16 @@ module RedisRuby
       #   redis.bitfield_ro("mykey", "GET", "u8", 0, "GET", "u4", 8)
       def bitfield_ro(key, *subcommands)
         call(CMD_BITFIELD_RO, key, *subcommands)
+      end
+
+      private
+
+      def build_bitpos_args(key, bit, start, stop, mode)
+        cmd = [CMD_BITPOS, key, bit]
+        cmd << start if start
+        cmd << stop if stop
+        cmd << mode.to_s.upcase if mode
+        cmd
       end
     end
   end

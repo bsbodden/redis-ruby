@@ -107,9 +107,9 @@ module RedisRuby
     #
     # @note Not safe for concurrent access. Use AsyncPooledClient for
     #   concurrent operations from multiple fibers.
-    def call(command, *)
+    def call(command, *args)
       ensure_connected
-      result = @connection.call(command, *)
+      result = @connection.call(command, *args)
       raise result if result.is_a?(CommandError)
 
       result

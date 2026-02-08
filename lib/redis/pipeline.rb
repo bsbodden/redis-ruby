@@ -114,6 +114,38 @@ class Redis
     end
   end
 
+  # Helper for building SET command arguments from keyword options
+  #
+  # @api private
+  module SetCommandHelper
+    private
+
+    def build_set_args(key, value, ex:, px:, exat:, pxat:, nx:, xx:, keepttl:, get:)
+      args = [key, value]
+      append_set_ttl_args(args, ex: ex, px: px, exat: exat, pxat: pxat)
+      args.push("NX") if nx
+      args.push("XX") if xx
+      args.push("KEEPTTL") if keepttl
+      args.push("GET") if get
+      args
+    end
+
+    def set_has_options?(ex:, px:, exat:, pxat:, nx:, xx:, keepttl:, get:)
+      set_has_ttl_options?(ex: ex, px: px, exat: exat, pxat: pxat) || nx || xx || keepttl || get
+    end
+
+    def set_has_ttl_options?(ex:, px:, exat:, pxat:)
+      !ex.nil? || !px.nil? || !exat.nil? || !pxat.nil?
+    end
+
+    def append_set_ttl_args(args, ex:, px:, exat:, pxat:)
+      args.push("EX", ex) if ex
+      args.push("PX", px) if px
+      args.push("EXAT", exat) if exat
+      args.push("PXAT", pxat) if pxat
+    end
+  end
+
   # Shared command methods for PipelinedConnection and MultiConnection
   #
   # This module assumes the including class defines:
@@ -122,7 +154,9 @@ class Redis
   # - call_2args(command, arg1, arg2)
   # - call_3args(command, arg1, arg2, arg3)
   #
-  module FutureCommands
+  module FutureCommands # rubocop:disable Metrics/ModuleLength
+    include SetCommandHelper
+
     # String commands
 
     def ping
@@ -130,19 +164,12 @@ class Redis
     end
 
     def set(key, value, ex: nil, px: nil, exat: nil, pxat: nil, nx: false, xx: false, keepttl: false, get: false)
-      if ex.nil? && px.nil? && exat.nil? && pxat.nil? && !nx && !xx && !keepttl && !get
+      unless set_has_options?(ex: ex, px: px, exat: exat, pxat: pxat, nx: nx, xx: xx, keepttl: keepttl, get: get)
         return call_2args("SET", key, value)
       end
 
-      args = [key, value]
-      args.push("EX", ex) if ex
-      args.push("PX", px) if px
-      args.push("EXAT", exat) if exat
-      args.push("PXAT", pxat) if pxat
-      args.push("NX") if nx
-      args.push("XX") if xx
-      args.push("KEEPTTL") if keepttl
-      args.push("GET") if get
+      args = build_set_args(key, value, ex: ex, px: px, exat: exat, pxat: pxat, nx: nx, xx: xx, keepttl: keepttl,
+                                        get: get)
       call("SET", *args)
     end
 
@@ -608,26 +635,7 @@ class Redis
     # @api private
     def _resolve_futures(results)
       @futures.each_with_index do |future, index|
-        result = results[index]
-
-        # If this future has inner futures (from a multi block), resolve them
-        # and rebuild the result array with transformed values
-        if future.instance_variable_defined?(:@inner_futures)
-          inner_futures = future.instance_variable_get(:@inner_futures)
-          if result.is_a?(::Array)
-            # First, set raw values on inner futures
-            inner_futures.each_with_index do |inner_future, inner_idx|
-              inner_future._set_value(result[inner_idx]) if inner_idx < result.length
-            end
-            # Then, rebuild the result with transformed values
-            transformed_result = inner_futures.map(&:value)
-            future._set_value(transformed_result)
-          else
-            future._set_value(result)
-          end
-        else
-          future._set_value(result)
-        end
+        resolve_single_future(future, results[index])
       end
     end
 
@@ -724,24 +732,45 @@ class Redis
 
     private
 
+    def resolve_single_future(future, result)
+      if future.instance_variable_defined?(:@inner_futures)
+        resolve_inner_futures(future, result)
+      else
+        future._set_value(result)
+      end
+    end
+
+    def resolve_inner_futures(future, result)
+      inner_futures = future.instance_variable_get(:@inner_futures)
+      unless result.is_a?(::Array)
+        future._set_value(result)
+        return
+      end
+
+      inner_futures.each_with_index do |inner_future, inner_idx|
+        inner_future._set_value(result[inner_idx]) if inner_idx < result.length
+      end
+      future._set_value(inner_futures.map(&:value))
+    end
+
     def transform_zpop_result(result, count)
       return nil if result.nil? || (result.is_a?(Array) && result.empty?)
 
-      if count.nil?
-        # Single pop returns flat [member, score]
-        if result.is_a?(Array) && result[0].is_a?(Array)
-          # Already nested [[member, score]]
-          [result[0][0], parse_score(result[0][1])]
-        elsif result.is_a?(Array) && result.length == 2
-          # Flat [member, score]
-          [result[0], parse_score(result[1])]
-        else
-          result
-        end
+      count.nil? ? transform_zpop_single(result) : transform_zpop_multi(result)
+    end
+
+    def transform_zpop_single(result)
+      if result.is_a?(Array) && result[0].is_a?(Array)
+        [result[0][0], parse_score(result[0][1])]
+      elsif result.is_a?(Array) && result.length == 2
+        [result[0], parse_score(result[1])]
       else
-        # With count returns [[member, score], ...]
-        result.map { |pair| [pair[0], parse_score(pair[1])] }
+        result
       end
+    end
+
+    def transform_zpop_multi(result)
+      result.map { |pair| [pair[0], parse_score(pair[1])] }
     end
 
     def parse_score(value)
@@ -766,6 +795,8 @@ class Redis
   # 2. Return futures that will be resolved from EXEC results (not "QUEUED")
   #
   class PipelineMultiWrapper
+    include SetCommandHelper
+
     def initialize(pipeline, pipeline_futures, inner_futures)
       @pipeline = pipeline
       @pipeline_futures = pipeline_futures
@@ -813,19 +844,12 @@ class Redis
 
     # Common commands
     def set(key, value, ex: nil, px: nil, exat: nil, pxat: nil, nx: false, xx: false, keepttl: false, get: false)
-      if ex.nil? && px.nil? && exat.nil? && pxat.nil? && !nx && !xx && !keepttl && !get
+      unless set_has_options?(ex: ex, px: px, exat: exat, pxat: pxat, nx: nx, xx: xx, keepttl: keepttl, get: get)
         return call_2args("SET", key, value)
       end
 
-      args = [key, value]
-      args.push("EX", ex) if ex
-      args.push("PX", px) if px
-      args.push("EXAT", exat) if exat
-      args.push("PXAT", pxat) if pxat
-      args.push("NX") if nx
-      args.push("XX") if xx
-      args.push("KEEPTTL") if keepttl
-      args.push("GET") if get
+      args = build_set_args(key, value, ex: ex, px: px, exat: exat, pxat: pxat, nx: nx, xx: xx, keepttl: keepttl,
+                                        get: get)
       call("SET", *args)
     end
 
