@@ -116,32 +116,13 @@ module RedisRuby
     # @param cache [Boolean] Force cache behavior (for OPTIN/OPTOUT modes)
     # @return [String, nil] Value or nil
     def get(key, cache: nil)
-      # Check if we should use the cache
       use_cache = should_cache?(cache)
+      cached = lookup_cached(key) if use_cache && @enabled
+      return cached if cached
 
-      if use_cache && @enabled
-        @monitor.synchronize do
-          entry = @cache[key]
-          if entry && !entry.expired?
-            touch_lru(key)
-            return entry.value
-          end
-        end
-      end
-
-      # Send CACHING YES if in OPTIN mode and cache requested
-      @client.call("CLIENT", "CACHING", "YES") if @enabled && @mode == :optin && cache == true
-
-      # Fetch from Redis
+      enable_optin_caching if cache == true
       value = @client.get(key)
-
-      # Cache the result
-      if use_cache && @enabled && value
-        @monitor.synchronize do
-          store(key, value)
-        end
-      end
-
+      store_if_cacheable(key, value) if use_cache && @enabled
       value
     end
 
@@ -241,6 +222,27 @@ module RedisRuby
     end
 
     private
+
+    def lookup_cached(key)
+      @monitor.synchronize do
+        entry = @cache[key]
+        if entry && !entry.expired?
+          touch_lru(key)
+          return entry.value
+        end
+      end
+      nil
+    end
+
+    def enable_optin_caching
+      @client.call("CLIENT", "CACHING", "YES") if @enabled && @mode == :optin
+    end
+
+    def store_if_cacheable(key, value)
+      return unless value
+
+      @monitor.synchronize { store(key, value) }
+    end
 
     # Determine if we should use the cache based on mode and explicit flag
     def should_cache?(explicit_cache)

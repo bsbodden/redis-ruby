@@ -166,18 +166,7 @@ module RedisRuby
     # @return [void]
     def stop(wait: true)
       @stop_requested = true
-
-      # Send unsubscribe commands to break the loop
-      if @connection
-        begin
-          @connection.call("UNSUBSCRIBE") unless @channels.empty?
-          @connection.call("PUNSUBSCRIBE") unless @patterns.empty?
-          @connection.call("SUNSUBSCRIBE") unless @shard_channels.empty?
-        rescue StandardError
-          # Ignore errors during shutdown
-        end
-      end
-
+      send_unsubscribe_commands
       @thread&.join if wait
     end
 
@@ -196,6 +185,18 @@ module RedisRuby
     end
 
     private
+
+    def send_unsubscribe_commands
+      return unless @connection
+
+      begin
+        @connection.call("UNSUBSCRIBE") unless @channels.empty?
+        @connection.call("PUNSUBSCRIBE") unless @patterns.empty?
+        @connection.call("SUNSUBSCRIBE") unless @shard_channels.empty?
+      rescue StandardError
+        # Ignore errors during shutdown
+      end
+    end
 
     # Extract configuration from existing client
     def extract_client_config(client)
@@ -219,35 +220,40 @@ module RedisRuby
     # Main subscription loop
     def run_subscription_loop
       @connection = create_connection
-
-      # Select database if not default
-      @connection.call("SELECT", @client_config[:db]) if @client_config[:db] && @client_config[:db] != 0
-
-      # Send initial subscriptions
+      select_database_if_needed
       send_subscriptions
-
-      # Track subscription count
-      subscriptions = 0
-
-      # Read messages until stopped
-      loop do
-        break if @stop_requested && subscriptions.zero?
-
-        begin
-          message = read_message
-          next unless message
-
-          subscriptions = process_message(message, subscriptions)
-        rescue TimeoutError
-          next
-        rescue StandardError => e
-          handle_error(e)
-          break
-        end
-      end
+      message_loop
     ensure
       @connection&.close
       @connection = nil
+    end
+
+    def select_database_if_needed
+      db = @client_config[:db]
+      @connection.call("SELECT", db) if db && db != 0
+    end
+
+    def message_loop
+      subscriptions = 0
+      catch(:break_loop) do
+        loop do
+          break if @stop_requested && subscriptions.zero?
+
+          subscriptions = read_and_process(subscriptions)
+        end
+      end
+    end
+
+    def read_and_process(subscriptions)
+      message = read_message
+      return subscriptions unless message
+
+      process_message(message, subscriptions)
+    rescue TimeoutError
+      subscriptions
+    rescue StandardError => e
+      handle_error(e)
+      throw :break_loop
     end
 
     # Send all subscription commands
@@ -271,7 +277,12 @@ module RedisRuby
       return subscriptions unless message.is_a?(Array) && !message.empty?
 
       type = message[0]
+      subscriptions = handle_subscription_change(message, subscriptions, type)
+      dispatch_message_callback(message, type)
+      subscriptions
+    end
 
+    def handle_subscription_change(message, subscriptions, type)
       case type
       when "subscribe", "psubscribe", "ssubscribe"
         subscriptions = message[2].to_i
@@ -279,15 +290,16 @@ module RedisRuby
       when "unsubscribe", "punsubscribe", "sunsubscribe"
         subscriptions = message[2].to_i
         call_callback(:unsubscribe, message[1], subscriptions)
-      when "message"
-        call_callback(:message, message[1], message[2])
-      when "pmessage"
-        call_callback(:pmessage, message[1], message[2], message[3])
-      when "smessage"
-        call_callback(:smessage, message[1], message[2])
       end
-
       subscriptions
+    end
+
+    def dispatch_message_callback(message, type)
+      case type
+      when "message"  then call_callback(:message, message[1], message[2])
+      when "pmessage" then call_callback(:pmessage, message[1], message[2], message[3])
+      when "smessage" then call_callback(:smessage, message[1], message[2])
+      end
     end
 
     # Call a registered callback

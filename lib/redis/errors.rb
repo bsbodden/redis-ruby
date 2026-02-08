@@ -78,23 +78,27 @@ class Redis
     # @return [Exception] translated error
     def translate(error)
       case error
-      when ::RedisRuby::ConnectionError
-        Redis::ConnectionError.new(error.message)
-      when ::RedisRuby::TimeoutError
-        Redis::TimeoutError.new(error.message)
       when ::RedisRuby::CommandError
         translate_command_error(error)
-      when ::RedisRuby::ClusterDownError
-        Redis::ClusterDownError.new(error.message)
-      when ::RedisRuby::MovedError
-        Redis::MovedError.new(error.message)
-      when ::RedisRuby::AskError
-        Redis::AskError.new(error.message)
-      when ::RedisRuby::ClusterError
-        Redis::ClusterError.new(error.message)
       else
-        error
+        translate_by_class(error)
       end
+    end
+
+    # Translate non-command errors by class mapping
+    # Order matters: specific subclasses before parent classes
+    ERROR_MAP = [
+      [::RedisRuby::ConnectionError, Redis::ConnectionError],
+      [::RedisRuby::TimeoutError, Redis::TimeoutError],
+      [::RedisRuby::ClusterDownError, Redis::ClusterDownError],
+      [::RedisRuby::MovedError, Redis::MovedError],
+      [::RedisRuby::AskError, Redis::AskError],
+      [::RedisRuby::ClusterError, Redis::ClusterError],
+    ].freeze
+
+    def translate_by_class(error)
+      _, target_class = ERROR_MAP.find { |source_class, _| error.is_a?(source_class) }
+      target_class ? target_class.new(error.message) : error
     end
 
     # Translate command errors to more specific types

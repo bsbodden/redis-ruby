@@ -347,10 +347,7 @@ module RedisRuby
         end
 
         args = [index_name, query]
-        args.push(OPT_DISTANCE, distance) if distance
-        args.push(OPT_TERMS, OPT_INCLUDE, include) if include
-        args.push(OPT_TERMS, OPT_EXCLUDE, exclude) if exclude
-        args.push(OPT_DIALECT, dialect) if dialect
+        build_spellcheck_options(args, distance: distance, include: include, exclude: exclude, dialect: dialect)
         call(CMD_FT_SPELLCHECK, *args)
       end
 
@@ -444,10 +441,7 @@ module RedisRuby
         return call_2args(CMD_FT_SUGGET, key, prefix) if !fuzzy && !withscores && !withpayloads && max.nil?
 
         args = [key, prefix]
-        args << OPT_FUZZY if fuzzy
-        args << OPT_WITHSCORES if withscores
-        args << OPT_WITHPAYLOADS if withpayloads
-        args.push(OPT_MAX, max) if max
+        build_sugget_options(args, fuzzy: fuzzy, withscores: withscores, withpayloads: withpayloads, max: max)
         call(CMD_FT_SUGGET, *args)
       end
 
@@ -600,6 +594,22 @@ module RedisRuby
 
         args.push(OPT_DIALECT, options[:dialect]) if options[:dialect]
         args.push(OPT_TIMEOUT, options[:timeout]) if options[:timeout]
+      end
+
+      # Build spellcheck optional arguments
+      def build_spellcheck_options(args, distance:, include:, exclude:, dialect:)
+        args.push(OPT_DISTANCE, distance) if distance
+        args.push(OPT_TERMS, OPT_INCLUDE, include) if include
+        args.push(OPT_TERMS, OPT_EXCLUDE, exclude) if exclude
+        args.push(OPT_DIALECT, dialect) if dialect
+      end
+
+      # Build sugget optional arguments
+      def build_sugget_options(args, fuzzy:, withscores:, withpayloads:, max:)
+        args << OPT_FUZZY if fuzzy
+        args << OPT_WITHSCORES if withscores
+        args << OPT_WITHPAYLOADS if withpayloads
+        args.push(OPT_MAX, max) if max
       end
     end
   end

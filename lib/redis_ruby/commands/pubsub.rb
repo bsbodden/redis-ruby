@@ -264,73 +264,81 @@ module RedisRuby
 
       private
 
+      UNSUBSCRIBE_COMMANDS = {
+        "SUBSCRIBE" => "UNSUBSCRIBE",
+        "PSUBSCRIBE" => "PUNSUBSCRIBE",
+        "SSUBSCRIBE" => "SUNSUBSCRIBE",
+      }.freeze
+
       # Main subscription loop
       def subscription_loop(command, targets, timeout: nil, sharded: false) # rubocop:disable Lint/UnusedMethodArgument
         handler = SubscriptionHandler.new
-
-        # Let caller set up callbacks
         yield handler if block_given?
 
-        ensure_connected
+        setup_subscription_connection(command, targets)
 
-        # Use the existing connection for subscriptions
-        @subscription_connection = @connection
-
-        # Send initial subscribe command
-        @subscription_connection.write_command([command, *targets])
-
-        # Track subscription state
-        subscriptions = 0
         deadline = timeout ? Time.now + timeout : nil
+        unsubscribe_cmd = UNSUBSCRIBE_COMMANDS[command]
 
-        # Determine unsubscribe command based on type
-        unsubscribe_commands = {
-          "SUBSCRIBE" => "UNSUBSCRIBE",
-          "PSUBSCRIBE" => "PUNSUBSCRIBE",
-          "SSUBSCRIBE" => "SUNSUBSCRIBE",
-        }.freeze
-        unsubscribe_command = unsubscribe_commands[command]
-
-        # Read messages until we're fully unsubscribed
-        loop do
-          # Check timeout
-          if deadline && Time.now >= deadline
-            # Timeout - unsubscribe from everything
-            @subscription_connection.write_command([unsubscribe_command])
-          end
-
-          # Read next message
-          begin
-            message = @subscription_connection.read_response(timeout: timeout ? [1.0, timeout].min : nil)
-          rescue TimeoutError
-            next if deadline && Time.now < deadline
-
-            break
-          end
-
-          # Handle message
-          break unless message.is_a?(Array) && !message.empty?
-
-          type = message[0]
-
-          case type
-          when "subscribe", "psubscribe", "ssubscribe"
-            subscriptions = message[2].to_i
-            handler.call_subscribe(type.to_sym, message[1], subscriptions)
-          when "unsubscribe", "punsubscribe", "sunsubscribe"
-            subscriptions = message[2].to_i
-            handler.call_unsubscribe(type.to_sym, message[1], subscriptions)
-            break if subscriptions.zero?
-          when "message"
-            handler.call_message(message[1], message[2])
-          when "pmessage"
-            handler.call_pmessage(message[1], message[2], message[3])
-          when "smessage"
-            handler.call_smessage(message[1], message[2])
-          end
-        end
+        process_subscription_messages(handler, unsubscribe_cmd, timeout, deadline)
       ensure
         @subscription_connection = nil
+      end
+
+      # Set up the subscription connection and send subscribe command
+      def setup_subscription_connection(command, targets)
+        ensure_connected
+        @subscription_connection = @connection
+        @subscription_connection.write_command([command, *targets])
+      end
+
+      # Process subscription messages in a loop until fully unsubscribed
+      def process_subscription_messages(handler, unsubscribe_cmd, timeout, deadline)
+        loop do
+          check_subscription_timeout(unsubscribe_cmd, deadline)
+          message = read_subscription_message(timeout, deadline)
+          break if message == :break
+          next if message == :next
+
+          break unless dispatch_subscription_message(handler, message)
+        end
+      end
+
+      # Check if the subscription has timed out and send unsubscribe if so
+      def check_subscription_timeout(unsubscribe_cmd, deadline)
+        return unless deadline && Time.now >= deadline
+
+        @subscription_connection.write_command([unsubscribe_cmd])
+      end
+
+      # Read the next subscription message, handling timeouts
+      def read_subscription_message(timeout, deadline)
+        message = @subscription_connection.read_response(timeout: timeout ? [1.0, timeout].min : nil)
+        return :break unless message.is_a?(Array) && !message.empty?
+
+        message
+      rescue TimeoutError
+        deadline && Time.now < deadline ? :next : :break
+      end
+
+      # Dispatch a subscription message to the appropriate handler callback
+      # @return [Boolean] false if the loop should break
+      def dispatch_subscription_message(handler, message)
+        type = message[0]
+        case type
+        when "subscribe", "psubscribe", "ssubscribe"
+          handler.call_subscribe(type.to_sym, message[1], message[2].to_i)
+        when "unsubscribe", "punsubscribe", "sunsubscribe"
+          handler.call_unsubscribe(type.to_sym, message[1], message[2].to_i)
+          return false if message[2].to_i.zero?
+        when "message"
+          handler.call_message(message[1], message[2])
+        when "pmessage"
+          handler.call_pmessage(message[1], message[2], message[3])
+        when "smessage"
+          handler.call_smessage(message[1], message[2])
+        end
+        true
       end
 
       # Handler for subscription callbacks

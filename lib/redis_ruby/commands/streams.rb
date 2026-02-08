@@ -87,22 +87,9 @@ module RedisRuby
       def xadd(key, fields, id: "*", maxlen: nil, minid: nil, approximate: false, nomkstream: false, limit: nil)
         cmd = [CMD_XADD, key]
         cmd << OPT_NOMKSTREAM if nomkstream
-
-        if maxlen
-          cmd << OPT_MAXLEN
-          cmd << OPT_APPROX if approximate
-          cmd << maxlen
-          cmd << OPT_LIMIT << limit if limit && approximate
-        elsif minid
-          cmd << OPT_MINID
-          cmd << OPT_APPROX if approximate
-          cmd << minid
-          cmd << OPT_LIMIT << limit if limit && approximate
-        end
-
+        append_xadd_trimming(cmd, maxlen: maxlen, minid: minid, approximate: approximate, limit: limit)
         cmd << id
         fields.each { |k, v| cmd << k << v }
-
         call(*cmd)
       end
 
@@ -408,6 +395,21 @@ module RedisRuby
       end
 
       private
+
+      def append_xadd_trimming(cmd, maxlen:, minid:, approximate:, limit:)
+        if maxlen
+          append_trim_strategy(cmd, OPT_MAXLEN, maxlen, approximate: approximate, limit: limit)
+        elsif minid
+          append_trim_strategy(cmd, OPT_MINID, minid, approximate: approximate, limit: limit)
+        end
+      end
+
+      def append_trim_strategy(cmd, strategy, threshold, approximate:, limit:)
+        cmd << strategy
+        cmd << OPT_APPROX if approximate
+        cmd << threshold
+        cmd << OPT_LIMIT << limit if limit && approximate
+      end
 
       def append_stream_keys(cmd, streams, id)
         if streams.is_a?(Hash)

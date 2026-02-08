@@ -67,40 +67,11 @@ module RedisRuby
       def vadd(key, vector, element, reduce_dim: nil, cas: false, quantization: nil,
                ef: nil, attributes: nil, numlinks: nil)
         args = [key]
-
-        # Add REDUCE option
         args.push(OPT_REDUCE, reduce_dim) if reduce_dim
-
-        # Add vector in FP32 or VALUES format
-        if vector.is_a?(String) && vector.encoding == Encoding::BINARY
-          args.push(OPT_FP32, vector)
-        elsif vector.is_a?(Array)
-          args.push(OPT_VALUES, vector.length, *vector)
-        else
-          raise ArgumentError, "Vector must be a binary String (FP32) or an Array of floats"
-        end
-
-        # Element name
+        append_vector_format(args, vector)
         args << element
-
-        # CAS option
-        args << OPT_CAS if cas
-
-        # Quantization
-        args << quantization.to_s.upcase if quantization
-
-        # EF option
-        args.push(OPT_EF, ef) if ef
-
-        # Attributes
-        if attributes
-          attrs_json = attributes.is_a?(Hash) ? ::JSON.generate(attributes) : attributes
-          args.push(OPT_SETATTR, attrs_json)
-        end
-
-        # M parameter (numlinks)
-        args.push(OPT_M, numlinks) if numlinks
-
+        append_vadd_options(args, cas: cas, quantization: quantization,
+                                  ef: ef, attributes: attributes, numlinks: numlinks)
         call(CMD_VADD, *args)
       end
 
@@ -131,31 +102,12 @@ module RedisRuby
                ef: nil, filter: nil, filter_ef: nil, truth: false, no_thread: false,
                epsilon: nil)
         args = [key]
-
-        # Add input in FP32, VALUES, or ELE format
-        if input.is_a?(String) && input.encoding == Encoding::BINARY
-          args.push(OPT_FP32, input)
-        elsif input.is_a?(Array)
-          args.push(OPT_VALUES, input.length, *input)
-        elsif input.is_a?(String)
-          args.push(OPT_ELE, input)
-        else
-          raise ArgumentError, "Input must be Array, FP32 binary String, or element name String"
-        end
-
-        args << OPT_WITHSCORES if with_scores
-        args << OPT_WITHATTRIBS if with_attribs
-        args.push(OPT_COUNT, count) if count
-        args.push(OPT_EPSILON, epsilon) if epsilon
-        args.push(OPT_EF, ef) if ef
-        args.push(OPT_FILTER, filter) if filter
-        args.push(OPT_FILTER_EF, filter_ef) if filter_ef
-        args << OPT_TRUTH if truth
-        args << OPT_NOTHREAD if no_thread
-
+        append_vsim_input(args, input)
+        append_vsim_options(args, with_scores: with_scores, with_attribs: with_attribs,
+                                  count: count, epsilon: epsilon, ef: ef,
+                                  filter: filter, filter_ef: filter_ef,
+                                  truth: truth, no_thread: no_thread)
         result = call(CMD_VSIM, *args)
-
-        # Parse response based on options
         parse_vsim_response(result, with_scores, with_attribs)
       end
 
@@ -191,7 +143,6 @@ module RedisRuby
       # @param raw [Boolean] Return internal representation
       # @return [Array<Float>, Hash, nil] Vector or nil if not found
       def vemb(key, element, raw: false)
-        # Fast path: no raw option
         result = if raw
                    call(CMD_VEMB, key, element, OPT_RAW)
                  else
@@ -200,18 +151,7 @@ module RedisRuby
 
         return nil unless result
 
-        if raw && result.is_a?(Array) && result.length >= 3
-          {
-            "quantization" => result[0],
-            "raw" => result[1],
-            "l2" => result[2].to_f,
-            "range" => result.length > 3 ? result[3].to_f : nil,
-          }.compact
-        elsif result.is_a?(Array)
-          result.map(&:to_f)
-        else
-          result
-        end
+        parse_vemb_result(result, raw)
       end
 
       # Get the neighbors for each level an element exists in
@@ -221,7 +161,6 @@ module RedisRuby
       # @param with_scores [Boolean] Return scores
       # @return [Array<Array>, Array<Hash>, nil] Neighbors per level
       def vlinks(key, element, with_scores: false)
-        # Fast path: no with_scores option
         result = if with_scores
                    call(CMD_VLINKS, key, element, OPT_WITHSCORES)
                  else
@@ -230,17 +169,7 @@ module RedisRuby
 
         return nil unless result
 
-        if with_scores && result.is_a?(Array)
-          result.map do |level|
-            if level.is_a?(Array)
-              Hash[*level].transform_values(&:to_f)
-            else
-              level
-            end
-          end
-        else
-          result
-        end
+        parse_vlinks_result(result, with_scores)
       end
 
       # Get information about a vector set
@@ -297,34 +226,121 @@ module RedisRuby
 
       private
 
-      # Parse VSIM response based on options
-      def parse_vsim_response(result, with_scores, with_attribs)
-        return result unless result.is_a?(Array)
+      # Append vector data in FP32 or VALUES format
+      def append_vector_format(args, vector)
+        if vector.is_a?(String) && vector.encoding == Encoding::BINARY
+          args.push(OPT_FP32, vector)
+        elsif vector.is_a?(Array)
+          args.push(OPT_VALUES, vector.length, *vector)
+        else
+          raise ArgumentError, "Vector must be a binary String (FP32) or an Array of floats"
+        end
+      end
 
-        if with_scores && with_attribs
-          # [element, score, attribs, element, score, attribs, ...]
-          output = {}
-          result.each_slice(3) do |element, score, attribs|
-            parsed_attribs = parse_json_attrs(attribs)
-            output[element] = {
-              "score" => score.to_f,
-              "attributes" => parsed_attribs,
-            }
-          end
-          output
-        elsif with_scores
-          # [element, score, element, score, ...]
-          Hash[*result].transform_values(&:to_f)
-        elsif with_attribs
-          # [element, attribs, element, attribs, ...]
-          output = {}
-          result.each_slice(2) do |element, attribs|
-            output[element] = parse_json_attrs(attribs)
-          end
-          output
+      # Append optional arguments for VADD command
+      def append_vadd_options(args, cas:, quantization:, ef:, attributes:, numlinks:)
+        args << OPT_CAS if cas
+        args << quantization.to_s.upcase if quantization
+        args.push(OPT_EF, ef) if ef
+        append_setattr(args, attributes) if attributes
+        args.push(OPT_M, numlinks) if numlinks
+      end
+
+      # Append SETATTR JSON for an attributes hash or string
+      def append_setattr(args, attributes)
+        attrs_json = attributes.is_a?(Hash) ? ::JSON.generate(attributes) : attributes
+        args.push(OPT_SETATTR, attrs_json)
+      end
+
+      # Append input vector/element for VSIM command
+      def append_vsim_input(args, input)
+        if input.is_a?(String) && input.encoding == Encoding::BINARY
+          args.push(OPT_FP32, input)
+        elsif input.is_a?(Array)
+          args.push(OPT_VALUES, input.length, *input)
+        elsif input.is_a?(String)
+          args.push(OPT_ELE, input)
+        else
+          raise ArgumentError, "Input must be Array, FP32 binary String, or element name String"
+        end
+      end
+
+      # Append optional arguments for VSIM command
+      def append_vsim_options(args, with_scores:, with_attribs:, count:, epsilon:,
+                                    ef:, filter:, filter_ef:, truth:, no_thread:)
+        args << OPT_WITHSCORES if with_scores
+        args << OPT_WITHATTRIBS if with_attribs
+        args.push(OPT_COUNT, count) if count
+        args.push(OPT_EPSILON, epsilon) if epsilon
+        args.push(OPT_EF, ef) if ef
+        append_vsim_filter_options(args, filter: filter, filter_ef: filter_ef,
+                                         truth: truth, no_thread: no_thread)
+      end
+
+      # Append filter and execution options for VSIM command
+      def append_vsim_filter_options(args, filter:, filter_ef:, truth:, no_thread:)
+        args.push(OPT_FILTER, filter) if filter
+        args.push(OPT_FILTER_EF, filter_ef) if filter_ef
+        args << OPT_TRUTH if truth
+        args << OPT_NOTHREAD if no_thread
+      end
+
+      # Parse VEMB result based on raw flag
+      def parse_vemb_result(result, raw)
+        if raw && result.is_a?(Array) && result.length >= 3
+          build_raw_vemb_hash(result)
+        elsif result.is_a?(Array)
+          result.map(&:to_f)
         else
           result
         end
+      end
+
+      # Build hash from raw VEMB response
+      def build_raw_vemb_hash(result)
+        {
+          "quantization" => result[0],
+          "raw" => result[1],
+          "l2" => result[2].to_f,
+          "range" => result.length > 3 ? result[3].to_f : nil,
+        }.compact
+      end
+
+      # Parse VLINKS result based on with_scores flag
+      def parse_vlinks_result(result, with_scores)
+        return result unless with_scores && result.is_a?(Array)
+
+        result.map do |level|
+          level.is_a?(Array) ? Hash[*level].transform_values(&:to_f) : level
+        end
+      end
+
+      # Parse VSIM response based on options
+      def parse_vsim_response(result, with_scores, with_attribs)
+        return result unless result.is_a?(Array)
+        return parse_vsim_scores_and_attribs(result) if with_scores && with_attribs
+        return Hash[*result].transform_values(&:to_f) if with_scores
+        return parse_vsim_attribs_only(result) if with_attribs
+
+        result
+      end
+
+      # Parse VSIM response with both scores and attributes
+      def parse_vsim_scores_and_attribs(result)
+        output = {}
+        result.each_slice(3) do |element, score, attribs|
+          output[element] = { "score" => score.to_f, "attributes" => parse_json_attrs(attribs) }
+        end
+        output
+      end
+
+      # Parse VSIM response with attributes only
+      def parse_vsim_attribs_only(result)
+        output = {}
+        result.each_slice(2) do |element, attribs|
+          output[element] = parse_json_attrs(attribs)
+        end
+        output
       end
 
       def parse_json_attrs(attribs)

@@ -288,30 +288,35 @@ module RedisRuby
           parts = line.split
           next if parts.empty?
 
-          node = {
-            id: parts[0],
-            address: parts[1],
-            flags: parts[2].split(","),
-            master_id: parts[3] == "-" ? nil : parts[3],
-            ping_sent: parts[4].to_i,
-            pong_recv: parts[5].to_i,
-            config_epoch: parts[6].to_i,
-            link_state: parts[7],
-          }
-
-          # Parse slots (remaining parts)
-          slots = []
-          parts[8..].each do |slot_range|
-            if slot_range.include?("-")
-              start_slot, end_slot = slot_range.split("-").map(&:to_i)
-              slots << (start_slot..end_slot)
-            elsif /^\d+$/.match?(slot_range)
-              slots << slot_range.to_i
-            end
-          end
-          node[:slots] = slots
-
+          node = build_node_info(parts)
+          node[:slots] = parse_slot_ranges(parts[8..])
           node
+        end
+      end
+
+      def build_node_info(parts)
+        {
+          id: parts[0],
+          address: parts[1],
+          flags: parts[2].split(","),
+          master_id: parts[3] == "-" ? nil : parts[3],
+          ping_sent: parts[4].to_i,
+          pong_recv: parts[5].to_i,
+          config_epoch: parts[6].to_i,
+          link_state: parts[7],
+        }
+      end
+
+      def parse_slot_ranges(slot_parts)
+        return [] if slot_parts.nil?
+
+        slot_parts.filter_map do |slot_range|
+          if slot_range.include?("-")
+            start_slot, end_slot = slot_range.split("-").map(&:to_i)
+            start_slot..end_slot
+          elsif /^\d+$/.match?(slot_range)
+            slot_range.to_i
+          end
         end
       end
 

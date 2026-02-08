@@ -71,29 +71,14 @@ module RedisRuby
       def ts_create(key, retention: nil, encoding: nil, chunk_size: nil,
                     duplicate_policy: nil, labels: nil, ignore_max_time_diff: nil,
                     ignore_max_val_diff: nil)
-        # Fast path: no options
-        if retention.nil? && encoding.nil? && chunk_size.nil? && duplicate_policy.nil? &&
-           labels.nil? && ignore_max_time_diff.nil? && ignore_max_val_diff.nil?
-          return call_1arg(CMD_TS_CREATE, key)
-        end
-
         args = [key]
-        args.push(OPT_RETENTION, retention) if retention
-        args.push(OPT_ENCODING, encoding) if encoding
-        args.push(OPT_CHUNK_SIZE, chunk_size) if chunk_size
-        args.push(OPT_DUPLICATE_POLICY, duplicate_policy) if duplicate_policy
-
-        if ignore_max_time_diff || ignore_max_val_diff
-          args << OPT_IGNORE
-          args << ignore_max_time_diff if ignore_max_time_diff
-          args << ignore_max_val_diff if ignore_max_val_diff
-        end
-
-        if labels
-          args << OPT_LABELS
-          labels.each { |k, v| args.push(k.to_s, v.to_s) }
-        end
-
+        append_ts_create_options(args, retention: retention, encoding: encoding,
+                                       chunk_size: chunk_size,
+                                       duplicate_policy: duplicate_policy)
+        build_ts_ignore_and_labels(args,
+                                   ignore_max_time_diff: ignore_max_time_diff,
+                                   ignore_max_val_diff: ignore_max_val_diff,
+                                   labels: labels)
         call(CMD_TS_CREATE, *args)
       end
 
@@ -121,18 +106,10 @@ module RedisRuby
         args.push(OPT_RETENTION, retention) if retention
         args.push(OPT_CHUNK_SIZE, chunk_size) if chunk_size
         args.push(OPT_DUPLICATE_POLICY, duplicate_policy) if duplicate_policy
-
-        if ignore_max_time_diff || ignore_max_val_diff
-          args << OPT_IGNORE
-          args << ignore_max_time_diff if ignore_max_time_diff
-          args << ignore_max_val_diff if ignore_max_val_diff
-        end
-
-        if labels
-          args << OPT_LABELS
-          labels.each { |k, v| args.push(k.to_s, v.to_s) }
-        end
-
+        build_ts_ignore_and_labels(args,
+                                   ignore_max_time_diff: ignore_max_time_diff,
+                                   ignore_max_val_diff: ignore_max_val_diff,
+                                   labels: labels)
         call(CMD_TS_ALTER, *args)
       end
 
@@ -156,17 +133,9 @@ module RedisRuby
       def ts_add(key, timestamp, value, retention: nil, encoding: nil,
                  chunk_size: nil, on_duplicate: nil, labels: nil,
                  ignore_max_time_diff: nil, ignore_max_val_diff: nil)
-        # Fast path: no options
-        if retention.nil? && encoding.nil? && chunk_size.nil? && on_duplicate.nil? &&
-           labels.nil? && ignore_max_time_diff.nil? && ignore_max_val_diff.nil?
-          return call_3args(CMD_TS_ADD, key, timestamp, value)
-        end
-
         args = [key, timestamp, value]
-        args.push(OPT_RETENTION, retention) if retention
-        args.push(OPT_ENCODING, encoding) if encoding
-        args.push(OPT_CHUNK_SIZE, chunk_size) if chunk_size
-        args.push(OPT_ON_DUPLICATE, on_duplicate) if on_duplicate
+        append_ts_add_options(args, retention: retention, encoding: encoding,
+                                    chunk_size: chunk_size, on_duplicate: on_duplicate)
         build_ts_ignore_and_labels(args,
                                    ignore_max_time_diff: ignore_max_time_diff,
                                    ignore_max_val_diff: ignore_max_val_diff,
@@ -454,18 +423,12 @@ module RedisRuby
                            count:, align:, aggregation:, bucket_duration:,
                            bucket_timestamp:, empty:)
         args = [key, from_ts, to_ts]
-        args << OPT_LATEST if latest
-        args.push(OPT_FILTER_BY_TS, *filter_by_ts) if filter_by_ts
-        args.push(OPT_FILTER_BY_VALUE, filter_by_value[0], filter_by_value[1]) if filter_by_value
-        args.push(OPT_COUNT, count) if count
-        args.push(OPT_ALIGN, align) if align
-
-        if aggregation
-          args.push(OPT_AGGREGATION, aggregation, bucket_duration)
-          args.push(OPT_BUCKETTIMESTAMP, bucket_timestamp) if bucket_timestamp
-          args << OPT_EMPTY if empty
-        end
-
+        append_ts_base_filters(args, latest: latest, filter_by_ts: filter_by_ts,
+                                     filter_by_value: filter_by_value)
+        append_ts_count_and_align(args, count: count, align: align)
+        append_ts_aggregation(args, aggregation: aggregation,
+                                    bucket_duration: bucket_duration,
+                                    bucket_timestamp: bucket_timestamp, empty: empty)
         args
       end
 
@@ -476,24 +439,67 @@ module RedisRuby
                             count:, align:, aggregation:, bucket_duration:,
                             bucket_timestamp:, empty:, groupby:, reduce:)
         args = [from_ts, to_ts]
+        append_ts_base_filters(args, latest: latest, filter_by_ts: filter_by_ts,
+                                     filter_by_value: filter_by_value)
+        append_mrange_label_options(args, withlabels: withlabels,
+                                          selected_labels: selected_labels)
+        append_ts_count_and_align(args, count: count, align: align)
+        append_ts_aggregation(args, aggregation: aggregation,
+                                    bucket_duration: bucket_duration,
+                                    bucket_timestamp: bucket_timestamp, empty: empty)
+        args.push(OPT_FILTER, *filters)
+        args.push(OPT_GROUPBY, groupby, OPT_REDUCE, reduce) if groupby
+        args
+      end
+
+      # Append LATEST and FILTER_BY_* options for range commands
+      # @private
+      def append_ts_base_filters(args, latest:, filter_by_ts:, filter_by_value:)
         args << OPT_LATEST if latest
         args.push(OPT_FILTER_BY_TS, *filter_by_ts) if filter_by_ts
         args.push(OPT_FILTER_BY_VALUE, filter_by_value[0], filter_by_value[1]) if filter_by_value
-        args << OPT_WITHLABELS if withlabels
-        args.push(OPT_SELECTED_LABELS, *selected_labels) if selected_labels
+      end
+
+      # Append COUNT and ALIGN options for range commands
+      # @private
+      def append_ts_count_and_align(args, count:, align:)
         args.push(OPT_COUNT, count) if count
         args.push(OPT_ALIGN, align) if align
+      end
 
-        if aggregation
-          args.push(OPT_AGGREGATION, aggregation, bucket_duration)
-          args.push(OPT_BUCKETTIMESTAMP, bucket_timestamp) if bucket_timestamp
-          args << OPT_EMPTY if empty
-        end
+      # Append label options for MRANGE commands
+      # @private
+      def append_mrange_label_options(args, withlabels:, selected_labels:)
+        args << OPT_WITHLABELS if withlabels
+        args.push(OPT_SELECTED_LABELS, *selected_labels) if selected_labels
+      end
 
-        args.push(OPT_FILTER, *filters)
-        args.push(OPT_GROUPBY, groupby, OPT_REDUCE, reduce) if groupby
+      # Append aggregation options for range commands
+      # @private
+      def append_ts_aggregation(args, aggregation:, bucket_duration:, bucket_timestamp:, empty:)
+        return unless aggregation
 
-        args
+        args.push(OPT_AGGREGATION, aggregation, bucket_duration)
+        args.push(OPT_BUCKETTIMESTAMP, bucket_timestamp) if bucket_timestamp
+        args << OPT_EMPTY if empty
+      end
+
+      # Append options specific to TS.CREATE
+      # @private
+      def append_ts_create_options(args, retention:, encoding:, chunk_size:, duplicate_policy:)
+        args.push(OPT_RETENTION, retention) if retention
+        args.push(OPT_ENCODING, encoding) if encoding
+        args.push(OPT_CHUNK_SIZE, chunk_size) if chunk_size
+        args.push(OPT_DUPLICATE_POLICY, duplicate_policy) if duplicate_policy
+      end
+
+      # Append options specific to TS.ADD
+      # @private
+      def append_ts_add_options(args, retention:, encoding:, chunk_size:, on_duplicate:)
+        args.push(OPT_RETENTION, retention) if retention
+        args.push(OPT_ENCODING, encoding) if encoding
+        args.push(OPT_CHUNK_SIZE, chunk_size) if chunk_size
+        args.push(OPT_ON_DUPLICATE, on_duplicate) if on_duplicate
       end
 
       # Build arguments for TS.INCRBY/TS.DECRBY commands

@@ -53,20 +53,12 @@ module RedisRuby
       # @return [String, nil] "OK" or nil (or old value if get: true)
       def set(key, value, ex: nil, px: nil, exat: nil, pxat: nil, nx: false, xx: false, keepttl: false, get: false)
         # Fast path: simple SET key value (most common case)
-        if ex.nil? && px.nil? && exat.nil? && pxat.nil? && !nx && !xx && !keepttl && !get
-          return call_2args(CMD_SET, key, value)
-        end
+        return call_2args(CMD_SET, key, value) if set_simple?(ex, px, exat, pxat, nx, xx, keepttl, get)
 
         # Slow path: SET with options
         args = [key, value]
-        args.push(OPT_EX, ex) if ex
-        args.push(OPT_PX, px) if px
-        args.push(OPT_EXAT, exat) if exat
-        args.push(OPT_PXAT, pxat) if pxat
-        args.push(OPT_NX) if nx
-        args.push(OPT_XX) if xx
-        args.push(OPT_KEEPTTL) if keepttl
-        args.push(OPT_GET) if get
+        append_set_expiration(args, ex: ex, px: px, exat: exat, pxat: pxat)
+        append_set_flags(args, nx: nx, xx: xx, keepttl: keepttl, get: get)
         call(CMD_SET, *args)
       end
 
@@ -246,6 +238,30 @@ module RedisRuby
         args.push(OPT_PXAT, pxat) if pxat
         args.push(OPT_PERSIST) if persist
         call(*args)
+      end
+
+      private
+
+      def set_simple?(ex, px, exat, pxat, nx, xx, keepttl, get)
+        no_expiration?(ex, px, exat, pxat) && !nx && !xx && !keepttl && !get
+      end
+
+      def no_expiration?(ex, px, exat, pxat)
+        ex.nil? && px.nil? && exat.nil? && pxat.nil?
+      end
+
+      def append_set_expiration(args, ex:, px:, exat:, pxat:)
+        args.push(OPT_EX, ex) if ex
+        args.push(OPT_PX, px) if px
+        args.push(OPT_EXAT, exat) if exat
+        args.push(OPT_PXAT, pxat) if pxat
+      end
+
+      def append_set_flags(args, nx:, xx:, keepttl:, get:)
+        args.push(OPT_NX) if nx
+        args.push(OPT_XX) if xx
+        args.push(OPT_KEEPTTL) if keepttl
+        args.push(OPT_GET) if get
       end
     end
   end

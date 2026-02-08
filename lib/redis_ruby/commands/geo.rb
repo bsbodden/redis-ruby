@@ -149,7 +149,8 @@ module RedisRuby
                     unit: "m", count: nil, any: false, sort: nil,
                     withcoord: false, withdist: false, withhash: false)
         cmd = [CMD_GEOSEARCH, key]
-        build_geosearch_args(cmd, frommember: frommember, fromlonlat: fromlonlat,
+        build_geosearch_args(cmd,
+                             frommember: frommember, fromlonlat: fromlonlat,
                              byradius: byradius, bybox: bybox, unit: unit,
                              count: count, any: any, sort: sort)
         cmd << OPT_WITHCOORD if withcoord
@@ -173,7 +174,8 @@ module RedisRuby
                          byradius: nil, bybox: nil, unit: "m", count: nil, any: false,
                          sort: nil, storedist: false)
         cmd = [CMD_GEOSEARCHSTORE, destination, source]
-        build_geosearch_args(cmd, frommember: frommember, fromlonlat: fromlonlat,
+        build_geosearch_args(cmd,
+                             frommember: frommember, fromlonlat: fromlonlat,
                              byradius: byradius, bybox: bybox, unit: unit,
                              count: count, any: any, sort: sort)
         cmd << OPT_STOREDIST if storedist
@@ -210,6 +212,12 @@ module RedisRuby
       private
 
       def build_geosearch_args(cmd, frommember:, fromlonlat:, byradius:, bybox:, unit:, count:, any:, sort:)
+        append_geosearch_origin(cmd, frommember: frommember, fromlonlat: fromlonlat)
+        append_geosearch_shape(cmd, byradius: byradius, bybox: bybox, unit: unit)
+        append_geosearch_modifiers(cmd, count: count, any: any, sort: sort)
+      end
+
+      def append_geosearch_origin(cmd, frommember:, fromlonlat:)
         if frommember
           cmd << OPT_FROMMEMBER << frommember
         elsif fromlonlat
@@ -217,7 +225,9 @@ module RedisRuby
         else
           raise ArgumentError, "Must specify frommember or fromlonlat"
         end
+      end
 
+      def append_geosearch_shape(cmd, byradius:, bybox:, unit:)
         if byradius
           cmd << OPT_BYRADIUS << byradius << unit.to_s.upcase
         elsif bybox
@@ -225,7 +235,9 @@ module RedisRuby
         else
           raise ArgumentError, "Must specify byradius or bybox"
         end
+      end
 
+      def append_geosearch_modifiers(cmd, count:, any:, sort:)
         if count
           cmd << OPT_COUNT << count
           cmd << OPT_ANY if any
