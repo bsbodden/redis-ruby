@@ -15,6 +15,16 @@ require "mocha/minitest"
 
 Minitest::Reporters.use! [Minitest::Reporters::DefaultReporter.new(color: true)]
 
+# Suppress async-pool warnings about mutex unlocking
+# These are harmless warnings from the async-pool gem's internal cleanup
+begin
+  require "async"
+  require "console"
+  Console.logger.level = :error
+rescue LoadError
+  # Async not available, skip
+end
+
 # TestContainers support
 require "testcontainers"
 require "testcontainers/redis"

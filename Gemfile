@@ -48,5 +48,5 @@ end
 group :async do
   gem "async", "~> 2.0"
   gem "async-io", "~> 1.0"
-  gem "async-pool", "~> 0.8" # Fiber-aware connection pooling
+  gem "async-pool", "~> 0.11" # Fiber-aware connection pooling
 end
