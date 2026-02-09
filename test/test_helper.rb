@@ -84,7 +84,7 @@ class RedisRubyTestCase < Minitest::Test
       @redis_url = ENV.fetch("REDIS_URL", "redis://localhost:6379")
     end
 
-    @redis = RedisRuby::Client.new(url: @redis_url)
+    @redis = RedisRuby::Client.new(url: @redis_url, reconnect_attempts: 3)
   end
 
   def teardown
