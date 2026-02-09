@@ -167,6 +167,20 @@ class SentinelCommandsIntegrationTest < SentinelTestCase
 
     sentinel.close
 
+    # Translate Docker internal IP to localhost if needed (for Docker Compose setup)
+    if host.match?(/^172\.\d+\.\d+\.\d+$/) || host.match?(/^192\.168\.\d+\.\d+$/)
+      # Map internal port to external port
+      host = "127.0.0.1"
+      port = case port.to_i
+             when 6379
+               SentinelTestContainerSupport::MASTER_PORT
+             when 6380
+               SentinelTestContainerSupport::REPLICA_PORT
+             else
+               port.to_i
+             end
+    end
+
     # Connect to the master
     master_conn = RedisRuby::Connection::TCP.new(
       host: host,
