@@ -432,7 +432,7 @@ class SentinelTestCase < Minitest::Test
       skip "REDIS_SENTINEL_URL not set and TestContainers not enabled"
     end
 
-    @sentinel_client = RedisRuby::SentinelClient.new(
+    @sentinel_client = create_sentinel_client_with_nat_translation(
       sentinels: @sentinel_addresses,
       service_name: @service_name
     )
@@ -462,6 +462,46 @@ class SentinelTestCase < Minitest::Test
       host, port = addr.split(":")
       { host: host, port: port.to_i }
     end
+  end
+
+  # Create a SentinelClient with NAT translation for Docker Compose
+  # This translates internal Docker IPs to localhost with mapped ports
+  def create_sentinel_client_with_nat_translation(sentinels:, service_name:, **options)
+    client = RedisRuby::SentinelClient.new(
+      sentinels: sentinels,
+      service_name: service_name,
+      **options
+    )
+
+    # Wrap the sentinel_manager's discover_master method to translate addresses
+    if SentinelTestContainerSupport.instance_variable_get(:@compose_started)
+      manager = client.sentinel_manager
+      original_discover_master = manager.method(:discover_master)
+
+      manager.define_singleton_method(:discover_master) do
+        address = original_discover_master.call
+        translate_docker_address(address)
+      end
+
+      manager.define_singleton_method(:translate_docker_address) do |address|
+        # If the IP is a Docker internal IP (172.x.x.x or similar), translate to localhost
+        if address[:host].match?(/^172\.\d+\.\d+\.\d+$/) || address[:host].match?(/^192\.168\.\d+\.\d+$/)
+          # Map internal port to external port
+          case address[:port]
+          when 6379
+            { host: "127.0.0.1", port: SentinelTestContainerSupport::MASTER_PORT }
+          when 6380
+            { host: "127.0.0.1", port: SentinelTestContainerSupport::REPLICA_PORT }
+          else
+            address
+          end
+        else
+          address
+        end
+      end
+    end
+
+    client
   end
 end
 

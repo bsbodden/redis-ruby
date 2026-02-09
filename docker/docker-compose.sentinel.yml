@@ -14,7 +14,11 @@ services:
     container_name: redis-master
     ports:
       - "7379:6379"
-    command: redis-server --port 6379
+    command: >
+      redis-server
+      --port 6379
+      --slave-announce-ip 127.0.0.1
+      --slave-announce-port 7379
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 2s
@@ -28,7 +32,7 @@ services:
     container_name: redis-replica
     ports:
       - "7380:6380"
-    command: redis-server --port 6380 --replicaof redis-master 6379
+    command: redis-server --port 6380 --replicaof redis-master 6379 --replica-announce-ip 127.0.0.1 --replica-announce-port 7380
     depends_on:
       redis-master:
         condition: service_healthy
@@ -41,17 +45,14 @@ services:
       - redis-sentinel-net
 
   sentinel-1:
-    image: bitnami/redis-sentinel:latest
+    image: redis:7.0
     container_name: sentinel-1
     ports:
       - "26379:26379"
-    environment:
-      - REDIS_MASTER_HOST=redis-master
-      - REDIS_MASTER_PORT_NUMBER=6379
-      - REDIS_MASTER_SET=mymaster
-      - REDIS_SENTINEL_QUORUM=2
-      - REDIS_SENTINEL_DOWN_AFTER_MILLISECONDS=5000
-      - REDIS_SENTINEL_FAILOVER_TIMEOUT=10000
+    volumes:
+      - ./sentinel.conf:/etc/redis/sentinel.conf
+      - ./sentinel-entrypoint.sh:/usr/local/bin/sentinel-entrypoint.sh
+    entrypoint: ["/usr/local/bin/sentinel-entrypoint.sh"]
     depends_on:
       redis-master:
         condition: service_healthy
@@ -59,17 +60,14 @@ services:
       - redis-sentinel-net
 
   sentinel-2:
-    image: bitnami/redis-sentinel:latest
+    image: redis:7.0
     container_name: sentinel-2
     ports:
       - "26380:26379"
-    environment:
-      - REDIS_MASTER_HOST=redis-master
-      - REDIS_MASTER_PORT_NUMBER=6379
-      - REDIS_MASTER_SET=mymaster
-      - REDIS_SENTINEL_QUORUM=2
-      - REDIS_SENTINEL_DOWN_AFTER_MILLISECONDS=5000
-      - REDIS_SENTINEL_FAILOVER_TIMEOUT=10000
+    volumes:
+      - ./sentinel2.conf:/etc/redis/sentinel.conf
+      - ./sentinel-entrypoint.sh:/usr/local/bin/sentinel-entrypoint.sh
+    entrypoint: ["/usr/local/bin/sentinel-entrypoint.sh"]
     depends_on:
       redis-master:
         condition: service_healthy
@@ -77,17 +75,14 @@ services:
       - redis-sentinel-net
 
   sentinel-3:
-    image: bitnami/redis-sentinel:latest
+    image: redis:7.0
     container_name: sentinel-3
     ports:
       - "26381:26379"
-    environment:
-      - REDIS_MASTER_HOST=redis-master
-      - REDIS_MASTER_PORT_NUMBER=6379
-      - REDIS_MASTER_SET=mymaster
-      - REDIS_SENTINEL_QUORUM=2
-      - REDIS_SENTINEL_DOWN_AFTER_MILLISECONDS=5000
-      - REDIS_SENTINEL_FAILOVER_TIMEOUT=10000
+    volumes:
+      - ./sentinel3.conf:/etc/redis/sentinel.conf
+      - ./sentinel-entrypoint.sh:/usr/local/bin/sentinel-entrypoint.sh
+    entrypoint: ["/usr/local/bin/sentinel-entrypoint.sh"]
     depends_on:
       redis-master:
         condition: service_healthy
