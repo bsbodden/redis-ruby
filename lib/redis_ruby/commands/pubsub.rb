@@ -282,7 +282,7 @@ module RedisRuby
 
         process_subscription_messages(handler, unsubscribe_cmd, timeout, deadline)
       ensure
-        @subscription_connection = nil
+        cleanup_subscription_connection
       end
 
       # Set up the subscription connection and send subscribe command
@@ -290,6 +290,13 @@ module RedisRuby
         ensure_connected
         @subscription_connection = @connection
         @subscription_connection.write_command([command, *targets])
+      end
+
+      # Clean up subscription connection after subscription ends
+      def cleanup_subscription_connection
+        @subscription_connection = nil
+        # Note: We don't close the connection here because it may be reused
+        # The connection exits subscription mode when all channels are unsubscribed
       end
 
       # Process subscription messages in a loop until fully unsubscribed
@@ -313,12 +320,25 @@ module RedisRuby
 
       # Read the next subscription message, handling timeouts
       def read_subscription_message(timeout, deadline)
-        message = @subscription_connection.read_response(timeout: timeout ? [1.0, timeout].min : nil)
+        # When no timeout/deadline is set, use a very long timeout to block indefinitely
+        # This prevents the connection's default timeout from causing premature exits
+        read_timeout = if timeout
+                         [1.0, timeout].min
+                       elsif deadline
+                         [1.0, deadline - Time.now].min
+                       else
+                         3600.0 # 1 hour - effectively infinite for subscription mode
+                       end
+
+        message = @subscription_connection.read_response(timeout: read_timeout)
         return :break unless message.is_a?(Array) && !message.empty?
 
         message
       rescue TimeoutError
         deadline && Time.now < deadline ? :next : :break
+      rescue ConnectionError
+        # Connection was closed - exit subscription loop gracefully
+        :break
       end
 
       # Dispatch a subscription message to the appropriate handler callback

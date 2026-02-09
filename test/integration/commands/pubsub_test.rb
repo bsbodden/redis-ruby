@@ -24,9 +24,8 @@ class PubSubIntegrationTest < RedisRubyTestCase
   private
 
   def create_publisher_connection
-    url = ENV.fetch("REDIS_URL", "redis://localhost:6379")
-    uri = URI.parse(url)
-    RedisRuby.new(host: uri.host, port: uri.port)
+    # Use the same URL as the main redis connection (from testcontainers or ENV)
+    RedisRuby.new(url: @redis_url)
   end
 
   public
