@@ -11,13 +11,11 @@ require "test_helper"
 #
 # For CI environments, using Docker Compose or external cluster is recommended.
 module ClusterTestContainerSupport
-  CLUSTER_IMAGE = "grokzen/redis-cluster:7.0.10"
-  CLUSTER_PORTS = (7000..7005).to_a
-  MASTER_PORTS = [7000, 7001, 7002].freeze
-  REPLICA_PORTS = [7003, 7004, 7005].freeze
+  CLUSTER_IMAGE = "redislabs/client-libs-test:8.4.0"
+  CLUSTER_PORTS = (17_000..17_005).to_a
+  MASTER_PORTS = [17_000, 17_001, 17_002].freeze
+  REPLICA_PORTS = [17_003, 17_004, 17_005].freeze
   COMPOSE_FILE = File.expand_path("../../../docker/docker-compose.cluster.yml", __dir__)
-  # External ports when using Docker Compose with port mapping
-  COMPOSE_EXTERNAL_PORTS = (17_000..17_005).to_a
 
   # Detect whether we're running inside a Docker container
   def self.inside_docker?
@@ -116,11 +114,11 @@ module ClusterTestContainerSupport
     end
 
     def master_nodes
-      @nodes&.select { |n| MASTER_PORTS.include?(n[:internal_port]) }
+      @nodes&.select { |n| MASTER_PORTS.include?(n[:port]) }
     end
 
     def replica_nodes
-      @nodes&.select { |n| REPLICA_PORTS.include?(n[:internal_port]) }
+      @nodes&.select { |n| REPLICA_PORTS.include?(n[:port]) }
     end
 
     def seed_nodes
@@ -150,17 +148,10 @@ module ClusterTestContainerSupport
       # Wait for cluster to be healthy
       wait_for_compose_cluster
 
-      # Build node list - use internal ports when inside Docker, external ports otherwise
-      if inside_docker?
-        cluster_ip = docker_host
-        @nodes = CLUSTER_PORTS.map do |port|
-          { host: cluster_ip, port: port, internal_port: port }
-        end
-      else
-        @nodes = CLUSTER_PORTS.each_with_index.map do |internal_port, idx|
-          external_port = COMPOSE_EXTERNAL_PORTS[idx]
-          { host: docker_host, port: external_port, internal_port: internal_port }
-        end
+      # Build node list
+      cluster_ip = docker_host
+      @nodes = CLUSTER_PORTS.map do |port|
+        { host: cluster_ip, port: port }
       end
 
       puts "Redis Cluster started with Docker Compose"
@@ -173,7 +164,7 @@ module ClusterTestContainerSupport
 
     def wait_for_compose_cluster(timeout: 90)
       host = docker_host
-      port = inside_docker? ? CLUSTER_PORTS.first : COMPOSE_EXTERNAL_PORTS.first
+      port = CLUSTER_PORTS.first
       puts "Waiting for cluster to be ready (host: #{host}:#{port})..."
       start_time = Time.now
 
