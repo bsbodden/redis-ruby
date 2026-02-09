@@ -71,7 +71,7 @@ class SentinelFailoverIntegrationTest < SentinelTestCase
   # Test: Can verify connection state
   def test_connection_state
     # Not connected initially
-    new_client = RedisRuby::SentinelClient.new(
+    new_client = create_sentinel_client_with_nat_translation(
       sentinels: sentinel_addresses,
       service_name: service_name
     )
@@ -101,7 +101,7 @@ class SentinelFailoverIntegrationTest < SentinelTestCase
     # Close and create new client
     sentinel_client.close
 
-    new_client = RedisRuby::SentinelClient.new(
+    new_client = create_sentinel_client_with_nat_translation(
       sentinels: sentinel_addresses,
       service_name: service_name
     )
