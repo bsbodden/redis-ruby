@@ -14,6 +14,7 @@ group :development do
   gem "rubocop-minitest", "~> 0.36"
   gem "rubocop-performance", "~> 1.22"
   gem "rubocop-rake", "~> 0.6"
+  gem "stackprof", "~> 0.2" # For profiling
   gem "yard", "~> 0.9"
 end
 

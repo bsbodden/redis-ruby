@@ -18,9 +18,9 @@ module RedisRuby
     class BufferedIO
       EOL = "\r\n".b.freeze
       EOL_SIZE = EOL.bytesize
-      # Reduced from 16KB to 4KB - smaller initial allocation
-      # Buffer grows as needed but most ops are small
-      DEFAULT_CHUNK_SIZE = 4096
+      # Increased from 4KB to 16KB - reduces number of read syscalls
+      # Most GET responses fit in a single read, improving throughput
+      DEFAULT_CHUNK_SIZE = 16_384
 
       # Buffer cutoff threshold - if buffer exceeds this, reallocate on next op
       # Prevents memory bloat from large responses persisting
@@ -90,12 +90,40 @@ module RedisRuby
       # This is faster than gets_chomp.to_i because it avoids
       # creating an intermediate string object.
       #
+      # Optimized with fast path for single-digit integers (very common)
+      #
       # @return [Integer] parsed integer
       def gets_integer
         offset = @offset
         fill_buffer(1) if offset >= @buffer.bytesize
 
-        negative, offset = check_negative_sign(offset)
+        # Check for negative sign
+        first_byte = @buffer.getbyte(offset)
+        if first_byte == 45 # '-'
+          offset += 1
+          negative = true
+          # Ensure we have at least 3 more bytes for fast path (digit + \r\n)
+          needed = 3 - (@buffer.bytesize - offset)
+          fill_buffer(needed) if needed.positive?
+        else
+          negative = false
+          # Ensure we have at least 3 more bytes for fast path (digit + \r\n)
+          needed = 3 - (@buffer.bytesize - offset)
+          fill_buffer(needed) if needed.positive?
+        end
+
+        # Fast path: single digit followed by CR (very common for small integers)
+        second_byte = @buffer.getbyte(offset)
+        if second_byte >= 48 && second_byte <= 57 # '0'..'9'
+          third_byte = @buffer.getbyte(offset + 1)
+          if third_byte == 13 # '\r'
+            @offset = offset + 3 # digit + \r\n
+            int = second_byte - 48
+            return negative ? -int : int
+          end
+        end
+
+        # Slow path: multi-digit integer
         int, offset = parse_integer_digits(offset)
         @offset = offset + 2 # Skip \r\n
 
@@ -107,9 +135,13 @@ module RedisRuby
       # @param bytes [Integer] number of bytes to read
       # @return [String] the read data
       def read_chomp(bytes)
-        ensure_remaining(bytes + EOL_SIZE)
+        # Inline ensure_remaining to reduce method call overhead
+        total_needed = bytes + EOL_SIZE
+        needed = total_needed - (@buffer.bytesize - @offset)
+        fill_buffer(needed) if needed.positive?
+
         str = @buffer.byteslice(@offset, bytes)
-        @offset += bytes + EOL_SIZE
+        @offset += total_needed
         str
       end
 
@@ -118,7 +150,10 @@ module RedisRuby
       # @param count [Integer] number of bytes to read
       # @return [String] the read data
       def read(count)
-        ensure_remaining(count)
+        # Inline ensure_remaining to reduce method call overhead
+        needed = count - (@buffer.bytesize - @offset)
+        fill_buffer(needed) if needed.positive?
+
         str = @buffer.byteslice(@offset, count)
         @offset += count
         str
@@ -128,7 +163,10 @@ module RedisRuby
       #
       # @param bytes [Integer] number of bytes to skip
       def skip(bytes)
-        ensure_remaining(bytes)
+        # Inline ensure_remaining to reduce method call overhead
+        needed = bytes - (@buffer.bytesize - @offset)
+        fill_buffer(needed) if needed.positive?
+
         @offset += bytes
         nil
       end

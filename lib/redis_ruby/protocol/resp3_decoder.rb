@@ -91,9 +91,21 @@ module RedisRuby
 
       private
 
+      # Decode bulk string with fast path for common cases
+      #
+      # Bulk strings are the most common response type for GET operations.
+      # Format: $<length>\r\n<data>\r\n
+      #
+      # Optimized to minimize method calls and allocations.
       def decode_bulk_string
         length = read_integer
         return nil if length == -1
+
+        # For zero-length strings, still need to consume the trailing \r\n
+        if length.zero?
+          skip_bytes(2) # consume \r\n
+          return "".b
+        end
 
         read_bytes_chomp(length)
       end
@@ -107,7 +119,11 @@ module RedisRuby
 
       def decode_extended_type(type_byte)
         method_name = EXTENDED_TYPE_METHODS[type_byte]
-        raise ProtocolError, "Unknown RESP3 type: #{type_byte.chr}" unless method_name
+        unless method_name
+          # Better error message with byte value
+          char_repr = type_byte.chr rescue "\\x#{type_byte.to_s(16).rjust(2, '0')}"
+          raise ProtocolError, "Unknown RESP3 type: #{char_repr} (byte: #{type_byte})"
+        end
 
         send(method_name)
       end
