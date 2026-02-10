@@ -157,8 +157,7 @@ module RedisRuby
 
       # Get debugging info about a script
       #
-      # @param subcommand [String] DEBUG subcommand
-      # @param args [Array] Subcommand arguments
+      # @param mode [String] DEBUG mode (YES, SYNC, or NO)
       # @return [Object] Debug information
       def script_debug(mode)
         call(CMD_SCRIPT, SUBCMD_DEBUG, mode.to_s.upcase)

@@ -44,7 +44,7 @@ module RedisRuby
 
     # Initialize a new Cluster client
     #
-    # @param nodes [Array<String, Hash>] Seed nodes (URLs or {host:, port:} hashes)
+    # @param nodes [Array<String, Hash>] Seed nodes (URLs or hashes with host and port)
     # @param password [String, nil] Password for all nodes
     # @param timeout [Float] Connection timeout in seconds
     # @param read_from [Symbol] :master (default), :replica, :replica_preferred

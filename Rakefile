@@ -57,10 +57,47 @@ namespace :test do
   end
 end
 
-desc "Generate YARD documentation"
-task :doc do
-  sh "yard doc"
+namespace :docs do
+  desc "Generate YARD API documentation"
+  task :api do
+    sh "bundle exec yard doc"
+  end
+
+  desc "Build Jekyll documentation site"
+  task :build do
+    Bundler.with_unbundled_env do
+      Dir.chdir("docs") do
+        sh "bundle check || bundle install --quiet"
+        sh "bundle exec jekyll build"
+      end
+    end
+  end
+
+  desc "Serve Jekyll documentation site locally"
+  task :serve do
+    Bundler.with_unbundled_env do
+      Dir.chdir("docs") do
+        sh "bundle check || bundle install --quiet"
+        sh "bundle exec jekyll serve --livereload"
+      end
+    end
+  end
+
+  desc "Generate all documentation (API + site)"
+  task all: %i[api build]
+
+  desc "Clean generated documentation"
+  task :clean do
+    sh "rm -rf docs/_site"
+    sh "rm -rf .yardoc"
+  end
 end
+
+desc "Generate all documentation"
+task docs: "docs:all"
+
+desc "Generate YARD documentation (alias)"
+task doc: "docs:api"
 
 desc "Start a console with the library loaded"
 task :console do

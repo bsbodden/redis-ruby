@@ -1,0 +1,112 @@
+# Site settings
+title: redis-ruby
+description: High-performance Redis client for Ruby with RESP3 support, connection pooling, and comprehensive Redis Stack module support.
+baseurl: "/redis-ruby"
+url: "https://redis.github.io"
+
+# Theme
+theme: just-the-docs
+
+# Color scheme - Redis theme
+color_scheme: redis
+
+# Logo
+logo: "/assets/images/redis-logo.svg"
+
+# Favicon
+favicon_ico: "/favicon.ico"
+
+# Aux links
+aux_links:
+  GitHub:
+    - "https://github.com/redis/redis-ruby"
+  RubyGems:
+    - "https://rubygems.org/gems/redis-ruby"
+  API Reference:
+    - "/redis-ruby/api/"
+
+# Footer
+footer_content: "Copyright &copy; 2024 Redis Inc. Distributed under the MIT License."
+
+# Search
+search_enabled: true
+search:
+  heading_level: 2
+  previews: 3
+  preview_words_before: 5
+  preview_words_after: 10
+  tokenizer_separator: /[\s/]+/
+  rel_url: true
+  button: false
+
+# Heading anchors
+heading_anchors: true
+
+# Back to top link
+back_to_top: true
+back_to_top_text: "Back to top"
+
+# Navigation
+nav_sort: case_insensitive
+
+# Callouts
+callouts_level: quiet
+callouts:
+  highlight:
+    color: yellow
+  important:
+    title: Important
+    color: blue
+  new:
+    title: New
+    color: green
+  note:
+    title: Note
+    color: purple
+  warning:
+    title: Warning
+    color: red
+
+# Mermaid diagrams
+mermaid:
+  version: "10.6.1"
+
+# Build settings
+markdown: kramdown
+kramdown:
+  input: GFM
+  syntax_highlighter: rouge
+  syntax_highlighter_opts:
+    block:
+      line_numbers: false
+
+# SASS settings - suppress deprecation warnings from Just the Docs theme
+sass:
+  style: compressed
+  quiet_deps: true
+  verbose: false
+  silence_deprecations:
+    - import
+    - global-builtin
+    - color-functions
+
+# Exclude from processing
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - node_modules
+  - vendor/bundle/
+  - vendor/cache/
+  - vendor/gems/
+  - vendor/ruby/
+  - README_DOCS.md
+  - BENCHMARKING.md
+  - BENCHMARKS.md
+  - CODE_QUALITY_REPORT.md
+  - DEVELOPMENT_PLAN.md
+  - MISSING_TESTS_REPORT.md
+  - QUALITY_REPORT.md
+  - README.md
+  - REDIS_PY_GAP_ANALYSIS.md
+  - REDIS_PY_PARITY.md
+

@@ -153,13 +153,13 @@ module RedisRuby
       # Test a command against a user's permissions without executing it
       #
       # @param username [String] Username to test
-      # @param args [Array<String>] Command and arguments to test
+      # @param command_args [Array<String>] Command and arguments to test
       # @return [String] "OK" if permitted, or error description
       #
       # @example
       #   redis.acl_dryrun("testuser", "SET", "foo", "bar")
-      def acl_dryrun(username, *)
-        call(CMD_ACL, SUBCMD_DRYRUN, username, *)
+      def acl_dryrun(username, *command_args)
+        call(CMD_ACL, SUBCMD_DRYRUN, username, *command_args)
       end
     end
   end

@@ -26,7 +26,7 @@ module RedisRuby
       ARRAY_PREFIX = "*".b.freeze
       BULK_PREFIX = "$".b.freeze
 
-      # Pre-encoded command prefixes (format: *{argc}\r\n${cmdlen}\r\n{CMD}\r\n)
+      # Pre-encoded command prefixes (format: *argc\\r\\n$cmdlen\\r\\nCMD\\r\\n)
       GET_PREFIX = "*2\r\n$3\r\nGET\r\n".b.freeze
       SET_PREFIX = "*3\r\n$3\r\nSET\r\n".b.freeze
       DEL_PREFIX = "*2\r\n$3\r\nDEL\r\n".b.freeze

@@ -1,0 +1,14 @@
+--markup markdown
+--output-dir docs/_site/api
+--readme README.md
+--title "redis-ruby API Documentation"
+--protected
+--no-stats
+--hide-void-return
+--embed-mixins
+lib/**/*.rb
+-
+LICENSE
+docs/BENCHMARKS.md
+docs/DEVELOPMENT_PLAN.md
+

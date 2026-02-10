@@ -13,6 +13,9 @@ Gemfile.lock
 # Documentation
 /doc/
 /.yardoc/
+/docs/_site/
+/docs/.jekyll-cache/
+/docs/Gemfile.lock
 
 # Temporary files
 /tmp/

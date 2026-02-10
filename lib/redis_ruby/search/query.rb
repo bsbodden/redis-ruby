@@ -234,7 +234,7 @@ module RedisRuby
 
       # Set custom scorer
       #
-      # @param scorer [String] Scorer name
+      # @param name [String] Scorer name
       # @return [self]
       def scorer(name)
         @scorer = name
@@ -243,7 +243,7 @@ module RedisRuby
 
       # Set query expander
       #
-      # @param expander [String] Expander name
+      # @param name [String] Expander name
       # @return [self]
       def expander(name)
         @expander = name
@@ -252,7 +252,7 @@ module RedisRuby
 
       # Set slop (word distance)
       #
-      # @param slop [Integer] Maximum word distance
+      # @param value [Integer] Maximum word distance
       # @return [self]
       def slop(value)
         @slop = value

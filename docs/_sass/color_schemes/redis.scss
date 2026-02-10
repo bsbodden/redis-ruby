@@ -1,0 +1,112 @@
+// Redis color scheme for Just the Docs
+// Based on Redis brand colors
+
+/* Redis Brand Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap');
+
+// Redis brand colors
+$redis-red: #DC382C;
+$redis-dark-red: #9a0000;
+$redis-light-red: #ffdede;
+$redis-gray: #5f6368;
+$redis-light-gray: #f5f5f5;
+$redis-dark-gray: #333333;
+$white: #ffffff;
+
+// Just the Docs required variables
+$body-background-color: $white !default;
+$sidebar-color: #f6f8fa !default;
+$search-background-color: $white !default;
+$table-background-color: $white !default;
+$code-background-color: #f6f8fa !default;
+
+$body-text-color: #24292f !default;
+$body-heading-color: #24292f !default;
+$search-result-preview-color: #57606a !default;
+$nav-child-link-color: #57606a !default;
+$link-color: $redis-red !default;
+$btn-primary-color: $redis-red !default;
+$base-button-color: #f6f8fa !default;
+
+$border-color: #d0d7de !default;
+$code-linenumber-color: #6e7781 !default;
+$feedback-color: #eff1f3 !default;
+
+// Custom styles - override Just the Docs defaults
+body {
+  font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif !important;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif !important;
+  font-weight: 600;
+}
+
+pre, code, .text-mono {
+  font-family: 'JetBrains Mono', "SFMono-Regular", Consolas, monospace !important;
+}
+
+// Fix code block line spacing
+pre {
+  line-height: 1.1 !important;
+}
+
+code {
+  line-height: 1.1 !important;
+}
+
+.highlight pre {
+  line-height: 1.1 !important;
+  padding: 1rem !important;
+}
+
+// Inline code
+p code, li code, td code {
+  line-height: inherit !important;
+  padding: 0.2em 0.4em !important;
+  margin: 0 !important;
+  font-size: 0.875em !important;
+  background-color: rgba(175, 184, 193, 0.2) !important;
+  border-radius: 6px !important;
+}
+
+// Override link colors
+a {
+  color: $redis-red;
+
+  &:hover {
+    color: $redis-dark-red;
+  }
+}
+
+// Override button colors
+.btn-primary {
+  background-color: $redis-red;
+  border-color: $redis-red;
+
+  &:hover {
+    background-color: $redis-dark-red;
+    border-color: $redis-dark-red;
+  }
+}
+
+// Navigation highlighting
+.nav-list .nav-list-item > .nav-list-link:hover {
+  background-color: $redis-light-red;
+}
+
+// Site title
+.site-title {
+  color: $redis-red !important;
+  font-weight: 700;
+
+  &:hover {
+    color: $redis-dark-red !important;
+  }
+}
+
+// Code blocks
+.highlight {
+  border-left: 3px solid $redis-red;
+}
+

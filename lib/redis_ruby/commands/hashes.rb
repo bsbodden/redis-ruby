@@ -21,8 +21,7 @@ module RedisRuby
       # Set the string value of a hash field
       #
       # @param key [String]
-      # @param field [String]
-      # @param value [String]
+      # @param field_values [Array<String>] Field-value pairs (field1, value1, field2, value2, ...)
       # @return [Integer] 1 if field is new, 0 if updated
       def hset(key, *field_values)
         # Fast path for single field-value pair

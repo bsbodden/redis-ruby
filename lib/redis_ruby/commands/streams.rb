@@ -107,7 +107,7 @@ module RedisRuby
       # @param start [String] Start ID ("-" for beginning)
       # @param stop [String] End ID ("+" for end)
       # @param count [Integer] Maximum entries to return
-      # @return [Array<Array>] Array of [id, {fields}] pairs
+      # @return [Array<Array>] Array of [id, fields_hash] pairs
       def xrange(key, start, stop, count: nil)
         # Fast path: no count
         return parse_entries(call_3args(CMD_XRANGE, key, start, stop)) if count.nil?
@@ -123,7 +123,7 @@ module RedisRuby
       # @param stop [String] End ID ("+" for end)
       # @param start [String] Start ID ("-" for beginning)
       # @param count [Integer] Maximum entries to return
-      # @return [Array<Array>] Array of [id, {fields}] pairs
+      # @return [Array<Array>] Array of [id, fields_hash] pairs
       def xrevrange(key, stop, start, count: nil)
         # Fast path: no count
         return parse_entries(call_3args(CMD_XREVRANGE, key, stop, start)) if count.nil?

@@ -100,17 +100,7 @@ module RedisRuby
       # Create a new search index
       #
       # @param index_name [String] Name of the index
-      # @param args [Array] Schema definition and options
-      # @option options [String] :on Storage type ("HASH" or "JSON")
-      # @option options [Array<String>] :prefix Key prefixes to index
-      # @option options [Array<String>] :stopwords Custom stopwords (empty array disables)
-      # @option options [Boolean] :maxtextfields Optimize for many text fields
-      # @option options [Integer] :temporary Index auto-expiration in seconds
-      # @option options [Boolean] :nooffsets Don't store term offsets
-      # @option options [Boolean] :nohl Disable highlighting
-      # @option options [Boolean] :nofields Don't store field bits
-      # @option options [Boolean] :nofreqs Don't store term frequencies
-      # @option options [Boolean] :skipinitialscan Don't scan existing keys
+      # @param schema_args [Array] Schema definition and options (ON, HASH/JSON, PREFIX, SCHEMA, field definitions)
       # @return [String] "OK"
       #
       # @example Create index on hash documents
@@ -127,8 +117,8 @@ module RedisRuby
       #     "SCHEMA",
       #       "$.name", "AS", "name", "TEXT",
       #       "$.age", "AS", "age", "NUMERIC")
-      def ft_create(index_name, *)
-        call(CMD_FT_CREATE, index_name, *)
+      def ft_create(index_name, *schema_args)
+        call(CMD_FT_CREATE, index_name, *schema_args)
       end
 
       # Search the index
@@ -151,8 +141,8 @@ module RedisRuby
       # @option options [Array<String>] :return Fields to return
       # @option options [String] :sortby Field to sort by
       # @option options [Boolean] :sortasc Sort ascending (default)
-      # @option options [Hash] :filter Numeric filter {field: [min, max]}
-      # @option options [Hash] :geofilter Geo filter {field: [lon, lat, radius, unit]}
+      # @option options [Hash] :filter Numeric filter (hash with field name and min/max array)
+      # @option options [Hash] :geofilter Geo filter (hash with field name and lon/lat/radius/unit array)
       # @option options [Hash] :params Query parameters
       # @option options [Integer] :dialect Search dialect version
       # @return [Array] [total, doc_id1, fields1, doc_id2, fields2, ...]
@@ -185,7 +175,7 @@ module RedisRuby
       #
       # @param index_name [String] Index name
       # @param query [String] Search query
-      # @param args [Array] Aggregation pipeline steps
+      # @param pipeline_args [Array] Aggregation pipeline steps (GROUPBY, REDUCE, SORTBY, etc.)
       # @return [Array] Aggregation results
       #
       # @example Group by category with count
@@ -197,8 +187,8 @@ module RedisRuby
       #   redis.ft_aggregate("idx", "*",
       #     "WITHCURSOR", "COUNT", 100,
       #     "GROUPBY", 1, "@category")
-      def ft_aggregate(index_name, query, *)
-        call(CMD_FT_AGGREGATE, index_name, query, *)
+      def ft_aggregate(index_name, query, *pipeline_args)
+        call(CMD_FT_AGGREGATE, index_name, query, *pipeline_args)
       end
 
       # Read next batch of cursor results
@@ -255,13 +245,13 @@ module RedisRuby
       # Alter an index schema
       #
       # @param index_name [String] Index name
-      # @param args [Array] Fields to add
+      # @param schema_args [Array] Fields to add (SCHEMA, ADD, field_name, field_type, ...)
       # @return [String] "OK"
       #
       # @example Add a new field
       #   redis.ft_alter("idx", "SCHEMA", "ADD", "new_field", "TEXT")
-      def ft_alter(index_name, *)
-        call(CMD_FT_ALTER, index_name, *)
+      def ft_alter(index_name, *schema_args)
+        call(CMD_FT_ALTER, index_name, *schema_args)
       end
 
       # Add an alias to an index
@@ -320,14 +310,14 @@ module RedisRuby
       #
       # @param index_name [String] Index name
       # @param type [String] "SEARCH" or "AGGREGATE"
-      # @param limited [Boolean] Return limited results
       # @param query [String] Query to profile
-      # @param args [Array] Additional query arguments
+      # @param query_args [Array] Additional query arguments
+      # @param limited [Boolean] Return limited results
       # @return [Array] Profile results
-      def ft_profile(index_name, type, query, *, limited: false)
+      def ft_profile(index_name, type, query, *query_args, limited: false)
         cmd = [index_name, type.to_s.upcase]
         cmd << OPT_LIMITED if limited
-        cmd.push(OPT_QUERY, query, *)
+        cmd.push(OPT_QUERY, query, *query_args)
         call(CMD_FT_PROFILE, *cmd)
       end
 

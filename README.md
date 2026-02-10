@@ -26,6 +26,10 @@
 
 ---
 
+**Note:** redis-ruby requires Ruby 3.2+ for full functionality. Ruby 3.3+ is recommended for optimal performance with YJIT support.
+
+---
+
 ## How do I Redis?
 
 [Learn for free at Redis University](https://redis.io/learn/university)
@@ -40,7 +44,17 @@
 
 ## Installation
 
-Install via RubyGems:
+Start a Redis instance via Docker:
+
+```bash
+# For Redis versions >= 8.0
+docker run -p 6379:6379 -it redis:latest
+
+# For Redis versions < 8.0 with Redis Stack modules
+docker run -p 6379:6379 -it redis/redis-stack:latest
+```
+
+To install redis-ruby, simply:
 
 ```bash
 gem install redis-ruby
@@ -52,20 +66,21 @@ Or add to your Gemfile:
 gem "redis-ruby"
 ```
 
-### Docker Setup
-
-To run a local Redis instance with all modules:
-
-```bash
-docker run -p 6379:6379 redis/redis-stack
-```
-
 ## Supported Redis Versions
+
+The most recent version of this library supports Redis version [7.2](https://github.com/redis/redis/blob/7.2/00-RELEASENOTES), [7.4](https://github.com/redis/redis/blob/7.4/00-RELEASENOTES), [8.0](https://github.com/redis/redis/blob/8.0/00-RELEASENOTES) and [8.2](https://github.com/redis/redis/blob/8.2/00-RELEASENOTES).
+
+The table below highlights version compatibility of the most-recent library versions and Redis versions:
+
+| Library version | Supported Redis versions |
+|-----------------|--------------------------|
+| >= 1.0.0 | Version 6.2 to current |
 
 redis-ruby is tested against the following Redis versions:
 
 | Redis Version | Status | Notes |
 |:---:|:---:|:---|
+| **8.2** | Supported | Latest features |
 | **8.0** | Supported | Full feature support including Vector Sets |
 | **7.4** | Supported | All Redis Stack modules |
 | **7.2** | Supported | All Redis Stack modules |
@@ -80,10 +95,24 @@ require "redis_ruby"
 
 redis = RedisRuby.new(url: "redis://localhost:6379")
 
-redis.set("user:1:name", "Alice")
-redis.get("user:1:name")  # => "Alice"
+redis.set("foo", "bar")
+redis.get("foo")  # => "bar"
 
 redis.close
+```
+
+All responses are returned as strings by default. To receive decoded strings with proper encoding, the client handles UTF-8 encoding automatically. For more connection options, see the [Connection Options](#connection-options) section below.
+
+#### RESP3 Support
+
+redis-ruby uses RESP3 (Redis Serialization Protocol version 3) by default, which provides improved performance and native support for new data types. RESP3 is supported on Redis 6.0+.
+
+```ruby
+# RESP3 is enabled by default
+redis = RedisRuby.new(url: "redis://localhost:6379")
+
+# To use RESP2 (for compatibility with older Redis versions)
+redis = RedisRuby.new(url: "redis://localhost:6379", protocol: 2)
 ```
 
 ### Connection Options
@@ -109,6 +138,8 @@ redis = RedisRuby.new(
 
 ### Connection Pools
 
+By default, redis-ruby uses a connection pool to manage connections. Each instance of a RedisRuby class receives its own connection pool. You can however define your own connection pool:
+
 ```ruby
 # Thread-safe pooled client
 redis = RedisRuby.pooled(url: "redis://localhost:6379", pool: { size: 10 })
@@ -120,7 +151,11 @@ Async do
 end
 ```
 
+Alternatively, you might want to look at [Async connections](#topologies), or [Cluster connections](#topologies), or even Async Cluster connections.
+
 ### Redis Commands
+
+There is built-in support for all of the [out-of-the-box Redis commands](https://redis.io/commands). They are exposed using the raw Redis command names (`HSET`, `HGETALL`, etc.) in lowercase, except where a word (i.e. `del`) would conflict with Ruby keywords. The complete set of commands can be found in the [Command Reference](#command-reference) section.
 
 ```ruby
 # Strings
@@ -152,17 +187,23 @@ redis.geosearch("locations", longitude: -122.4, latitude: 37.8, byradius: 10, un
 
 ## Advanced Topics
 
+The [official Redis command documentation](https://redis.io/commands) does a great job of explaining each command in detail. redis-ruby attempts to adhere to the official command syntax. There are a few exceptions:
+
+- **MULTI/EXEC**: These are implemented as part of the transaction support. Transactions are wrapped with the MULTI and EXEC statements by default when executed. See more about [Transactions](#transactions) below.
+
+- **SUBSCRIBE/LISTEN**: Similar to pipelines, PubSub is implemented as a separate interface as it places the underlying connection in a state where it can't execute non-pubsub commands. Calling the `subscribe` or `psubscribe` methods will enter PubSub mode. You can only call `publish` from the regular Redis client. See more about [Pub/Sub](#pubsub) below.
+
 ### Pipelines
 
-Batch commands in a single round-trip for dramatically improved throughput:
+The following is a basic example of a [Redis pipeline](https://redis.io/docs/manual/pipelining/), a method to optimize round-trip calls, by batching Redis commands, and receiving their results as a list:
 
 ```ruby
 results = redis.pipelined do |pipe|
-  pipe.set("key1", "value1")
-  pipe.set("key2", "value2")
-  pipe.get("key1")
+  pipe.set("foo", 5)
+  pipe.set("bar", 18.5)
+  pipe.set("blee", "hello world!")
 end
-# => ["OK", "OK", "value1"]
+# => ["OK", "OK", "OK"]
 ```
 
 ### Transactions
@@ -185,14 +226,16 @@ redis.watch("balance") do
 end
 ```
 
-### Pub/Sub
+### PubSub
+
+The following example shows how to utilize [Redis Pub/Sub](https://redis.io/docs/manual/pubsub/) to subscribe to specific channels:
 
 ```ruby
 # Publishing
 redis.publish("events", "user:signup")
 
 # Subscribing (blocking)
-redis.subscribe("events", "alerts") do |on|
+redis.subscribe("my-first-channel", "my-second-channel") do |on|
   on.message { |channel, message| puts "#{channel}: #{message}" }
 end
 
@@ -291,19 +334,31 @@ redis.json_numincrby("user:1", "$.scores[0]", 5)
 
 ### RediSearch
 
+**Note:** redis-ruby uses a client-side default dialect for Redis' search and query capabilities. By default, the client uses dialect version 2, automatically appending `DIALECT 2` to commands like `FT.AGGREGATE` and `FT.SEARCH`.
+
+**Important**: Be aware that the query dialect may impact the results returned. If needed, you can specify a different dialect version in your queries.
+
 ```ruby
 # Create index
 redis.ft_create("idx:products",
   on: :hash, prefix: ["product:"],
   schema: [
     { name: "name", type: :text },
+    { name: "lastname", type: :text },
     { name: "price", type: :numeric, sortable: true },
     { name: "embedding", type: :vector, algorithm: :hnsw, dim: 384 }
   ]
 )
 
-# Full-text search
-results = redis.ft_search("idx:products", "@name:laptop")
+redis.hset("product:1", "name", "Laptop")
+redis.hset("product:1", "lastname", "Pro")
+
+# Full-text search with default DIALECT 2
+query = "@name: Laptop Pro"
+results = redis.ft_search("idx:products", query)
+
+# Query with explicit DIALECT 1 (if needed)
+results = redis.ft_search("idx:products", query, dialect: 1)
 
 # Aggregation
 agg = RedisRuby::Search::AggregateQuery.new("*")
@@ -315,6 +370,8 @@ agg = RedisRuby::Search::AggregateQuery.new("*")
 
 agg.execute(redis, "idx:products")
 ```
+
+You can find further details in the [query dialect documentation](https://redis.io/docs/latest/develop/interact/search-and-query/advanced-concepts/dialects/).
 
 ### RedisTimeSeries
 
@@ -392,22 +449,33 @@ redis.vcard("embeddings")
 
 ## Performance
 
-redis-ruby is designed for high performance with Ruby 3.3+ YJIT, achieving competitive or better performance than redis-rb without requiring native extensions.
+redis-ruby is designed for high performance with Ruby 3.3+ YJIT, achieving competitive performance with redis-rb + hiredis (native C extension) without requiring native extensions.
 
 **Benchmark Summary** (Ruby 3.3.0 + YJIT on Apple Silicon):
 
-| Operation | redis-ruby | vs redis-rb (plain) | vs redis-rb (hiredis) |
-|-----------|------------|---------------------|----------------------|
-| Single GET | 6,534 ops/s | **1.12x faster** ✓ | 0.82x |
-| Single SET | 8,415 ops/s | **1.29x faster** ✓ | **1.39x faster** ✓ |
-| Pipeline 10 | 7,815 ops/s | **1.57x faster** ✓ | **1.41x faster** ✓ |
-| Pipeline 100 | 4,586 ops/s | **1.31x faster** ✓ | **1.28x faster** ✓ |
+### vs redis-rb + hiredis (native C extension)
+
+| Operation | redis-ruby | redis-rb + hiredis | Comparison |
+|-----------|------------|-------------------|------------|
+| Single GET | 8,606 ops/s | 8,592 ops/s | **1.00x** (tied) ✓ |
+| Single SET | 8,547 ops/s | 8,420 ops/s | **1.02x faster** ✓ |
+| Pipeline 10 | 7,863 ops/s | 7,518 ops/s | **1.05x faster** ✓ |
+| Pipeline 100 | 5,064 ops/s | 4,329 ops/s | **1.17x faster** ✓ |
+
+### vs redis-rb (plain Ruby)
+
+| Operation | redis-ruby | redis-rb (plain) | Comparison |
+|-----------|------------|------------------|------------|
+| Single GET | 8,606 ops/s | 8,354 ops/s | **1.03x faster** ✓ |
+| Single SET | 8,547 ops/s | 8,445 ops/s | **1.01x faster** ✓ |
+| Pipeline 10 | 7,863 ops/s | 7,448 ops/s | **1.06x faster** ✓ |
+| Pipeline 100 | 5,064 ops/s | 4,304 ops/s | **1.18x faster** ✓ |
 
 **Key Highlights:**
-- ✅ **1.12-1.57x faster** than redis-rb (plain Ruby driver) with YJIT
-- ✅ **Competitive with redis-rb + hiredis** (native extension) on most operations
-- ✅ **Especially fast for pipelined operations** (1.28x-1.57x faster)
+- ✅ **Matches redis-rb + hiredis** (native C extension) for single operations
+- ✅ **1.05-1.18x faster** for pipelined operations
 - ✅ **Pure Ruby implementation** - no native extensions required
+- ✅ **42% GET performance improvement** from optimizations (6,044 → 8,606 ops/s)
 - ⚠️ **YJIT required** for optimal performance (Ruby 3.3+)
 
 See [docs/BENCHMARKS.md](docs/BENCHMARKS.md) for comprehensive benchmark reports including:

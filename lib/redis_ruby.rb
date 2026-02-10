@@ -24,11 +24,11 @@ module RedisRuby
   class << self
     # Create a new synchronous Redis client connection
     #
-    # @param url [String] Redis URL (redis://host:port/db)
-    # @param options [Hash] Connection options
+    # @param url [String, nil] Redis URL (redis://host:port/db)
+    # @param kwargs [Hash] Connection options (host, port, db, password, etc.)
     # @return [RedisRuby::Client]
-    def new(url: nil, **)
-      Client.new(url: url, **)
+    def new(url: nil, **kwargs)
+      Client.new(url: url, **kwargs)
     end
 
     # Create a new asynchronous Redis client connection
@@ -36,8 +36,8 @@ module RedisRuby
     # When used inside an `Async` block, I/O operations automatically
     # yield to the fiber scheduler, enabling concurrent execution.
     #
-    # @param url [String] Redis URL (redis://host:port/db)
-    # @param options [Hash] Connection options
+    # @param url [String, nil] Redis URL (redis://host:port/db)
+    # @param kwargs [Hash] Connection options (host, port, db, password, etc.)
     # @return [RedisRuby::AsyncClient]
     # @example
     #   require "async"
@@ -45,8 +45,8 @@ module RedisRuby
     #     client = RedisRuby.async(url: "redis://localhost:6379")
     #     client.set("key", "value")
     #   end
-    def async(url: nil, **)
-      AsyncClient.new(url: url, **)
+    def async(url: nil, **kwargs)
+      AsyncClient.new(url: url, **kwargs)
     end
 
     # Create a new pooled Redis client connection
@@ -54,15 +54,14 @@ module RedisRuby
     # Thread-safe client with connection pooling. Each command checks out
     # a connection from the pool, executes, and returns it.
     #
-    # @param url [String] Redis URL (redis://host:port/db)
-    # @param pool [Hash] Pool options (:size, :timeout)
-    # @param options [Hash] Connection options
+    # @param url [String, nil] Redis URL (redis://host:port/db)
+    # @param kwargs [Hash] Connection and pool options (pool hash with size and timeout, host, port, etc.)
     # @return [RedisRuby::PooledClient]
     # @example
     #   client = RedisRuby.pooled(url: "redis://localhost:6379", pool: { size: 10 })
     #   client.set("key", "value")
-    def pooled(url: nil, **)
-      PooledClient.new(url: url, **)
+    def pooled(url: nil, **kwargs)
+      PooledClient.new(url: url, **kwargs)
     end
 
     # Create a new async pooled Redis client
@@ -72,9 +71,8 @@ module RedisRuby
     #
     # Uses state-of-the-art async-pool gem by Samuel Williams (socketry).
     #
-    # @param url [String] Redis URL (redis://host:port/db)
-    # @param pool [Hash] Pool options (:limit)
-    # @param options [Hash] Connection options
+    # @param url [String, nil] Redis URL (redis://host:port/db)
+    # @param kwargs [Hash] Connection and pool options (pool hash with limit, host, port, etc.)
     # @return [RedisRuby::AsyncPooledClient]
     # @example
     #   require "async"
@@ -83,8 +81,8 @@ module RedisRuby
     #     # 100 concurrent operations with 10 connections
     #     tasks = 100.times.map { |i| task.async { client.get("key:#{i}") } }
     #   end
-    def async_pooled(url: nil, **)
-      AsyncPooledClient.new(url: url, **)
+    def async_pooled(url: nil, **kwargs)
+      AsyncPooledClient.new(url: url, **kwargs)
     end
 
     # Create a Sentinel-backed Redis client
@@ -95,7 +93,7 @@ module RedisRuby
     # @param sentinels [Array<Hash>] List of Sentinel servers with :host and :port
     # @param service_name [String] Name of the monitored master
     # @param role [Symbol] :master or :replica (defaults to :master)
-    # @param options [Hash] Additional connection options
+    # @param kwargs [Hash] Additional connection options (password, db, etc.)
     # @return [RedisRuby::SentinelClient]
     # @example
     #   client = RedisRuby.sentinel(
@@ -103,8 +101,8 @@ module RedisRuby
     #     service_name: "mymaster"
     #   )
     #   client.set("key", "value")
-    def sentinel(sentinels:, service_name:, role: :master, **)
-      SentinelClient.new(sentinels: sentinels, service_name: service_name, role: role, **)
+    def sentinel(sentinels:, service_name:, role: :master, **kwargs)
+      SentinelClient.new(sentinels: sentinels, service_name: service_name, role: role, **kwargs)
     end
 
     # Create a Redis Cluster client
@@ -112,10 +110,8 @@ module RedisRuby
     # Automatically handles sharding, failover, and routing across
     # a Redis Cluster deployment.
     #
-    # @param nodes [Array<String, Hash>] Seed nodes (URLs or {host:, port:} hashes)
-    # @param password [String, nil] Password for cluster authentication
-    # @param read_from [Symbol] :master (default), :replica, :replica_preferred
-    # @param options [Hash] Additional connection options
+    # @param nodes [Array<String, Hash>] Seed nodes (URLs or hashes with host and port keys)
+    # @param kwargs [Hash] Additional connection options (password, read_from, etc.)
     # @return [RedisRuby::ClusterClient]
     # @example
     #   client = RedisRuby.cluster(
@@ -128,8 +124,8 @@ module RedisRuby
     #     nodes: ["redis://node1:6379"],
     #     read_from: :replica_preferred
     #   )
-    def cluster(nodes:, **)
-      ClusterClient.new(nodes: nodes, **)
+    def cluster(nodes:, **kwargs)
+      ClusterClient.new(nodes: nodes, **kwargs)
     end
   end
 end
