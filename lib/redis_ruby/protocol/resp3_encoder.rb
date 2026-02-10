@@ -199,10 +199,22 @@ module RedisRuby
 
       # Fast bulk string encoding - inlined for hot path
       # Handles binary encoding properly for non-ASCII strings
+      # Optimized to avoid unnecessary to_s calls for strings
       def dump_bulk_string_fast(str, buffer)
-        s = str.to_s
-        s = s.b unless s.ascii_only?
-        buffer << BULK_PREFIX << int_to_s(s.bytesize) << EOL << s << EOL
+        # Fast path: if already a string, avoid to_s allocation
+        if str.is_a?(String)
+          if str.ascii_only?
+            buffer << BULK_PREFIX << int_to_s(str.bytesize) << EOL << str << EOL
+          else
+            s = str.b
+            buffer << BULK_PREFIX << int_to_s(s.bytesize) << EOL << s << EOL
+          end
+        else
+          # Slow path: convert to string first
+          s = str.to_s
+          s = s.b unless s.ascii_only?
+          buffer << BULK_PREFIX << int_to_s(s.bytesize) << EOL << s << EOL
+        end
       end
 
       # Fast path for arrays without hash arguments
