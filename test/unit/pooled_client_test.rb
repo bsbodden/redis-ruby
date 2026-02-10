@@ -82,7 +82,6 @@ class PooledClientBranchTest < Minitest::Test
   def test_pooled_client_call
     TCPSocket.stubs(:new).returns(@mock_socket)
     @mock_socket.expects(:write).with("*1\r\n$4\r\nPING\r\n")
-    @mock_socket.expects(:flush)
     @mock_socket.expects(:read_nonblock).returns("+PONG\r\n")
 
     client = RedisRuby::PooledClient.new(host: "localhost", port: 6379)
@@ -95,7 +94,6 @@ class PooledClientBranchTest < Minitest::Test
   def test_pooled_client_call_raises_on_error
     TCPSocket.stubs(:new).returns(@mock_socket)
     @mock_socket.expects(:write)
-    @mock_socket.expects(:flush)
     @mock_socket.expects(:read_nonblock).returns("-ERR bad\r\n")
 
     client = RedisRuby::PooledClient.new(host: "localhost", port: 6379)
@@ -106,7 +104,6 @@ class PooledClientBranchTest < Minitest::Test
   def test_pooled_client_call_1arg
     TCPSocket.stubs(:new).returns(@mock_socket)
     @mock_socket.expects(:write)
-    @mock_socket.expects(:flush)
     @mock_socket.expects(:read_nonblock).returns("$5\r\nhello\r\n")
 
     client = RedisRuby::PooledClient.new(host: "localhost", port: 6379)
@@ -119,7 +116,6 @@ class PooledClientBranchTest < Minitest::Test
   def test_pooled_client_call_1arg_raises_on_error
     TCPSocket.stubs(:new).returns(@mock_socket)
     @mock_socket.expects(:write)
-    @mock_socket.expects(:flush)
     @mock_socket.expects(:read_nonblock).returns("-ERR fail\r\n")
 
     client = RedisRuby::PooledClient.new(host: "localhost", port: 6379)
@@ -130,7 +126,6 @@ class PooledClientBranchTest < Minitest::Test
   def test_pooled_client_call_2args
     TCPSocket.stubs(:new).returns(@mock_socket)
     @mock_socket.expects(:write)
-    @mock_socket.expects(:flush)
     @mock_socket.expects(:read_nonblock).returns("+OK\r\n")
 
     client = RedisRuby::PooledClient.new(host: "localhost", port: 6379)
@@ -143,7 +138,6 @@ class PooledClientBranchTest < Minitest::Test
   def test_pooled_client_call_2args_raises_on_error
     TCPSocket.stubs(:new).returns(@mock_socket)
     @mock_socket.expects(:write)
-    @mock_socket.expects(:flush)
     @mock_socket.expects(:read_nonblock).returns("-ERR fail\r\n")
 
     client = RedisRuby::PooledClient.new(host: "localhost", port: 6379)
@@ -154,7 +148,6 @@ class PooledClientBranchTest < Minitest::Test
   def test_pooled_client_call_3args
     TCPSocket.stubs(:new).returns(@mock_socket)
     @mock_socket.expects(:write)
-    @mock_socket.expects(:flush)
     @mock_socket.expects(:read_nonblock).returns(":1\r\n")
 
     client = RedisRuby::PooledClient.new(host: "localhost", port: 6379)
@@ -167,7 +160,6 @@ class PooledClientBranchTest < Minitest::Test
   def test_pooled_client_call_3args_raises_on_error
     TCPSocket.stubs(:new).returns(@mock_socket)
     @mock_socket.expects(:write)
-    @mock_socket.expects(:flush)
     @mock_socket.expects(:read_nonblock).returns("-ERR fail\r\n")
 
     client = RedisRuby::PooledClient.new(host: "localhost", port: 6379)
@@ -182,7 +174,6 @@ class PooledClientBranchTest < Minitest::Test
   def test_pooled_client_ping
     TCPSocket.stubs(:new).returns(@mock_socket)
     @mock_socket.expects(:write)
-    @mock_socket.expects(:flush)
     @mock_socket.expects(:read_nonblock).returns("+PONG\r\n")
 
     client = RedisRuby::PooledClient.new(host: "localhost", port: 6379)

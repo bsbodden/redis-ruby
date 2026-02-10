@@ -33,7 +33,6 @@ class UnixConnectionTest < Minitest::Test
     expected_encoded = "*1\r\n$4\r\nPING\r\n"
 
     @mock_socket.expects(:write).with(expected_encoded)
-    @mock_socket.expects(:flush)
     # BufferedIO uses read_nonblock
     @mock_socket.expects(:read_nonblock).returns("+PONG\r\n")
 

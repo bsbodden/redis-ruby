@@ -221,7 +221,6 @@ class TCPConnectionBranchTest < Minitest::Test
     encoder = conn.instance_variable_get(:@encoder)
     encoded = encoder.encode_command("PING")
     @mock_socket.expects(:write).with(encoded)
-    @mock_socket.expects(:flush)
     @mock_socket.stubs(:read_nonblock).returns("+PONG\r\n")
 
     result = conn.call("PING")
@@ -234,7 +233,6 @@ class TCPConnectionBranchTest < Minitest::Test
     encoder = conn.instance_variable_get(:@encoder)
     encoded = encoder.encode_command("SET", "k", "v")
     @mock_socket.expects(:write).with(encoded)
-    @mock_socket.expects(:flush)
     @mock_socket.stubs(:read_nonblock).returns("+OK\r\n")
 
     result = conn.call("SET", "k", "v")
@@ -249,7 +247,6 @@ class TCPConnectionBranchTest < Minitest::Test
     encoder = conn.instance_variable_get(:@encoder)
     encoded = encoder.encode_command("GET", "mykey")
     @mock_socket.expects(:write).with(encoded)
-    @mock_socket.expects(:flush)
     @mock_socket.stubs(:read_nonblock).returns("$5\r\nhello\r\n")
 
     result = conn.call_1arg("GET", "mykey")
@@ -262,7 +259,6 @@ class TCPConnectionBranchTest < Minitest::Test
     encoder = conn.instance_variable_get(:@encoder)
     encoded = encoder.encode_command("SET", "k", "v")
     @mock_socket.expects(:write).with(encoded)
-    @mock_socket.expects(:flush)
     @mock_socket.stubs(:read_nonblock).returns("+OK\r\n")
 
     result = conn.call_2args("SET", "k", "v")
@@ -275,7 +271,6 @@ class TCPConnectionBranchTest < Minitest::Test
     encoder = conn.instance_variable_get(:@encoder)
     encoded = encoder.encode_command("HSET", "h", "f", "v")
     @mock_socket.expects(:write).with(encoded)
-    @mock_socket.expects(:flush)
     @mock_socket.stubs(:read_nonblock).returns(":1\r\n")
 
     result = conn.call_3args("HSET", "h", "f", "v")
@@ -288,14 +283,12 @@ class TCPConnectionBranchTest < Minitest::Test
   def test_write_command_with_string_command
     conn = RedisRuby::Connection::TCP.new
     @mock_socket.expects(:write)
-    @mock_socket.expects(:flush)
     conn.write_command("PING")
   end
 
   def test_write_command_with_array_command
     conn = RedisRuby::Connection::TCP.new
     @mock_socket.expects(:write)
-    @mock_socket.expects(:flush)
     conn.write_command(%w[SET key value])
   end
 

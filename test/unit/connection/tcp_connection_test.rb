@@ -64,7 +64,6 @@ class TCPConnectionTest < Minitest::Test
     expected_encoded = "*1\r\n$4\r\nPING\r\n"
 
     @mock_socket.expects(:write).with(expected_encoded)
-    @mock_socket.expects(:flush)
     # BufferedIO uses read_nonblock
     @mock_socket.expects(:read_nonblock).returns("+PONG\r\n")
 
@@ -79,7 +78,6 @@ class TCPConnectionTest < Minitest::Test
     expected_encoded = "*3\r\n$3\r\nSET\r\n$3\r\nkey\r\n$5\r\nvalue\r\n"
 
     @mock_socket.expects(:write).with(expected_encoded)
-    @mock_socket.expects(:flush)
     @mock_socket.expects(:read_nonblock).returns("+OK\r\n")
 
     conn = RedisRuby::Connection::TCP.new
@@ -92,7 +90,6 @@ class TCPConnectionTest < Minitest::Test
     setup_connected_socket
 
     @mock_socket.expects(:write)
-    @mock_socket.expects(:flush)
     @mock_socket.expects(:read_nonblock).returns(":42\r\n")
 
     conn = RedisRuby::Connection::TCP.new
@@ -105,7 +102,6 @@ class TCPConnectionTest < Minitest::Test
     setup_connected_socket
 
     @mock_socket.expects(:write)
-    @mock_socket.expects(:flush)
     @mock_socket.expects(:read_nonblock).returns("$-1\r\n")
 
     conn = RedisRuby::Connection::TCP.new
@@ -118,7 +114,6 @@ class TCPConnectionTest < Minitest::Test
     setup_connected_socket
 
     @mock_socket.expects(:write)
-    @mock_socket.expects(:flush)
     @mock_socket.expects(:read_nonblock).returns("-ERR unknown command\r\n")
 
     conn = RedisRuby::Connection::TCP.new
@@ -135,7 +130,6 @@ class TCPConnectionTest < Minitest::Test
                "*2\r\n$3\r\nGET\r\n$4\r\nkey1\r\n"
 
     @mock_socket.expects(:write).with(expected)
-    @mock_socket.expects(:flush)
 
     # Both responses in one read (buffered)
     @mock_socket.expects(:read_nonblock).returns("+OK\r\n$6\r\nvalue1\r\n")

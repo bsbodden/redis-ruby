@@ -65,28 +65,28 @@ module RedisRuby
 
       # Ultra-fast path for single-argument commands (GET, DEL, EXISTS, etc.)
       # Avoids splat allocation overhead
+      # Note: flush removed since TCP_NODELAY is enabled (no buffering)
       # @api private
       def call_1arg(command, arg)
         @socket.write(@encoder.encode_command(command, arg))
-        @socket.flush
         @decoder.decode
       end
 
       # Ultra-fast path for two-argument commands (SET without options, HGET, etc.)
       # Avoids splat allocation overhead
+      # Note: flush removed since TCP_NODELAY is enabled (no buffering)
       # @api private
       def call_2args(command, arg1, arg2)
         @socket.write(@encoder.encode_command(command, arg1, arg2))
-        @socket.flush
         @decoder.decode
       end
 
       # Ultra-fast path for three-argument commands (HSET, etc.)
       # Avoids splat allocation overhead
+      # Note: flush removed since TCP_NODELAY is enabled (no buffering)
       # @api private
       def call_3args(command, arg1, arg2, arg3)
         @socket.write(@encoder.encode_command(command, arg1, arg2, arg3))
-        @socket.flush
         @decoder.decode
       end
 
@@ -146,6 +146,7 @@ module RedisRuby
       end
 
       # Write a single command to the socket
+      # Note: flush removed since TCP_NODELAY is enabled (no buffering)
       #
       # @param command [String, Array] Command (can be pre-built array)
       # @param args [Array] Command arguments
@@ -157,14 +158,13 @@ module RedisRuby
                     @encoder.encode_command(command, *args)
                   end
         @socket.write(encoded)
-        @socket.flush
       end
 
       # Fast path write - assumes command is a string (99% of calls)
+      # Note: flush removed since TCP_NODELAY is enabled (no buffering)
       # @api private
       def write_command_fast(command, *args)
         @socket.write(@encoder.encode_command(command, *args))
-        @socket.flush
       end
 
       # Read a response from the socket
@@ -205,10 +205,10 @@ module RedisRuby
       end
 
       # Write multiple commands to the socket
+      # Note: flush removed since TCP_NODELAY is enabled (no buffering)
       def write_pipeline(commands)
         encoded = @encoder.encode_pipeline(commands)
         @socket.write(encoded)
-        @socket.flush
       end
     end
   end
