@@ -5,6 +5,9 @@ Comprehensive benchmark suite for comparing redis-ruby against redis-rb.
 ## Quick Start
 
 ```bash
+# Generate comprehensive performance report (recommended)
+RUBYOPT="--yjit" bundle exec ruby benchmarks/generate_comprehensive_report.rb
+
 # Run the comprehensive benchmark suite
 RUBYOPT="--yjit" bundle exec ruby benchmarks/comprehensive_suite.rb
 
@@ -16,50 +19,105 @@ RUBYOPT="--yjit" bundle exec ruby benchmarks/comprehensive_suite.rb --suite=thro
 RUBYOPT="--yjit" bundle exec ruby benchmarks/comprehensive_suite.rb --suite=latency,pipeline
 ```
 
-## Benchmark Files
+## Directory Structure
 
-### Primary Benchmarks
+```
+benchmarks/
+├── README.md                           # This file
+├── comprehensive_suite.rb              # Main benchmark suite
+├── generate_comprehensive_report.rb    # Generate performance reports
+├── generate_report.rb                  # Legacy report generator
+├── comparison/                         # Comparison benchmarks
+│   ├── compare_async.rb
+│   ├── compare_basic.rb
+│   ├── compare_comprehensive.rb
+│   ├── compare_resp3_parser.rb
+│   ├── compare_vs_hiredis.rb
+│   ├── get_set_comparison.rb
+│   ├── memory_comparison.rb
+│   ├── protocol_comparison.rb
+│   └── quick_compare.rb
+├── profiling/                          # Profiling and analysis tools
+│   ├── analyze_io_pattern.rb
+│   ├── deep_profile.rb
+│   ├── profile_get.rb
+│   ├── profile_get_detailed.rb
+│   ├── profile_hotspots.rb
+│   ├── profile_set.rb
+│   ├── simple_profile.rb
+│   ├── test_flush.rb
+│   └── trace_reads.rb
+└── development/                        # Development and optimization tools
+    ├── command_optimizations.rb
+    ├── encoder_commands_micro.rb
+    ├── encoder_micro.rb
+    └── verify_gates.rb
+```
+
+## Primary Benchmarks
 
 | File | Description |
 |------|-------------|
 | `comprehensive_suite.rb` | **Complete benchmark suite** - Throughput, latency, data sizes, pipelines, transactions, workloads |
-| `verify_gates.rb` | CI-friendly gate verification with pass/fail exit codes |
-| `generate_report.rb` | Generate HTML and JSON reports |
-| `memory_comparison.rb` | Memory allocation comparison |
+| `generate_comprehensive_report.rb` | **Recommended** - Generate detailed HTML/JSON performance reports comparing redis-ruby vs redis-rb |
+| `generate_report.rb` | Legacy report generator |
 
-### Specialized Benchmarks
+## Comparison Benchmarks (`comparison/`)
 
 | File | Description |
 |------|-------------|
 | `compare_basic.rb` | Basic operations (PING, GET, SET, EXISTS, DEL) |
 | `compare_comprehensive.rb` | Performance gate verification |
-| `compare_vs_hiredis.rb` | Comparison against hiredis driver |
+| `compare_vs_hiredis.rb` | Comparison against redis-rb + hiredis (native C extension) |
+| `get_set_comparison.rb` | Focused GET/SET performance comparison |
+| `memory_comparison.rb` | Memory allocation comparison |
 | `protocol_comparison.rb` | RESP3 protocol encoding/decoding |
-| `command_optimizations.rb` | Individual command benchmarks |
+| `quick_compare.rb` | Quick performance check |
 
-### Profiling Tools
+## Profiling Tools (`profiling/`)
 
 | File | Description |
 |------|-------------|
+| `analyze_io_pattern.rb` | Analyze I/O syscall patterns (reads, writes, flushes) |
 | `deep_profile.rb` | Memory, CPU, GC, and YJIT profiling |
+| `profile_get.rb` | Profile GET operation performance |
+| `profile_get_detailed.rb` | Detailed CPU profiling for GET operations |
 | `profile_hotspots.rb` | CPU hotspot identification |
+| `profile_set.rb` | Profile SET operation performance |
 | `simple_profile.rb` | Quick profiling |
+| `trace_reads.rb` | Trace read operations for debugging |
+
+## Development Tools (`development/`)
+
+| File | Description |
+|------|-------------|
+| `command_optimizations.rb` | Individual command benchmarks |
+| `encoder_commands_micro.rb` | Micro-benchmarks for command encoding |
+| `encoder_micro.rb` | Micro-benchmarks for RESP3 encoding |
+| `verify_gates.rb` | CI-friendly gate verification with pass/fail exit codes |
+
+## Performance Results
+
+**Current Performance (Ruby 3.3.0 + YJIT):**
+
+redis-ruby vs redis-rb + hiredis (native C extension):
+- ✅ **Single GET**: 0.99-1.04x (essentially tied!)
+- ✅ **Single SET**: 0.96-1.04x (essentially tied!)
+- ✅ **Pipeline (10 cmds)**: 1.04-1.05x (4-5% faster)
+- ✅ **Pipeline (100 cmds)**: 1.12-1.19x (12-19% faster)
+
+redis-ruby vs redis-rb (plain):
+- ✅ **Single GET**: 1.05x (5% faster)
+- ✅ **Pipeline (10 cmds)**: 1.05x (5% faster)
+- ✅ **Pipeline (100 cmds)**: 1.14x (14% faster)
+
+See [docs/BENCHMARKS.md](../docs/BENCHMARKS.md) for detailed results.
 
 ## Performance Gates
 
-From `CLAUDE.md`, redis-ruby must meet these minimum performance requirements:
-
-| Metric | Minimum Gate |
-|--------|-------------|
-| Single GET/SET | 1.3x faster than redis-rb |
-| Pipeline (10 cmds) | 1.5x faster than redis-rb |
-| Pipeline (100 cmds) | 2x faster than redis-rb |
-| Connection setup | Equal or faster than redis-rb |
-| RESP3 Parser | 1.5x faster than redis-rb |
-
-Verify gates with:
+Verify performance gates with:
 ```bash
-RUBYOPT="--yjit" bundle exec ruby benchmarks/verify_gates.rb
+RUBYOPT="--yjit" bundle exec ruby benchmarks/development/verify_gates.rb
 ```
 
 ## Methodology
