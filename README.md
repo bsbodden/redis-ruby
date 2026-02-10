@@ -392,17 +392,29 @@ redis.vcard("embeddings")
 
 ## Performance
 
-Benchmarked with Ruby 3.4 + YJIT against redis-rb with hiredis:
+redis-ruby is designed for high performance with Ruby 3.3+ YJIT, achieving competitive or better performance than redis-rb without requiring native extensions.
 
-```
-Pipeline 100 commands:  redis-ruby is 2.11x faster
-Pipeline 10 commands:   redis-ruby is 1.33x faster
-Single operations:      redis-ruby is 1.15x faster
-Memory allocations:     49% fewer than redis-rb
-```
+**Benchmark Summary** (Ruby 3.3.0 + YJIT on Apple Silicon):
 
-redis-ruby achieves this without any native extensions through careful YJIT optimization
-and consistent object shapes. See the [benchmarks/](benchmarks/) directory for full results.
+| Operation | redis-ruby | vs redis-rb (plain) | vs redis-rb (hiredis) |
+|-----------|------------|---------------------|----------------------|
+| Single GET | 6,534 ops/s | **1.12x faster** ✓ | 0.82x |
+| Single SET | 8,415 ops/s | **1.29x faster** ✓ | **1.39x faster** ✓ |
+| Pipeline 10 | 7,815 ops/s | **1.57x faster** ✓ | **1.41x faster** ✓ |
+| Pipeline 100 | 4,586 ops/s | **1.31x faster** ✓ | **1.28x faster** ✓ |
+
+**Key Highlights:**
+- ✅ **1.12-1.57x faster** than redis-rb (plain Ruby driver) with YJIT
+- ✅ **Competitive with redis-rb + hiredis** (native extension) on most operations
+- ✅ **Especially fast for pipelined operations** (1.28x-1.57x faster)
+- ✅ **Pure Ruby implementation** - no native extensions required
+- ⚠️ **YJIT required** for optimal performance (Ruby 3.3+)
+
+See [docs/BENCHMARKS.md](docs/BENCHMARKS.md) for comprehensive benchmark reports including:
+- Multiple Ruby versions and configurations
+- YJIT enabled/disabled comparisons
+- Detailed methodology and recommendations
+- Instructions for running benchmarks yourself
 
 ## Contributing
 

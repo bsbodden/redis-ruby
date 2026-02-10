@@ -7,6 +7,7 @@ gemspec
 group :development do
   gem "benchmark-ips", "~> 2.13"
   gem "debug", "~> 1.9"
+  gem "hiredis", "~> 0.6" # For benchmarking redis-rb with hiredis
   gem "rake", "~> 13.0"
   gem "redis", "~> 5.0" # For benchmarking against redis-rb
   gem "rubocop", "~> 1.68"
