@@ -321,6 +321,105 @@ Async do
 end
 ```
 
+## Idiomatic Ruby API
+
+redis-ruby provides both a **low-level API** (direct Redis commands) and an **idiomatic Ruby API** (DSLs and fluent builders) for advanced features. The idiomatic API offers:
+
+- **Symbol-based method names** - Use `:text`, `:numeric` instead of strings
+- **DSL blocks** - Configure complex structures with clean, declarative syntax
+- **Method chaining** - Build queries and operations fluently
+- **Composite keys** - Automatic key joining with symbols
+- **Ruby conventions** - Keyword arguments, ranges, and familiar patterns
+
+Both APIs work side-by-side - use whichever fits your style!
+
+### Search & Query (Idiomatic)
+
+```ruby
+# Create index with DSL
+redis.search_index("products") do
+  on :hash
+  prefix "product:"
+
+  text :name, sortable: true
+  text :description
+  numeric :price, sortable: true
+  tag :category
+  vector :embedding, algorithm: :hnsw, dim: 384
+end
+
+# Fluent query builder
+results = redis.search("products")
+  .query("laptop")
+  .filter(:price, 500..1500)
+  .sort_by(:price, :asc)
+  .limit(0, 10)
+  .execute
+```
+
+**Compare with low-level API:**
+
+```ruby
+# Low-level API (still works!)
+redis.ft_create("products",
+  "ON", "HASH",
+  "PREFIX", 1, "product:",
+  "SCHEMA",
+    "name", "TEXT", "SORTABLE",
+    "description", "TEXT",
+    "price", "NUMERIC", "SORTABLE",
+    "category", "TAG")
+```
+
+### JSON (Idiomatic)
+
+```ruby
+# Chainable proxy with composite keys
+redis.json(:user, 1)
+  .set(name: "Alice", age: 30, scores: [95, 87, 92])
+
+# Symbol-based paths
+redis.json("user:1").get(:name)  # => "Alice"
+
+# Method chaining
+redis.json("user:1")
+  .increment(:age, 1)
+  .append(:scores, 88)
+  .get(:scores)  # => [95, 87, 92, 88]
+
+# Ruby ranges for array operations
+redis.json("user:1").array_trim(:scores, 0..2)
+```
+
+### Time Series (Idiomatic)
+
+```ruby
+# Create with DSL and automatic compaction rules
+redis.time_series("metrics:raw") do
+  retention 3600000  # 1 hour
+  labels resolution: "raw"
+
+  compact_to "metrics:hourly", :avg, 3600000 do
+    retention 86400000  # 24 hours
+    labels resolution: "hourly"
+  end
+end
+
+# Chainable operations
+redis.ts("temperature:sensor1")
+  .add(Time.now.to_i * 1000, 23.5)
+  .add(Time.now.to_i * 1000 + 1000, 24.0)
+
+# Fluent query builder
+results = redis.ts_query("temperature:sensor1")
+  .from("-")
+  .to("+")
+  .aggregate(:avg, 300000)  # 5 minute buckets
+  .execute
+```
+
+**See the [full documentation](https://redis.github.io/redis-ruby/) for complete API reference and examples.**
+
 ## Redis Stack Modules
 
 ### RedisJSON

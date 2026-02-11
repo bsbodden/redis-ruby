@@ -415,6 +415,62 @@ module RedisRuby
         call(CMD_TS_QUERYINDEX, *filters)
       end
 
+      # Idiomatic Ruby API: Create time series with DSL
+      #
+      # @param key [String, Symbol] Time series key
+      # @param block [Proc] Configuration block
+      # @return [String] Time series key
+      #
+      # @example Create time series with compaction rules
+      #   redis.time_series("temperature:sensor1") do
+      #     retention 24.hours
+      #     labels sensor: "temp", location: "room1"
+      #
+      #     compact_to "temperature:hourly", :avg, 1.hour do
+      #       retention 30.days
+      #     end
+      #   end
+      def time_series(key, &block)
+        require_relative "../dsl/time_series_builder"
+        builder = RedisRuby::DSL::TimeSeriesBuilder.new(key.to_s, self)
+        builder.instance_eval(&block)
+        builder.create
+      end
+
+      # Idiomatic Ruby API: Chainable time series proxy
+      #
+      # @param key_parts [Array<String, Symbol>] Key parts to join with ":"
+      # @return [TimeSeriesProxy] Chainable proxy
+      #
+      # @example Add samples with chaining
+      #   redis.ts("temperature:sensor1")
+      #     .add(Time.now, 23.5)
+      #     .add(Time.now + 60, 24.0)
+      #
+      # @example Query with fluent API
+      #   redis.ts("temperature:sensor1")
+      #     .range(from: 1.hour.ago, to: Time.now)
+      def ts(*key_parts)
+        require_relative "../dsl/time_series_proxy"
+        RedisRuby::DSL::TimeSeriesProxy.new(self, *key_parts)
+      end
+
+      # Idiomatic Ruby API: Fluent query builder
+      #
+      # @return [TimeSeriesQueryBuilder] Query builder for chaining
+      #
+      # @example Query multiple series
+      #   redis.ts_query
+      #     .filter(sensor: "temp", location: "room1")
+      #     .from("-")
+      #     .to("+")
+      #     .with_labels
+      #     .execute
+      def ts_query(key = nil)
+        require_relative "../dsl/time_series_query_builder"
+        RedisRuby::DSL::TimeSeriesQueryBuilder.new(self, key)
+      end
+
       private
 
       # Build arguments for TS.RANGE/TS.REVRANGE commands

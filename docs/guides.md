@@ -14,6 +14,7 @@ Comprehensive guides for using redis-ruby in production applications. These guid
 
 Browse the guides in the navigation menu to learn about:
 
+- **Idiomatic Ruby API** - DSLs and fluent builders for Search, JSON, and Time Series
 - **Connection Options** - Connecting to Redis with TCP, Unix sockets, TLS/SSL
 - **Connection Pools** - Thread-safe and fiber-safe connection pooling
 - **Pipelining** - Batching commands for improved performance

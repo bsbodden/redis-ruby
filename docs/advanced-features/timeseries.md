@@ -10,14 +10,173 @@ permalink: /advanced-features/timeseries/
 
 Redis provides time series data capabilities with high-performance ingestion, querying, and automatic downsampling. Perfect for metrics, IoT sensor data, financial data, and monitoring.
 
+{: .note }
+> **Two API Styles Available**
+>
+> This library provides both a **low-level API** (direct Redis commands) and an **idiomatic Ruby API** (DSL and fluent builders).
+> Both work side-by-side - use whichever fits your style!
+
 ## Table of Contents
 
-- [Creating Time Series](#creating-time-series)
-- [Adding Samples](#adding-samples)
-- [Querying Data](#querying-data)
-- [Aggregations](#aggregations)
-- [Retention Policies](#retention-policies)
-- [Compaction Rules](#compaction-rules)
+- [Idiomatic Ruby API (Recommended)](#idiomatic-ruby-api-recommended)
+  - [Creating Time Series with DSL](#creating-time-series-with-dsl)
+  - [Chainable Operations](#chainable-operations)
+  - [Fluent Query Builder](#fluent-query-builder)
+- [Low-Level API](#low-level-api)
+  - [Creating Time Series](#creating-time-series)
+  - [Adding Samples](#adding-samples)
+  - [Querying Data](#querying-data)
+  - [Aggregations](#aggregations)
+  - [Retention Policies](#retention-policies)
+  - [Compaction Rules](#compaction-rules)
+
+---
+
+## Idiomatic Ruby API (Recommended)
+
+The idiomatic API provides a more Ruby-esque way to work with time series using DSLs, method chaining, and symbols.
+
+### Creating Time Series with DSL
+
+Use the `time_series` method with a block to create time series with a clean, declarative syntax:
+
+```ruby
+# Simple time series with DSL
+redis.time_series("temperature:sensor1") do
+  retention 86400000  # 24 hours
+  labels sensor: "temp", location: "office"
+end
+
+# Multi-level aggregation with compaction rules
+redis.time_series("metrics:raw") do
+  retention 3600000  # 1 hour
+  labels resolution: "raw"
+
+  # Automatically create destination series and compaction rules
+  compact_to "metrics:hourly", :avg, 3600000 do
+    retention 86400000  # 24 hours
+    labels resolution: "hourly"
+  end
+
+  compact_to "metrics:daily", :avg, 86400000 do
+    retention 2592000000  # 30 days
+    labels resolution: "daily"
+  end
+end
+```
+
+**Compare with low-level API:**
+
+```ruby
+# Low-level API requires multiple calls
+redis.ts_create("metrics:raw", retention: 3600000)
+redis.ts_create("metrics:hourly", retention: 86400000)
+redis.ts_create("metrics:daily", retention: 2592000000)
+redis.ts_createrule("metrics:raw", "metrics:hourly", "avg", 3600000)
+redis.ts_createrule("metrics:raw", "metrics:daily", "avg", 86400000)
+```
+
+### Chainable Operations
+
+Use the `ts` method to get a chainable proxy for fluent operations:
+
+```ruby
+# Add samples with method chaining
+now = Time.now.to_i * 1000
+redis.ts("temperature:sensor1")
+  .add(now, 23.5)
+  .add(now + 1000, 24.0)
+  .add(now + 2000, 23.8)
+
+# Increment/decrement operations
+redis.ts("counter:requests")
+  .increment(10)
+  .decrement(5)
+
+# Get latest value
+latest = redis.ts("temperature:sensor1").get
+# => [1640000000000, "23.5"]
+
+# Composite keys with automatic joining
+redis.ts(:metrics, :server1, :cpu).add(now, 45.2)
+# Equivalent to: redis.ts_add("metrics:server1:cpu", now, 45.2)
+```
+
+**Available chainable methods:**
+
+- `add(timestamp, value, **options)` - Add a sample
+- `increment(value, **options)` / `incr(value, **options)` - Increment by value
+- `decrement(value, **options)` / `decr(value, **options)` - Decrement by value
+- `get` / `latest` - Get latest sample
+- `info` - Get time series information
+- `alter(**options)` - Modify time series settings
+- `compact_to(dest_key, aggregation, bucket_duration)` - Create compaction rule
+- `delete_rule(dest_key)` - Delete compaction rule
+- `delete(from:, to:)` - Delete samples in range
+- `add_many(*samples)` - Add multiple samples
+- `range(from:, to:)` - Get query builder for range
+- `reverse_range(from:, to:)` - Get query builder for reverse range
+
+### Fluent Query Builder
+
+Use the `ts_query` method to build complex queries with method chaining:
+
+```ruby
+# Single series query
+result = redis.ts_query("temperature:sensor1")
+  .from("-")
+  .to("+")
+  .aggregate(:avg, 300000)  # 5 minute buckets
+  .limit(100)
+  .execute
+
+# Multi-series query with filters
+result = redis.ts_query
+  .filter(sensor: "temp", location: "office")
+  .from(Time.now - 3600)
+  .to(Time.now)
+  .aggregate(:avg, 60000)  # 1 minute buckets
+  .with_labels
+  .execute
+
+# Reverse query (latest first)
+result = redis.ts_query("temperature:sensor1")
+  .from("-")
+  .to("+")
+  .reverse
+  .limit(10)
+  .execute
+
+# Group by labels
+result = redis.ts_query
+  .filter(sensor: "temp")
+  .from("-")
+  .to("+")
+  .aggregate(:avg, 300000)
+  .group_by(:location, :avg)
+  .execute
+```
+
+**Available query builder methods:**
+
+- `from(timestamp)` - Set start timestamp
+- `to(timestamp)` - Set end timestamp
+- `filter(labels_hash)` / `where(labels_hash)` - Filter by labels (multi-series only)
+- `latest` - Use latest sample if timestamp is before series start
+- `with_labels` - Include labels in results
+- `limit(count)` - Limit number of samples
+- `aggregate(type, bucket_duration, bucket_timestamp: nil)` - Aggregate samples
+- `group_by(label, reducer)` - Group by label (multi-series only)
+- `reverse` - Return results in reverse order
+- `execute` - Execute the query
+
+**Aggregation types:** `:avg`, `:sum`, `:min`, `:max`, `:count`, `:first`, `:last`, `:std_p`, `:std_s`, `:var_p`, `:var_s`, `:range`, `:twa`
+
+---
+
+## Low-Level API
+
+The low-level API provides direct access to Redis Time Series commands.
 
 ## Creating Time Series
 

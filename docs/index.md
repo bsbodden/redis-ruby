@@ -105,6 +105,36 @@ Async do
 end
 ```
 
+### Idiomatic Ruby API
+
+redis-ruby provides both low-level and idiomatic Ruby APIs for advanced features:
+
+```ruby
+# Search with DSL
+redis.search_index("products") do
+  on :hash
+  prefix "product:"
+  text :name, sortable: true
+  numeric :price, sortable: true
+end
+
+# JSON with chainable proxy
+redis.json("user:1")
+  .set(name: "Alice", age: 30)
+  .increment(:age, 1)
+  .get(:name)  # => "Alice"
+
+# Time Series with fluent builder
+redis.time_series("metrics:raw") do
+  retention 3600000
+  compact_to "metrics:hourly", :avg, 3600000 do
+    retention 86400000
+  end
+end
+```
+
+See the [Idiomatic API Guide](/redis-ruby/guides/idiomatic-api/) for complete examples.
+
 ---
 
 ## Documentation
