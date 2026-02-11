@@ -310,6 +310,30 @@ module RedisRuby
       def json_debug_memory(key, path = "$")
         call(CMD_JSON_DEBUG, OPT_MEMORY, key, path)
       end
+
+      # Create a chainable JSON proxy for idiomatic operations
+      #
+      # @param key_parts [Array<Symbol, String>] Key components (joined with ":")
+      # @return [RedisRuby::DSL::JSONProxy] Chainable JSON proxy
+      #
+      # @example Basic usage
+      #   redis.json(:user, 1).set(name: "Alice", age: 30)
+      #   redis.json(:user, 1).get(:name)  # => "Alice"
+      #
+      # @example Chaining operations
+      #   redis.json(:user, 1)
+      #     .set(name: "Alice", age: 30)
+      #     .increment(:age, 1)
+      #     .append(:tags, "ruby", "redis")
+      #
+      # @example Symbol-based paths
+      #   redis.json(:user, 1).set(:name, "Alice")
+      #   redis.json(:user, 1).get(:name)  # => "Alice"
+      #   redis.json(:user, 1).increment(:age)
+      def json(*key_parts)
+        require_relative "../dsl/json_proxy"
+        RedisRuby::DSL::JSONProxy.new(self, *key_parts)
+      end
     end
   end
 end

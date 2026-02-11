@@ -12,15 +12,60 @@ Redis provides native JSON document storage with support for JSONPath queries, a
 
 ## Table of Contents
 
+- [API Styles](#api-styles)
 - [Storing JSON Documents](#storing-json-documents)
 - [JSONPath Queries](#jsonpath-queries)
 - [Updating JSON](#updating-json)
 - [Array Operations](#array-operations)
 - [Advanced Features](#advanced-features)
 
+## API Styles
+
+redis-ruby provides two API styles for JSON operations:
+
+1. **Idiomatic Ruby API (Recommended)** - Chainable proxy with symbols and fluent interface
+2. **Low-Level API** - Direct command mapping for advanced use cases
+
+Both APIs are fully supported and can be used interchangeably.
+
 ## Storing JSON Documents
 
 ### Basic Operations
+
+**Idiomatic Ruby API (Recommended):**
+
+```ruby
+# Set a JSON document using keyword arguments
+redis.json(:user, 1).set(
+  name: "Alice Johnson",
+  age: 30,
+  email: "alice@example.com",
+  address: {
+    street: "123 Main St",
+    city: "New York",
+    zip: "10001"
+  },
+  tags: ["developer", "ruby", "redis"]
+)
+
+# Get entire document
+user = redis.json(:user, 1).get
+# => {"name"=>"Alice Johnson", "age"=>30, ...}
+
+# Get specific path using symbols
+name = redis.json(:user, 1).get(:name)
+# => "Alice Johnson"
+
+# Set specific path
+redis.json(:user, 1).set(:age, 31)
+
+# Chain operations
+redis.json(:user, 1)
+  .set(name: "Alice", age: 30)
+  .increment(:age, 1)
+```
+
+**Low-Level API:**
 
 ```ruby
 # Set a JSON document
@@ -51,6 +96,21 @@ data = redis.json_get("user:1", "$.name", "$.email")
 
 ### Conditional Set Operations
 
+**Idiomatic Ruby API:**
+
+```ruby
+# Set only if path doesn't exist (NX)
+redis.json(:user, 1).set(:phone, "555-1234", nx: true)
+
+# Set only if path exists (XX)
+redis.json(:user, 1).set(:age, 31, xx: true)
+
+# Check if key exists
+redis.json(:user, 1).exists?  # => true
+```
+
+**Low-Level API:**
+
 ```ruby
 # Set only if path doesn't exist (NX)
 redis.json_set("user:1", "$.phone", "555-1234", nx: true)
@@ -64,6 +124,18 @@ result = redis.json_set("user:1", "$.new_field", "value", nx: true)
 ```
 
 ### Multiple Documents
+
+**Idiomatic Ruby API:**
+
+```ruby
+# Delete a document
+redis.json(:user, 1).delete
+
+# Delete specific path
+redis.json(:user, 1).delete(:address)
+```
+
+**Low-Level API:**
 
 ```ruby
 # Get same path from multiple documents
@@ -108,6 +180,22 @@ redis.json_get("user:1", "$..city")
 
 ### Type Checking
 
+**Idiomatic Ruby API:**
+
+```ruby
+# Get type of value at path
+type = redis.json(:user, 1).type(:name)
+# => "string"
+
+type = redis.json(:user, 1).type(:tags)
+# => "array"
+
+type = redis.json(:user, 1).type(:address)
+# => "object"
+```
+
+**Low-Level API:**
+
 ```ruby
 # Get type of value at path
 type = redis.json_type("user:1", "$.name")
@@ -123,6 +211,29 @@ type = redis.json_type("user:1", "$.address")
 ## Updating JSON
 
 ### Numeric Operations
+
+**Idiomatic Ruby API:**
+
+```ruby
+# Increment numeric value
+redis.json(:user, 1).increment(:age)  # Increment by 1
+redis.json(:user, 1).increment(:age, 5)  # Increment by 5
+
+# Decrement
+redis.json(:user, 1).decrement(:age)  # Decrement by 1
+redis.json(:user, 1).decrement(:age, 3)  # Decrement by 3
+
+# Multiply numeric value
+redis.json(:user, 1).multiply(:score, 2)
+
+# Chaining numeric operations
+redis.json(:counter, :stats)
+  .set(views: 100, likes: 50)
+  .increment(:views, 10)
+  .decrement(:likes, 5)
+```
+
+**Low-Level API:**
 
 ```ruby
 # Increment numeric value
@@ -155,6 +266,23 @@ length = redis.json_strlen("user:1", "$.name")
 
 ### Object Operations
 
+**Idiomatic Ruby API:**
+
+```ruby
+# Get object keys
+keys = redis.json(:user, 1).keys(:address)
+# => ["street", "city", "zip"]
+
+# Get object length (number of keys)
+length = redis.json(:user, 1).object_length(:address)
+# => 3
+
+# Update nested object
+redis.json(:user, 1).set("$.address.country", "USA")
+```
+
+**Low-Level API:**
+
 ```ruby
 # Get object keys
 keys = redis.json_objkeys("user:1", "$.address")
@@ -169,6 +297,19 @@ redis.json_set("user:1", "$.address.country", "USA")
 ```
 
 ### Boolean Operations
+
+**Idiomatic Ruby API:**
+
+```ruby
+# Set boolean value
+redis.json(:user, 1).set(:active, true)
+
+# Toggle boolean
+redis.json(:user, 1).toggle(:active)  # => false
+redis.json(:user, 1).toggle(:active)  # => true
+```
+
+**Low-Level API:**
 
 ```ruby
 # Set boolean value
@@ -186,6 +327,20 @@ redis.json_toggle("user:1", "$.active")
 
 ### Adding Elements
 
+**Idiomatic Ruby API:**
+
+```ruby
+# Append to array
+redis.json(:user, 1).append(:tags, "python", "javascript")
+
+# Insert at specific position
+redis.json(:user, 1).array_insert(:tags, 1, "golang")
+
+# Result: ["developer", "golang", "ruby", "redis", "python", "javascript"]
+```
+
+**Low-Level API:**
+
 ```ruby
 # Append to array
 redis.json_arrappend("user:1", "$.tags", "python", "javascript")
@@ -199,6 +354,24 @@ redis.json_arrinsert("user:1", "$.tags", 1, "golang")
 ```
 
 ### Removing Elements
+
+**Idiomatic Ruby API:**
+
+```ruby
+# Pop from end of array
+popped = redis.json(:user, 1).array_pop(:tags)
+# => "javascript"
+
+# Pop from specific index
+popped = redis.json(:user, 1).array_pop(:tags, 0)
+# => "developer"
+
+# Trim array to range using Ruby ranges
+redis.json(:user, 1).array_trim(:tags, 0..2)
+# Keeps only first 3 elements
+```
+
+**Low-Level API:**
 
 ```ruby
 # Pop from end of array
@@ -216,6 +389,24 @@ redis.json_arrtrim("user:1", "$.tags", 0, 2)
 ```
 
 ### Array Queries
+
+**Idiomatic Ruby API:**
+
+```ruby
+# Get array length
+length = redis.json(:user, 1).array_length(:tags)
+# => 3
+
+# Find index of element
+index = redis.json(:user, 1).array_index(:tags, "ruby")
+# => 1
+
+# Element not found
+index = redis.json(:user, 1).array_index(:tags, "java")
+# => -1
+```
+
+**Low-Level API:**
 
 ```ruby
 # Get array length
@@ -238,6 +429,18 @@ index = redis.json_arrindex("user:1", "$.tags", "ruby", 0, 5)
 ## Advanced Features
 
 ### Clear Values
+
+**Idiomatic Ruby API:**
+
+```ruby
+# Clear array (set to empty array)
+redis.json(:user, 1).clear(:tags)
+
+# Clear object (set to empty object)
+redis.json(:user, 1).clear(:address)
+```
+
+**Low-Level API:**
 
 ```ruby
 # Clear array (set to empty array)
