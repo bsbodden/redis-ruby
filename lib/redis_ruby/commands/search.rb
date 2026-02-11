@@ -470,6 +470,51 @@ module RedisRuby
         call_3args(CMD_FT_CONFIG, SUBCMD_SET, option, value)
       end
 
+      # ============================================================
+      # Idiomatic Ruby API
+      # ============================================================
+
+      # Create a search index using DSL
+      #
+      # @param index_name [Symbol, String] Index name
+      # @yield Block for index configuration
+      # @return [String] "OK"
+      #
+      # @example Create index with DSL
+      #   redis.search_index(:products) do
+      #     on :hash
+      #     prefix "product:"
+      #     schema do
+      #       text :name, sortable: true, weight: 5.0
+      #       numeric :price, sortable: true
+      #       tag :category
+      #     end
+      #   end
+      def search_index(index_name, &block)
+        require_relative "../dsl/search_index_builder"
+        builder = RedisRuby::DSL::SearchIndexBuilder.new(index_name, self)
+        builder.instance_eval(&block)
+        builder.create
+      end
+
+      # Create a fluent search query builder
+      #
+      # @param index_name [Symbol, String] Index name
+      # @return [RedisRuby::DSL::SearchQueryBuilder] Query builder
+      #
+      # @example Fluent search
+      #   redis.search(:products)
+      #     .query("laptop")
+      #     .filter(:price, 0..1000)
+      #     .sort_by(:price, :asc)
+      #     .limit(20)
+      #     .with_scores
+      #     .execute
+      def search(index_name)
+        require_relative "../dsl/search_query_builder"
+        RedisRuby::DSL::SearchQueryBuilder.new(index_name, self)
+      end
+
       private
 
       # Build boolean flag arguments for FT.SEARCH

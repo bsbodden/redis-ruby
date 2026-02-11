@@ -12,6 +12,7 @@ Redis provides powerful full-text search and secondary indexing capabilities. It
 
 ## Table of Contents
 
+- [API Styles](#api-styles)
 - [Creating Indexes](#creating-indexes)
 - [Full-Text Search](#full-text-search)
 - [Vector Search](#vector-search)
@@ -19,12 +20,46 @@ Redis provides powerful full-text search and secondary indexing capabilities. It
 - [Query Syntax](#query-syntax)
 - [Advanced Features](#advanced-features)
 
+## API Styles
+
+redis-ruby provides two API styles for Search operations:
+
+1. **Idiomatic Ruby API** (Recommended) - Uses DSL blocks, symbols, and fluent builders
+2. **Low-Level API** - Direct Redis command mapping with string arguments
+
+Both APIs are fully supported and can be used interchangeably. The idiomatic API provides better readability and type safety while maintaining full backward compatibility.
+
 ## Creating Indexes
 
 ### Basic Index on Hash Documents
 
+**Idiomatic Ruby API (Recommended):**
+
 ```ruby
-# Create an index on hash documents
+# Create an index using DSL
+redis.search_index(:products) do
+  on :hash
+  prefix "product:"
+
+  schema do
+    text :name, sortable: true, weight: 5.0
+    text :description
+    numeric :price, sortable: true
+    tag :category
+    numeric :stock
+  end
+end
+
+# Add documents
+redis.hset("product:1", "name", "Laptop Pro", "price", 1299, "category", "electronics", "stock", 50)
+redis.hset("product:2", "name", "Wireless Mouse", "price", 29, "category", "electronics", "stock", 200)
+redis.hset("product:3", "name", "Office Chair", "price", 299, "category", "furniture", "stock", 25)
+```
+
+**Low-Level API:**
+
+```ruby
+# Create an index using direct command
 redis.ft_create("products",
   "ON", "HASH",
   "PREFIX", 1, "product:",
@@ -34,14 +69,36 @@ redis.ft_create("products",
     "price", "NUMERIC", "SORTABLE",
     "category", "TAG",
     "stock", "NUMERIC")
-
-# Add documents
-redis.hset("product:1", "name", "Laptop Pro", "price", 1299, "category", "electronics", "stock", 50)
-redis.hset("product:2", "name", "Wireless Mouse", "price", 29, "category", "electronics", "stock", 200)
-redis.hset("product:3", "name", "Office Chair", "price", 299, "category", "furniture", "stock", 25)
 ```
 
 ### Index on JSON Documents
+
+**Idiomatic Ruby API:**
+
+```ruby
+# Create an index on JSON documents
+redis.search_index(:users) do
+  on :json
+  prefix "user:"
+
+  schema do
+    text "$.name", as: :name, sortable: true
+    numeric "$.age", as: :age, sortable: true
+    tag "$.tags[*]", as: :tags
+    geo "$.location", as: :location
+  end
+end
+
+# Add JSON documents
+redis.json_set("user:1", "$", {
+  name: "Alice Smith",
+  age: 30,
+  tags: ["ruby", "redis"],
+  location: "-122.4194,37.7749"
+})
+```
+
+**Low-Level API:**
 
 ```ruby
 # Create an index on JSON documents
@@ -97,10 +154,32 @@ redis.hset("doc:1",
 
 ### Basic Search
 
+**Idiomatic Ruby API:**
+
+```ruby
+# Simple text search with fluent builder
+results = redis.search(:products)
+               .query("laptop")
+               .execute
+# Returns: [total_count, doc_id, fields, doc_id, fields, ...]
+
+# Search with multiple terms
+results = redis.search(:products)
+               .query("wireless mouse")
+               .execute
+
+# Exact phrase search
+results = redis.search(:products)
+               .query('"laptop pro"')
+               .verbatim  # Disable stemming
+               .execute
+```
+
+**Low-Level API:**
+
 ```ruby
 # Simple text search
 results = redis.ft_search("products", "laptop")
-# Returns: [total_count, doc_id, fields, doc_id, fields, ...]
 
 # Search with multiple terms
 results = redis.ft_search("products", "wireless mouse")
@@ -110,6 +189,39 @@ results = redis.ft_search("products", '"laptop pro"')
 ```
 
 ### Search with Filters
+
+**Idiomatic Ruby API:**
+
+```ruby
+# Numeric filter using Ruby ranges
+results = redis.search(:products)
+               .query("*")
+               .filter(:price, 0..100)
+               .execute
+
+# Tag filter
+results = redis.search(:products)
+               .query("@category:{electronics}")
+               .execute
+
+# Combined filters with sorting
+results = redis.search(:products)
+               .query("@category:{electronics}")
+               .filter(:price, 0..500)
+               .sort_by(:price, :asc)
+               .limit(10)
+               .execute
+
+# Multiple filters
+results = redis.search(:products)
+               .query("laptop")
+               .filter(:price, 500..2000)
+               .filter(:stock, 1..Float::INFINITY)
+               .with_scores
+               .execute
+```
+
+**Low-Level API:**
 
 ```ruby
 # Numeric filter
