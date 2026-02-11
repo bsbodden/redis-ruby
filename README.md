@@ -418,6 +418,33 @@ results = redis.ts_query("temperature:sensor1")
   .execute
 ```
 
+### Vector Sets (Idiomatic)
+
+```ruby
+# Chainable proxy for vector operations
+vectors = redis.vectors("product:embeddings")
+
+# Add vectors with metadata
+vectors
+  .add("product_1", [0.1, 0.2, 0.3, 0.4], category: "electronics", price: 299.99)
+  .add("product_2", [0.2, 0.3, 0.4, 0.5], category: "books", price: 19.99)
+
+# Fluent search builder with filtering
+query_vector = [0.15, 0.25, 0.35, 0.45]
+results = vectors.search(query_vector)
+  .filter(".category == 'electronics'")
+  .limit(10)
+  .with_scores
+  .with_metadata
+  .execute
+
+# Vector operations
+vectors.get("product_1")                    # Get vector
+vectors.metadata("product_1")               # Get metadata
+vectors.set_metadata("product_1", on_sale: true)  # Update metadata
+vectors.count                               # Total vectors
+```
+
 **See the [full documentation](https://redis.github.io/redis-ruby/) for complete API reference and examples.**
 
 ## Redis Stack Modules

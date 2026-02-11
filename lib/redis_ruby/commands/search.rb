@@ -1,5 +1,8 @@
 # frozen_string_literal: true
 
+require_relative "../dsl/search_index_builder"
+require_relative "../dsl/search_query_builder"
+
 module RedisRuby
   module Commands
     # RediSearch commands module
@@ -491,7 +494,6 @@ module RedisRuby
       #     end
       #   end
       def search_index(index_name, &block)
-        require_relative "../dsl/search_index_builder"
         builder = RedisRuby::DSL::SearchIndexBuilder.new(index_name, self)
         builder.instance_eval(&block)
         builder.create
@@ -511,7 +513,6 @@ module RedisRuby
       #     .with_scores
       #     .execute
       def search(index_name)
-        require_relative "../dsl/search_query_builder"
         RedisRuby::DSL::SearchQueryBuilder.new(index_name, self)
       end
 

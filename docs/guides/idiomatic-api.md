@@ -369,6 +369,123 @@ See the `examples/` directory for complete working examples:
 - `examples/idiomatic_search_api.rb` - Search & Query examples
 - `examples/idiomatic_json_api.rb` - JSON examples
 - `examples/idiomatic_time_series_api.rb` - Time Series examples
+- `examples/idiomatic_vector_sets_api.rb` - Vector Sets examples
+
+---
+
+## Vector Sets
+
+Vector Sets provide efficient vector similarity search for AI and machine learning applications.
+
+### Adding Vectors with Metadata
+
+The `vectors` method returns a chainable proxy for vector operations:
+
+```ruby
+vectors = redis.vectors("product:embeddings")
+
+# Add vectors with method chaining
+vectors
+  .add("product_1", [0.1, 0.2, 0.3, 0.4], category: "electronics", price: 299.99)
+  .add("product_2", [0.2, 0.3, 0.4, 0.5], category: "books", price: 19.99)
+
+# Add multiple vectors in batch
+vectors.add_many([
+  { id: "product_3", vector: [0.3, 0.4, 0.5, 0.6], category: "music", price: 9.99 },
+  { id: "product_4", vector: [0.4, 0.5, 0.6, 0.7], category: "electronics", price: 149.99 }
+])
+```
+
+**Low-level equivalent:**
+```ruby
+redis.vadd("product:embeddings", [0.1, 0.2, 0.3, 0.4], "product_1",
+  attributes: { category: "electronics", price: 299.99 })
+```
+
+### Similarity Search with Fluent Builder
+
+Build complex vector search queries with a chainable interface:
+
+```ruby
+query_vector = [0.15, 0.25, 0.35, 0.45]
+
+# Basic search
+results = vectors.search(query_vector)
+  .limit(10)
+  .execute
+
+# Search with scores
+results = vectors.search(query_vector)
+  .limit(10)
+  .with_scores
+  .execute
+
+# Search with metadata filtering
+electronics = vectors.search(query_vector)
+  .filter(".category == 'electronics'")
+  .limit(10)
+  .with_scores
+  .with_metadata
+  .execute
+
+# Complex filters
+affordable = vectors.search(query_vector)
+  .where(".price < 300 && .in_stock == true")
+  .limit(10)
+  .execute
+```
+
+**Low-level equivalent:**
+```ruby
+redis.vsim("product:embeddings", query_vector,
+  count: 10,
+  with_scores: true,
+  with_attribs: true,
+  filter: ".category == 'electronics'")
+```
+
+### Vector Operations
+
+```ruby
+# Get a vector by ID
+vector_data = vectors.get("product_1")
+
+# Get metadata
+metadata = vectors.metadata("product_1")
+
+# Update metadata
+vectors.set_metadata("product_1", price: 249.99, on_sale: true)
+
+# Remove a vector
+vectors.remove("product_1")
+
+# Get statistics
+puts "Total vectors: #{vectors.count}"
+puts "Dimension: #{vectors.dimension}"
+```
+
+### Method Reference
+
+**VectorProxy Methods:**
+- `add(id, vector, **metadata)` - Add a vector with metadata
+- `add_many(vectors)` - Add multiple vectors in batch
+- `get(id, raw: false)` - Get vector by ID
+- `metadata(id)` - Get metadata for a vector
+- `set_metadata(id, **attributes)` - Update metadata
+- `remove(id)` - Remove a vector
+- `count` / `size` / `cardinality` - Get number of vectors
+- `dimension` / `dim` - Get vector dimension
+- `info` - Get detailed vector set information
+- `search(query_vector)` - Create a search builder
+
+**VectorSearchBuilder Methods:**
+- `limit(n)` / `top_k(n)` - Set maximum number of results
+- `with_scores` - Include similarity scores
+- `with_metadata` / `with_attributes` - Include metadata
+- `filter(expression)` / `where(expression)` - Add filter expression
+- `exploration_factor(value)` / `ef(value)` - Set exploration factor
+- `threshold(value)` / `epsilon(value)` - Set distance threshold
+- `execute` / `run` / `results` - Execute the search
 
 ---
 
@@ -379,4 +496,5 @@ For detailed documentation on each feature:
 - [Search & Query](/redis-ruby/advanced-features/search/)
 - [JSON](/redis-ruby/advanced-features/json/)
 - [Time Series](/redis-ruby/advanced-features/timeseries/)
+- [Vector Sets](/redis-ruby/advanced-features/vectorsets/)
 

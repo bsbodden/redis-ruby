@@ -1,5 +1,9 @@
 # frozen_string_literal: true
 
+require_relative "../dsl/time_series_builder"
+require_relative "../dsl/time_series_proxy"
+require_relative "../dsl/time_series_query_builder"
+
 module RedisRuby
   module Commands
     # Redis TimeSeries commands module
@@ -431,7 +435,6 @@ module RedisRuby
       #     end
       #   end
       def time_series(key, &block)
-        require_relative "../dsl/time_series_builder"
         builder = RedisRuby::DSL::TimeSeriesBuilder.new(key.to_s, self)
         builder.instance_eval(&block)
         builder.create
@@ -451,7 +454,6 @@ module RedisRuby
       #   redis.ts("temperature:sensor1")
       #     .range(from: 1.hour.ago, to: Time.now)
       def ts(*key_parts)
-        require_relative "../dsl/time_series_proxy"
         RedisRuby::DSL::TimeSeriesProxy.new(self, *key_parts)
       end
 
@@ -467,7 +469,6 @@ module RedisRuby
       #     .with_labels
       #     .execute
       def ts_query(key = nil)
-        require_relative "../dsl/time_series_query_builder"
         RedisRuby::DSL::TimeSeriesQueryBuilder.new(self, key)
       end
 

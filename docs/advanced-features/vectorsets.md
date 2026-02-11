@@ -19,23 +19,131 @@ Vector Sets extend the concept of sorted sets by associating string elements wit
 - **Dimensionality reduction** - Random projection to reduce vector dimensions
 - **Filtering** - Attribute-based filtering using JSON expressions
 
-## Basic Operations
+## Idiomatic Ruby API
+
+The idiomatic API provides a modern, chainable interface for working with Vector Sets, inspired by popular vector databases like Pinecone and Weaviate.
+
+### Adding Vectors with Metadata
+
+```ruby
+# Get a chainable proxy for vector operations
+vectors = redis.vectors("products:embeddings")
+
+# Add vectors with method chaining
+vectors
+  .add("product_1", [0.1, 0.2, 0.3, 0.4], category: "electronics", price: 299.99)
+  .add("product_2", [0.2, 0.3, 0.4, 0.5], category: "books", price: 19.99)
+  .add("product_3", [0.3, 0.4, 0.5, 0.6], category: "electronics", price: 499.99)
+
+# Add multiple vectors in batch
+vectors.add_many([
+  { id: "product_4", vector: [0.4, 0.5, 0.6, 0.7], category: "music", price: 9.99 },
+  { id: "product_5", vector: [0.5, 0.6, 0.7, 0.8], category: "electronics", price: 149.99 }
+])
+```
+
+### Similarity Search with Fluent Builder
+
+```ruby
+# Basic similarity search
+query_vector = [0.15, 0.25, 0.35, 0.45]
+results = vectors.search(query_vector)
+  .limit(10)
+  .execute
+
+# Search with scores
+results = vectors.search(query_vector)
+  .limit(10)
+  .with_scores
+  .execute
+
+results.each do |id, score|
+  puts "#{id}: #{score}"
+end
+
+# Search with metadata
+results = vectors.search(query_vector)
+  .limit(10)
+  .with_metadata
+  .execute
+
+# Search with both scores and metadata
+results = vectors.search(query_vector)
+  .limit(10)
+  .with_scores
+  .with_metadata
+  .execute
+
+results.each do |id, data|
+  puts "#{id}: score=#{data['score']}, category=#{data['attributes']['category']}"
+end
+```
+
+### Filtered Search
+
+```ruby
+# Filter by category
+electronics = vectors.search(query_vector)
+  .filter(".category == 'electronics'")
+  .limit(10)
+  .with_scores
+  .execute
+
+# Filter by price range
+affordable = vectors.search(query_vector)
+  .where(".price < 300")
+  .limit(10)
+  .with_scores
+  .with_metadata
+  .execute
+
+# Complex filters
+in_stock_electronics = vectors.search(query_vector)
+  .filter(".category == 'electronics' && .in_stock == true")
+  .limit(10)
+  .execute
+```
+
+### Retrieving and Updating Vectors
+
+```ruby
+# Get a vector by ID
+vector_data = vectors.get("product_1")
+
+# Get metadata
+metadata = vectors.metadata("product_1")
+
+# Update metadata
+vectors.set_metadata("product_1", price: 249.99, on_sale: true)
+
+# Remove a vector
+vectors.remove("product_1")
+```
+
+### Vector Set Information
+
+```ruby
+# Get vector set statistics
+puts "Total vectors: #{vectors.count}"
+puts "Dimension: #{vectors.dimension}"
+
+# Get detailed info
+info = vectors.info
+```
+
+## Low-Level Command API
+
+For advanced use cases, you can use the low-level command API directly.
 
 ### Creating and Adding Vectors
 
 ```ruby
 # Add a vector to a set
-redis.vadd("products:embeddings", "product:1", [0.1, 0.2, 0.3, 0.4])
-
-# Add multiple vectors
-redis.vadd("products:embeddings",
-  "product:1", [0.1, 0.2, 0.3, 0.4],
-  "product:2", [0.2, 0.3, 0.4, 0.5],
-  "product:3", [0.3, 0.4, 0.5, 0.6])
+redis.vadd("products:embeddings", [0.1, 0.2, 0.3, 0.4], "product:1")
 
 # Add vector with attributes for filtering
-redis.vadd("products:embeddings", "product:1", [0.1, 0.2, 0.3, 0.4],
-  ATTR: '{"category": "electronics", "price": 299.99}')
+redis.vadd("products:embeddings", [0.1, 0.2, 0.3, 0.4], "product:1",
+  attributes: { category: "electronics", price: 299.99 })
 ```
 
 ### Similarity Search
@@ -43,12 +151,13 @@ redis.vadd("products:embeddings", "product:1", [0.1, 0.2, 0.3, 0.4],
 ```ruby
 # Find 10 most similar vectors
 query_vector = [0.15, 0.25, 0.35, 0.45]
-results = redis.vsim("products:embeddings", query_vector, COUNT: 10)
+results = redis.vsim("products:embeddings", query_vector, count: 10)
 
-# Results format: [[element, score], [element, score], ...]
-results.each do |element, score|
-  puts "#{element}: similarity score #{score}"
-end
+# Search with scores
+results = redis.vsim("products:embeddings", query_vector, count: 10, with_scores: true)
+
+# Search with metadata
+results = redis.vsim("products:embeddings", query_vector, count: 10, with_attribs: true)
 ```
 
 ### Filtering Results
@@ -56,8 +165,8 @@ end
 ```ruby
 # Find similar vectors with attribute filtering
 results = redis.vsim("products:embeddings", query_vector,
-  COUNT: 10,
-  FILTER: '@.category == "electronics" && @.price < 500')
+  count: 10,
+  filter: '.category == "electronics" && .price < 500')
 ```
 
 ## Quantization Options

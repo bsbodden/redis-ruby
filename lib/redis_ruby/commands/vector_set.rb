@@ -1,6 +1,9 @@
 # frozen_string_literal: true
 
 require "json"
+require_relative "../dsl/vector_set_builder"
+require_relative "../dsl/vector_proxy"
+require_relative "../dsl/vector_search_builder"
 
 module RedisRuby
   module Commands
@@ -222,6 +225,53 @@ module RedisRuby
         return call_1arg(CMD_VRANDMEMBER, key) unless count
 
         call(CMD_VRANDMEMBER, key, count)
+      end
+
+      # ============================================================
+      # Idiomatic Ruby API
+      # ============================================================
+
+      # Create or configure a vector set with a fluent DSL
+      #
+      # @param key [String, Symbol] Vector set key
+      # @yield [builder] Configuration block
+      # @yieldparam builder [DSL::VectorSetBuilder] Builder instance
+      # @return [DSL::VectorSetBuilder] Builder instance
+      #
+      # @example Create a vector set with configuration
+      #   redis.vector_set("embeddings") do
+      #     dimension 384
+      #     quantization :binary
+      #     metadata_schema do
+      #       field :category, type: :string
+      #       field :price, type: :number
+      #     end
+      #   end
+      def vector_set(key, &block)
+        builder = DSL::VectorSetBuilder.new(key.to_s)
+        builder.instance_eval(&block) if block_given?
+        builder
+      end
+
+      # Get a chainable proxy for vector operations
+      #
+      # @param key_parts [Array<String, Symbol>] Key parts to join with ':'
+      # @return [DSL::VectorProxy] Chainable proxy for vector operations
+      #
+      # @example Add vectors with metadata
+      #   redis.vectors("embeddings")
+      #     .add("doc1", [0.1, 0.2, 0.3], category: "tech", price: 99.99)
+      #     .add("doc2", [0.2, 0.3, 0.4], category: "books", price: 19.99)
+      #
+      # @example Search for similar vectors
+      #   results = redis.vectors("embeddings")
+      #     .search([0.1, 0.2, 0.3])
+      #     .filter(".category == 'tech'")
+      #     .limit(10)
+      #     .with_scores
+      #     .execute
+      def vectors(*key_parts)
+        DSL::VectorProxy.new(self, *key_parts)
       end
 
       private

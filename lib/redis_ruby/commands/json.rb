@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "json"
+require_relative "../dsl/json_proxy"
 
 module RedisRuby
   module Commands
@@ -331,7 +332,6 @@ module RedisRuby
       #   redis.json(:user, 1).get(:name)  # => "Alice"
       #   redis.json(:user, 1).increment(:age)
       def json(*key_parts)
-        require_relative "../dsl/json_proxy"
         RedisRuby::DSL::JSONProxy.new(self, *key_parts)
       end
     end
