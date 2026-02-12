@@ -31,7 +31,7 @@ redis.sorted_set(:leaderboard).add(player1: 100)
 
 ## Implementation Status
 
-### ✅ Completed (10 features)
+### ✅ Completed (11 features)
 
 1. **Search** - `RedisRuby::DSL::SearchIndexBuilder`, `SearchQueryBuilder`
 2. **JSON** - `RedisRuby::DSL::JsonProxy`
@@ -43,6 +43,7 @@ redis.sorted_set(:leaderboard).add(player1: 100)
 8. **Sorted Sets** - `RedisRuby::DSL::SortedSetProxy` (Leaderboards, rankings)
 9. **Lists** - `RedisRuby::DSL::ListProxy` (Queues, stacks, array-like)
 10. **Sets** - `RedisRuby::DSL::SetProxy` (Tags, unique collections, set operations)
+11. **Strings/Counters** - `RedisRuby::DSL::StringProxy`, `CounterProxy` (Caching, counters)
 
 ---
 
@@ -226,7 +227,7 @@ tags.select { |tag| tag.start_with?('r') }
 
 ---
 
-### 🔥 Priority 5: Strings/Counters (NEXT)
+### ✅ Priority 5: Strings/Counters (COMPLETED)
 
 **Namespace**: `RedisRuby::DSL::StringProxy`, `RedisRuby::DSL::CounterProxy`
 

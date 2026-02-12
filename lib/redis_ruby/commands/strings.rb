@@ -1,5 +1,8 @@
 # frozen_string_literal: true
 
+require_relative "../dsl/string_proxy"
+require_relative "../dsl/counter_proxy"
+
 module RedisRuby
   module Commands
     # String commands
@@ -38,6 +41,67 @@ module RedisRuby
       OPT_KEEPTTL = "KEEPTTL"
       OPT_GET = "GET"
       OPT_PERSIST = "PERSIST"
+
+      # ============================================================
+      # Idiomatic Ruby API
+      # ============================================================
+
+      # Create a string proxy for idiomatic string operations
+      #
+      # Provides a fluent, Ruby-esque interface for working with Redis strings.
+      # Supports composite keys with automatic ":" joining.
+      # Optimized for configuration, caching, and text storage use cases.
+      #
+      # @param key_parts [Array<String, Symbol, Integer>] Key components
+      # @return [RedisRuby::DSL::StringProxy] String proxy instance
+      #
+      # @example Basic usage
+      #   api_key = redis.string(:config, :api_key)
+      #   api_key.set("sk_live_123456")
+      #   puts api_key.get()
+      #
+      # @example Chainable operations
+      #   redis.string(:cache, :user, 123)
+      #     .set(user_data.to_json)
+      #     .expire(3600)
+      #
+      # @example Text operations
+      #   log = redis.string(:log, :app)
+      #   log.append(" new entry")
+      def string(*key_parts)
+        DSL::StringProxy.new(self, *key_parts)
+      end
+
+      # Create a counter proxy for idiomatic counter operations
+      #
+      # Provides a fluent, Ruby-esque interface for working with Redis counters.
+      # Supports composite keys with automatic ":" joining.
+      # Optimized for rate limiting, distributed counters, and metrics.
+      #
+      # @param key_parts [Array<String, Symbol, Integer>] Key components
+      # @return [RedisRuby::DSL::CounterProxy] Counter proxy instance
+      #
+      # @example Page view counter
+      #   views = redis.counter(:page, :views, 123)
+      #   views.increment()
+      #   puts "Total views: #{views.get()}"
+      #
+      # @example Rate limiting
+      #   limit = redis.counter(:rate_limit, :api, user_id)
+      #   limit.increment().expire(60)
+      #   raise "Rate limit exceeded" if limit.get() > 100
+      #
+      # @example Distributed counter
+      #   daily = redis.counter(:visits, :daily, Date.today.to_s)
+      #   daily.increment().expire(86400 * 7)
+      def counter(*key_parts)
+        DSL::CounterProxy.new(self, *key_parts)
+      end
+
+      # ============================================================
+      # Low-Level Commands
+      # ============================================================
+
       # Set the value of a key with optional expiration and conditions
       #
       # @param key [String] The key
