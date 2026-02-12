@@ -323,15 +323,65 @@ end
 
 ## Idiomatic Ruby API
 
-redis-ruby provides both a **low-level API** (direct Redis commands) and an **idiomatic Ruby API** (DSLs and fluent builders) for advanced features. The idiomatic API offers:
+redis-ruby provides both a **low-level API** (direct Redis commands) and an **idiomatic Ruby API** (DSLs and fluent builders) for all Redis data structures and features. The idiomatic API offers:
 
-- **Symbol-based method names** - Use `:text`, `:numeric` instead of strings
+- **Symbol-based method names** - Use `:name`, `:score` instead of strings
 - **DSL blocks** - Configure complex structures with clean, declarative syntax
 - **Method chaining** - Build queries and operations fluently
-- **Composite keys** - Automatic key joining with symbols
+- **Composite keys** - Automatic key joining with symbols (e.g., `redis.hash(:user, 123)` → `"user:123"`)
 - **Ruby conventions** - Keyword arguments, ranges, and familiar patterns
+- **Unified interface** - Consistent API across all data structures
 
 Both APIs work side-by-side - use whichever fits your style!
+
+### Core Data Structures (Idiomatic)
+
+```ruby
+# Hashes - Chainable proxy with keyword arguments
+redis.hash("user:1").set(name: "Alice", age: 30)
+redis.hash("user:1").get(:name)                    # => "Alice"
+redis.hash("user:1").increment(:age, 1)            # => 31
+
+# Sorted Sets - Symbol-based members
+redis.sorted_set("leaderboard").add(alice: 100, bob: 85)
+redis.sorted_set("leaderboard").score(:alice)      # => 100.0
+redis.sorted_set("leaderboard").range(0, 2)        # Top 3
+
+# Lists - Fluent operations
+redis.list("queue").push("job1", "job2", "job3")
+redis.list("queue").pop                            # => "job3"
+redis.list("queue")[0]                             # First element
+
+# Sets - Chainable operations
+redis.redis_set("tags").add("ruby", "redis")
+redis.redis_set("tags").member?("ruby")            # => true
+redis.redis_set("tags").random(2)                  # Random 2 members
+
+# Strings & Counters - Specialized interfaces
+redis.string("cache").set("data", ex: 3600)
+redis.counter("views").increment(10)               # => 10
+redis.counter("views").value                       # => 10
+
+# Geo - Symbol-based locations
+redis.geo("cities").add(sf: [-122.4, 37.7], nyc: [-74.0, 40.7])
+redis.geo("cities").distance(:sf, :nyc, unit: :mi) # => 2565.88
+
+# HyperLogLog - Chainable operations
+redis.hyperloglog("visitors").add("user1", "user2")
+redis.hyperloglog("visitors").count                # => 2
+
+# Bitmaps - Fluent bit operations
+redis.bitmap("attendance").set_bit(0, 1).set_bit(1, 1)
+redis.bitmap("attendance").count                   # => 2
+
+# Probabilistic - Bloom, Cuckoo, CMS, Top-K
+redis.bloom("emails").add("alice@example.com")
+redis.bloom("emails").exists?("alice@example.com") # => true
+redis.topk("trending").add("product1")
+redis.topk("trending").list                        # Top-K items
+```
+
+See the [API Overview](https://redis.github.io/redis-ruby/guides/api-overview/) for a complete comparison of low-level vs idiomatic APIs.
 
 ### Search & Query (Idiomatic)
 

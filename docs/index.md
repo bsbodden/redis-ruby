@@ -105,12 +105,22 @@ Async do
 end
 ```
 
-### Idiomatic Ruby API
+### Two APIs, One Client
 
-redis-ruby provides both low-level and idiomatic Ruby APIs for advanced features:
+redis-ruby provides both **low-level** (direct Redis commands) and **idiomatic** (fluent Ruby) APIs:
 
 ```ruby
-# Search with DSL
+# Low-level API - Direct Redis commands
+redis.hset("user:1", "name", "Alice", "age", "30")
+redis.zadd("leaderboard", 100, "alice", 85, "bob")
+redis.geoadd("cities", -122.4, 37.7, "sf")
+
+# Idiomatic API - Fluent, chainable, Ruby-esque
+redis.hash("user:1").set(name: "Alice", age: 30)
+redis.sorted_set("leaderboard").add(alice: 100, bob: 85)
+redis.geo("cities").add(sf: [-122.4, 37.7])
+
+# Advanced features with DSL
 redis.search_index("products") do
   on :hash
   prefix "product:"
@@ -123,26 +133,19 @@ redis.json("user:1")
   .set(name: "Alice", age: 30)
   .increment(:age, 1)
   .get(:name)  # => "Alice"
-
-# Time Series with fluent builder
-redis.time_series("metrics:raw") do
-  retention 3600000
-  compact_to "metrics:hourly", :avg, 3600000 do
-    retention 86400000
-  end
-end
 ```
 
-See the [Idiomatic API Guide](/redis-ruby/guides/idiomatic-api/) for complete examples.
+See the [API Overview](/redis-ruby/guides/api-overview/) and [Idiomatic API Guide](/redis-ruby/guides/idiomatic-api/) for complete examples.
 
 ---
 
 ## Documentation
 
 - [Getting Started](/redis-ruby/getting-started/) - Installation and basic usage
+- [API Overview](/redis-ruby/guides/api-overview/) - Low-level vs Idiomatic APIs
+- [Idiomatic API Guide](/redis-ruby/guides/idiomatic-api/) - Complete DSL reference
 - [Guides](/redis-ruby/guides/) - In-depth guides for all features
 - [Examples](/redis-ruby/examples/) - Runnable code examples
-- [API Reference](/redis-ruby/api/) - Complete API documentation
 - [Advanced Features](/redis-ruby/advanced-features/) - JSON, Search, Time Series, and more
 
 ---
