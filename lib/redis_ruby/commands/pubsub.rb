@@ -1,5 +1,8 @@
 # frozen_string_literal: true
 
+require_relative "../dsl/publisher_proxy"
+require_relative "../dsl/subscriber_builder"
+
 module RedisRuby
   module Commands
     # Pub/Sub commands for publish/subscribe messaging
@@ -20,6 +23,74 @@ module RedisRuby
     #
     # @see https://redis.io/commands/?group=pubsub
     module PubSub
+      # ============================================================
+      # Idiomatic Ruby API
+      # ============================================================
+
+      # Create a publisher proxy for chainable publishing
+      #
+      # Returns a PublisherProxy that allows fluent, chainable publishing
+      # to one or more channels with automatic JSON encoding.
+      #
+      # @param channels [Array<String, Symbol>] Initial channels to publish to
+      # @return [DSL::PublisherProxy] Publisher proxy instance
+      #
+      # @example Simple publishing
+      #   redis.publisher(:notifications)
+      #     .send("User logged in")
+      #     .send("Profile updated")
+      #
+      # @example Publishing to multiple channels
+      #   redis.publisher
+      #     .to(:news, :sports, :weather)
+      #     .send("Breaking news!")
+      #
+      # @example Publishing with JSON encoding
+      #   redis.publisher(:events)
+      #     .send(event: "order_created", order_id: 123)
+      #
+      # @example Sharded publishing (Redis 7.0+)
+      #   redis.publisher.shard
+      #     .to("user:{123}:updates")
+      #     .send("profile_updated")
+      def publisher(*channels)
+        DSL::PublisherProxy.new(self, *channels)
+      end
+
+      # Create a subscriber builder for fluent subscriptions
+      #
+      # Returns a SubscriberBuilder that allows chainable subscription
+      # setup with automatic JSON decoding and support for patterns.
+      #
+      # @return [DSL::SubscriberBuilder] Subscriber builder instance
+      #
+      # @example Basic subscription
+      #   redis.subscriber
+      #     .on(:news, :sports) { |channel, message| puts "#{channel}: #{message}" }
+      #     .run
+      #
+      # @example Pattern subscription
+      #   redis.subscriber
+      #     .on_pattern("user:*") { |pattern, channel, msg| notify_user(channel, msg) }
+      #     .run_async
+      #
+      # @example With JSON decoding
+      #   redis.subscriber
+      #     .on(:events, json: true) { |channel, data| process_event(data) }
+      #     .run
+      #
+      # @example Shard subscription (Redis 7.0+)
+      #   redis.subscriber
+      #     .on_shard("user:{123}:updates") { |channel, msg| update_user(msg) }
+      #     .run_async
+      def subscriber
+        DSL::SubscriberBuilder.new(self)
+      end
+
+      # ============================================================
+      # Low-Level Commands
+      # ============================================================
+
       # Frozen command constants to avoid string allocations
       CMD_PUBLISH = "PUBLISH"
       CMD_SPUBLISH = "SPUBLISH"
