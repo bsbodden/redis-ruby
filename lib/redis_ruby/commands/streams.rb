@@ -1,5 +1,9 @@
 # frozen_string_literal: true
 
+require_relative "../dsl/stream_proxy"
+require_relative "../dsl/consumer_group_builder"
+require_relative "../dsl/multi_stream_reader"
+
 module RedisRuby
   module Commands
     # Stream commands for log-like data structures
@@ -60,6 +64,117 @@ module RedisRuby
       OPT_JUSTID = "JUSTID"
       OPT_FULL = "FULL"
       OPT_APPROX = "~"
+
+      # ============================================================
+      # Idiomatic Ruby API
+      # ============================================================
+
+      # Get a stream proxy for chainable operations
+      #
+      # Provides a fluent interface for working with a single stream.
+      # Supports composite keys with automatic joining using `:` separator.
+      #
+      # @param key_parts [Array<String, Symbol>] Stream key parts
+      # @return [DSL::StreamProxy] Stream proxy
+      #
+      # @example Single key
+      #   stream = redis.stream(:events)
+      #   stream.add(sensor: "temp", value: 23.5)
+      #
+      # @example Composite key
+      #   stream = redis.stream(:metrics, :temperature)
+      #   # => "metrics:temperature"
+      #
+      # @example Chainable operations
+      #   redis.stream(:events)
+      #     .add(sensor: "temp", value: 23.5)
+      #     .add(sensor: "humidity", value: 65)
+      #     .trim(maxlen: 1000)
+      #
+      # @example Reading
+      #   stream.read.from("0-0").count(10).each do |id, fields|
+      #     puts "#{id}: #{fields}"
+      #   end
+      #
+      # @example Consumer operations
+      #   consumer = stream.consumer(:mygroup, :worker1)
+      #   entries = consumer.read.count(10).execute
+      #   consumer.ack(*entries.map(&:first))
+      def stream(*key_parts)
+        key = key_parts.map(&:to_s).join(":")
+        DSL::StreamProxy.new(self, key)
+      end
+
+      # Manage a consumer group with a block-based DSL
+      #
+      # Provides a declarative interface for consumer group operations.
+      #
+      # @param stream_key [String, Symbol] Stream key
+      # @param group_name [String, Symbol] Consumer group name
+      # @yield [DSL::ConsumerGroupBuilder] Builder for group operations
+      # @return [Object] Result of the last operation in the block
+      #
+      # @example Create consumer group
+      #   redis.consumer_group(:events, :processors) do
+      #     create_from "$"
+      #   end
+      #
+      # @example Create from beginning
+      #   redis.consumer_group(:events, :processors) do
+      #     create_from_beginning
+      #   end
+      #
+      # @example Create with mkstream
+      #   redis.consumer_group(:new_stream, :workers) do
+      #     create_from "$", mkstream: true
+      #   end
+      #
+      # @example Destroy group
+      #   redis.consumer_group(:events, :processors) do
+      #     destroy
+      #   end
+      #
+      # @example Manage consumers
+      #   redis.consumer_group(:events, :processors) do
+      #     create_consumer :worker1
+      #     create_consumer :worker2
+      #   end
+      def consumer_group(stream_key, group_name, &block)
+        builder = DSL::ConsumerGroupBuilder.new(self, stream_key.to_s, group_name.to_s)
+        builder.instance_eval(&block)
+      end
+
+      # Read from multiple streams simultaneously
+      #
+      # Provides a fluent interface for reading from multiple streams
+      # with support for blocking and count limits.
+      #
+      # @param streams [Hash] Hash of stream_key => start_id pairs
+      # @return [DSL::MultiStreamReader] Multi-stream reader
+      #
+      # @example Read from multiple streams
+      #   results = redis.streams(events: "0-0", metrics: "0-0").count(10).execute
+      #   # => { "events" => [[id, fields], ...], "metrics" => [...] }
+      #
+      # @example Block for new entries
+      #   results = redis.streams(events: "$", logs: "$").block(5000).execute
+      #
+      # @example Iterate over all entries
+      #   redis.streams(events: "0-0", metrics: "0-0").each do |stream, id, fields|
+      #     puts "#{stream} - #{id}: #{fields}"
+      #   end
+      #
+      # @example Iterate by stream
+      #   redis.streams(events: "0-0", metrics: "0-0").each_stream do |stream, entries|
+      #     puts "#{stream}: #{entries.length} entries"
+      #   end
+      def streams(streams_hash)
+        DSL::MultiStreamReader.new(self, streams_hash)
+      end
+
+      # ============================================================
+      # Low-Level Commands
+      # ============================================================
 
       # Append an entry to a stream
       #
