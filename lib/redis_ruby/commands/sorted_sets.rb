@@ -1,11 +1,39 @@
 # frozen_string_literal: true
 
+require_relative "../dsl/sorted_set_proxy"
+
 module RedisRuby
   module Commands
     # Sorted Set commands
     #
     # @see https://redis.io/commands/?group=sorted-set
     module SortedSets
+      # ============================================================
+      # Idiomatic Ruby API
+      # ============================================================
+
+      # Create a sorted set proxy for idiomatic operations
+      #
+      # @param key_parts [Array<String, Symbol, Integer>] Key components joined with ":"
+      # @return [RedisRuby::DSL::SortedSetProxy] Chainable sorted set proxy
+      #
+      # @example Gaming leaderboard
+      #   leaderboard = redis.sorted_set(:game, :leaderboard)
+      #   leaderboard.add(alice: 1500, bob: 2000)
+      #   top_players = leaderboard.top(10, with_scores: true)
+      #
+      # @example Priority queue
+      #   queue = redis.sorted_set(:tasks, :priority)
+      #   queue.add(urgent: 1, normal: 5)
+      #   next_task = queue.pop_min
+      def sorted_set(*key_parts)
+        DSL::SortedSetProxy.new(self, *key_parts)
+      end
+
+      # ============================================================
+      # Low-Level Commands
+      # ============================================================
+
       # Frozen command constants to avoid string allocations
       CMD_ZADD = "ZADD"
       CMD_ZREM = "ZREM"
