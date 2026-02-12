@@ -1,5 +1,8 @@
 # frozen_string_literal: true
 
+require_relative "../dsl/bitmap_proxy"
+require_relative "../dsl/bitfield_builder"
+
 module RedisRuby
   module Commands
     # Bitmap commands for bit-level string operations
@@ -14,6 +17,46 @@ module RedisRuby
     #
     # @see https://redis.io/commands/?group=bitmap
     module Bitmap
+      # ============================================================
+      # Idiomatic Ruby API
+      # ============================================================
+
+      # Create a bitmap proxy for idiomatic operations
+      #
+      # Provides a fluent, Ruby-esque interface for working with Redis bitmaps.
+      # Supports composite keys with automatic ":" joining.
+      # Optimized for tracking boolean states, user activity, feature flags,
+      # and permissions with extremely efficient memory usage (1 bit per element).
+      #
+      # @param key_parts [Array<String, Symbol, Integer>] Key components
+      # @return [RedisRuby::DSL::BitmapProxy] Bitmap proxy instance
+      #
+      # @example Daily active users
+      #   today = redis.bitmap(:dau, Date.today.to_s)
+      #   today[user_id] = 1
+      #   puts "DAU: #{today.count}"
+      #
+      # @example Feature flags
+      #   features = redis.bitmap(:features, :user, user_id)
+      #   features[FEATURE_SEARCH] = 1
+      #   features[FEATURE_EXPORT] = 1
+      #
+      # @example Bitwise operations
+      #   result = redis.bitmap(:result)
+      #   result.and(:bitmap1, :bitmap2)
+      #   puts "Common bits: #{result.count}"
+      #
+      # @example Bitfield operations
+      #   counters = redis.bitmap(:counters)
+      #   counters.bitfield.set(:u8, 0, 100).incrby(:u8, 0, 10).execute
+      def bitmap(*key_parts)
+        DSL::BitmapProxy.new(self, *key_parts)
+      end
+
+      # ============================================================
+      # Low-Level Commands
+      # ============================================================
+
       # Frozen command constants to avoid string allocations
       CMD_SETBIT = "SETBIT"
       CMD_GETBIT = "GETBIT"
