@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "../dsl/geo_proxy"
+
 module RedisRuby
   module Commands
     # Geospatial commands for location-based data
@@ -15,6 +17,31 @@ module RedisRuby
     #
     # @see https://redis.io/commands/?group=geo
     module Geo
+      # ============================================================
+      # Idiomatic Ruby API
+      # ============================================================
+
+      # Create a geo proxy for idiomatic geospatial operations
+      #
+      # @param key_parts [Array<String, Symbol, Integer>] Key components (joined with ":")
+      # @return [RedisRuby::DSL::GeoProxy] Chainable geo proxy
+      #
+      # @example Store locator
+      #   stores = redis.geo(:stores, :sf)
+      #   stores.add(downtown: [-122.4194, 37.7749], mission: [-122.4194, 37.7599])
+      #   nearby = stores.radius(-122.42, 37.78, 5, unit: :km)
+      #
+      # @example Distance calculation
+      #   cities = redis.geo(:cities)
+      #   cities.add(sf: [-122.4194, 37.7749], la: [-118.2437, 34.0522])
+      #   distance = cities.distance(:sf, :la, unit: :km)
+      def geo(*key_parts)
+        DSL::GeoProxy.new(self, *key_parts)
+      end
+
+      # ============================================================
+      # Low-Level Commands
+      # ============================================================
       # Frozen command constants to avoid string allocations
       CMD_GEOADD = "GEOADD"
       CMD_GEOPOS = "GEOPOS"
