@@ -1,11 +1,53 @@
 # frozen_string_literal: true
 
+require_relative "../dsl/set_proxy"
+
 module RedisRuby
   module Commands
     # Set commands
     #
     # @see https://redis.io/commands/?group=set
     module Sets
+      # ============================================================
+      # Idiomatic Ruby API
+      # ============================================================
+
+      # Create a set proxy for idiomatic operations
+      #
+      # Provides a fluent, Ruby-esque interface for working with Redis sets.
+      # Supports composite keys with automatic ":" joining.
+      #
+      # Note: Named `redis_set` to avoid conflict with the Redis SET command for strings.
+      #
+      # @param key_parts [Array<String, Symbol, Integer>] Key components
+      # @return [RedisRuby::DSL::SetProxy] Set proxy instance
+      #
+      # @example Basic usage
+      #   tags = redis.redis_set(:tags)
+      #   tags.add("ruby", "redis", "database")
+      #   tags.member?("ruby")  # => true
+      #
+      # @example Composite keys
+      #   user_tags = redis.redis_set(:user, 123, :tags)
+      #   user_tags.add("developer", "ruby")
+      #
+      # @example Set operations
+      #   common = tags.intersect(:other_tags)
+      #   all = tags.union(:tag_set_1, :tag_set_2)
+      #
+      # @example Chainable operations
+      #   redis.redis_set(:temp, :tags)
+      #     .add("tag1", "tag2", "tag3")
+      #     .remove("tag1")
+      #     .expire(3600)
+      def redis_set(*key_parts)
+        DSL::SetProxy.new(self, *key_parts)
+      end
+
+      # ============================================================
+      # Low-Level Commands
+      # ============================================================
+
       # Frozen command constants to avoid string allocations
       CMD_SADD = "SADD"
       CMD_SREM = "SREM"
