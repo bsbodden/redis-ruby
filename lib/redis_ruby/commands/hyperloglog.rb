@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "../dsl/hyperloglog_proxy"
+
 module RedisRuby
   module Commands
     # HyperLogLog commands for probabilistic cardinality estimation
@@ -17,6 +19,43 @@ module RedisRuby
     #
     # @see https://redis.io/commands/?group=hyperloglog
     module HyperLogLog
+      # ============================================================
+      # Idiomatic Ruby API
+      # ============================================================
+
+      # Create a HyperLogLog proxy for idiomatic operations
+      #
+      # Provides a fluent, chainable interface for working with HyperLogLog
+      # data structures. HyperLogLog is a probabilistic data structure that
+      # estimates cardinality (unique element count) using ~12KB of memory
+      # regardless of the set size, with ~0.81% standard error.
+      #
+      # @param key_parts [Array<String, Symbol, Integer>] Key components (joined with ":")
+      # @return [RedisRuby::DSL::HyperLogLogProxy] Chainable proxy object
+      #
+      # @example Basic usage
+      #   visitors = redis.hyperloglog(:visitors, :today)
+      #   visitors.add("user:123", "user:456")
+      #   puts "Unique visitors: #{visitors.count}"
+      #
+      # @example Merging HyperLogLogs
+      #   weekly = redis.hll(:visitors, :weekly)
+      #   weekly.merge("visitors:day1", "visitors:day2", "visitors:day3")
+      #
+      # @see RedisRuby::DSL::HyperLogLogProxy
+      def hyperloglog(*key_parts)
+        DSL::HyperLogLogProxy.new(self, *key_parts)
+      end
+
+      # Alias for {#hyperloglog}
+      #
+      # @see #hyperloglog
+      alias hll hyperloglog
+
+      # ============================================================
+      # Low-Level Commands
+      # ============================================================
+
       # Frozen command constants to avoid string allocations
       CMD_PFADD = "PFADD"
       CMD_PFCOUNT = "PFCOUNT"
