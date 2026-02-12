@@ -1,11 +1,43 @@
 # frozen_string_literal: true
 
+require_relative "../dsl/list_proxy"
+
 module RedisRuby
   module Commands
     # List commands
     #
     # @see https://redis.io/commands/?group=list
     module Lists
+      # ============================================================
+      # Idiomatic Ruby API
+      # ============================================================
+
+      # Create a list proxy for idiomatic array-like operations
+      #
+      # @param key_parts [Array<String, Symbol, Integer>] Key components to join with ':'
+      # @return [RedisRuby::DSL::ListProxy] List proxy instance
+      #
+      # @example Queue operations (FIFO)
+      #   queue = redis.list(:jobs)
+      #   queue.push("job1", "job2")
+      #   job = queue.shift  # FIFO
+      #
+      # @example Stack operations (LIFO)
+      #   stack = redis.list(:undo)
+      #   stack.push("action1")
+      #   action = stack.pop  # LIFO
+      #
+      # @example Array-like access
+      #   list = redis.list(:items)
+      #   list << "item1"
+      #   list[0]  # => "item1"
+      def list(*key_parts)
+        DSL::ListProxy.new(self, *key_parts)
+      end
+
+      # ============================================================
+      # Low-Level Commands
+      # ============================================================
       # Frozen command constants to avoid string allocations
       CMD_LPUSH = "LPUSH"
       CMD_LPUSHX = "LPUSHX"
