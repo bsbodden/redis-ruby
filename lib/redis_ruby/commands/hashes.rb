@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "../dsl/hash_proxy"
+
 module RedisRuby
   module Commands
     # Hash commands
@@ -17,6 +19,41 @@ module RedisRuby
       CMD_HEXISTS = "HEXISTS"
       CMD_HKEYS = "HKEYS"
       CMD_HVALS = "HVALS"
+
+      # ============================================================
+      # Idiomatic Ruby API
+      # ============================================================
+
+      # Create a hash proxy for idiomatic operations
+      #
+      # Provides a fluent, Ruby-esque interface for working with Redis hashes.
+      # Supports composite keys with automatic ":" joining.
+      #
+      # @param key_parts [Array<String, Symbol, Integer>] Key components
+      # @return [RedisRuby::DSL::HashProxy] Hash proxy instance
+      #
+      # @example Basic usage
+      #   user = redis.hash(:user, 123)
+      #   user[:name] = "John"
+      #   user[:email] = "john@example.com"
+      #
+      # @example Chainable operations
+      #   redis.hash(:user, 123)
+      #     .set(name: "John", email: "john@example.com")
+      #     .increment(:login_count)
+      #     .expire(3600)
+      #
+      # @example Hash-like interface
+      #   user = redis.hash(:user, 123)
+      #   user.to_h  # => {name: "John", email: "..."}
+      #   user.keys  # => [:name, :email]
+      def hash(*key_parts)
+        DSL::HashProxy.new(self, *key_parts)
+      end
+
+      # ============================================================
+      # Low-Level Commands
+      # ============================================================
 
       # Set the string value of a hash field
       #
