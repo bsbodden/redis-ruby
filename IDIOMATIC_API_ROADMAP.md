@@ -31,7 +31,7 @@ redis.sorted_set(:leaderboard).add(player1: 100)
 
 ## Implementation Status
 
-### ✅ Completed (14 features)
+### ✅ Completed (15 features - 100% COMPLETE!)
 
 1. **Search** - `RedisRuby::DSL::SearchIndexBuilder`, `SearchQueryBuilder`
 2. **JSON** - `RedisRuby::DSL::JsonProxy`
@@ -47,6 +47,7 @@ redis.sorted_set(:leaderboard).add(player1: 100)
 12. **Geo** - `RedisRuby::DSL::GeoProxy` (Geospatial, location-based services)
 13. **HyperLogLog** - `RedisRuby::DSL::HyperLogLogProxy` (Cardinality estimation)
 14. **Bitmap** - `RedisRuby::DSL::BitmapProxy`, `BitFieldBuilder` (Bit operations, memory-efficient)
+15. **Probabilistic** - `BloomFilterProxy`, `CuckooFilterProxy`, `CountMinSketchProxy`, `TopKProxy`
 
 ---
 
@@ -377,7 +378,7 @@ redis.bitmap(:result).xor(:bitmap1, :bitmap2)
 
 ---
 
-### 🎲 Priority 9: Probabilistic (Bloom Filter, Cuckoo Filter, etc.)
+### ✅ Priority 9: Probabilistic (COMPLETED)
 
 **Namespace**: `RedisRuby::DSL::BloomFilterProxy`, `RedisRuby::DSL::CuckooFilterProxy`
 

@@ -84,19 +84,22 @@ class KeysCommandsTest < RedisRubyTestCase
 
   # KEYS tests
   def test_keys_pattern
-    redis.set("test:foo", "1")
-    redis.set("test:bar", "2")
-    redis.set("test:baz", "3")
+    # Use unique prefix to avoid collision with other tests
+    prefix = "keys_test_#{SecureRandom.hex(8)}"
+
+    redis.set("#{prefix}:foo", "1")
+    redis.set("#{prefix}:bar", "2")
+    redis.set("#{prefix}:baz", "3")
     redis.set("other:key", "4")
 
-    result = redis.keys("test:*")
+    result = redis.keys("#{prefix}:*")
 
     assert_equal 3, result.length
-    assert_includes result, "test:foo"
-    assert_includes result, "test:bar"
-    assert_includes result, "test:baz"
+    assert_includes result, "#{prefix}:foo"
+    assert_includes result, "#{prefix}:bar"
+    assert_includes result, "#{prefix}:baz"
   ensure
-    redis.del("test:foo", "test:bar", "test:baz", "other:key")
+    redis.del("#{prefix}:foo", "#{prefix}:bar", "#{prefix}:baz", "other:key")
   end
 
   def test_keys_with_question_mark

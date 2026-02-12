@@ -45,8 +45,8 @@ class GeoDSLTest < Minitest::Test
     
     assert_same geo, result
     pos = geo.position(:store1)
-    assert_in_delta -122.4194, pos[0], 0.001
-    assert_in_delta 37.7749, pos[1], 0.001
+    assert_in_delta(-122.4194, pos[0], 0.001)
+    assert_in_delta(37.7749, pos[1], 0.001)
   end
 
   def test_add_multiple_locations_with_hash
@@ -60,9 +60,9 @@ class GeoDSLTest < Minitest::Test
     
     assert_equal 3, geo.count
     pos1 = geo.position(:store1)
-    assert_in_delta -122.4194, pos1[0], 0.001
+    assert_in_delta(-122.4194, pos1[0], 0.001)
     pos2 = geo.position(:store2)
-    assert_in_delta -118.2437, pos2[0], 0.001
+    assert_in_delta(-118.2437, pos2[0], 0.001)
   end
 
   def test_add_chainable
@@ -95,8 +95,8 @@ class GeoDSLTest < Minitest::Test
     
     assert_instance_of Array, pos
     assert_equal 2, pos.size
-    assert_in_delta -122.4194, pos[0], 0.001
-    assert_in_delta 37.7749, pos[1], 0.001
+    assert_in_delta(-122.4194, pos[0], 0.001)
+    assert_in_delta(37.7749, pos[1], 0.001)
   end
 
   def test_position_returns_nil_for_missing_member

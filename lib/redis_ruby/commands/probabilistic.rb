@@ -1,5 +1,10 @@
 # frozen_string_literal: true
 
+require_relative "../dsl/bloom_filter_proxy"
+require_relative "../dsl/cuckoo_filter_proxy"
+require_relative "../dsl/count_min_sketch_proxy"
+require_relative "../dsl/top_k_proxy"
+
 module RedisRuby
   module Commands
     # Redis Probabilistic Data Structures
@@ -86,6 +91,115 @@ module RedisRuby
       OPT_WITHCOUNT = "WITHCOUNT"
       OPT_COMPRESSION = "COMPRESSION"
       OPT_OVERRIDE = "OVERRIDE"
+
+      # ============================================================
+      # Idiomatic Ruby API
+      # ============================================================
+
+      # Create a Bloom Filter proxy for idiomatic operations
+      #
+      # Provides a fluent, Ruby-esque interface for working with Redis Bloom Filters.
+      # Supports composite keys with automatic ":" joining.
+      #
+      # Bloom Filters are space-efficient probabilistic data structures for membership testing.
+      # False positives are possible, but false negatives are not.
+      #
+      # @param key_parts [Array<String, Symbol, Integer>] Key components
+      # @return [RedisRuby::DSL::BloomFilterProxy] Bloom Filter proxy instance
+      #
+      # @example Spam detection
+      #   spam = redis.bloom_filter(:spam, :emails)
+      #   spam.reserve(error_rate: 0.01, capacity: 100_000)
+      #   spam.add("spam@example.com")
+      #   spam.exists?("spam@example.com")  # => true
+      #
+      # @example Duplicate detection
+      #   seen = redis.bloom_filter(:processed, :urls)
+      #   seen.reserve(error_rate: 0.001, capacity: 1_000_000)
+      #   seen.add(url) unless seen.exists?(url)
+      def bloom_filter(*key_parts)
+        DSL::BloomFilterProxy.new(self, *key_parts)
+      end
+      alias bloom bloom_filter
+
+      # Create a Cuckoo Filter proxy for idiomatic operations
+      #
+      # Provides a fluent, Ruby-esque interface for working with Redis Cuckoo Filters.
+      # Supports composite keys with automatic ":" joining.
+      #
+      # Cuckoo Filters are similar to Bloom Filters but support deletion and
+      # generally have better lookup performance.
+      #
+      # @param key_parts [Array<String, Symbol, Integer>] Key components
+      # @return [RedisRuby::DSL::CuckooFilterProxy] Cuckoo Filter proxy instance
+      #
+      # @example Session tracking
+      #   sessions = redis.cuckoo_filter(:active, :sessions)
+      #   sessions.reserve(capacity: 10_000)
+      #   sessions.add("session:abc123")
+      #   sessions.remove("session:abc123")  # Can delete!
+      #
+      # @example Cache admission
+      #   cache = redis.cuckoo_filter(:cache, :admitted)
+      #   cache.add_nx(key)  # Add only if not exists
+      def cuckoo_filter(*key_parts)
+        DSL::CuckooFilterProxy.new(self, *key_parts)
+      end
+      alias cuckoo cuckoo_filter
+
+      # Create a Count-Min Sketch proxy for idiomatic operations
+      #
+      # Provides a fluent, Ruby-esque interface for working with Redis Count-Min Sketch.
+      # Supports composite keys with automatic ":" joining.
+      #
+      # Count-Min Sketch is a probabilistic data structure for frequency estimation.
+      # It may over-estimate but never under-estimates counts.
+      #
+      # @param key_parts [Array<String, Symbol, Integer>] Key components
+      # @return [RedisRuby::DSL::CountMinSketchProxy] Count-Min Sketch proxy instance
+      #
+      # @example Page view counting
+      #   pageviews = redis.count_min_sketch(:pageviews)
+      #   pageviews.init_by_prob(error_rate: 0.001, probability: 0.01)
+      #   pageviews.increment("/home", "/about")
+      #   pageviews.query("/home")  # => 1
+      #
+      # @example Heavy hitter detection
+      #   events = redis.count_min_sketch(:events)
+      #   events.init_by_dim(width: 2000, depth: 5)
+      #   events.increment_by("event:login", 100)
+      def count_min_sketch(*key_parts)
+        DSL::CountMinSketchProxy.new(self, *key_parts)
+      end
+      alias cms count_min_sketch
+
+      # Create a Top-K proxy for idiomatic operations
+      #
+      # Provides a fluent, Ruby-esque interface for working with Redis Top-K.
+      # Supports composite keys with automatic ":" joining.
+      #
+      # Top-K tracks the top K most frequent items in a stream with constant memory.
+      #
+      # @param key_parts [Array<String, Symbol, Integer>] Key components
+      # @return [RedisRuby::DSL::TopKProxy] Top-K proxy instance
+      #
+      # @example Trending products
+      #   trending = redis.top_k(:trending, :products)
+      #   trending.reserve(k: 10)
+      #   trending.add("product:123", "product:456")
+      #   trending.list  # => ["product:123", "product:456", ...]
+      #
+      # @example Popular items with counts
+      #   popular = redis.top_k(:popular, :items)
+      #   popular.reserve(k: 5, width: 1000, depth: 5)
+      #   popular.list(with_counts: true)
+      def top_k(*key_parts)
+        DSL::TopKProxy.new(self, *key_parts)
+      end
+
+      # ============================================================
+      # Low-Level Commands
+      # ============================================================
 
       # BLOOM FILTER COMMANDS
 

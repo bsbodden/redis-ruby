@@ -89,15 +89,16 @@ class RedisRubyTest < RedisRubyTestCase
 
   # SET with PXAT option (absolute Unix timestamp in milliseconds, Redis 6.2+)
   def test_set_pxat
+    key = "test:pxat:#{SecureRandom.hex(8)}"
     future_time = (Time.now.to_f * 1000).to_i + 60_000
-    redis.set("test:pxat", "value", pxat: future_time)
+    redis.set(key, "value", pxat: future_time)
 
-    assert_equal "value", redis.get("test:pxat")
-    pttl = redis.pttl("test:pxat")
+    assert_equal "value", redis.get(key)
+    pttl = redis.pttl(key)
 
     assert pttl.positive? && pttl <= 60_000
   ensure
-    redis.del("test:pxat")
+    redis.del(key)
   end
 
   # SET with KEEPTTL option (Redis 6.0+)

@@ -188,16 +188,19 @@ class JSONDSLTest < RedisRubyTestCase
   end
 
   def test_json_proxy_with_composite_key
-    # Use multiple key parts
-    redis.json(:user, 123).set(name: "Henry", age: 55)
+    # Use unique key to avoid collision with other tests
+    unique_id = SecureRandom.hex(8)
 
-    result = redis.json(:user, 123).get
+    # Use multiple key parts
+    redis.json(:user, unique_id).set(name: "Henry", age: 55)
+
+    result = redis.json(:user, unique_id).get
     assert_equal({ "name" => "Henry", "age" => 55 }, result)
 
     # Verify key format
-    assert redis.exists("user:123") > 0
+    assert redis.exists("user:#{unique_id}") > 0
   ensure
-    redis.del("user:123")
+    redis.del("user:#{unique_id}")
   end
 
   def test_json_proxy_nested_paths
