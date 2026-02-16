@@ -67,6 +67,8 @@ module RR
         @buffered_io = nil
         @decoder = nil
         @pid = nil
+        @callbacks = Hash.new { |h, k| h[k] = [] }
+        @ever_connected = false
         connect
       end
 
@@ -168,6 +170,49 @@ module RR
         @ssl_socket && !@ssl_socket.closed?
       end
 
+      # Register a callback for connection lifecycle events
+      #
+      # @param event_type [Symbol] Event type (:connected, :disconnected, :reconnected, :error)
+      # @param callback [Proc] Callback to invoke when event occurs
+      # @return [void]
+      # @raise [ArgumentError] if event_type is invalid
+      def register_callback(event_type, callback = nil, &block)
+        callback ||= block
+        raise ArgumentError, "Callback must be provided" unless callback
+
+        valid_events = [:connected, :disconnected, :reconnected, :error]
+        unless valid_events.include?(event_type)
+          raise ArgumentError, "Invalid event type: #{event_type}. Valid types: #{valid_events.join(', ')}"
+        end
+
+        @callbacks[event_type] << callback
+      end
+
+      # Deregister a callback for connection lifecycle events
+      #
+      # @param event_type [Symbol] Event type
+      # @param callback [Proc] Callback to remove
+      # @return [void]
+      def deregister_callback(event_type, callback)
+        @callbacks[event_type].delete(callback)
+      end
+
+      # Disconnect from the server
+      #
+      # @return [void]
+      def disconnect
+        return unless connected?
+
+        trigger_callbacks(:disconnected, {
+          type: :disconnected,
+          host: @host,
+          port: @port,
+          timestamp: Time.now
+        })
+
+        close
+      end
+
       private
 
       # Establish SSL connection
@@ -184,6 +229,40 @@ module RR
         @buffered_io = Protocol::BufferedIO.new(@ssl_socket, read_timeout: @timeout, write_timeout: @timeout)
         @decoder = Protocol::RESP3Decoder.new(@buffered_io)
         @pid = Process.pid # Track PID for fork safety
+
+        # Trigger appropriate callback
+        event_type = @ever_connected ? :reconnected : :connected
+        @ever_connected = true
+
+        trigger_callbacks(event_type, {
+          type: event_type,
+          host: @host,
+          port: @port,
+          timestamp: Time.now
+        })
+      rescue StandardError => e
+        error = e.is_a?(ConnectionError) ? e : ConnectionError.new("Failed to connect to #{@host}:#{@port}: #{e.message}")
+
+        trigger_callbacks(:error, {
+          type: :error,
+          host: @host,
+          port: @port,
+          error: error,
+          timestamp: Time.now
+        })
+
+        raise error
+      end
+
+      # Trigger callbacks for an event
+      # @api private
+      def trigger_callbacks(event_type, event_data)
+        @callbacks[event_type].each do |callback|
+          callback.call(event_data)
+        rescue StandardError => e
+          # Log callback errors but don't let them break the connection
+          warn "Error in #{event_type} callback: #{e.message}"
+        end
       end
 
       # Configure underlying TCP socket

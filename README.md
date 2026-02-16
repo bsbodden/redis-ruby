@@ -234,6 +234,40 @@ end
 
 See [docs/guides/circuit-breaker.md](https://redis.github.io/redis-ruby/guides/circuit-breaker.html) for complete documentation.
 
+### Connection Event Callbacks
+
+Monitor and react to connection lifecycle events for logging, monitoring, and debugging:
+
+```ruby
+client = RR::Client.new(host: "localhost", port: 6379)
+
+# Register callbacks for connection events
+client.register_connection_callback(:connected) do |event|
+  puts "Connected to #{event[:host]}:#{event[:port]}"
+end
+
+client.register_connection_callback(:disconnected) do |event|
+  puts "Disconnected from #{event[:host]}:#{event[:port]}"
+end
+
+client.register_connection_callback(:reconnected) do |event|
+  puts "Reconnected to #{event[:host]}:#{event[:port]}"
+end
+
+client.register_connection_callback(:error) do |event|
+  puts "Connection error: #{event[:error].message}"
+end
+```
+
+**Features:**
+- Four event types: `:connected`, `:disconnected`, `:reconnected`, `:error`
+- Multiple callbacks per event type
+- Event data includes host, port, timestamp, and error details
+- Error-safe: callback errors don't break connections
+- Works with TCP, SSL, and Unix socket connections
+
+See [docs/guides/connection-callbacks.md](https://redis.github.io/redis-ruby/guides/connection-callbacks.html) for complete documentation.
+
 ### Redis Commands
 
 There is built-in support for all of the [out-of-the-box Redis commands](https://redis.io/commands). They are exposed using the raw Redis command names (`HSET`, `HGETALL`, etc.) in lowercase, except where a word (i.e. `del`) would conflict with Ruby keywords. The complete set of commands can be found in the [Command Reference](#command-reference) section.

@@ -265,6 +265,32 @@ module RR
       end
     end
 
+    # Register a callback for connection lifecycle events
+    #
+    # @param event_type [Symbol] Event type (:connected, :disconnected, :reconnected, :error)
+    # @param callback [Proc] Callback to invoke when event occurs
+    # @return [void]
+    # @raise [ArgumentError] if event_type is invalid
+    #
+    # @example Register a callback
+    #   client.register_connection_callback(:connected) do |event|
+    #     puts "Connected to #{event[:host]}:#{event[:port]}"
+    #   end
+    def register_connection_callback(event_type, callback = nil, &block)
+      ensure_connected
+      @connection.register_callback(event_type, callback, &block)
+    end
+
+    # Deregister a callback for connection lifecycle events
+    #
+    # @param event_type [Symbol] Event type
+    # @param callback [Proc] Callback to remove
+    # @return [void]
+    def deregister_connection_callback(event_type, callback)
+      ensure_connected
+      @connection.deregister_callback(event_type, callback)
+    end
+
     private
 
     # Execute command with circuit breaker and instrumentation protection

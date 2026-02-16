@@ -34,6 +34,8 @@ module RR
         @socket = nil
         @buffered_io = nil
         @decoder = nil
+        @callbacks = Hash.new { |h, k| h[k] = [] }
+        @ever_connected = false
         connect
       end
 
@@ -104,6 +106,48 @@ module RR
         @socket && !@socket.closed?
       end
 
+      # Register a callback for connection lifecycle events
+      #
+      # @param event_type [Symbol] Event type (:connected, :disconnected, :reconnected, :error)
+      # @param callback [Proc] Callback to invoke when event occurs
+      # @return [void]
+      # @raise [ArgumentError] if event_type is invalid
+      def register_callback(event_type, callback = nil, &block)
+        callback ||= block
+        raise ArgumentError, "Callback must be provided" unless callback
+
+        valid_events = [:connected, :disconnected, :reconnected, :error]
+        unless valid_events.include?(event_type)
+          raise ArgumentError, "Invalid event type: #{event_type}. Valid types: #{valid_events.join(', ')}"
+        end
+
+        @callbacks[event_type] << callback
+      end
+
+      # Deregister a callback for connection lifecycle events
+      #
+      # @param event_type [Symbol] Event type
+      # @param callback [Proc] Callback to remove
+      # @return [void]
+      def deregister_callback(event_type, callback)
+        @callbacks[event_type].delete(callback)
+      end
+
+      # Disconnect from the server
+      #
+      # @return [void]
+      def disconnect
+        return unless connected?
+
+        trigger_callbacks(:disconnected, {
+          type: :disconnected,
+          path: @path,
+          timestamp: Time.now
+        })
+
+        close
+      end
+
       private
 
       # Establish Unix socket connection
@@ -112,12 +156,54 @@ module RR
         configure_socket
         @buffered_io = Protocol::BufferedIO.new(@socket, read_timeout: @timeout, write_timeout: @timeout)
         @decoder = Protocol::RESP3Decoder.new(@buffered_io)
-      rescue Errno::ENOENT
-        raise ConnectionError, "Unix socket not found: #{@path}"
-      rescue Errno::EACCES
-        raise ConnectionError, "Permission denied for Unix socket: #{@path}"
-      rescue Errno::ECONNREFUSED
-        raise ConnectionError, "Connection refused for Unix socket: #{@path}"
+
+        # Trigger appropriate callback
+        event_type = @ever_connected ? :reconnected : :connected
+        @ever_connected = true
+
+        trigger_callbacks(event_type, {
+          type: event_type,
+          path: @path,
+          timestamp: Time.now
+        })
+      rescue Errno::ENOENT => e
+        error = ConnectionError.new("Unix socket not found: #{@path}")
+        trigger_callbacks(:error, {
+          type: :error,
+          path: @path,
+          error: error,
+          timestamp: Time.now
+        })
+        raise error
+      rescue Errno::EACCES => e
+        error = ConnectionError.new("Permission denied for Unix socket: #{@path}")
+        trigger_callbacks(:error, {
+          type: :error,
+          path: @path,
+          error: error,
+          timestamp: Time.now
+        })
+        raise error
+      rescue Errno::ECONNREFUSED => e
+        error = ConnectionError.new("Connection refused for Unix socket: #{@path}")
+        trigger_callbacks(:error, {
+          type: :error,
+          path: @path,
+          error: error,
+          timestamp: Time.now
+        })
+        raise error
+      end
+
+      # Trigger callbacks for an event
+      # @api private
+      def trigger_callbacks(event_type, event_data)
+        @callbacks[event_type].each do |callback|
+          callback.call(event_data)
+        rescue StandardError => e
+          # Log callback errors but don't let them break the connection
+          warn "Error in #{event_type} callback: #{e.message}"
+        end
       end
 
       # Configure socket options
