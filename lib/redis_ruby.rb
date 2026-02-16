@@ -181,6 +181,39 @@ module RR
     def dns(hostname:, **kwargs)
       DNSClient.new(hostname: hostname, **kwargs)
     end
+
+    # Create an Active-Active Redis client for multi-region geo-distributed databases
+    #
+    # Connects to Redis Enterprise Active-Active databases with automatic failover
+    # across multiple geographic regions. Active-Active databases use CRDTs
+    # (Conflict-free Replicated Data Types) for automatic conflict resolution.
+    #
+    # @param regions [Array<Hash>] Array of region configurations, each with :host and :port
+    # @param kwargs [Hash] Additional connection options (preferred_region, password, ssl, etc.)
+    # @return [RR::ActiveActiveClient]
+    # @example
+    #   client = RR.active_active(
+    #     regions: [
+    #       { host: "redis-us-east.example.com", port: 6379 },
+    #       { host: "redis-eu-west.example.com", port: 6379 },
+    #       { host: "redis-ap-south.example.com", port: 6379 }
+    #     ]
+    #   )
+    #   client.set("key", "value")
+    #
+    # @example With preferred region and authentication
+    #   client = RR.active_active(
+    #     regions: [
+    #       { host: "redis-us.example.com", port: 6380 },
+    #       { host: "redis-eu.example.com", port: 6380 }
+    #     ],
+    #     preferred_region: 0,  # Start with first region
+    #     password: "secret",
+    #     ssl: true
+    #   )
+    def active_active(regions:, **kwargs)
+      ActiveActiveClient.new(regions: regions, **kwargs)
+    end
   end
 end
 
@@ -251,3 +284,4 @@ require_relative "redis_ruby/sentinel_client"
 require_relative "redis_ruby/cluster_client"
 require_relative "redis_ruby/discovery_service_client"
 require_relative "redis_ruby/dns_client"
+require_relative "redis_ruby/active_active_client"

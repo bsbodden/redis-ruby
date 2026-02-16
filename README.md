@@ -442,6 +442,16 @@ redis = RR.dns(
   dns_strategy: :round_robin  # or :random
 )
 
+# Active-Active geo-distributed databases with CRDTs
+redis = RR.active_active(
+  regions: [
+    { host: "redis-us-east.example.com", port: 6379 },
+    { host: "redis-eu-west.example.com", port: 6379 },
+    { host: "redis-ap-south.example.com", port: 6379 }
+  ],
+  preferred_region: 0  # Start with first region
+)
+
 # Async - fiber-aware for concurrent operations
 Async do
   redis = RR.async(url: "redis://localhost:6379")
