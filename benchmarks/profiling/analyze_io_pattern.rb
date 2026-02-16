@@ -7,7 +7,7 @@
 #   RUBYOPT="--yjit" bundle exec ruby benchmarks/analyze_io_pattern.rb
 
 require "bundler/setup"
-require_relative "../lib/redis_ruby"
+require_relative "../../lib/redis_ruby"
 
 REDIS_URL = ENV.fetch("REDIS_URL", "redis://localhost:6379")
 

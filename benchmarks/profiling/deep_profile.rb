@@ -13,7 +13,7 @@
 #   RUBYOPT="--yjit" bundle exec ruby benchmarks/deep_profile.rb
 
 require "bundler/setup"
-require_relative "../lib/redis_ruby"
+require_relative "../../lib/redis_ruby"
 require "fileutils"
 
 FileUtils.mkdir_p("tmp/profiles")

@@ -3,7 +3,7 @@
 
 require "bundler/setup"
 require "benchmark/ips"
-require_relative "../lib/redis_ruby"
+require_relative "../../lib/redis_ruby"
 
 # Micro-benchmark: measures pure encoding speed without network I/O
 # This shows the true benefit of fast-path optimizations

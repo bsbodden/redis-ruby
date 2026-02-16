@@ -7,7 +7,7 @@
 #   RUBYOPT="--yjit" bundle exec ruby benchmarks/simple_profile.rb
 
 require "bundler/setup"
-require_relative "../lib/redis_ruby"
+require_relative "../../lib/redis_ruby"
 require "fileutils"
 require "memory_profiler"
 require "stackprof"

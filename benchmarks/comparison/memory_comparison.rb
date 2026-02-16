@@ -18,7 +18,7 @@ require "fileutils"
 
 # Load both implementations
 require "redis"
-require_relative "../lib/redis_ruby"
+require_relative "../../lib/redis_ruby"
 
 REDIS_URL = ENV.fetch("REDIS_URL", "redis://localhost:6379")
 ITERATIONS = ENV.fetch("ITERATIONS", "1000").to_i

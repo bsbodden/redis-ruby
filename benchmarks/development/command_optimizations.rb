@@ -4,7 +4,7 @@
 require "bundler/setup"
 require "benchmark/ips"
 require "redis"
-require_relative "../lib/redis_ruby"
+require_relative "../../lib/redis_ruby"
 
 REDIS_URL = ENV.fetch("REDIS_URL", "redis://localhost:6379")
 

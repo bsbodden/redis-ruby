@@ -1,12 +1,29 @@
 # Redis Sentinel for testing
-# Usage: docker-compose -f docker/docker-compose.sentinel.yml up -d
 #
-# Sentinels will be available at localhost:26379,26380,26381
-# Master is at localhost:7379, Replica at localhost:7380
-# Set REDIS_SENTINEL_URL=localhost:26379,localhost:26380,localhost:26381
+# This Docker Compose file creates a Redis Sentinel setup with:
+#   - 1 master (redis-master)
+#   - 1 replica (redis-replica)
+#   - 3 sentinels (sentinel-1, sentinel-2, sentinel-3)
 #
-# Note: Uses ports 7379/7380 for master/replica to avoid conflicts with
-# devcontainer Redis (which uses 6379). Internal ports are still 6379/6380.
+# Usage:
+#   docker-compose -f docker/docker-compose.sentinel.yml up -d
+#   docker-compose -f docker/docker-compose.sentinel.yml down
+#
+# Sentinel Configuration:
+#   - Sentinels: localhost:26379, localhost:26380, localhost:26381
+#   - Master: localhost:7379 (internal: 6379)
+#   - Replica: localhost:7380 (internal: 6380)
+#   - Service name: mymaster
+#   - Quorum: 2 (requires 2 sentinels to agree on failure)
+#
+# Connection:
+#   Set REDIS_SENTINEL_URL=localhost:26379,localhost:26380,localhost:26381
+#
+# Notes:
+#   - Uses ports 7379/7380 to avoid conflicts with devcontainer Redis (6379)
+#   - All sentinels share the same base config (sentinel.conf)
+#   - Announce ports are set via SENTINEL_ANNOUNCE_PORT environment variable
+#   - Entrypoint script resolves master hostname to IP for proper configuration
 
 services:
   redis-master:
@@ -49,6 +66,8 @@ services:
     container_name: sentinel-1
     ports:
       - "26379:26379"
+    environment:
+      - SENTINEL_ANNOUNCE_PORT=26379
     volumes:
       - ./sentinel.conf:/etc/redis/sentinel.conf
       - ./sentinel-entrypoint.sh:/usr/local/bin/sentinel-entrypoint.sh
@@ -64,8 +83,10 @@ services:
     container_name: sentinel-2
     ports:
       - "26380:26379"
+    environment:
+      - SENTINEL_ANNOUNCE_PORT=26380
     volumes:
-      - ./sentinel2.conf:/etc/redis/sentinel.conf
+      - ./sentinel.conf:/etc/redis/sentinel.conf
       - ./sentinel-entrypoint.sh:/usr/local/bin/sentinel-entrypoint.sh
     entrypoint: ["/usr/local/bin/sentinel-entrypoint.sh"]
     depends_on:
@@ -79,8 +100,10 @@ services:
     container_name: sentinel-3
     ports:
       - "26381:26379"
+    environment:
+      - SENTINEL_ANNOUNCE_PORT=26381
     volumes:
-      - ./sentinel3.conf:/etc/redis/sentinel.conf
+      - ./sentinel.conf:/etc/redis/sentinel.conf
       - ./sentinel-entrypoint.sh:/usr/local/bin/sentinel-entrypoint.sh
     entrypoint: ["/usr/local/bin/sentinel-entrypoint.sh"]
     depends_on:

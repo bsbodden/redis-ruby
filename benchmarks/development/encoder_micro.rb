@@ -3,7 +3,7 @@
 
 require "bundler/setup"
 require "benchmark/ips"
-require_relative "../lib/redis_ruby"
+require_relative "../../lib/redis_ruby"
 
 encoder = RedisRuby::Protocol::RESP3Encoder.new
 

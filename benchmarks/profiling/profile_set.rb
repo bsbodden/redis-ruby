@@ -7,7 +7,7 @@
 #   RUBYOPT="--yjit" bundle exec ruby benchmarks/profile_set.rb
 
 require "bundler/setup"
-require_relative "../lib/redis_ruby"
+require_relative "../../lib/redis_ruby"
 
 # Enable allocation tracing
 require "objspace"

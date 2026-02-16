@@ -10,7 +10,7 @@
 #   RUBYOPT="--yjit" bundle exec ruby benchmarks/profile_hotspots.rb memory
 
 require "bundler/setup"
-require_relative "../lib/redis_ruby"
+require_relative "../../lib/redis_ruby"
 
 PROFILE_MODE = ARGV[0] || "stackprof"
 ITERATIONS = 10_000

@@ -1,26 +1,41 @@
 # Redis Cluster for testing
-# Usage: docker-compose -f docker/docker-compose.cluster.yml up -d
 #
-# Cluster will be available at localhost:17000-17005 (mapped from internal 7000-7005)
-# Set REDIS_CLUSTER_URL=redis://localhost:17000,redis://localhost:17001,redis://localhost:17002
+# This Docker Compose file creates a 6-node Redis Cluster (3 masters + 3 replicas)
+# using the official Redis Labs client testing image.
 #
-# Note: Uses port mapping for macOS compatibility (network_mode: host doesn't work on macOS)
-# External ports 17000-17005 are used to avoid conflicts with other services on ports 7000-7005
+# Usage:
+#   docker-compose -f docker/docker-compose.cluster.yml up -d
+#   docker-compose -f docker/docker-compose.cluster.yml down
+#
+# Cluster Configuration:
+#   - 6 nodes total (3 masters + 3 replicas)
+#   - Ports: 17000-17005 (external and internal)
+#   - Image: redislabs/client-libs-test:8.4.0 (Redis 8.4 with all modules)
+#
+# Connection:
+#   Set REDIS_CLUSTER_URL=redis://localhost:17000,redis://localhost:17001,redis://localhost:17002
+#   Or connect to any node: redis://localhost:17000
+#
+# Notes:
+#   - Uses port 17000-17005 to avoid conflicts with standard Redis ports
+#   - Healthcheck ensures cluster is ready before tests run
+#   - DEBUG command enabled for testing purposes
+#   - Persistence disabled (--save "") for faster test execution
 
 services:
   redis-cluster:
     image: redislabs/client-libs-test:8.4.0
     container_name: redis-cluster
     environment:
-      - REDIS_CLUSTER=yes
-      - NODES=6
-      - REPLICAS=1
-      - PORT=17000
+      - REDIS_CLUSTER=yes      # Enable cluster mode
+      - NODES=6                 # Total nodes (masters + replicas)
+      - REPLICAS=1              # Replicas per master
+      - PORT=17000              # Starting port
     command: --enable-debug-command yes --save ""
     ports:
       - "17000-17005:17000-17005"
     healthcheck:
-      test: ["CMD", "redis-cli", "-p", "7000", "cluster", "info"]
+      test: ["CMD", "redis-cli", "-p", "17000", "cluster", "info"]
       interval: 5s
       timeout: 10s
       retries: 30

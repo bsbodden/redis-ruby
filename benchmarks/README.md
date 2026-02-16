@@ -111,7 +111,7 @@ redis-ruby vs redis-rb (plain):
 - ✅ **Pipeline (10 cmds)**: 1.05x (5% faster)
 - ✅ **Pipeline (100 cmds)**: 1.14x (14% faster)
 
-See [docs/BENCHMARKS.md](../docs/BENCHMARKS.md) for detailed results.
+**Note:** Historical benchmark results have been archived to `../redis-ruby-planning/BENCHMARKS.md`.
 
 ## Performance Gates
 

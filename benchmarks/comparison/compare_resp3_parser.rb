@@ -16,7 +16,7 @@ require "benchmark/ips"
 require "stringio"
 
 # Load redis-ruby protocol
-require_relative "../lib/redis_ruby"
+require_relative "../../lib/redis_ruby"
 
 puts "=" * 70
 puts "RESP3 Parser Benchmark: Encoding/Decoding Performance"

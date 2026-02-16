@@ -13,7 +13,7 @@ require "benchmark/ips"
 require "stringio"
 
 # Load redis-ruby protocol
-require_relative "../lib/redis_ruby"
+require_relative "../../lib/redis_ruby"
 
 # Load redis-client RESP3 for comparison
 require "redis-client"

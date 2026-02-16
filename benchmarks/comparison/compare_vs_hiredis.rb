@@ -20,7 +20,7 @@ begin
 rescue LoadError
   HIREDIS_AVAILABLE = false
 end
-require_relative "../lib/redis_ruby"
+require_relative "../../lib/redis_ruby"
 
 REDIS_URL = ENV.fetch("REDIS_URL", "redis://localhost:6379")
 
