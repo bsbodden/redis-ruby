@@ -4,11 +4,21 @@ require "minitest/autorun"
 require_relative "../../test_helper"
 
 class ServerCommandsTest < Minitest::Test
+  # Simple retry policy that just yields
+  class NoOpRetryPolicy
+    def call
+      yield
+    end
+  end
+
   def setup
     @client = RR::Client.new
     @connection = mock("connection")
     @client.instance_variable_set(:@connection, @connection)
     @connection.stubs(:connected?).returns(true)
+
+    # Use a simple retry policy that just yields
+    @client.instance_variable_set(:@retry_policy, NoOpRetryPolicy.new)
   end
 
   # --- INFO ---

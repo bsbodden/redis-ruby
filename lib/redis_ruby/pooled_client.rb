@@ -59,8 +59,10 @@ module RR
     # @param timeout [Float] Connection timeout in seconds
     # @param pool [Hash] Pool options (:size, :timeout)
     # @param instrumentation [RR::Instrumentation, nil] Instrumentation instance for metrics
+    # @param circuit_breaker [RR::CircuitBreaker, nil] Circuit breaker for failure protection
     def initialize(url: nil, host: DEFAULT_HOST, port: DEFAULT_PORT, db: DEFAULT_DB,
-                   password: nil, timeout: DEFAULT_TIMEOUT, pool: {}, instrumentation: nil)
+                   password: nil, timeout: DEFAULT_TIMEOUT, pool: {}, instrumentation: nil,
+                   circuit_breaker: nil)
       # Initialize ALL instance variables upfront for consistent object shapes (YJIT optimization)
       @host = host
       @port = port
@@ -69,6 +71,7 @@ module RR
       @timeout = timeout
       @pool = nil
       @instrumentation = instrumentation
+      @circuit_breaker = circuit_breaker
 
       # Override from URL if provided
       parse_url(url) if url
@@ -95,40 +98,42 @@ module RR
     # @param args [Array] Command arguments
     # @return [Object] Command result
     def call(command, *args)
-      if @instrumentation
-        call_with_instrumentation(command, args)
-      else
-        call_without_instrumentation(command, args)
-      end
+      execute_with_protection(command, args)
     end
 
     # Fast path for single-argument commands (GET, DEL, EXISTS, etc.)
     # @api private
     def call_1arg(command, arg)
-      if @instrumentation
-        call_with_instrumentation(command, [arg])
+      if @circuit_breaker
+        @circuit_breaker.call do
+          execute_1arg_with_instrumentation(command, arg)
+        end
       else
-        call_1arg_without_instrumentation(command, arg)
+        execute_1arg_with_instrumentation(command, arg)
       end
     end
 
     # Fast path for two-argument commands (SET without options, HGET, etc.)
     # @api private
     def call_2args(command, arg1, arg2)
-      if @instrumentation
-        call_with_instrumentation(command, [arg1, arg2])
+      if @circuit_breaker
+        @circuit_breaker.call do
+          execute_2args_with_instrumentation(command, arg1, arg2)
+        end
       else
-        call_2args_without_instrumentation(command, arg1, arg2)
+        execute_2args_with_instrumentation(command, arg1, arg2)
       end
     end
 
     # Fast path for three-argument commands (HSET, LRANGE, etc.)
     # @api private
     def call_3args(command, arg1, arg2, arg3)
-      if @instrumentation
-        call_with_instrumentation(command, [arg1, arg2, arg3])
+      if @circuit_breaker
+        @circuit_breaker.call do
+          execute_3args_with_instrumentation(command, arg1, arg2, arg3)
+        end
       else
-        call_3args_without_instrumentation(command, arg1, arg2, arg3)
+        execute_3args_with_instrumentation(command, arg1, arg2, arg3)
       end
     end
 
@@ -165,7 +170,79 @@ module RR
       @pool.available
     end
 
+    # Check if the connection is healthy
+    #
+    # @param command [String] Command to use for health check (default: "PING")
+    # @return [Boolean] true if healthy, false otherwise
+    def healthy?(command: "PING")
+      health_check(command: command)
+    end
+
+    # Perform a health check
+    #
+    # @param command [String] Command to use for health check (default: "PING")
+    # @return [Boolean] true if healthy, false otherwise
+    def health_check(command: "PING")
+      # Check circuit breaker state first
+      return false if @circuit_breaker && @circuit_breaker.state == :open
+
+      # Try to execute a simple command
+      begin
+        call(command)
+        true
+      rescue
+        false
+      end
+    end
+
     private
+
+    # Execute command with circuit breaker and instrumentation protection
+    def execute_with_protection(command, args)
+      if @circuit_breaker
+        @circuit_breaker.call do
+          execute_with_instrumentation(command, args)
+        end
+      else
+        execute_with_instrumentation(command, args)
+      end
+    end
+
+    # Execute command with optional instrumentation
+    def execute_with_instrumentation(command, args)
+      if @instrumentation
+        call_with_instrumentation(command, args)
+      else
+        call_without_instrumentation(command, args)
+      end
+    end
+
+    # Execute 1-arg command with optional instrumentation
+    def execute_1arg_with_instrumentation(command, arg)
+      if @instrumentation
+        call_with_instrumentation(command, [arg])
+      else
+        call_1arg_without_instrumentation(command, arg)
+      end
+    end
+
+    # Execute 2-args command with optional instrumentation
+    def execute_2args_with_instrumentation(command, arg1, arg2)
+      if @instrumentation
+        call_with_instrumentation(command, [arg1, arg2])
+      else
+        call_2args_without_instrumentation(command, arg1, arg2)
+      end
+    end
+
+    # Execute 3-args command with optional instrumentation
+    def execute_3args_with_instrumentation(command, arg1, arg2, arg3)
+      if @instrumentation
+        call_with_instrumentation(command, [arg1, arg2, arg3])
+      else
+        call_3args_without_instrumentation(command, arg1, arg2, arg3)
+      end
+    end
 
     # Execute command with instrumentation
     def call_with_instrumentation(command, args)

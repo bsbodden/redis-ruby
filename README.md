@@ -193,6 +193,47 @@ end
 
 See [docs/guides/observability.md](https://redis.github.io/redis-ruby/guides/observability.html) for complete documentation.
 
+### Circuit Breaker and Health Checks
+
+Prevent cascading failures with built-in circuit breaker support:
+
+```ruby
+# Create a circuit breaker
+circuit_breaker = RR::CircuitBreaker.new(
+  failure_threshold: 5,        # Open after 5 consecutive failures
+  success_threshold: 2,        # Close after 2 consecutive successes
+  timeout: 60.0,               # Stay open for 60 seconds
+  half_open_timeout: 30.0      # Test recovery after 30 seconds
+)
+
+# Use with client
+redis = RR.new(circuit_breaker: circuit_breaker)
+
+# Health checks
+if redis.healthy?
+  puts "Redis is healthy"
+else
+  puts "Redis is unhealthy or circuit is open"
+end
+
+# Handle circuit breaker errors
+begin
+  redis.get("key")
+rescue RR::CircuitBreakerOpenError
+  # Circuit is open - use fallback
+  get_from_cache("key")
+end
+```
+
+**Features:**
+- Three states: CLOSED (normal), OPEN (failing), HALF_OPEN (testing recovery)
+- Automatic state transitions based on failures/successes
+- Health check methods with custom commands
+- Metrics and monitoring support
+- Works with both Client and PooledClient
+
+See [docs/guides/circuit-breaker.md](https://redis.github.io/redis-ruby/guides/circuit-breaker.html) for complete documentation.
+
 ### Redis Commands
 
 There is built-in support for all of the [out-of-the-box Redis commands](https://redis.io/commands). They are exposed using the raw Redis command names (`HSET`, `HGETALL`, etc.) in lowercase, except where a word (i.e. `del`) would conflict with Ruby keywords. The complete set of commands can be found in the [Command Reference](#command-reference) section.
