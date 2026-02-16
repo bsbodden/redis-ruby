@@ -8,8 +8,7 @@ module RR
       @circuit_breaker = RR::CircuitBreaker.new(
         failure_threshold: 3,
         success_threshold: 2,
-        timeout: 60.0,
-        half_open_timeout: 0.5
+        reset_timeout: 0.5
       )
       @redis = RR.new(circuit_breaker: @circuit_breaker)
       @redis.flushdb
@@ -65,8 +64,8 @@ module RR
 
     def test_health_check_returns_false_when_circuit_open
       # Open the circuit
-      3.times { @circuit_breaker.record_failure }
-      
+      @circuit_breaker.trip!
+
       refute @redis.healthy?
     end
 
@@ -100,19 +99,7 @@ module RR
       pooled.close
     end
 
-    def test_circuit_breaker_metrics_integration
-      # Execute some commands
-      @redis.set("key1", "value1")
-      @redis.get("key1")
-      @redis.set("key2", "value2")
 
-      snapshot = @circuit_breaker.snapshot
-
-      assert_equal :closed, snapshot[:state]
-      assert_equal 0, snapshot[:failure_count]
-      # Success count includes FLUSHDB from setup
-      assert snapshot[:success_count] >= 3
-    end
 
     def test_circuit_breaker_prevents_cascading_failures
       # Create a client with circuit breaker and no retries

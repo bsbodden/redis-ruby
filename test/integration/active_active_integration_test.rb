@@ -129,21 +129,6 @@ class ActiveActiveIntegrationTest < Minitest::Test
     client.close
   end
 
-  def test_with_authentication
-    skip "Requires Redis with authentication configured"
-
-    client = RR.active_active(
-      regions: @regions,
-      password: "test_password"
-    )
-
-    key = "active_active:auth:#{SecureRandom.hex(8)}"
-    client.set(key, "authenticated")
-    assert_equal "authenticated", client.get(key)
-    client.del(key)
-    client.close
-  end
-
   def test_crdt_semantics_note
     # Note: This test documents CRDT behavior but doesn't test it
     # because we're using a single Redis instance, not a true Active-Active database

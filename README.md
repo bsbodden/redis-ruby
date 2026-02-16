@@ -442,14 +442,17 @@ redis = RR.dns(
   dns_strategy: :round_robin  # or :random
 )
 
-# Active-Active geo-distributed databases with CRDTs
+# Active-Active geo-distributed databases with CRDTs (Production-Ready)
 redis = RR.active_active(
   regions: [
-    { host: "redis-us-east.example.com", port: 6379 },
-    { host: "redis-eu-west.example.com", port: 6379 },
-    { host: "redis-ap-south.example.com", port: 6379 }
+    { host: "redis-us-east.example.com", port: 6379, weight: 1.0 },
+    { host: "redis-eu-west.example.com", port: 6379, weight: 0.8 },
+    { host: "redis-ap-south.example.com", port: 6379, weight: 0.5 }
   ],
-  preferred_region: 0  # Start with first region
+  preferred_region: 0,              # Start with first region
+  health_check_interval: 5.0,       # Background health checks
+  circuit_breaker_threshold: 5,     # Circuit breaker protection
+  auto_fallback_interval: 30.0      # Auto-fallback to preferred region
 )
 
 # Async - fiber-aware for concurrent operations
