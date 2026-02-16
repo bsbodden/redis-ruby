@@ -127,6 +127,35 @@ module RR
     def cluster(nodes:, **kwargs)
       ClusterClient.new(nodes: nodes, **kwargs)
     end
+
+    # Create a Redis Enterprise Discovery Service client
+    #
+    # Automatically discovers and connects to Redis Enterprise databases
+    # through the Discovery Service running on port 8001.
+    #
+    # @param nodes [Array<Hash>] Discovery service nodes with :host and optional :port
+    # @param database_name [String] Name of the database to discover
+    # @param kwargs [Hash] Additional connection options (internal, password, db, etc.)
+    # @return [RR::DiscoveryServiceClient]
+    # @example
+    #   client = RR.discovery(
+    #     nodes: [
+    #       { host: "node1.redis.example.com", port: 8001 },
+    #       { host: "node2.redis.example.com", port: 8001 }
+    #     ],
+    #     database_name: "my-database"
+    #   )
+    #   client.set("key", "value")
+    #
+    # @example Internal endpoint
+    #   client = RR.discovery(
+    #     nodes: [{ host: "node1.redis.example.com" }],
+    #     database_name: "my-database",
+    #     internal: true
+    #   )
+    def discovery(nodes:, database_name:, **kwargs)
+      DiscoveryServiceClient.new(nodes: nodes, database_name: database_name, **kwargs)
+    end
   end
 end
 
@@ -151,6 +180,7 @@ require_relative "redis_ruby/utils/yjit_monitor"
 require_relative "redis_ruby/retry"
 require_relative "redis_ruby/instrumentation"
 require_relative "redis_ruby/circuit_breaker"
+require_relative "redis_ruby/discovery_service"
 
 # Commands layer (shared by sync/async clients)
 require_relative "redis_ruby/commands/strings"
@@ -193,3 +223,4 @@ require_relative "redis_ruby/pooled_client"
 require_relative "redis_ruby/async_pooled_client"
 require_relative "redis_ruby/sentinel_client"
 require_relative "redis_ruby/cluster_client"
+require_relative "redis_ruby/discovery_service_client"

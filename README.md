@@ -429,6 +429,12 @@ redis = RR.cluster(
   nodes: ["redis://node1:6379", "redis://node2:6379", "redis://node3:6379"]
 )
 
+# Redis Enterprise Discovery Service - automatic endpoint discovery
+redis = RR.discovery(
+  nodes: [{ host: "node1.redis.example.com", port: 8001 }],
+  database_name: "my-database"
+)
+
 # Async - fiber-aware for concurrent operations
 Async do
   redis = RR.async(url: "redis://localhost:6379")
