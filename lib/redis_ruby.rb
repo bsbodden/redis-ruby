@@ -156,6 +156,31 @@ module RR
     def discovery(nodes:, database_name:, **kwargs)
       DiscoveryServiceClient.new(nodes: nodes, database_name: database_name, **kwargs)
     end
+
+    # Create a DNS-aware Redis client with load balancing
+    #
+    # Resolves a hostname to multiple IP addresses and uses a load balancing
+    # strategy (round-robin or random) to distribute connections.
+    #
+    # @param hostname [String] Hostname to resolve (must resolve to one or more IPs)
+    # @param kwargs [Hash] Additional connection options (port, dns_strategy, password, etc.)
+    # @return [RR::DNSClient]
+    # @example
+    #   client = RR.dns(
+    #     hostname: "redis.example.com",
+    #     port: 6379
+    #   )
+    #   client.set("key", "value")
+    #
+    # @example With custom strategy
+    #   client = RR.dns(
+    #     hostname: "redis.example.com",
+    #     port: 6379,
+    #     dns_strategy: :random  # or :round_robin (default)
+    #   )
+    def dns(hostname:, **kwargs)
+      DNSClient.new(hostname: hostname, **kwargs)
+    end
   end
 end
 
@@ -181,6 +206,7 @@ require_relative "redis_ruby/retry"
 require_relative "redis_ruby/instrumentation"
 require_relative "redis_ruby/circuit_breaker"
 require_relative "redis_ruby/discovery_service"
+require_relative "redis_ruby/dns_resolver"
 
 # Commands layer (shared by sync/async clients)
 require_relative "redis_ruby/commands/strings"
@@ -224,3 +250,4 @@ require_relative "redis_ruby/async_pooled_client"
 require_relative "redis_ruby/sentinel_client"
 require_relative "redis_ruby/cluster_client"
 require_relative "redis_ruby/discovery_service_client"
+require_relative "redis_ruby/dns_client"

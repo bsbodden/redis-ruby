@@ -435,6 +435,13 @@ redis = RR.discovery(
   database_name: "my-database"
 )
 
+# DNS-based load balancing - multiple A records with round-robin
+redis = RR.dns(
+  hostname: "redis.example.com",
+  port: 6379,
+  dns_strategy: :round_robin  # or :random
+)
+
 # Async - fiber-aware for concurrent operations
 Async do
   redis = RR.async(url: "redis://localhost:6379")
