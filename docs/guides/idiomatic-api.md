@@ -94,10 +94,10 @@ redis.hash("user:1").increment(:age, 1)
 
 ### Sorted Sets
 
-The `sorted_set` method returns a chainable proxy for sorted set operations:
+The `sset` method returns a chainable proxy for sorted set operations:
 
 ```ruby
-leaderboard = redis.sorted_set("game:leaderboard")
+leaderboard = redis.sset("game:leaderboard")
 
 # Add members with scores
 leaderboard.add(alice: 100, bob: 85, charlie: 92)
@@ -354,10 +354,10 @@ results = locations.search(-122.4, 37.8, 100, :km,
 
 ## HyperLogLog
 
-The `hyperloglog` method returns a chainable proxy for HyperLogLog operations:
+The `hll` method returns a chainable proxy for HyperLogLog operations:
 
 ```ruby
-visitors = redis.hyperloglog("page:visitors")
+visitors = redis.hll("page:visitors")
 
 # Add elements (chainable)
 visitors.add("user1", "user2", "user3")
@@ -367,9 +367,9 @@ visitors.add("user4").add("user5")
 visitors.count                                # => 5
 
 # Merge multiple HyperLogLogs
-page1 = redis.hyperloglog("page1:visitors")
-page2 = redis.hyperloglog("page2:visitors")
-total = redis.hyperloglog("total:visitors")
+page1 = redis.hll("page1:visitors")
+page2 = redis.hll("page2:visitors")
+total = redis.hll("total:visitors")
 
 page1.add("user1", "user2")
 page2.add("user2", "user3")
@@ -556,10 +556,10 @@ info = topk.info
 
 ### Creating Indexes with DSL
 
-The `search_index` method provides a block-based DSL for creating search indexes:
+The `index` method provides a block-based DSL for creating search indexes:
 
 ```ruby
-redis.search_index("products") do
+redis.index("products") do
   on :hash
   prefix "product:"
   
@@ -1030,7 +1030,7 @@ redis.geoadd("cities", -122.4194, 37.7749, "san_francisco")
 **After (idiomatic):**
 ```ruby
 redis.hash("user:1").set(name: "Alice", age: 30)
-redis.sorted_set("leaderboard").add(alice: 100, bob: 85)
+redis.sset("leaderboard").add(alice: 100, bob: 85)
 redis.geo("cities").add(san_francisco: [-122.4194, 37.7749])
 ```
 
@@ -1060,7 +1060,7 @@ All data structures follow the same patterns:
 
 ### Core Data Structures
 - ✅ **Hashes** - `redis.hash(key)`
-- ✅ **Sorted Sets** - `redis.sorted_set(key)`
+- ✅ **Sorted Sets** - `redis.sset(key)`
 - ✅ **Lists** - `redis.list(key)`
 - ✅ **Sets** - `redis.redis_set(key)`
 - ✅ **Strings** - `redis.string(key)`
@@ -1068,7 +1068,7 @@ All data structures follow the same patterns:
 
 ### Geospatial & Specialized
 - ✅ **Geo** - `redis.geo(key)`
-- ✅ **HyperLogLog** - `redis.hyperloglog(key)`
+- ✅ **HyperLogLog** - `redis.hll(key)`
 - ✅ **Bitmaps** - `redis.bitmap(key)`
 
 ### Probabilistic
@@ -1078,7 +1078,7 @@ All data structures follow the same patterns:
 - ✅ **Top-K** - `redis.topk(key)`
 
 ### Advanced Features
-- ✅ **Search** - `redis.search_index(name)`, `redis.search(index)`
+- ✅ **Search** - `redis.index(name)`, `redis.search(index)`
 - ✅ **JSON** - `redis.json(key)`
 - ✅ **Time Series** - `redis.time_series(key)`, `redis.ts(key)`, `redis.ts_query`
 - ✅ **Vector Sets** - `redis.vectors(key)`

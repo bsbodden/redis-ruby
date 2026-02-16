@@ -43,14 +43,14 @@ module RedisRuby
       #   weekly.merge("visitors:day1", "visitors:day2", "visitors:day3")
       #
       # @see RedisRuby::DSL::HyperLogLogProxy
-      def hyperloglog(*key_parts)
+      def hll(*key_parts)
         DSL::HyperLogLogProxy.new(self, *key_parts)
       end
 
-      # Alias for {#hyperloglog}
+      # Alias for {#hll}
       #
-      # @see #hyperloglog
-      alias hll hyperloglog
+      # @see #hll
+      alias hyperloglog hll
 
       # ============================================================
       # Low-Level Commands

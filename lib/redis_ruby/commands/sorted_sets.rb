@@ -23,12 +23,17 @@ module RedisRuby
       #   top_players = leaderboard.top(10, with_scores: true)
       #
       # @example Priority queue
-      #   queue = redis.sorted_set(:tasks, :priority)
+      #   queue = redis.sset(:tasks, :priority)
       #   queue.add(urgent: 1, normal: 5)
       #   next_task = queue.pop_min
-      def sorted_set(*key_parts)
+      def sset(*key_parts)
         DSL::SortedSetProxy.new(self, *key_parts)
       end
+
+      # Alias for {#sset}
+      #
+      # @see #sset
+      alias sorted_set sset
 
       # ============================================================
       # Low-Level Commands

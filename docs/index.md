@@ -117,11 +117,11 @@ redis.geoadd("cities", -122.4, 37.7, "sf")
 
 # Idiomatic API - Fluent, chainable, Ruby-esque
 redis.hash("user:1").set(name: "Alice", age: 30)
-redis.sorted_set("leaderboard").add(alice: 100, bob: 85)
+redis.sset("leaderboard").add(alice: 100, bob: 85)
 redis.geo("cities").add(sf: [-122.4, 37.7])
 
 # Advanced features with DSL
-redis.search_index("products") do
+redis.index("products") do
   on :hash
   prefix "product:"
   text :name, sortable: true

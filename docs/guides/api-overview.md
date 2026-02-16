@@ -50,7 +50,7 @@ Fluent, chainable interface with Ruby conventions - discoverable, readable, and 
 # Idiomatic Ruby API
 redis.string("key").set("value")
 redis.hash("user:1").set(name: "Alice", age: 30)
-redis.sorted_set("leaderboard").add(alice: 100, bob: 85)
+redis.sset("leaderboard").add(alice: 100, bob: 85)
 redis.list("queue").push("job1", "job2")
 ```
 
@@ -115,10 +115,10 @@ Both APIs work side-by-side on the same client instance. Mix and match as needed
 
 | Low-Level API | Idiomatic API |
 |:--------------|:--------------|
-| `redis.zadd("lb", 100, "alice")` | `redis.sorted_set("lb").add(alice: 100)` |
-| `redis.zscore("lb", "alice")` | `redis.sorted_set("lb").score(:alice)` |
-| `redis.zrange("lb", 0, 9)` | `redis.sorted_set("lb").range(0, 9)` |
-| `redis.zincrby("lb", 10, "alice")` | `redis.sorted_set("lb").increment(:alice, 10)` |
+| `redis.zadd("lb", 100, "alice")` | `redis.sset("lb").add(alice: 100)` |
+| `redis.zscore("lb", "alice")` | `redis.sset("lb").score(:alice)` |
+| `redis.zrange("lb", 0, 9)` | `redis.sset("lb").range(0, 9)` |
+| `redis.zincrby("lb", 10, "alice")` | `redis.sset("lb").increment(:alice, 10)` |
 
 [View Sorted Set DSL →](/redis-ruby/guides/idiomatic-api/#sorted-sets)
 
@@ -141,9 +141,9 @@ Both APIs work side-by-side on the same client instance. Mix and match as needed
 
 | Low-Level API | Idiomatic API |
 |:--------------|:--------------|
-| `redis.pfadd("visitors", "user1")` | `redis.hyperloglog("visitors").add("user1")` |
-| `redis.pfcount("visitors")` | `redis.hyperloglog("visitors").count` |
-| `redis.pfmerge("total", "v1", "v2")` | `redis.hyperloglog("total").merge("v1", "v2")` |
+| `redis.pfadd("visitors", "user1")` | `redis.hll("visitors").add("user1")` |
+| `redis.pfcount("visitors")` | `redis.hll("visitors").count` |
+| `redis.pfmerge("total", "v1", "v2")` | `redis.hll("total").merge("v1", "v2")` |
 
 [View HyperLogLog DSL →](/redis-ruby/guides/idiomatic-api/#hyperloglog)
 
@@ -236,7 +236,7 @@ redis.ft_create("products",
     "price", "NUMERIC", "SORTABLE")
 
 # Idiomatic: Clean DSL
-redis.search_index("products") do
+redis.index("products") do
   on :hash
   prefix "product:"
   text :name, sortable: true
@@ -351,7 +351,7 @@ redis.hash("user:1").get(:name)
 redis.hash("user:1").get("name")
 
 # Symbols are more idiomatic
-redis.sorted_set("leaderboard").add(alice: 100)
+redis.sset("leaderboard").add(alice: 100)
 ```
 
 ### Method Chaining

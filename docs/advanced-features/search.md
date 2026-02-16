@@ -37,7 +37,7 @@ Both APIs are fully supported and can be used interchangeably. The idiomatic API
 
 ```ruby
 # Create an index using DSL
-redis.search_index(:products) do
+redis.index(:products) do
   on :hash
   prefix "product:"
 
@@ -77,7 +77,7 @@ redis.ft_create("products",
 
 ```ruby
 # Create an index on JSON documents
-redis.search_index(:users) do
+redis.index(:users) do
   on :json
   prefix "user:"
 

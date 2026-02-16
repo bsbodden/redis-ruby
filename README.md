@@ -343,9 +343,9 @@ redis.hash("user:1").get(:name)                    # => "Alice"
 redis.hash("user:1").increment(:age, 1)            # => 31
 
 # Sorted Sets - Symbol-based members
-redis.sorted_set("leaderboard").add(alice: 100, bob: 85)
-redis.sorted_set("leaderboard").score(:alice)      # => 100.0
-redis.sorted_set("leaderboard").range(0, 2)        # Top 3
+redis.sset("leaderboard").add(alice: 100, bob: 85)
+redis.sset("leaderboard").score(:alice)      # => 100.0
+redis.sset("leaderboard").range(0, 2)        # Top 3
 
 # Lists - Fluent operations
 redis.list("queue").push("job1", "job2", "job3")
@@ -367,8 +367,8 @@ redis.geo("cities").add(sf: [-122.4, 37.7], nyc: [-74.0, 40.7])
 redis.geo("cities").distance(:sf, :nyc, unit: :mi) # => 2565.88
 
 # HyperLogLog - Chainable operations
-redis.hyperloglog("visitors").add("user1", "user2")
-redis.hyperloglog("visitors").count                # => 2
+redis.hll("visitors").add("user1", "user2")
+redis.hll("visitors").count                # => 2
 
 # Bitmaps - Fluent bit operations
 redis.bitmap("attendance").set_bit(0, 1).set_bit(1, 1)
@@ -387,7 +387,7 @@ See the [API Overview](https://redis.github.io/redis-ruby/guides/api-overview/) 
 
 ```ruby
 # Create index with DSL
-redis.search_index("products") do
+redis.index("products") do
   on :hash
   prefix "product:"
 

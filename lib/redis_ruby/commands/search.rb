@@ -484,7 +484,7 @@ module RedisRuby
       # @return [String] "OK"
       #
       # @example Create index with DSL
-      #   redis.search_index(:products) do
+      #   redis.index(:products) do
       #     on :hash
       #     prefix "product:"
       #     schema do
@@ -493,11 +493,16 @@ module RedisRuby
       #       tag :category
       #     end
       #   end
-      def search_index(index_name, &block)
+      def index(index_name, &block)
         builder = RedisRuby::DSL::SearchIndexBuilder.new(index_name, self)
         builder.instance_eval(&block)
         builder.create
       end
+
+      # Alias for {#index}
+      #
+      # @see #index
+      alias search_index index
 
       # Create a fluent search query builder
       #
