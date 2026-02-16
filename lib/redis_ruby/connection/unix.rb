@@ -166,7 +166,7 @@ module RR
           path: @path,
           timestamp: Time.now
         })
-      rescue Errno::ENOENT => e
+      rescue Errno::ENOENT
         error = ConnectionError.new("Unix socket not found: #{@path}")
         trigger_callbacks(:error, {
           type: :error,
@@ -175,7 +175,7 @@ module RR
           timestamp: Time.now
         })
         raise error
-      rescue Errno::EACCES => e
+      rescue Errno::EACCES
         error = ConnectionError.new("Permission denied for Unix socket: #{@path}")
         trigger_callbacks(:error, {
           type: :error,
@@ -184,7 +184,7 @@ module RR
           timestamp: Time.now
         })
         raise error
-      rescue Errno::ECONNREFUSED => e
+      rescue Errno::ECONNREFUSED
         error = ConnectionError.new("Connection refused for Unix socket: #{@path}")
         trigger_callbacks(:error, {
           type: :error,

@@ -67,7 +67,7 @@ module RR
         result = yield
         record_success
         result
-      rescue => e
+      rescue StandardError
         record_failure
         raise
       end
