@@ -58,8 +58,9 @@ module RR
     # @param password [String, nil] Redis password
     # @param timeout [Float] Connection timeout in seconds
     # @param pool [Hash] Pool options (:size, :timeout)
+    # @param instrumentation [RR::Instrumentation, nil] Instrumentation instance for metrics
     def initialize(url: nil, host: DEFAULT_HOST, port: DEFAULT_PORT, db: DEFAULT_DB,
-                   password: nil, timeout: DEFAULT_TIMEOUT, pool: {})
+                   password: nil, timeout: DEFAULT_TIMEOUT, pool: {}, instrumentation: nil)
       # Initialize ALL instance variables upfront for consistent object shapes (YJIT optimization)
       @host = host
       @port = port
@@ -67,6 +68,7 @@ module RR
       @password = password
       @timeout = timeout
       @pool = nil
+      @instrumentation = instrumentation
 
       # Override from URL if provided
       parse_url(url) if url
@@ -93,44 +95,40 @@ module RR
     # @param args [Array] Command arguments
     # @return [Object] Command result
     def call(command, *args)
-      @pool.with do |conn|
-        result = conn.call(command, *args)
-        raise result if result.is_a?(CommandError)
-
-        result
+      if @instrumentation
+        call_with_instrumentation(command, args)
+      else
+        call_without_instrumentation(command, args)
       end
     end
 
     # Fast path for single-argument commands (GET, DEL, EXISTS, etc.)
     # @api private
     def call_1arg(command, arg)
-      @pool.with do |conn|
-        result = conn.call_1arg(command, arg)
-        raise result if result.is_a?(CommandError)
-
-        result
+      if @instrumentation
+        call_with_instrumentation(command, [arg])
+      else
+        call_1arg_without_instrumentation(command, arg)
       end
     end
 
     # Fast path for two-argument commands (SET without options, HGET, etc.)
     # @api private
     def call_2args(command, arg1, arg2)
-      @pool.with do |conn|
-        result = conn.call_2args(command, arg1, arg2)
-        raise result if result.is_a?(CommandError)
-
-        result
+      if @instrumentation
+        call_with_instrumentation(command, [arg1, arg2])
+      else
+        call_2args_without_instrumentation(command, arg1, arg2)
       end
     end
 
     # Fast path for three-argument commands (HSET, LRANGE, etc.)
     # @api private
     def call_3args(command, arg1, arg2, arg3)
-      @pool.with do |conn|
-        result = conn.call_3args(command, arg1, arg2, arg3)
-        raise result if result.is_a?(CommandError)
-
-        result
+      if @instrumentation
+        call_with_instrumentation(command, [arg1, arg2, arg3])
+      else
+        call_3args_without_instrumentation(command, arg1, arg2, arg3)
       end
     end
 
@@ -165,6 +163,68 @@ module RR
     # @return [Integer]
     def pool_available
       @pool.available
+    end
+
+    private
+
+    # Execute command with instrumentation
+    def call_with_instrumentation(command, args)
+      # Trigger before callbacks
+      @instrumentation.before_callbacks.each { |cb| cb.call(command, args) }
+
+      start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      error = nil
+
+      begin
+        result = call_without_instrumentation(command, args)
+      rescue => e
+        error = e
+        raise
+      ensure
+        duration = Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time
+        @instrumentation.record_command(command, duration, error: error)
+        @instrumentation.after_callbacks.each { |cb| cb.call(command, args, duration) }
+      end
+
+      result
+    end
+
+    # Execute command without instrumentation
+    def call_without_instrumentation(command, args)
+      @pool.with do |conn|
+        result = conn.call(command, *args)
+        raise result if result.is_a?(CommandError)
+
+        result
+      end
+    end
+
+    # Fast path without instrumentation
+    def call_1arg_without_instrumentation(command, arg)
+      @pool.with do |conn|
+        result = conn.call_1arg(command, arg)
+        raise result if result.is_a?(CommandError)
+
+        result
+      end
+    end
+
+    def call_2args_without_instrumentation(command, arg1, arg2)
+      @pool.with do |conn|
+        result = conn.call_2args(command, arg1, arg2)
+        raise result if result.is_a?(CommandError)
+
+        result
+      end
+    end
+
+    def call_3args_without_instrumentation(command, arg1, arg2, arg3)
+      @pool.with do |conn|
+        result = conn.call_3args(command, arg1, arg2, arg3)
+        raise result if result.is_a?(CommandError)
+
+        result
+      end
     end
   end
 end

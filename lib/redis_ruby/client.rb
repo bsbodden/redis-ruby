@@ -74,10 +74,11 @@ module RR
     # @param reconnect_attempts [Integer] Shorthand for retry count (creates default policy)
     # @param decode_responses [Boolean] Auto-decode binary responses to the specified encoding
     # @param encoding [String] Encoding for decoded responses (default: "UTF-8")
+    # @param instrumentation [RR::Instrumentation, nil] Instrumentation instance for metrics
     def initialize(url: nil, host: DEFAULT_HOST, port: DEFAULT_PORT, path: nil,
                    db: DEFAULT_DB, password: nil, username: nil, timeout: DEFAULT_TIMEOUT,
                    ssl: false, ssl_params: {}, retry_policy: nil, reconnect_attempts: 0,
-                   decode_responses: false, encoding: "UTF-8")
+                   decode_responses: false, encoding: "UTF-8", instrumentation: nil)
       @host = host
       @port = port
       @path = path
@@ -90,6 +91,7 @@ module RR
       @connection = nil
       @decode_responses = decode_responses
       @encoding = encoding
+      @instrumentation = instrumentation
 
       parse_url(url) if url
 
@@ -102,48 +104,40 @@ module RR
     # @param args [Array] Command arguments
     # @return [Object] Command result
     def call(command, *args)
-      @retry_policy.call do
-        ensure_connected
-        result = @connection.call_direct(command, *args)
-        raise result if result.is_a?(CommandError)
-
-        @decode_responses ? decode_result(result) : result
+      if @instrumentation
+        call_with_instrumentation(command, args)
+      else
+        call_without_instrumentation(command, args)
       end
     end
 
     # Fast path for single-argument commands (GET, DEL, EXISTS, etc.)
     # @api private
     def call_1arg(command, arg)
-      @retry_policy.call do
-        ensure_connected
-        result = @connection.call_1arg(command, arg)
-        raise result if result.is_a?(CommandError)
-
-        @decode_responses ? decode_result(result) : result
+      if @instrumentation
+        call_with_instrumentation(command, [arg])
+      else
+        call_1arg_without_instrumentation(command, arg)
       end
     end
 
     # Fast path for two-argument commands (HGET, simple SET, etc.)
     # @api private
     def call_2args(command, arg1, arg2)
-      @retry_policy.call do
-        ensure_connected
-        result = @connection.call_2args(command, arg1, arg2)
-        raise result if result.is_a?(CommandError)
-
-        @decode_responses ? decode_result(result) : result
+      if @instrumentation
+        call_with_instrumentation(command, [arg1, arg2])
+      else
+        call_2args_without_instrumentation(command, arg1, arg2)
       end
     end
 
     # Fast path for three-argument commands (HSET, etc.)
     # @api private
     def call_3args(command, arg1, arg2, arg3)
-      @retry_policy.call do
-        ensure_connected
-        result = @connection.call_3args(command, arg1, arg2, arg3)
-        raise result if result.is_a?(CommandError)
-
-        @decode_responses ? decode_result(result) : result
+      if @instrumentation
+        call_with_instrumentation(command, [arg1, arg2, arg3])
+      else
+        call_3args_without_instrumentation(command, arg1, arg2, arg3)
       end
     end
 
@@ -242,6 +236,70 @@ module RR
     end
 
     private
+
+    # Execute command with instrumentation
+    def call_with_instrumentation(command, args)
+      # Trigger before callbacks
+      @instrumentation.before_callbacks.each { |cb| cb.call(command, args) }
+
+      start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      error = nil
+
+      begin
+        result = call_without_instrumentation(command, args)
+      rescue => e
+        error = e
+        raise
+      ensure
+        duration = Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time
+        @instrumentation.record_command(command, duration, error: error)
+        @instrumentation.after_callbacks.each { |cb| cb.call(command, args, duration) }
+      end
+
+      result
+    end
+
+    # Execute command without instrumentation
+    def call_without_instrumentation(command, args)
+      @retry_policy.call do
+        ensure_connected
+        result = @connection.call_direct(command, *args)
+        raise result if result.is_a?(CommandError)
+
+        @decode_responses ? decode_result(result) : result
+      end
+    end
+
+    # Fast path without instrumentation
+    def call_1arg_without_instrumentation(command, arg)
+      @retry_policy.call do
+        ensure_connected
+        result = @connection.call_1arg(command, arg)
+        raise result if result.is_a?(CommandError)
+
+        @decode_responses ? decode_result(result) : result
+      end
+    end
+
+    def call_2args_without_instrumentation(command, arg1, arg2)
+      @retry_policy.call do
+        ensure_connected
+        result = @connection.call_2args(command, arg1, arg2)
+        raise result if result.is_a?(CommandError)
+
+        @decode_responses ? decode_result(result) : result
+      end
+    end
+
+    def call_3args_without_instrumentation(command, arg1, arg2, arg3)
+      @retry_policy.call do
+        ensure_connected
+        result = @connection.call_3args(command, arg1, arg2, arg3)
+        raise result if result.is_a?(CommandError)
+
+        @decode_responses ? decode_result(result) : result
+      end
+    end
 
     # Decode a result to the configured encoding
     def decode_result(result)

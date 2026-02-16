@@ -153,6 +153,46 @@ end
 
 Alternatively, you might want to look at [Async connections](#topologies), or [Cluster connections](#topologies), or even Async Cluster connections.
 
+### Observability & Metrics
+
+redis-ruby provides built-in instrumentation for monitoring Redis operations in production:
+
+```ruby
+# Create instrumentation instance
+instrumentation = RR::Instrumentation.new
+
+# Pass to client
+redis = RR.new(instrumentation: instrumentation)
+
+# Execute commands
+redis.set("user:1", "Alice")
+redis.get("user:1")
+
+# Get metrics
+instrumentation.command_count                    # => 2
+instrumentation.command_count_by_name("SET")     # => 1
+instrumentation.average_latency("GET")           # => 0.001234 (seconds)
+
+# Export metrics snapshot
+snapshot = instrumentation.snapshot
+# => { total_commands: 2, total_errors: 0, commands: {...}, errors: {} }
+
+# Hook into command lifecycle
+instrumentation.after_command do |command, args, duration|
+  logger.warn("Slow command: #{command}") if duration > 0.1
+end
+```
+
+**Features:**
+- Command count and latency tracking
+- Error tracking by type
+- Before/after command callbacks
+- Thread-safe metrics collection
+- Zero overhead when disabled
+- Prometheus/OpenTelemetry integration examples
+
+See [docs/guides/observability.md](https://redis.github.io/redis-ruby/guides/observability.html) for complete documentation.
+
 ### Redis Commands
 
 There is built-in support for all of the [out-of-the-box Redis commands](https://redis.io/commands). They are exposed using the raw Redis command names (`HSET`, `HGETALL`, etc.) in lowercase, except where a word (i.e. `del`) would conflict with Ruby keywords. The complete set of commands can be found in the [Command Reference](#command-reference) section.
