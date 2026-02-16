@@ -12,7 +12,7 @@ class ConnectionPoolTest < Minitest::Test
   def test_pool_initialization_with_defaults
     TCPSocket.stubs(:new).returns(@mock_socket)
 
-    pool = RedisRuby::Connection::Pool.new(host: "localhost", port: 6379)
+    pool = RR::Connection::Pool.new(host: "localhost", port: 6379)
 
     assert_equal 5, pool.size
     assert_equal 5, pool.timeout
@@ -21,7 +21,7 @@ class ConnectionPoolTest < Minitest::Test
   def test_pool_initialization_with_custom_size
     TCPSocket.stubs(:new).returns(@mock_socket)
 
-    pool = RedisRuby::Connection::Pool.new(host: "localhost", port: 6379, size: 10)
+    pool = RR::Connection::Pool.new(host: "localhost", port: 6379, size: 10)
 
     assert_equal 10, pool.size
   end
@@ -29,7 +29,7 @@ class ConnectionPoolTest < Minitest::Test
   def test_pool_initialization_with_custom_timeout
     TCPSocket.stubs(:new).returns(@mock_socket)
 
-    pool = RedisRuby::Connection::Pool.new(host: "localhost", port: 6379, pool_timeout: 10)
+    pool = RR::Connection::Pool.new(host: "localhost", port: 6379, pool_timeout: 10)
 
     assert_equal 10, pool.timeout
   end
@@ -38,7 +38,7 @@ class ConnectionPoolTest < Minitest::Test
     TCPSocket.stubs(:new).returns(@mock_socket)
     setup_ping_response
 
-    pool = RedisRuby::Connection::Pool.new(host: "localhost", port: 6379)
+    pool = RR::Connection::Pool.new(host: "localhost", port: 6379)
 
     result = pool.with do |conn|
       conn.call("PING")
@@ -51,7 +51,7 @@ class ConnectionPoolTest < Minitest::Test
     TCPSocket.stubs(:new).returns(@mock_socket)
     @mock_socket.stubs(:closed?).returns(false)
 
-    pool = RedisRuby::Connection::Pool.new(host: "localhost", port: 6379, size: 1)
+    pool = RR::Connection::Pool.new(host: "localhost", port: 6379, size: 1)
 
     # First checkout
     conn1 = nil
@@ -68,24 +68,24 @@ class ConnectionPoolTest < Minitest::Test
     # TCPSocket.new should not be called until we checkout
     TCPSocket.expects(:new).never
 
-    _pool = RedisRuby::Connection::Pool.new(host: "localhost", port: 6379, size: 5)
+    _pool = RR::Connection::Pool.new(host: "localhost", port: 6379, size: 5)
     # No assertions needed - just verifying TCPSocket.new wasn't called
   end
 
   def test_pool_creates_connection_on_first_checkout
     TCPSocket.expects(:new).once.returns(@mock_socket)
 
-    pool = RedisRuby::Connection::Pool.new(host: "localhost", port: 6379, size: 5)
+    pool = RR::Connection::Pool.new(host: "localhost", port: 6379, size: 5)
     pool.with { |_conn| }
   end
 
   def test_pool_checkout_returns_connection
     TCPSocket.stubs(:new).returns(@mock_socket)
 
-    pool = RedisRuby::Connection::Pool.new(host: "localhost", port: 6379)
+    pool = RR::Connection::Pool.new(host: "localhost", port: 6379)
 
     pool.with do |conn|
-      assert_instance_of RedisRuby::Connection::TCP, conn
+      assert_instance_of RR::Connection::TCP, conn
     end
   end
 
@@ -93,7 +93,7 @@ class ConnectionPoolTest < Minitest::Test
     TCPSocket.stubs(:new).returns(@mock_socket)
     @mock_socket.stubs(:closed?).returns(false)
 
-    pool = RedisRuby::Connection::Pool.new(host: "localhost", port: 6379, size: 2)
+    pool = RR::Connection::Pool.new(host: "localhost", port: 6379, size: 2)
 
     # Create connections by checking them out
     pool.with { |_| }
@@ -107,7 +107,7 @@ class ConnectionPoolTest < Minitest::Test
     TCPSocket.stubs(:new).returns(@mock_socket)
     @mock_socket.stubs(:closed?).returns(false)
 
-    pool = RedisRuby::Connection::Pool.new(host: "localhost", port: 6379, size: 3)
+    pool = RR::Connection::Pool.new(host: "localhost", port: 6379, size: 3)
 
     assert_equal 3, pool.available
   end

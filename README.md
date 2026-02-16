@@ -91,9 +91,9 @@ redis-ruby is tested against the following Redis versions:
 ### Basic Example
 
 ```ruby
-require "redis_ruby"
+require "redis_ruby"  # Native RR API
 
-redis = RedisRuby.new(url: "redis://localhost:6379")
+redis = RR.new(url: "redis://localhost:6379")
 
 redis.set("foo", "bar")
 redis.get("foo")  # => "bar"
@@ -109,26 +109,26 @@ redis-ruby uses RESP3 (Redis Serialization Protocol version 3) by default, which
 
 ```ruby
 # RESP3 is enabled by default
-redis = RedisRuby.new(url: "redis://localhost:6379")
+redis = RR.new(url: "redis://localhost:6379")
 
 # To use RESP2 (for compatibility with older Redis versions)
-redis = RedisRuby.new(url: "redis://localhost:6379", protocol: 2)
+redis = RR.new(url: "redis://localhost:6379", protocol: 2)
 ```
 
 ### Connection Options
 
 ```ruby
 # Standard TCP
-redis = RedisRuby.new(url: "redis://localhost:6379")
+redis = RR.new(url: "redis://localhost:6379")
 
 # TLS (Redis Cloud, production)
-redis = RedisRuby.new(url: "rediss://user:pass@host:port")
+redis = RR.new(url: "rediss://user:pass@host:port")
 
 # Unix socket
-redis = RedisRuby.new(path: "/var/run/redis.sock")
+redis = RR.new(path: "/var/run/redis.sock")
 
 # With options
-redis = RedisRuby.new(
+redis = RR.new(
   url: "redis://localhost:6379",
   db: 0,
   timeout: 5.0,
@@ -138,15 +138,15 @@ redis = RedisRuby.new(
 
 ### Connection Pools
 
-By default, redis-ruby uses a connection pool to manage connections. Each instance of a RedisRuby class receives its own connection pool. You can however define your own connection pool:
+By default, redis-ruby uses a connection pool to manage connections. Each instance of a RR class receives its own connection pool. You can however define your own connection pool:
 
 ```ruby
 # Thread-safe pooled client
-redis = RedisRuby.pooled(url: "redis://localhost:6379", pool: { size: 10 })
+redis = RR.pooled(url: "redis://localhost:6379", pool: { size: 10 })
 
 # Async fiber-safe pool
 Async do
-  redis = RedisRuby.async_pooled(url: "redis://localhost:6379", pool: { limit: 10 })
+  redis = RR.async_pooled(url: "redis://localhost:6379", pool: { limit: 10 })
   redis.set("key", "value")
 end
 ```
@@ -248,7 +248,7 @@ end
 ### Distributed Locks
 
 ```ruby
-lock = RedisRuby::Lock.new(redis, "resource:1", timeout: 30)
+lock = RR::Lock.new(redis, "resource:1", timeout: 30)
 
 lock.synchronize do
   # Critical section - lock auto-releases
@@ -294,7 +294,7 @@ redis.fcall("myfunc", keys: ["key1"], args: ["arg1"])
 ### Client-Side Caching
 
 ```ruby
-cache = RedisRuby::Cache.new(redis, max_entries: 10_000, ttl: 60)
+cache = RR::Cache.new(redis, max_entries: 10_000, ttl: 60)
 cache.enable!
 
 value = cache.get("frequently:read:key")  # Cached after first read, auto-invalidated via RESP3
@@ -304,19 +304,19 @@ value = cache.get("frequently:read:key")  # Cached after first read, auto-invali
 
 ```ruby
 # Sentinel - automatic failover
-redis = RedisRuby.sentinel(
+redis = RR.sentinel(
   sentinels: [{ host: "sentinel1", port: 26379 }],
   service_name: "mymaster"
 )
 
 # Cluster - automatic sharding
-redis = RedisRuby.cluster(
+redis = RR.cluster(
   nodes: ["redis://node1:6379", "redis://node2:6379", "redis://node3:6379"]
 )
 
 # Async - fiber-aware for concurrent operations
 Async do
-  redis = RedisRuby.async(url: "redis://localhost:6379")
+  redis = RR.async(url: "redis://localhost:6379")
   redis.set("key", "value")
 end
 ```
@@ -537,10 +537,10 @@ results = redis.ft_search("idx:products", query)
 results = redis.ft_search("idx:products", query, dialect: 1)
 
 # Aggregation
-agg = RedisRuby::Search::AggregateQuery.new("*")
+agg = RR::Search::AggregateQuery.new("*")
   .group_by("@category", reducers: [
-    RedisRuby::Search::Reducer.count.as("count"),
-    RedisRuby::Search::Reducer.avg("@price").as("avg_price")
+    RR::Search::Reducer.count.as("count"),
+    RR::Search::Reducer.avg("@price").as("avg_price")
   ])
   .sort_by("@count", :desc)
 

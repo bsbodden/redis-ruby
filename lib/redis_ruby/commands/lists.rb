@@ -2,7 +2,7 @@
 
 require_relative "../dsl/list_proxy"
 
-module RedisRuby
+module RR
   module Commands
     # List commands
     #
@@ -15,7 +15,7 @@ module RedisRuby
       # Create a list proxy for idiomatic array-like operations
       #
       # @param key_parts [Array<String, Symbol, Integer>] Key components to join with ':'
-      # @return [RedisRuby::DSL::ListProxy] List proxy instance
+      # @return [RR::DSL::ListProxy] List proxy instance
       #
       # @example Queue operations (FIFO)
       #   queue = redis.list(:jobs)

@@ -529,7 +529,7 @@ class EventDeduplicator
     # Create filter if needed
     begin
       @redis.bf_info(@filter_key)
-    rescue RedisRuby::CommandError
+    rescue RR::CommandError
       @redis.bf_reserve(@filter_key, 0.001, 1_000_000)
     end
   end

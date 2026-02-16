@@ -26,7 +26,7 @@ A pipeline allows you to send multiple Redis commands in a single network round-
 ### Without Pipelining
 
 ```ruby
-redis = RedisRuby.new(host: "localhost")
+redis = RR.new(host: "localhost")
 
 # Each command requires a network round-trip
 redis.set("key1", "value1")  # Round-trip 1
@@ -38,7 +38,7 @@ redis.set("key3", "value3")  # Round-trip 3
 ### With Pipelining
 
 ```ruby
-redis = RedisRuby.new(host: "localhost")
+redis = RR.new(host: "localhost")
 
 # All commands sent in one round-trip
 results = redis.pipelined do |pipe|
@@ -79,7 +79,7 @@ Pipelining dramatically reduces network latency overhead:
 ```ruby
 require "benchmark"
 
-redis = RedisRuby.new(host: "localhost")
+redis = RR.new(host: "localhost")
 
 # Without pipelining
 time_without = Benchmark.realtime do
@@ -108,7 +108,7 @@ puts "Speedup: #{(time_without / time_with).round(1)}x"
 ### Simple Pipeline
 
 ```ruby
-redis = RedisRuby.new(host: "localhost")
+redis = RR.new(host: "localhost")
 
 results = redis.pipelined do |pipe|
   pipe.set("user:1:name", "Alice")
@@ -274,7 +274,7 @@ begin
     pipe.incr("key")  # Error: value is not an integer
     pipe.get("other_key")
   end
-rescue RedisRuby::CommandError => e
+rescue RR::CommandError => e
   puts "Command error: #{e.message}"
   # Error: ERR value is not an integer or out of range
 end
@@ -301,7 +301,7 @@ end
 ```ruby
 def safe_pipeline(redis, &block)
   redis.pipelined(&block)
-rescue RedisRuby::CommandError => e
+rescue RR::CommandError => e
   # Log error and retry or handle gracefully
   logger.error("Pipeline error: #{e.message}")
   []
@@ -350,7 +350,7 @@ end
 ### 3. Combine with Connection Pools
 
 ```ruby
-redis = RedisRuby.pooled(pool: { size: 10 })
+redis = RR.pooled(pool: { size: 10 })
 
 # Pipeline works seamlessly with pooled connections
 results = redis.pipelined do |pipe|
@@ -398,9 +398,9 @@ end
 
 ```ruby
 require "benchmark"
-require "redis_ruby"
+require "redis_ruby"  # Native RR API
 
-redis = RedisRuby.new(host: "localhost")
+redis = RR.new(host: "localhost")
 
 # Prepare test data
 1000.times { |i| redis.set("bench:#{i}", "value:#{i}") }

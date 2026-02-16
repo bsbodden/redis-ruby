@@ -5,7 +5,7 @@ require_relative "../dsl/vector_set_builder"
 require_relative "../dsl/vector_proxy"
 require_relative "../dsl/vector_search_builder"
 
-module RedisRuby
+module RR
   module Commands
     # Redis Vector Set commands module (Redis 8.0+)
     #

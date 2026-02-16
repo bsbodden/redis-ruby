@@ -6,7 +6,7 @@ class SentinelCommandsTest < Minitest::Test
   def setup
     @mock_connection = mock("connection")
     @client = Object.new
-    @client.extend(RedisRuby::Commands::Sentinel)
+    @client.extend(RR::Commands::Sentinel)
     @client.define_singleton_method(:call) { |*args| @mock_connection.call(*args) }
     @client.define_singleton_method(:call_1arg) { |cmd, arg| @mock_connection.call_1arg(cmd, arg) }
     @client.define_singleton_method(:call_2args) { |cmd, arg1, arg2| @mock_connection.call_2args(cmd, arg1, arg2) }

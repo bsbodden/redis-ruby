@@ -4,7 +4,7 @@ require "test_helper"
 
 class GeoDSLTest < Minitest::Test
   def setup
-    @redis = RedisRuby.new(url: ENV.fetch("REDIS_URL", "redis://localhost:6379"))
+    @redis = RR.new(url: ENV.fetch("REDIS_URL", "redis://localhost:6379"))
     @key = "test:geo:#{SecureRandom.hex(8)}"
   end
 
@@ -24,7 +24,7 @@ class GeoDSLTest < Minitest::Test
   def test_geo_creates_proxy
     geo = redis.geo(@key)
     
-    assert_instance_of RedisRuby::DSL::GeoProxy, geo
+    assert_instance_of RR::DSL::GeoProxy, geo
     assert_equal @key, geo.key
   end
 

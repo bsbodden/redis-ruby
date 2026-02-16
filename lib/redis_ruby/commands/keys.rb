@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module RedisRuby
+module RR
   module Commands
     # Key commands (generic commands that work on any key type)
     #

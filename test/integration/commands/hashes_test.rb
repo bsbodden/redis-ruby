@@ -340,7 +340,7 @@ class HashesCommandsTest < RedisRubyTestCase
     assert_kind_of Array, result
     assert_equal 1, result.length
     assert_includes [1, 0], result[0]
-  rescue RedisRuby::CommandError => e
+  rescue RR::CommandError => e
     skip "HEXPIRE not supported (requires Redis 7.4+)" if e.message.include?("unknown command")
     raise
   ensure
@@ -354,7 +354,7 @@ class HashesCommandsTest < RedisRubyTestCase
 
     assert_kind_of Array, result
     assert_equal 3, result.length
-  rescue RedisRuby::CommandError => e
+  rescue RR::CommandError => e
     skip "HEXPIRE not supported (requires Redis 7.4+)" if e.message.include?("unknown command")
     raise
   ensure
@@ -368,7 +368,7 @@ class HashesCommandsTest < RedisRubyTestCase
 
     assert_kind_of Array, result
     assert_equal [-2], result
-  rescue RedisRuby::CommandError => e
+  rescue RR::CommandError => e
     skip "HEXPIRE not supported (requires Redis 7.4+)" if e.message.include?("unknown command")
     raise
   ensure
@@ -386,7 +386,7 @@ class HashesCommandsTest < RedisRubyTestCase
     assert_kind_of Array, result
     # 0 = not set because expiration already exists
     assert_equal [0], result
-  rescue RedisRuby::CommandError => e
+  rescue RR::CommandError => e
     skip "HEXPIRE not supported (requires Redis 7.4+)" if e.message.include?("unknown command")
     raise
   ensure
@@ -402,7 +402,7 @@ class HashesCommandsTest < RedisRubyTestCase
     assert_kind_of Array, result
     # 0 = not set because no expiration exists
     assert_equal [0], result
-  rescue RedisRuby::CommandError => e
+  rescue RR::CommandError => e
     skip "HEXPIRE not supported (requires Redis 7.4+)" if e.message.include?("unknown command")
     raise
   ensure
@@ -419,7 +419,7 @@ class HashesCommandsTest < RedisRubyTestCase
 
     assert_kind_of Array, result
     assert_equal [0], result
-  rescue RedisRuby::CommandError => e
+  rescue RR::CommandError => e
     skip "HEXPIRE not supported (requires Redis 7.4+)" if e.message.include?("unknown command")
     raise
   ensure
@@ -436,7 +436,7 @@ class HashesCommandsTest < RedisRubyTestCase
 
     assert_kind_of Array, result
     assert_equal [0], result
-  rescue RedisRuby::CommandError => e
+  rescue RR::CommandError => e
     skip "HEXPIRE not supported (requires Redis 7.4+)" if e.message.include?("unknown command")
     raise
   ensure
@@ -450,7 +450,7 @@ class HashesCommandsTest < RedisRubyTestCase
 
     assert_kind_of Array, result
     assert_equal 1, result.length
-  rescue RedisRuby::CommandError => e
+  rescue RR::CommandError => e
     skip "HPEXPIRE not supported (requires Redis 7.4+)" if e.message.include?("unknown command")
     raise
   ensure
@@ -465,7 +465,7 @@ class HashesCommandsTest < RedisRubyTestCase
 
     assert_kind_of Array, result
     assert_equal 1, result.length
-  rescue RedisRuby::CommandError => e
+  rescue RR::CommandError => e
     skip "HEXPIREAT not supported (requires Redis 7.4+)" if e.message.include?("unknown command")
     raise
   ensure
@@ -480,7 +480,7 @@ class HashesCommandsTest < RedisRubyTestCase
 
     assert_kind_of Array, result
     assert_equal 1, result.length
-  rescue RedisRuby::CommandError => e
+  rescue RR::CommandError => e
     skip "HPEXPIREAT not supported (requires Redis 7.4+)" if e.message.include?("unknown command")
     raise
   ensure
@@ -496,7 +496,7 @@ class HashesCommandsTest < RedisRubyTestCase
     assert_kind_of Array, result
     assert_equal 1, result.length
     assert result[0].positive? && result[0] <= 100
-  rescue RedisRuby::CommandError => e
+  rescue RR::CommandError => e
     skip "HTTL not supported (requires Redis 7.4+)" if e.message.include?("unknown command")
     raise
   ensure
@@ -510,7 +510,7 @@ class HashesCommandsTest < RedisRubyTestCase
 
     assert_kind_of Array, result
     assert_equal [-1], result # -1 means no expiry
-  rescue RedisRuby::CommandError => e
+  rescue RR::CommandError => e
     skip "HTTL not supported (requires Redis 7.4+)" if e.message.include?("unknown command")
     raise
   ensure
@@ -524,7 +524,7 @@ class HashesCommandsTest < RedisRubyTestCase
 
     assert_kind_of Array, result
     assert_equal [-2], result # -2 means field doesn't exist
-  rescue RedisRuby::CommandError => e
+  rescue RR::CommandError => e
     skip "HTTL not supported (requires Redis 7.4+)" if e.message.include?("unknown command")
     raise
   ensure
@@ -540,7 +540,7 @@ class HashesCommandsTest < RedisRubyTestCase
     assert_kind_of Array, result
     assert_equal 1, result.length
     assert result[0].positive? && result[0] <= 100_000
-  rescue RedisRuby::CommandError => e
+  rescue RR::CommandError => e
     skip "HPTTL not supported (requires Redis 7.4+)" if e.message.include?("unknown command")
     raise
   ensure
@@ -558,7 +558,7 @@ class HashesCommandsTest < RedisRubyTestCase
     assert_equal 1, result.length
     # Should be approximately the future time we set
     assert_in_delta future_time, result[0], 2
-  rescue RedisRuby::CommandError => e
+  rescue RR::CommandError => e
     skip "HEXPIRETIME not supported (requires Redis 7.4+)" if e.message.include?("unknown command")
     raise
   ensure
@@ -575,7 +575,7 @@ class HashesCommandsTest < RedisRubyTestCase
     assert_kind_of Array, result
     assert_equal 1, result.length
     assert_in_delta future_time_ms, result[0], 2000
-  rescue RedisRuby::CommandError => e
+  rescue RR::CommandError => e
     skip "HPEXPIRETIME not supported (requires Redis 7.4+)" if e.message.include?("unknown command")
     raise
   ensure
@@ -595,7 +595,7 @@ class HashesCommandsTest < RedisRubyTestCase
     ttl_result = redis.httl("test:hash", "field1")
 
     assert_equal [-1], ttl_result
-  rescue RedisRuby::CommandError => e
+  rescue RR::CommandError => e
     skip "HPERSIST not supported (requires Redis 7.4+)" if e.message.include?("unknown command")
     raise
   ensure
@@ -609,7 +609,7 @@ class HashesCommandsTest < RedisRubyTestCase
 
     assert_kind_of Array, result
     assert_equal [-1], result # -1 = field had no expiry
-  rescue RedisRuby::CommandError => e
+  rescue RR::CommandError => e
     skip "HPERSIST not supported (requires Redis 7.4+)" if e.message.include?("unknown command")
     raise
   ensure
@@ -623,7 +623,7 @@ class HashesCommandsTest < RedisRubyTestCase
 
     assert_kind_of Array, result
     assert_equal [-2], result # -2 = field doesn't exist
-  rescue RedisRuby::CommandError => e
+  rescue RR::CommandError => e
     skip "HPERSIST not supported (requires Redis 7.4+)" if e.message.include?("unknown command")
     raise
   ensure
@@ -642,7 +642,7 @@ class HashesCommandsTest < RedisRubyTestCase
     assert_equal 1, result[0]  # expiry removed
     assert_equal 1, result[1]  # expiry removed
     assert_equal(-1, result[2]) # no expiry existed
-  rescue RedisRuby::CommandError => e
+  rescue RR::CommandError => e
     skip "HPERSIST not supported (requires Redis 7.4+)" if e.message.include?("unknown command")
     raise
   ensure

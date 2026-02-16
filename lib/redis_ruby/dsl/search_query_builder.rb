@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module RedisRuby
+module RR
   module DSL
     # Fluent builder for search queries
     #

@@ -304,6 +304,6 @@ class SortedSetsUnitTest < Minitest::Test
   private
 
   def create_test_client
-    RedisRuby::Client.new
+    RR::Client.new
   end
 end

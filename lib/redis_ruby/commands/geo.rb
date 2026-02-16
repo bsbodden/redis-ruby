@@ -2,7 +2,7 @@
 
 require_relative "../dsl/geo_proxy"
 
-module RedisRuby
+module RR
   module Commands
     # Geospatial commands for location-based data
     #
@@ -24,7 +24,7 @@ module RedisRuby
       # Create a geo proxy for idiomatic geospatial operations
       #
       # @param key_parts [Array<String, Symbol, Integer>] Key components (joined with ":")
-      # @return [RedisRuby::DSL::GeoProxy] Chainable geo proxy
+      # @return [RR::DSL::GeoProxy] Chainable geo proxy
       #
       # @example Store locator
       #   stores = redis.geo(:stores, :sf)

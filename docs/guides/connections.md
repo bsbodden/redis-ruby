@@ -26,13 +26,13 @@ This guide covers all the ways to connect to Redis using redis-ruby, from basic 
 The simplest way to connect to Redis is using TCP:
 
 ```ruby
-require "redis_ruby"
+require "redis_ruby"  # Native RR API
 
 # Connect to localhost:6379 (default)
-redis = RedisRuby.new
+redis = RR.new
 
 # Connect to a specific host and port
-redis = RedisRuby.new(host: "redis.example.com", port: 6379)
+redis = RR.new(host: "redis.example.com", port: 6379)
 
 # Test the connection
 redis.ping  # => "PONG"
@@ -41,7 +41,7 @@ redis.ping  # => "PONG"
 ### Connection Options
 
 ```ruby
-redis = RedisRuby.new(
+redis = RR.new(
   host: "localhost",
   port: 6379,
   db: 0,                    # Database number (default: 0)
@@ -57,13 +57,13 @@ For local Redis instances, Unix sockets provide better performance than TCP:
 
 ```ruby
 # Using path parameter
-redis = RedisRuby.new(path: "/var/run/redis/redis.sock")
+redis = RR.new(path: "/var/run/redis/redis.sock")
 
 # Using URL
-redis = RedisRuby.new(url: "unix:///var/run/redis/redis.sock")
+redis = RR.new(url: "unix:///var/run/redis/redis.sock")
 
 # With database selection
-redis = RedisRuby.new(
+redis = RR.new(
   path: "/var/run/redis/redis.sock",
   db: 1
 )
@@ -83,14 +83,14 @@ For secure connections to Redis (production, Redis Cloud, etc.):
 
 ```ruby
 # Basic TLS connection
-redis = RedisRuby.new(
+redis = RR.new(
   host: "redis.example.com",
   port: 6380,
   ssl: true
 )
 
 # Using rediss:// URL (note the double 's')
-redis = RedisRuby.new(url: "rediss://redis.example.com:6380")
+redis = RR.new(url: "rediss://redis.example.com:6380")
 ```
 
 ### Advanced SSL Configuration
@@ -98,7 +98,7 @@ redis = RedisRuby.new(url: "rediss://redis.example.com:6380")
 ```ruby
 require "openssl"
 
-redis = RedisRuby.new(
+redis = RR.new(
   host: "redis.example.com",
   port: 6380,
   ssl: true,
@@ -123,7 +123,7 @@ redis = RedisRuby.new(
 
 ```ruby
 # Redis Cloud with TLS
-redis = RedisRuby.new(
+redis = RR.new(
   url: "rediss://default:password@redis-12345.cloud.redislabs.com:12345"
 )
 ```
@@ -134,22 +134,22 @@ Redis URLs provide a convenient way to specify all connection parameters:
 
 ```ruby
 # Basic TCP
-redis = RedisRuby.new(url: "redis://localhost:6379")
+redis = RR.new(url: "redis://localhost:6379")
 
 # With authentication
-redis = RedisRuby.new(url: "redis://:password@localhost:6379")
+redis = RR.new(url: "redis://:password@localhost:6379")
 
 # With username and password (Redis 6+ ACL)
-redis = RedisRuby.new(url: "redis://username:password@localhost:6379")
+redis = RR.new(url: "redis://username:password@localhost:6379")
 
 # With database selection
-redis = RedisRuby.new(url: "redis://localhost:6379/2")
+redis = RR.new(url: "redis://localhost:6379/2")
 
 # TLS/SSL
-redis = RedisRuby.new(url: "rediss://localhost:6380")
+redis = RR.new(url: "rediss://localhost:6380")
 
 # Unix socket
-redis = RedisRuby.new(url: "unix:///var/run/redis.sock")
+redis = RR.new(url: "unix:///var/run/redis.sock")
 ```
 
 ### URL Format
@@ -165,7 +165,7 @@ unix://[username:password@]/path/to/socket[?db=database]
 ### Timeout Configuration
 
 ```ruby
-redis = RedisRuby.new(
+redis = RR.new(
   host: "localhost",
   timeout: 10.0  # Connection, read, and write timeout in seconds
 )
@@ -181,7 +181,7 @@ The timeout applies to:
 By default, Redis returns binary strings. Enable automatic decoding:
 
 ```ruby
-redis = RedisRuby.new(
+redis = RR.new(
   host: "localhost",
   decode_responses: true,
   encoding: "UTF-8"  # Default encoding
@@ -202,10 +202,10 @@ RESP3 is supported on Redis 6.0+.
 
 ```ruby
 # RESP3 is enabled by default
-redis = RedisRuby.new(url: "redis://localhost:6379")
+redis = RR.new(url: "redis://localhost:6379")
 
 # For compatibility with older Redis versions, use RESP2
-redis = RedisRuby.new(
+redis = RR.new(
   url: "redis://localhost:6379",
   protocol: 2
 )
@@ -224,13 +224,13 @@ redis = RedisRuby.new(
 
 ```ruby
 # Using password parameter
-redis = RedisRuby.new(
+redis = RR.new(
   host: "localhost",
   password: "your-redis-password"
 )
 
 # Using URL
-redis = RedisRuby.new(url: "redis://:your-redis-password@localhost:6379")
+redis = RR.new(url: "redis://:your-redis-password@localhost:6379")
 ```
 
 ### ACL Authentication (Redis 6+)
@@ -239,14 +239,14 @@ Redis 6+ supports Access Control Lists (ACL) with username/password:
 
 ```ruby
 # Using username and password
-redis = RedisRuby.new(
+redis = RR.new(
   host: "localhost",
   username: "myuser",
   password: "mypassword"
 )
 
 # Using URL
-redis = RedisRuby.new(url: "redis://myuser:mypassword@localhost:6379")
+redis = RR.new(url: "redis://myuser:mypassword@localhost:6379")
 ```
 
 ## Database Selection
@@ -255,13 +255,13 @@ Redis supports multiple databases (0-15 by default):
 
 ```ruby
 # Select database 0 (default)
-redis = RedisRuby.new(db: 0)
+redis = RR.new(db: 0)
 
 # Select database 2
-redis = RedisRuby.new(db: 2)
+redis = RR.new(db: 2)
 
 # Using URL
-redis = RedisRuby.new(url: "redis://localhost:6379/3")
+redis = RR.new(url: "redis://localhost:6379/3")
 
 # Switch database after connection
 redis.select(5)
@@ -275,7 +275,7 @@ redis-ruby includes automatic retry logic for transient failures:
 
 ```ruby
 # Basic retry configuration
-redis = RedisRuby.new(
+redis = RR.new(
   host: "localhost",
   reconnect_attempts: 3  # Retry up to 3 times on connection errors
 )
@@ -285,9 +285,9 @@ redis = RedisRuby.new(
 
 ```ruby
 # Custom retry policy with exponential backoff
-retry_policy = RedisRuby::Retry.new(
+retry_policy = RR::Retry.new(
   retries: 5,
-  backoff: RedisRuby::ExponentialWithJitterBackoff.new(
+  backoff: RR::ExponentialWithJitterBackoff.new(
     base: 0.1,   # Start with 100ms
     cap: 2.0     # Max 2 seconds
   ),
@@ -296,7 +296,7 @@ retry_policy = RedisRuby::Retry.new(
   }
 )
 
-redis = RedisRuby.new(
+redis = RR.new(
   host: "localhost",
   retry_policy: retry_policy
 )
@@ -306,19 +306,19 @@ redis = RedisRuby.new(
 
 ```ruby
 # No backoff - retry immediately
-backoff = RedisRuby::NoBackoff.new
+backoff = RR::NoBackoff.new
 
 # Constant backoff - always wait the same duration
-backoff = RedisRuby::ConstantBackoff.new(0.5)  # 500ms
+backoff = RR::ConstantBackoff.new(0.5)  # 500ms
 
 # Exponential backoff
-backoff = RedisRuby::ExponentialBackoff.new(base: 0.1, cap: 10.0)
+backoff = RR::ExponentialBackoff.new(base: 0.1, cap: 10.0)
 
 # Exponential with jitter (recommended)
-backoff = RedisRuby::ExponentialWithJitterBackoff.new(base: 0.1, cap: 10.0)
+backoff = RR::ExponentialWithJitterBackoff.new(base: 0.1, cap: 10.0)
 
 # Equal jitter backoff
-backoff = RedisRuby::EqualJitterBackoff.new(base: 0.1, cap: 10.0)
+backoff = RR::EqualJitterBackoff.new(base: 0.1, cap: 10.0)
 ```
 
 ## Connection Management
@@ -326,7 +326,7 @@ backoff = RedisRuby::EqualJitterBackoff.new(base: 0.1, cap: 10.0)
 ### Checking Connection Status
 
 ```ruby
-redis = RedisRuby.new(host: "localhost")
+redis = RR.new(host: "localhost")
 
 # Check if connected
 redis.connected?  # => true/false
@@ -354,7 +354,7 @@ redis.quit
 redis.reconnect
 
 # Connection is automatically established on first command
-redis = RedisRuby.new(host: "localhost")
+redis = RR.new(host: "localhost")
 redis.ping  # Connects and sends PING
 ```
 
@@ -371,7 +371,7 @@ redis.ping  # Connects and sends PING
 ## Example: Production Configuration
 
 ```ruby
-redis = RedisRuby.new(
+redis = RR.new(
   url: ENV["REDIS_URL"],  # e.g., "rediss://user:pass@host:port/db"
   timeout: 5.0,
   reconnect_attempts: 3,

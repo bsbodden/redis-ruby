@@ -3,7 +3,7 @@
 require_relative "unit_test_helper"
 
 # Load compat modules
-require_relative "../../lib/redis/commands"
+require_relative "../../lib/redis-rb-compat/commands"
 
 # MockClient that includes all Redis compat command modules
 class RedisCompatMockClient

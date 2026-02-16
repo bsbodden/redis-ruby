@@ -17,7 +17,7 @@ class SetDSLTest < RedisRubyTestCase
   def test_set_proxy_creation
     proxy = redis.redis_set(:tags)
     
-    assert_instance_of RedisRuby::DSL::SetProxy, proxy
+    assert_instance_of RR::DSL::SetProxy, proxy
     assert_equal "tags", proxy.key
   end
 

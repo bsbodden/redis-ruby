@@ -22,12 +22,12 @@ This example demonstrates how to use Redis advanced features including JSON and 
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-require "redis_ruby"
+require "redis_ruby"  # Native RR API
 require "json"
 
 puts "=== Redis Advanced Features Example ===\n\n"
 
-redis = RedisRuby.new(url: "redis://localhost:6379")
+redis = RR.new(url: "redis://localhost:6379")
 
 # ============================================================================
 # JSON - Store and Query JSON Documents
@@ -104,7 +104,7 @@ begin
     "$.tags[*]", "AS", "tags", "TAG"
   )
   puts "   Created search index 'products_idx'"
-rescue RedisRuby::CommandError => e
+rescue RR::CommandError => e
   puts "   Index already exists (#{e.message})"
 end
 
@@ -222,7 +222,7 @@ begin
   redis.ft_sugadd("product_names", "USB-C Hub", 5)
   redis.ft_sugadd("product_names", "Monitor 27\"", 6)
   puts "   Created auto-complete dictionary"
-rescue RedisRuby::CommandError => e
+rescue RR::CommandError => e
   puts "   Dictionary already exists"
 end
 
@@ -243,7 +243,7 @@ puts "6. Cleanup..."
 begin
   redis.ft_dropindex("products_idx")
   puts "   Dropped search index"
-rescue RedisRuby::CommandError
+rescue RR::CommandError
   # Index might not exist
 end
 

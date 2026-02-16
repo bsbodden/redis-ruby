@@ -4,8 +4,8 @@ require_relative "unit_test_helper"
 
 # =====================================================================
 # Comprehensive branch-coverage tests for:
-#   - RedisRuby::SentinelClient  (lib/redis_ruby/sentinel_client.rb)
-#   - RedisRuby::SentinelManager (lib/redis_ruby/sentinel_manager.rb)
+#   - RR::SentinelClient  (lib/redis_ruby/sentinel_client.rb)
+#   - RR::SentinelManager (lib/redis_ruby/sentinel_manager.rb)
 #
 # All network I/O is mocked via mocha stubs -- no real Redis needed.
 # =====================================================================
@@ -19,7 +19,7 @@ class SentinelManagerBranchTest < Minitest::Test
                     service_name: "mymaster",
                     password: nil, sentinel_password: nil,
                     min_other_sentinels: 0, timeout: 0.5)
-    RedisRuby::SentinelManager.new(
+    RR::SentinelManager.new(
       sentinels: sentinels,
       service_name: service_name,
       password: password,
@@ -98,31 +98,31 @@ class SentinelManagerBranchTest < Minitest::Test
     conn = mock_conn
     conn.expects(:call).with("AUTH", "secret").returns("OK")
     conn.expects(:call).with("SENTINEL", "MASTERS").returns([])
-    RedisRuby::Connection::TCP.stubs(:new).returns(conn)
+    RR::Connection::TCP.stubs(:new).returns(conn)
 
     mgr = build_manager(password: "secret")
     # discover_master will fail because no master found, but AUTH should be called
-    assert_raises(RedisRuby::MasterNotFoundError) { mgr.discover_master }
+    assert_raises(RR::MasterNotFoundError) { mgr.discover_master }
   end
 
   def test_sentinel_password_alias
     conn = mock_conn
     conn.expects(:call).with("AUTH", "alias_pwd").returns("OK")
     conn.expects(:call).with("SENTINEL", "MASTERS").returns([])
-    RedisRuby::Connection::TCP.stubs(:new).returns(conn)
+    RR::Connection::TCP.stubs(:new).returns(conn)
 
     mgr = build_manager(sentinel_password: "alias_pwd")
-    assert_raises(RedisRuby::MasterNotFoundError) { mgr.discover_master }
+    assert_raises(RR::MasterNotFoundError) { mgr.discover_master }
   end
 
   def test_no_auth_when_no_password
     conn = mock_conn
     conn.expects(:call).with("AUTH", anything).never
     conn.expects(:call).with("SENTINEL", "MASTERS").returns([])
-    RedisRuby::Connection::TCP.stubs(:new).returns(conn)
+    RR::Connection::TCP.stubs(:new).returns(conn)
 
     mgr = build_manager
-    assert_raises(RedisRuby::MasterNotFoundError) { mgr.discover_master }
+    assert_raises(RR::MasterNotFoundError) { mgr.discover_master }
   end
 
   # ============================================================
@@ -139,7 +139,7 @@ class SentinelManagerBranchTest < Minitest::Test
     conn = mock_conn
     conn.stubs(:call).with("SENTINEL", "MASTERS").returns([master_info])
     conn.stubs(:call).with("SENTINEL", "SENTINELS", "mymaster").returns([])
-    RedisRuby::Connection::TCP.stubs(:new).returns(conn)
+    RR::Connection::TCP.stubs(:new).returns(conn)
 
     mgr = build_manager
     address = mgr.discover_master
@@ -163,7 +163,7 @@ class SentinelManagerBranchTest < Minitest::Test
     conn_ok.stubs(:call).with("SENTINEL", "MASTERS").returns([master_info])
     conn_ok.stubs(:call).with("SENTINEL", "SENTINELS", "mymaster").returns([])
 
-    RedisRuby::Connection::TCP.stubs(:new)
+    RR::Connection::TCP.stubs(:new)
       .returns(conn_fail)
       .then.returns(conn_ok)
 
@@ -191,7 +191,7 @@ class SentinelManagerBranchTest < Minitest::Test
     conn = mock_conn
     conn.stubs(:call).with("SENTINEL", "MASTERS").returns([master_info])
     conn.stubs(:call).with("SENTINEL", "SENTINELS", "mymaster").returns([])
-    RedisRuby::Connection::TCP.stubs(:new).returns(conn)
+    RR::Connection::TCP.stubs(:new).returns(conn)
 
     mgr = build_manager(sentinels: [
       { host: "s1", port: 26_379 },
@@ -206,7 +206,7 @@ class SentinelManagerBranchTest < Minitest::Test
   def test_discover_master_all_sentinels_fail
     conn = mock_conn
     conn.stubs(:call).raises(StandardError, "unreachable")
-    RedisRuby::Connection::TCP.stubs(:new).returns(conn)
+    RR::Connection::TCP.stubs(:new).returns(conn)
 
     mgr = build_manager(sentinels: [
       { host: "s1", port: 26_379 },
@@ -214,7 +214,7 @@ class SentinelManagerBranchTest < Minitest::Test
     ])
     mgr.stubs(:sleep) # skip sleep
 
-    error = assert_raises(RedisRuby::MasterNotFoundError) { mgr.discover_master }
+    error = assert_raises(RR::MasterNotFoundError) { mgr.discover_master }
     assert_includes error.message, "mymaster"
     assert_includes error.message, "s1:26379"
     assert_includes error.message, "s2:26380"
@@ -230,10 +230,10 @@ class SentinelManagerBranchTest < Minitest::Test
 
     conn = mock_conn
     conn.stubs(:call).with("SENTINEL", "MASTERS").returns([master_info])
-    RedisRuby::Connection::TCP.stubs(:new).returns(conn)
+    RR::Connection::TCP.stubs(:new).returns(conn)
 
     mgr = build_manager
-    assert_raises(RedisRuby::MasterNotFoundError) { mgr.discover_master }
+    assert_raises(RR::MasterNotFoundError) { mgr.discover_master }
   end
 
   def test_discover_master_no_matching_service
@@ -245,10 +245,10 @@ class SentinelManagerBranchTest < Minitest::Test
 
     conn = mock_conn
     conn.stubs(:call).with("SENTINEL", "MASTERS").returns([other_master])
-    RedisRuby::Connection::TCP.stubs(:new).returns(conn)
+    RR::Connection::TCP.stubs(:new).returns(conn)
 
     mgr = build_manager
-    assert_raises(RedisRuby::MasterNotFoundError) { mgr.discover_master }
+    assert_raises(RR::MasterNotFoundError) { mgr.discover_master }
   end
 
   # ============================================================
@@ -441,7 +441,7 @@ class SentinelManagerBranchTest < Minitest::Test
 
     conn = mock_conn
     conn.stubs(:call).with("SENTINEL", "REPLICAS", "mymaster").returns(replica_info)
-    RedisRuby::Connection::TCP.stubs(:new).returns(conn)
+    RR::Connection::TCP.stubs(:new).returns(conn)
 
     mgr = build_manager
     replicas = mgr.discover_replicas
@@ -459,7 +459,7 @@ class SentinelManagerBranchTest < Minitest::Test
 
     conn = mock_conn
     conn.stubs(:call).with("SENTINEL", "REPLICAS", "mymaster").returns(replica_info)
-    RedisRuby::Connection::TCP.stubs(:new).returns(conn)
+    RR::Connection::TCP.stubs(:new).returns(conn)
 
     mgr = build_manager
     replicas = mgr.discover_replicas
@@ -475,14 +475,14 @@ class SentinelManagerBranchTest < Minitest::Test
 
     conn = mock_conn
     conn.stubs(:call).with("SENTINEL", "REPLICAS", "mymaster").returns(replica_info)
-    RedisRuby::Connection::TCP.stubs(:new).returns(conn)
+    RR::Connection::TCP.stubs(:new).returns(conn)
 
     mgr = build_manager
     # All replicas filtered out, but returns empty array from first sentinel
     # Then second sentinel checked if available
     # With single sentinel, returns empty, not matched by !replicas.empty?
     # So falls through to raise
-    assert_raises(RedisRuby::ReplicaNotFoundError) { mgr.discover_replicas }
+    assert_raises(RR::ReplicaNotFoundError) { mgr.discover_replicas }
   end
 
   def test_discover_replicas_filters_out_disconnected
@@ -492,25 +492,25 @@ class SentinelManagerBranchTest < Minitest::Test
 
     conn = mock_conn
     conn.stubs(:call).with("SENTINEL", "REPLICAS", "mymaster").returns(replica_info)
-    RedisRuby::Connection::TCP.stubs(:new).returns(conn)
+    RR::Connection::TCP.stubs(:new).returns(conn)
 
     mgr = build_manager
-    assert_raises(RedisRuby::ReplicaNotFoundError) { mgr.discover_replicas }
+    assert_raises(RR::ReplicaNotFoundError) { mgr.discover_replicas }
   end
 
   def test_discover_replicas_non_array_result
     conn = mock_conn
     conn.stubs(:call).with("SENTINEL", "REPLICAS", "mymaster").returns("not_array")
-    RedisRuby::Connection::TCP.stubs(:new).returns(conn)
+    RR::Connection::TCP.stubs(:new).returns(conn)
 
     mgr = build_manager
-    assert_raises(RedisRuby::ReplicaNotFoundError) { mgr.discover_replicas }
+    assert_raises(RR::ReplicaNotFoundError) { mgr.discover_replicas }
   end
 
   def test_discover_replicas_all_sentinels_fail
     conn = mock_conn
     conn.stubs(:call).raises(StandardError, "err")
-    RedisRuby::Connection::TCP.stubs(:new).returns(conn)
+    RR::Connection::TCP.stubs(:new).returns(conn)
 
     mgr = build_manager(sentinels: [
       { host: "s1", port: 26_379 },
@@ -518,17 +518,17 @@ class SentinelManagerBranchTest < Minitest::Test
     ])
     mgr.stubs(:sleep)
 
-    error = assert_raises(RedisRuby::ReplicaNotFoundError) { mgr.discover_replicas }
+    error = assert_raises(RR::ReplicaNotFoundError) { mgr.discover_replicas }
     assert_includes error.message, "mymaster"
   end
 
   def test_discover_replicas_empty_result_from_sentinel
     conn = mock_conn
     conn.stubs(:call).with("SENTINEL", "REPLICAS", "mymaster").returns([])
-    RedisRuby::Connection::TCP.stubs(:new).returns(conn)
+    RR::Connection::TCP.stubs(:new).returns(conn)
 
     mgr = build_manager
-    assert_raises(RedisRuby::ReplicaNotFoundError) { mgr.discover_replicas }
+    assert_raises(RR::ReplicaNotFoundError) { mgr.discover_replicas }
   end
 
   # ============================================================
@@ -543,7 +543,7 @@ class SentinelManagerBranchTest < Minitest::Test
 
     conn = mock_conn
     conn.stubs(:call).with("SENTINEL", "REPLICAS", "mymaster").returns(replica_info)
-    RedisRuby::Connection::TCP.stubs(:new).returns(conn)
+    RR::Connection::TCP.stubs(:new).returns(conn)
 
     mgr = build_manager
     replica = mgr.random_replica
@@ -566,13 +566,13 @@ class SentinelManagerBranchTest < Minitest::Test
     # discover_master is called as fallback; stub it to return empty (triggers MasterNotFoundError)
     conn.stubs(:call).with("SENTINEL", "MASTERS").returns([])
     conn.stubs(:call).with("SENTINEL", "SENTINELS", "mymaster").returns([])
-    RedisRuby::Connection::TCP.stubs(:new).returns(conn)
+    RR::Connection::TCP.stubs(:new).returns(conn)
 
     mgr = build_manager
     yielded = []
 
     # rotate_replicas yields replicas, then master fallback (which fails silently), then raises
-    assert_raises(RedisRuby::ReplicaNotFoundError) do
+    assert_raises(RR::ReplicaNotFoundError) do
       mgr.rotate_replicas { |addr| yielded << addr }
     end
 
@@ -587,7 +587,7 @@ class SentinelManagerBranchTest < Minitest::Test
 
     conn = mock_conn
     conn.stubs(:call).with("SENTINEL", "REPLICAS", "mymaster").returns(replica_info)
-    RedisRuby::Connection::TCP.stubs(:new).returns(conn)
+    RR::Connection::TCP.stubs(:new).returns(conn)
 
     mgr = build_manager
     result = mgr.rotate_replicas
@@ -612,12 +612,12 @@ class SentinelManagerBranchTest < Minitest::Test
     # Second call (for master fallback): masters
     conn.stubs(:call).with("SENTINEL", "MASTERS").returns([master_info])
     conn.stubs(:call).with("SENTINEL", "SENTINELS", "mymaster").returns([])
-    RedisRuby::Connection::TCP.stubs(:new).returns(conn)
+    RR::Connection::TCP.stubs(:new).returns(conn)
 
     mgr = build_manager
     yielded = []
 
-    assert_raises(RedisRuby::ReplicaNotFoundError) do
+    assert_raises(RR::ReplicaNotFoundError) do
       mgr.rotate_replicas { |addr| yielded << addr }
     end
 
@@ -637,12 +637,12 @@ class SentinelManagerBranchTest < Minitest::Test
     conn = mock_conn
     conn.stubs(:call).with("SENTINEL", "REPLICAS", "mymaster").returns(replica_info)
     conn.stubs(:call).with("SENTINEL", "MASTERS").returns([])
-    RedisRuby::Connection::TCP.stubs(:new).returns(conn)
+    RR::Connection::TCP.stubs(:new).returns(conn)
 
     mgr = build_manager
     yielded = []
 
-    error = assert_raises(RedisRuby::ReplicaNotFoundError) do
+    error = assert_raises(RR::ReplicaNotFoundError) do
       mgr.rotate_replicas { |addr| yielded << addr }
     end
     assert_includes error.message, "mymaster"
@@ -684,7 +684,7 @@ class SentinelManagerBranchTest < Minitest::Test
   def test_sentinel_reachable_true
     conn = mock_conn
     conn.expects(:call).with("PING").returns("PONG")
-    RedisRuby::Connection::TCP.stubs(:new).returns(conn)
+    RR::Connection::TCP.stubs(:new).returns(conn)
 
     mgr = build_manager
 
@@ -694,7 +694,7 @@ class SentinelManagerBranchTest < Minitest::Test
   def test_sentinel_reachable_not_pong
     conn = mock_conn
     conn.expects(:call).with("PING").returns("NOT_PONG")
-    RedisRuby::Connection::TCP.stubs(:new).returns(conn)
+    RR::Connection::TCP.stubs(:new).returns(conn)
 
     mgr = build_manager
 
@@ -702,7 +702,7 @@ class SentinelManagerBranchTest < Minitest::Test
   end
 
   def test_sentinel_reachable_connection_error
-    RedisRuby::Connection::TCP.stubs(:new).raises(StandardError, "connection refused")
+    RR::Connection::TCP.stubs(:new).raises(StandardError, "connection refused")
 
     mgr = build_manager
 
@@ -721,7 +721,7 @@ class SentinelManagerBranchTest < Minitest::Test
 
     conn = mock_conn
     conn.expects(:call).with("SENTINEL", "SENTINELS", "mymaster").returns(sentinel_response)
-    RedisRuby::Connection::TCP.stubs(:new).returns(conn)
+    RR::Connection::TCP.stubs(:new).returns(conn)
 
     mgr = build_manager
     sentinels = mgr.discover_sentinels
@@ -739,7 +739,7 @@ class SentinelManagerBranchTest < Minitest::Test
 
     conn = mock_conn
     conn.expects(:call).with("SENTINEL", "SENTINELS", "mymaster").returns(sentinel_response)
-    RedisRuby::Connection::TCP.stubs(:new).returns(conn)
+    RR::Connection::TCP.stubs(:new).returns(conn)
 
     mgr = build_manager
     sentinels = mgr.discover_sentinels
@@ -754,7 +754,7 @@ class SentinelManagerBranchTest < Minitest::Test
     conn_ok = mock_conn
     conn_ok.expects(:call).with("SENTINEL", "SENTINELS", "mymaster").returns([%w[ip s3 port 26381]])
 
-    RedisRuby::Connection::TCP.stubs(:new)
+    RR::Connection::TCP.stubs(:new)
       .returns(conn_fail)
       .then.returns(conn_ok)
 
@@ -778,7 +778,7 @@ class SentinelManagerBranchTest < Minitest::Test
     # Second sentinel should NOT be queried because we break after first success
     conn2.expects(:call).never
 
-    RedisRuby::Connection::TCP.stubs(:new)
+    RR::Connection::TCP.stubs(:new)
       .returns(conn1)
 
     mgr = build_manager(sentinels: [
@@ -793,7 +793,7 @@ class SentinelManagerBranchTest < Minitest::Test
   def test_discover_sentinels_empty_from_all
     conn = mock_conn
     conn.stubs(:call).with("SENTINEL", "SENTINELS", "mymaster").returns([])
-    RedisRuby::Connection::TCP.stubs(:new).returns(conn)
+    RR::Connection::TCP.stubs(:new).returns(conn)
 
     mgr = build_manager
     sentinels = mgr.discover_sentinels
@@ -832,7 +832,7 @@ class SentinelManagerBranchTest < Minitest::Test
   def test_verify_master_role_true
     conn = mock_conn
     conn.expects(:call).with("ROLE").returns(["master", 0, []])
-    RedisRuby::Connection::TCP.stubs(:new).returns(conn)
+    RR::Connection::TCP.stubs(:new).returns(conn)
 
     mgr = build_manager
 
@@ -842,7 +842,7 @@ class SentinelManagerBranchTest < Minitest::Test
   def test_verify_master_role_false_when_slave
     conn = mock_conn
     conn.expects(:call).with("ROLE").returns(["slave", "10.0.0.1", 6379, "connected", 100])
-    RedisRuby::Connection::TCP.stubs(:new).returns(conn)
+    RR::Connection::TCP.stubs(:new).returns(conn)
 
     mgr = build_manager
 
@@ -852,7 +852,7 @@ class SentinelManagerBranchTest < Minitest::Test
   def test_verify_master_role_false_on_error
     conn = mock_conn
     conn.expects(:call).with("ROLE").raises(StandardError, "connection lost")
-    RedisRuby::Connection::TCP.stubs(:new).returns(conn)
+    RR::Connection::TCP.stubs(:new).returns(conn)
 
     mgr = build_manager
 
@@ -862,7 +862,7 @@ class SentinelManagerBranchTest < Minitest::Test
   def test_verify_master_role_false_when_non_array_response
     conn = mock_conn
     conn.expects(:call).with("ROLE").returns("invalid")
-    RedisRuby::Connection::TCP.stubs(:new).returns(conn)
+    RR::Connection::TCP.stubs(:new).returns(conn)
 
     mgr = build_manager
 
@@ -876,7 +876,7 @@ class SentinelManagerBranchTest < Minitest::Test
   def test_create_sentinel_connection_with_password
     conn = mock_conn
     conn.expects(:call).with("AUTH", "my_pass").returns("OK")
-    RedisRuby::Connection::TCP.stubs(:new).returns(conn)
+    RR::Connection::TCP.stubs(:new).returns(conn)
 
     mgr = build_manager(password: "my_pass")
     result = mgr.send(:create_sentinel_connection, { host: "s1", port: 26_379 })
@@ -887,7 +887,7 @@ class SentinelManagerBranchTest < Minitest::Test
   def test_create_sentinel_connection_without_password
     conn = mock_conn
     conn.expects(:call).with("AUTH", anything).never
-    RedisRuby::Connection::TCP.stubs(:new).returns(conn)
+    RR::Connection::TCP.stubs(:new).returns(conn)
 
     mgr = build_manager
     result = mgr.send(:create_sentinel_connection, { host: "s1", port: 26_379 })
@@ -906,7 +906,7 @@ class SentinelManagerBranchTest < Minitest::Test
 
     conn = mock_conn
     conn.stubs(:call).with("SENTINEL", "REPLICAS", "mymaster").returns(replica_info)
-    RedisRuby::Connection::TCP.stubs(:new).returns(conn)
+    RR::Connection::TCP.stubs(:new).returns(conn)
 
     mgr = build_manager
     replicas = mgr.discover_replicas
@@ -923,7 +923,7 @@ class SentinelClientBranchTest < Minitest::Test
   # Helper: create a SentinelClient with mocked internals
   def build_client(role: :master, password: nil, db: 0, ssl: false,
                    reconnect_attempts: 3)
-    client = RedisRuby::SentinelClient.allocate
+    client = RR::SentinelClient.allocate
     client.instance_variable_set(:@service_name, "mymaster")
     client.instance_variable_set(:@role, role)
     client.instance_variable_set(:@password, password)
@@ -954,58 +954,58 @@ class SentinelClientBranchTest < Minitest::Test
   # ============================================================
 
   def test_validate_role_master
-    client = RedisRuby::SentinelClient.allocate
+    client = RR::SentinelClient.allocate
     client.send(:validate_role!, :master)
   end
 
   def test_validate_role_replica
-    client = RedisRuby::SentinelClient.allocate
+    client = RR::SentinelClient.allocate
     client.send(:validate_role!, :replica)
   end
 
   def test_validate_role_slave
-    client = RedisRuby::SentinelClient.allocate
+    client = RR::SentinelClient.allocate
     client.send(:validate_role!, :slave)
   end
 
   def test_validate_role_string
-    client = RedisRuby::SentinelClient.allocate
+    client = RR::SentinelClient.allocate
     client.send(:validate_role!, "master")
   end
 
   def test_validate_role_invalid
-    client = RedisRuby::SentinelClient.allocate
+    client = RR::SentinelClient.allocate
     error = assert_raises(ArgumentError) { client.send(:validate_role!, :unknown) }
     assert_includes error.message, "Invalid role"
     assert_includes error.message, ":unknown"
   end
 
   def test_normalize_role_master
-    client = RedisRuby::SentinelClient.allocate
+    client = RR::SentinelClient.allocate
 
     assert_equal :master, client.send(:normalize_role, :master)
   end
 
   def test_normalize_role_replica
-    client = RedisRuby::SentinelClient.allocate
+    client = RR::SentinelClient.allocate
 
     assert_equal :replica, client.send(:normalize_role, :replica)
   end
 
   def test_normalize_role_slave_to_replica
-    client = RedisRuby::SentinelClient.allocate
+    client = RR::SentinelClient.allocate
 
     assert_equal :replica, client.send(:normalize_role, :slave)
   end
 
   def test_normalize_role_string_master
-    client = RedisRuby::SentinelClient.allocate
+    client = RR::SentinelClient.allocate
 
     assert_equal :master, client.send(:normalize_role, "master")
   end
 
   def test_normalize_role_string_slave_to_replica
-    client = RedisRuby::SentinelClient.allocate
+    client = RR::SentinelClient.allocate
 
     assert_equal :replica, client.send(:normalize_role, "slave")
   end
@@ -1137,7 +1137,7 @@ class SentinelClientBranchTest < Minitest::Test
   def test_discover_address_replica_falls_back_to_master
     client = build_client(role: :replica)
     manager = client.sentinel_manager
-    manager.expects(:random_replica).raises(RedisRuby::ReplicaNotFoundError, "no replicas")
+    manager.expects(:random_replica).raises(RR::ReplicaNotFoundError, "no replicas")
     manager.expects(:discover_master).returns({ host: "master", port: 6379 })
 
     address = client.send(:discover_address)
@@ -1152,7 +1152,7 @@ class SentinelClientBranchTest < Minitest::Test
   def test_create_connection_tcp
     client = build_client(ssl: false)
     conn = mock_conn
-    RedisRuby::Connection::TCP.expects(:new).with(
+    RR::Connection::TCP.expects(:new).with(
       host: "master",
       port: 6379,
       timeout: 5.0
@@ -1166,7 +1166,7 @@ class SentinelClientBranchTest < Minitest::Test
   def test_create_connection_ssl
     client = build_client(ssl: true)
     conn = mock_conn
-    RedisRuby::Connection::SSL.expects(:new).with(
+    RR::Connection::SSL.expects(:new).with(
       host: "master",
       port: 6379,
       timeout: 5.0,
@@ -1199,7 +1199,7 @@ class SentinelClientBranchTest < Minitest::Test
     client.instance_variable_set(:@connection, conn)
     client.stubs(:sleep) # skip SENTINEL_DELAY
 
-    error = assert_raises(RedisRuby::FailoverError) { client.send(:verify_role!) }
+    error = assert_raises(RR::FailoverError) { client.send(:verify_role!) }
     assert_includes error.message, "master"
     assert_includes error.message, "slave"
   end
@@ -1221,7 +1221,7 @@ class SentinelClientBranchTest < Minitest::Test
     client.instance_variable_set(:@connection, conn)
     client.stubs(:sleep) # skip SENTINEL_DELAY
 
-    error = assert_raises(RedisRuby::FailoverError) { client.send(:verify_role!) }
+    error = assert_raises(RR::FailoverError) { client.send(:verify_role!) }
     assert_includes error.message, "replica"
     assert_includes error.message, "master"
   end
@@ -1273,7 +1273,7 @@ class SentinelClientBranchTest < Minitest::Test
     conn.expects(:call).with("ROLE").returns(["master", 0, []])
     conn.expects(:call).with("AUTH", "pass").returns("OK")
     conn.expects(:call).with("SELECT", "2").returns("OK")
-    RedisRuby::Connection::TCP.expects(:new).returns(conn)
+    RR::Connection::TCP.expects(:new).returns(conn)
 
     client.send(:ensure_connected)
 
@@ -1290,7 +1290,7 @@ class SentinelClientBranchTest < Minitest::Test
     conn.expects(:call).with("ROLE").returns(["master", 0, []])
     conn.expects(:call).with("AUTH", anything).never
     conn.expects(:call).with("SELECT", anything).never
-    RedisRuby::Connection::TCP.expects(:new).returns(conn)
+    RR::Connection::TCP.expects(:new).returns(conn)
 
     client.send(:ensure_connected)
   end
@@ -1304,7 +1304,7 @@ class SentinelClientBranchTest < Minitest::Test
     conn.stubs(:connected?).returns(false, true)
     conn.expects(:call).with("ROLE").returns(["master", 0, []])
     conn.expects(:call).with("SELECT", anything).never
-    RedisRuby::Connection::TCP.expects(:new).returns(conn)
+    RR::Connection::TCP.expects(:new).returns(conn)
 
     client.send(:ensure_connected)
   end
@@ -1315,21 +1315,21 @@ class SentinelClientBranchTest < Minitest::Test
 
   def test_readonly_error_with_readonly
     client = build_client
-    err = RedisRuby::CommandError.new("READONLY some message")
+    err = RR::CommandError.new("READONLY some message")
 
     assert client.send(:readonly_error?, err)
   end
 
   def test_readonly_error_with_cant_write
     client = build_client
-    err = RedisRuby::CommandError.new("You can't write against a read only replica")
+    err = RR::CommandError.new("You can't write against a read only replica")
 
     assert client.send(:readonly_error?, err)
   end
 
   def test_readonly_error_other_message
     client = build_client
-    err = RedisRuby::CommandError.new("ERR wrong number of arguments")
+    err = RR::CommandError.new("ERR wrong number of arguments")
 
     refute client.send(:readonly_error?, err)
   end
@@ -1387,11 +1387,11 @@ class SentinelClientBranchTest < Minitest::Test
     client = build_client
     conn = mock_conn
     conn.stubs(:connected?).returns(true)
-    error = RedisRuby::CommandError.new("ERR wrong number of arguments")
+    error = RR::CommandError.new("ERR wrong number of arguments")
     conn.expects(:call).with("SET", "key", "val").returns(error)
     client.instance_variable_set(:@connection, conn)
 
-    assert_raises(RedisRuby::CommandError) { client.call("SET", "key", "val") }
+    assert_raises(RR::CommandError) { client.call("SET", "key", "val") }
   end
 
   def test_call_handles_readonly_error_and_retries
@@ -1400,7 +1400,7 @@ class SentinelClientBranchTest < Minitest::Test
     client.stubs(:reconnect)
     client.stubs(:handle_failover)
 
-    readonly_err = RedisRuby::CommandError.new("READONLY You can't write against a read only replica")
+    readonly_err = RR::CommandError.new("READONLY You can't write against a read only replica")
 
     conn = mock_conn
     conn.stubs(:connected?).returns(true)
@@ -1412,7 +1412,7 @@ class SentinelClientBranchTest < Minitest::Test
     # handle_failover -> raise ReadOnlyError -> caught by rescue ->
     # retry with reconnect -> call again -> readonly again ->
     # exhaust retries -> raise ReadOnlyError
-    assert_raises(RedisRuby::ReadOnlyError) { client.call("SET", "k", "v") }
+    assert_raises(RR::ReadOnlyError) { client.call("SET", "k", "v") }
   end
 
   # ============================================================
@@ -1427,8 +1427,8 @@ class SentinelClientBranchTest < Minitest::Test
     conn = mock_conn
     conn.stubs(:connected?).returns(true)
     conn.stubs(:close)
-    conn.stubs(:call).with("PING").raises(RedisRuby::ConnectionError, "connection lost")
-      .then.raises(RedisRuby::ConnectionError, "connection lost")
+    conn.stubs(:call).with("PING").raises(RR::ConnectionError, "connection lost")
+      .then.raises(RR::ConnectionError, "connection lost")
       .then.returns("PONG")
     client.instance_variable_set(:@connection, conn)
 
@@ -1446,10 +1446,10 @@ class SentinelClientBranchTest < Minitest::Test
     conn = mock_conn
     conn.stubs(:connected?).returns(true)
     conn.stubs(:close)
-    conn.stubs(:call).with("PING").raises(RedisRuby::ConnectionError, "connection lost")
+    conn.stubs(:call).with("PING").raises(RR::ConnectionError, "connection lost")
     client.instance_variable_set(:@connection, conn)
 
-    assert_raises(RedisRuby::ConnectionError) { client.call("PING") }
+    assert_raises(RR::ConnectionError) { client.call("PING") }
   end
 
   def test_call_retries_on_failover_error
@@ -1460,10 +1460,10 @@ class SentinelClientBranchTest < Minitest::Test
     conn = mock_conn
     conn.stubs(:connected?).returns(true)
     conn.stubs(:close)
-    conn.stubs(:call).with("PING").raises(RedisRuby::FailoverError, "failover in progress")
+    conn.stubs(:call).with("PING").raises(RR::FailoverError, "failover in progress")
     client.instance_variable_set(:@connection, conn)
 
-    assert_raises(RedisRuby::FailoverError) { client.call("PING") }
+    assert_raises(RR::FailoverError) { client.call("PING") }
   end
 
   # ============================================================
@@ -1478,7 +1478,7 @@ class SentinelClientBranchTest < Minitest::Test
     conn.stubs(:connected?).returns(true)
     conn.stubs(:close)
     conn.stubs(:call).with("PING")
-      .raises(RedisRuby::ConnectionError, "fail")
+      .raises(RR::ConnectionError, "fail")
       .then.returns("OK")
     client.instance_variable_set(:@connection, conn)
 
@@ -1498,8 +1498,8 @@ class SentinelClientBranchTest < Minitest::Test
     conn.stubs(:connected?).returns(true)
     conn.stubs(:close)
     conn.stubs(:call).with("PING")
-      .raises(RedisRuby::ConnectionError, "fail")
-      .then.raises(RedisRuby::ConnectionError, "fail")
+      .raises(RR::ConnectionError, "fail")
+      .then.raises(RR::ConnectionError, "fail")
       .then.returns("OK")
     client.instance_variable_set(:@connection, conn)
 
@@ -1537,7 +1537,7 @@ class SentinelClientBranchTest < Minitest::Test
 
     pipeline_mock = mock("pipeline")
     pipeline_mock.expects(:execute).returns(%w[OK value])
-    RedisRuby::Pipeline.expects(:new).with(conn).returns(pipeline_mock)
+    RR::Pipeline.expects(:new).with(conn).returns(pipeline_mock)
 
     results = client.pipelined { |pipe| }
 
@@ -1550,12 +1550,12 @@ class SentinelClientBranchTest < Minitest::Test
     conn.stubs(:connected?).returns(true)
     client.instance_variable_set(:@connection, conn)
 
-    error = RedisRuby::CommandError.new("ERR")
+    error = RR::CommandError.new("ERR")
     pipeline_mock = mock("pipeline")
     pipeline_mock.expects(:execute).returns(["OK", error])
-    RedisRuby::Pipeline.expects(:new).with(conn).returns(pipeline_mock)
+    RR::Pipeline.expects(:new).with(conn).returns(pipeline_mock)
 
-    assert_raises(RedisRuby::CommandError) do
+    assert_raises(RR::CommandError) do
       client.pipelined { |pipe| }
     end
   end
@@ -1572,7 +1572,7 @@ class SentinelClientBranchTest < Minitest::Test
 
     tx_mock = mock("transaction")
     tx_mock.expects(:execute).returns(["OK", 1])
-    RedisRuby::Transaction.expects(:new).with(conn).returns(tx_mock)
+    RR::Transaction.expects(:new).with(conn).returns(tx_mock)
 
     results = client.multi { |tx| }
 
@@ -1587,7 +1587,7 @@ class SentinelClientBranchTest < Minitest::Test
 
     tx_mock = mock("transaction")
     tx_mock.expects(:execute).returns(nil)
-    RedisRuby::Transaction.expects(:new).with(conn).returns(tx_mock)
+    RR::Transaction.expects(:new).with(conn).returns(tx_mock)
 
     result = client.multi { |tx| }
 
@@ -1600,12 +1600,12 @@ class SentinelClientBranchTest < Minitest::Test
     conn.stubs(:connected?).returns(true)
     client.instance_variable_set(:@connection, conn)
 
-    error = RedisRuby::CommandError.new("MISCONF")
+    error = RR::CommandError.new("MISCONF")
     tx_mock = mock("transaction")
     tx_mock.expects(:execute).returns(error)
-    RedisRuby::Transaction.expects(:new).with(conn).returns(tx_mock)
+    RR::Transaction.expects(:new).with(conn).returns(tx_mock)
 
-    assert_raises(RedisRuby::CommandError) do
+    assert_raises(RR::CommandError) do
       client.multi { |tx| }
     end
   end
@@ -1616,12 +1616,12 @@ class SentinelClientBranchTest < Minitest::Test
     conn.stubs(:connected?).returns(true)
     client.instance_variable_set(:@connection, conn)
 
-    error = RedisRuby::CommandError.new("ERR wrong type")
+    error = RR::CommandError.new("ERR wrong type")
     tx_mock = mock("transaction")
     tx_mock.expects(:execute).returns(["OK", error])
-    RedisRuby::Transaction.expects(:new).with(conn).returns(tx_mock)
+    RR::Transaction.expects(:new).with(conn).returns(tx_mock)
 
-    assert_raises(RedisRuby::CommandError) do
+    assert_raises(RR::CommandError) do
       client.multi { |tx| }
     end
   end
@@ -1689,7 +1689,7 @@ class SentinelClientBranchTest < Minitest::Test
   # ============================================================
 
   def test_initialize_with_real_constructor
-    client = RedisRuby::SentinelClient.new(
+    client = RR::SentinelClient.new(
       sentinels: [{ host: "s1", port: 26_379 }],
       service_name: "mymaster",
       role: :master,
@@ -1710,11 +1710,11 @@ class SentinelClientBranchTest < Minitest::Test
     refute_predicate client, :replica?
     refute_predicate client, :connected?
     assert_nil client.current_address
-    assert_instance_of RedisRuby::SentinelManager, client.sentinel_manager
+    assert_instance_of RR::SentinelManager, client.sentinel_manager
   end
 
   def test_initialize_slave_role_normalized
-    client = RedisRuby::SentinelClient.new(
+    client = RR::SentinelClient.new(
       sentinels: [{ host: "s1", port: 26_379 }],
       service_name: "mymaster",
       role: :slave
@@ -1726,7 +1726,7 @@ class SentinelClientBranchTest < Minitest::Test
 
   def test_initialize_invalid_role_raises
     assert_raises(ArgumentError) do
-      RedisRuby::SentinelClient.new(
+      RR::SentinelClient.new(
         sentinels: [{ host: "s1", port: 26_379 }],
         service_name: "mymaster",
         role: :invalid

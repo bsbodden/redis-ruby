@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module RedisRuby
+module RR
   module DSL
     # Fluent builder for reading from Redis Streams as a consumer
     #
@@ -16,7 +16,7 @@ module RedisRuby
     # @example Block for new entries
     #   consumer.read.block(5000).execute
     class ConsumerReader
-      # @param redis [RedisRuby::Client] Redis client
+      # @param [RR::Client] Redis client
       # @param stream_key [String] Stream key
       # @param group_name [String] Consumer group name
       # @param consumer_name [String] Consumer name

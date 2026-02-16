@@ -2,10 +2,10 @@
 
 require_relative "../unit_test_helper"
 
-# Comprehensive branch coverage tests for RedisRuby::Commands::TimeSeries
+# Comprehensive branch coverage tests for RR::Commands::TimeSeries
 class TimeSeriesBranchTest < Minitest::Test
   class MockClient
-    include RedisRuby::Commands::TimeSeries
+    include RR::Commands::TimeSeries
 
     attr_reader :last_command
 

@@ -4,7 +4,7 @@ require_relative "../unit_test_helper"
 
 # MockClient that includes PubSub module and provides call/call_1arg/call_2args stubs
 class PubSubMockClient
-  include RedisRuby::Commands::PubSub
+  include RR::Commands::PubSub
 
   attr_accessor :last_call, :last_call_1arg, :last_call_2args, :call_return_value,
                 :call_1arg_return_value, :call_2arg_return_value
@@ -245,15 +245,15 @@ class PubSubBranchTest < Minitest::Test
   # ============================================================
 
   def test_subscription_handler_initialize
-    handler = RedisRuby::Commands::PubSub::SubscriptionHandler.new
+    handler = RR::Commands::PubSub::SubscriptionHandler.new
 
-    assert_instance_of RedisRuby::Commands::PubSub::SubscriptionHandler, handler
+    assert_instance_of RR::Commands::PubSub::SubscriptionHandler, handler
   end
 
   # --- subscribe callback ---
 
   def test_subscription_handler_subscribe_callback
-    handler = RedisRuby::Commands::PubSub::SubscriptionHandler.new
+    handler = RR::Commands::PubSub::SubscriptionHandler.new
     received = nil
     handler.subscribe { |channel, count| received = [channel, count] }
     handler.call_subscribe(:subscribe, "ch1", 1)
@@ -262,7 +262,7 @@ class PubSubBranchTest < Minitest::Test
   end
 
   def test_subscription_handler_subscribe_callback_not_set
-    handler = RedisRuby::Commands::PubSub::SubscriptionHandler.new
+    handler = RR::Commands::PubSub::SubscriptionHandler.new
     # Should not raise when callback is not set (safe navigation)
     handler.call_subscribe(:subscribe, "ch1", 1)
   end
@@ -270,7 +270,7 @@ class PubSubBranchTest < Minitest::Test
   # --- psubscribe callback ---
 
   def test_subscription_handler_psubscribe_callback
-    handler = RedisRuby::Commands::PubSub::SubscriptionHandler.new
+    handler = RR::Commands::PubSub::SubscriptionHandler.new
     received = nil
     handler.psubscribe { |pattern, count| received = [pattern, count] }
     handler.call_subscribe(:psubscribe, "news.*", 1)
@@ -279,14 +279,14 @@ class PubSubBranchTest < Minitest::Test
   end
 
   def test_subscription_handler_psubscribe_callback_not_set
-    handler = RedisRuby::Commands::PubSub::SubscriptionHandler.new
+    handler = RR::Commands::PubSub::SubscriptionHandler.new
     handler.call_subscribe(:psubscribe, "news.*", 1)
   end
 
   # --- ssubscribe callback ---
 
   def test_subscription_handler_ssubscribe_callback
-    handler = RedisRuby::Commands::PubSub::SubscriptionHandler.new
+    handler = RR::Commands::PubSub::SubscriptionHandler.new
     received = nil
     handler.ssubscribe { |channel, count| received = [channel, count] }
     handler.call_subscribe(:ssubscribe, "shard_ch", 1)
@@ -295,14 +295,14 @@ class PubSubBranchTest < Minitest::Test
   end
 
   def test_subscription_handler_ssubscribe_callback_not_set
-    handler = RedisRuby::Commands::PubSub::SubscriptionHandler.new
+    handler = RR::Commands::PubSub::SubscriptionHandler.new
     handler.call_subscribe(:ssubscribe, "shard_ch", 1)
   end
 
   # --- unsubscribe callback ---
 
   def test_subscription_handler_unsubscribe_callback
-    handler = RedisRuby::Commands::PubSub::SubscriptionHandler.new
+    handler = RR::Commands::PubSub::SubscriptionHandler.new
     received = nil
     handler.unsubscribe { |channel, count| received = [channel, count] }
     handler.call_unsubscribe(:unsubscribe, "ch1", 0)
@@ -311,14 +311,14 @@ class PubSubBranchTest < Minitest::Test
   end
 
   def test_subscription_handler_unsubscribe_callback_not_set
-    handler = RedisRuby::Commands::PubSub::SubscriptionHandler.new
+    handler = RR::Commands::PubSub::SubscriptionHandler.new
     handler.call_unsubscribe(:unsubscribe, "ch1", 0)
   end
 
   # --- punsubscribe callback ---
 
   def test_subscription_handler_punsubscribe_callback
-    handler = RedisRuby::Commands::PubSub::SubscriptionHandler.new
+    handler = RR::Commands::PubSub::SubscriptionHandler.new
     received = nil
     handler.punsubscribe { |pattern, count| received = [pattern, count] }
     handler.call_unsubscribe(:punsubscribe, "news.*", 0)
@@ -327,14 +327,14 @@ class PubSubBranchTest < Minitest::Test
   end
 
   def test_subscription_handler_punsubscribe_callback_not_set
-    handler = RedisRuby::Commands::PubSub::SubscriptionHandler.new
+    handler = RR::Commands::PubSub::SubscriptionHandler.new
     handler.call_unsubscribe(:punsubscribe, "news.*", 0)
   end
 
   # --- sunsubscribe callback ---
 
   def test_subscription_handler_sunsubscribe_callback
-    handler = RedisRuby::Commands::PubSub::SubscriptionHandler.new
+    handler = RR::Commands::PubSub::SubscriptionHandler.new
     received = nil
     handler.sunsubscribe { |channel, count| received = [channel, count] }
     handler.call_unsubscribe(:sunsubscribe, "shard_ch", 0)
@@ -343,14 +343,14 @@ class PubSubBranchTest < Minitest::Test
   end
 
   def test_subscription_handler_sunsubscribe_callback_not_set
-    handler = RedisRuby::Commands::PubSub::SubscriptionHandler.new
+    handler = RR::Commands::PubSub::SubscriptionHandler.new
     handler.call_unsubscribe(:sunsubscribe, "shard_ch", 0)
   end
 
   # --- message callback ---
 
   def test_subscription_handler_message_callback
-    handler = RedisRuby::Commands::PubSub::SubscriptionHandler.new
+    handler = RR::Commands::PubSub::SubscriptionHandler.new
     received = nil
     handler.message { |channel, message| received = [channel, message] }
     handler.call_message("ch1", "hello")
@@ -359,14 +359,14 @@ class PubSubBranchTest < Minitest::Test
   end
 
   def test_subscription_handler_message_callback_not_set
-    handler = RedisRuby::Commands::PubSub::SubscriptionHandler.new
+    handler = RR::Commands::PubSub::SubscriptionHandler.new
     handler.call_message("ch1", "hello")
   end
 
   # --- pmessage callback ---
 
   def test_subscription_handler_pmessage_callback
-    handler = RedisRuby::Commands::PubSub::SubscriptionHandler.new
+    handler = RR::Commands::PubSub::SubscriptionHandler.new
     received = nil
     handler.pmessage { |pattern, channel, message| received = [pattern, channel, message] }
     handler.call_pmessage("news.*", "news.tech", "New article!")
@@ -375,14 +375,14 @@ class PubSubBranchTest < Minitest::Test
   end
 
   def test_subscription_handler_pmessage_callback_not_set
-    handler = RedisRuby::Commands::PubSub::SubscriptionHandler.new
+    handler = RR::Commands::PubSub::SubscriptionHandler.new
     handler.call_pmessage("news.*", "news.tech", "hello")
   end
 
   # --- smessage callback ---
 
   def test_subscription_handler_smessage_callback
-    handler = RedisRuby::Commands::PubSub::SubscriptionHandler.new
+    handler = RR::Commands::PubSub::SubscriptionHandler.new
     received = nil
     handler.smessage { |channel, message| received = [channel, message] }
     handler.call_smessage("shard_ch", "shard_msg")
@@ -391,14 +391,14 @@ class PubSubBranchTest < Minitest::Test
   end
 
   def test_subscription_handler_smessage_callback_not_set
-    handler = RedisRuby::Commands::PubSub::SubscriptionHandler.new
+    handler = RR::Commands::PubSub::SubscriptionHandler.new
     handler.call_smessage("shard_ch", "shard_msg")
   end
 
   # --- Multiple callbacks at once ---
 
   def test_subscription_handler_all_callbacks_set
-    handler = RedisRuby::Commands::PubSub::SubscriptionHandler.new
+    handler = RR::Commands::PubSub::SubscriptionHandler.new
     results = {}
 
     handler.subscribe { |ch, c| results[:subscribe] = [ch, c] }
@@ -435,7 +435,7 @@ class PubSubBranchTest < Minitest::Test
   # --- Overwriting callbacks ---
 
   def test_subscription_handler_overwrite_callback
-    handler = RedisRuby::Commands::PubSub::SubscriptionHandler.new
+    handler = RR::Commands::PubSub::SubscriptionHandler.new
     received = nil
 
     handler.message { |_ch, _m| received = :first }
@@ -529,13 +529,13 @@ class PubSubBranchTest < Minitest::Test
   # ============================================================
 
   def test_frozen_command_constants
-    assert_equal "PUBLISH", RedisRuby::Commands::PubSub::CMD_PUBLISH
-    assert_equal "SPUBLISH", RedisRuby::Commands::PubSub::CMD_SPUBLISH
-    assert_equal "PUBSUB", RedisRuby::Commands::PubSub::CMD_PUBSUB
-    assert_equal "CHANNELS", RedisRuby::Commands::PubSub::SUBCMD_CHANNELS
-    assert_equal "NUMSUB", RedisRuby::Commands::PubSub::SUBCMD_NUMSUB
-    assert_equal "NUMPAT", RedisRuby::Commands::PubSub::SUBCMD_NUMPAT
-    assert_equal "SHARDCHANNELS", RedisRuby::Commands::PubSub::SUBCMD_SHARDCHANNELS
-    assert_equal "SHARDNUMSUB", RedisRuby::Commands::PubSub::SUBCMD_SHARDNUMSUB
+    assert_equal "PUBLISH", RR::Commands::PubSub::CMD_PUBLISH
+    assert_equal "SPUBLISH", RR::Commands::PubSub::CMD_SPUBLISH
+    assert_equal "PUBSUB", RR::Commands::PubSub::CMD_PUBSUB
+    assert_equal "CHANNELS", RR::Commands::PubSub::SUBCMD_CHANNELS
+    assert_equal "NUMSUB", RR::Commands::PubSub::SUBCMD_NUMSUB
+    assert_equal "NUMPAT", RR::Commands::PubSub::SUBCMD_NUMPAT
+    assert_equal "SHARDCHANNELS", RR::Commands::PubSub::SUBCMD_SHARDCHANNELS
+    assert_equal "SHARDNUMSUB", RR::Commands::PubSub::SUBCMD_SHARDNUMSUB
   end
 end

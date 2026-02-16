@@ -28,7 +28,7 @@ class PipelineUnitTest < Minitest::Test
 
   def setup
     @conn = MockConnection.new
-    @pipeline = RedisRuby::Pipeline.new(@conn)
+    @pipeline = RR::Pipeline.new(@conn)
   end
 
   # ============================================================
@@ -36,7 +36,7 @@ class PipelineUnitTest < Minitest::Test
   # ============================================================
 
   def test_pipeline_initializes_with_connection
-    assert_instance_of RedisRuby::Pipeline, @pipeline
+    assert_instance_of RR::Pipeline, @pipeline
   end
 
   def test_pipeline_starts_empty

@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module RedisRuby
+module RR
   module Commands
     # Redis Functions commands (Redis 7.0+)
     #

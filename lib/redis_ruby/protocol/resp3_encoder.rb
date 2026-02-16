@@ -3,7 +3,7 @@
 require_relative "fast_path_encoders"
 require_relative "pipeline_encoders"
 
-module RedisRuby
+module RR
   module Protocol
     # RESP3 Protocol Encoder
     #

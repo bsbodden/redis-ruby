@@ -4,7 +4,7 @@ require "test_helper"
 
 class TimeSeriesDSLTest < Minitest::Test
   def setup
-    @redis = RedisRuby::Client.new
+    @redis = RR::Client.new
     @redis.flushdb
   end
 
@@ -70,7 +70,7 @@ class TimeSeriesDSLTest < Minitest::Test
       .add(now + 1000, 24.0)
       .add(now + 2000, 23.8)
 
-    assert_instance_of RedisRuby::DSL::TimeSeriesProxy, result
+    assert_instance_of RR::DSL::TimeSeriesProxy, result
 
     # Verify samples were added
     samples = @redis.ts_range("temp:sensor1", "-", "+")

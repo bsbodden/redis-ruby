@@ -1,23 +1,23 @@
 # frozen_string_literal: true
 
-module RedisRuby
+module RR
   # Retry policy for automatic command retry on transient failures.
   #
   # Inspired by redis-py's Retry class. Provides configurable retry
   # behavior with pluggable backoff strategies.
   #
   # @example Basic usage
-  #   retry_policy = RedisRuby::Retry.new(retries: 3)
+  #   retry_policy = RR::Retry.new(retries: 3)
   #   retry_policy.call { client.get("key") }
   #
   # @example With exponential backoff
-  #   retry_policy = RedisRuby::Retry.new(
+  #   retry_policy = RR::Retry.new(
   #     retries: 5,
-  #     backoff: RedisRuby::ExponentialWithJitterBackoff.new(base: 0.1, cap: 2.0)
+  #     backoff: RR::ExponentialWithJitterBackoff.new(base: 0.1, cap: 2.0)
   #   )
   #
   # @example With callback
-  #   retry_policy = RedisRuby::Retry.new(
+  #   retry_policy = RR::Retry.new(
   #     retries: 3,
   #     on_retry: ->(error, attempt) { logger.warn("Retry #{attempt}: #{error}") }
   #   )
@@ -61,7 +61,7 @@ module RedisRuby
   # No backoff - retry immediately.
   #
   # @example
-  #   backoff = RedisRuby::NoBackoff.new
+  #   backoff = RR::NoBackoff.new
   #   backoff.compute(1) # => 0
   class NoBackoff
     # @param _failures [Integer] Number of consecutive failures (ignored)
@@ -74,7 +74,7 @@ module RedisRuby
   # Constant backoff - always wait the same duration.
   #
   # @example
-  #   backoff = RedisRuby::ConstantBackoff.new(0.5)
+  #   backoff = RR::ConstantBackoff.new(0.5)
   #   backoff.compute(1) # => 0.5
   #   backoff.compute(5) # => 0.5
   class ConstantBackoff
@@ -95,7 +95,7 @@ module RedisRuby
   # Delay = min(cap, base * 2^(failures-1))
   #
   # @example
-  #   backoff = RedisRuby::ExponentialBackoff.new(base: 0.1, cap: 10.0)
+  #   backoff = RR::ExponentialBackoff.new(base: 0.1, cap: 10.0)
   #   backoff.compute(1) # => 0.1
   #   backoff.compute(2) # => 0.2
   #   backoff.compute(3) # => 0.4
@@ -123,7 +123,7 @@ module RedisRuby
   # Full jitter provides the best spread across retrying clients.
   #
   # @example
-  #   backoff = RedisRuby::ExponentialWithJitterBackoff.new(base: 0.1, cap: 10.0)
+  #   backoff = RR::ExponentialWithJitterBackoff.new(base: 0.1, cap: 10.0)
   class ExponentialWithJitterBackoff
     # @param base [Float] Base delay in seconds
     # @param cap [Float] Maximum delay cap in seconds
@@ -149,7 +149,7 @@ module RedisRuby
   # Provides a guaranteed minimum wait time of half the computed delay.
   #
   # @example
-  #   backoff = RedisRuby::EqualJitterBackoff.new(base: 0.1, cap: 10.0)
+  #   backoff = RR::EqualJitterBackoff.new(base: 0.1, cap: 10.0)
   class EqualJitterBackoff
     # @param base [Float] Base delay in seconds
     # @param cap [Float] Maximum delay cap in seconds

@@ -10,7 +10,7 @@ class DecodeResponsesTest < Minitest::Test
   end
 
   def make_client(**)
-    client = RedisRuby::Client.new(**)
+    client = RR::Client.new(**)
     client.instance_variable_set(:@connection, @connection)
     client
   end

@@ -419,7 +419,7 @@ class StringsCommandsTest < RedisRubyTestCase
   def test_incr_non_numeric_raises
     redis.set("test:incr", "not_a_number")
 
-    assert_raises(RedisRuby::CommandError) do
+    assert_raises(RR::CommandError) do
       redis.incr("test:incr")
     end
   ensure

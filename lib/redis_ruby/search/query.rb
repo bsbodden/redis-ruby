@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module RedisRuby
+module RR
   module Search
     # Object-oriented query builder for RediSearch
     #
@@ -373,7 +373,7 @@ module RedisRuby
 
       # Execute the query
       #
-      # @param client [RedisRuby::Client] Redis client
+      # @param [RR::Client] Redis client
       # @param index [String] Index name
       # @return [Array] Search results
       def execute(client, index)
@@ -526,7 +526,7 @@ module RedisRuby
 
       # Execute the aggregation
       #
-      # @param client [RedisRuby::Client] Redis client
+      # @param [RR::Client] Redis client
       # @param index [String] Index name
       # @return [Array] Aggregation results
       def execute(client, index)

@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module RedisRuby
+module RR
   module DSL
     # Builder for creating and configuring vector sets with a fluent API
     #

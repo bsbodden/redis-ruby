@@ -680,7 +680,7 @@ end
 ```ruby
 begin
   redis.ts_add("temperature:sensor1", "*", 23.5)
-rescue RedisRuby::CommandError => e
+rescue RR::CommandError => e
   if e.message.include?("key does not exist")
     # Create time series and retry
     redis.ts_create("temperature:sensor1")
@@ -694,7 +694,7 @@ end
 begin
   info = redis.ts_info("temperature:sensor1")
   puts "Time series exists"
-rescue RedisRuby::CommandError
+rescue RR::CommandError
   puts "Time series does not exist"
 end
 ```

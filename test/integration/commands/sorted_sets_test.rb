@@ -799,7 +799,7 @@ class SortedSetsCommandsTest < RedisRubyTestCase
     count = redis.zintercard("test:zset1", "test:zset2")
 
     assert_equal 2, count  # "two" and "three"
-  rescue RedisRuby::CommandError => e
+  rescue RR::CommandError => e
     skip "ZINTERCARD not supported (requires Redis 7.0+)" if e.message.include?("unknown command")
     raise
   ensure
@@ -813,7 +813,7 @@ class SortedSetsCommandsTest < RedisRubyTestCase
     count = redis.zintercard("test:zset1", "test:zset2", limit: 3)
 
     assert_equal 3, count  # Stops counting at 3
-  rescue RedisRuby::CommandError => e
+  rescue RR::CommandError => e
     skip "ZINTERCARD not supported (requires Redis 7.0+)" if e.message.include?("unknown command")
     raise
   ensure
@@ -827,7 +827,7 @@ class SortedSetsCommandsTest < RedisRubyTestCase
     count = redis.zintercard("test:zset1", "test:zset2")
 
     assert_equal 0, count
-  rescue RedisRuby::CommandError => e
+  rescue RR::CommandError => e
     skip "ZINTERCARD not supported (requires Redis 7.0+)" if e.message.include?("unknown command")
     raise
   ensure
@@ -842,7 +842,7 @@ class SortedSetsCommandsTest < RedisRubyTestCase
 
     assert_equal "test:zset", result[0]
     assert_equal [["one", 1.0]], result[1]
-  rescue RedisRuby::CommandError => e
+  rescue RR::CommandError => e
     skip "ZMPOP not supported (requires Redis 7.0+)" if e.message.include?("unknown command")
     raise
   ensure
@@ -856,7 +856,7 @@ class SortedSetsCommandsTest < RedisRubyTestCase
 
     assert_equal "test:zset", result[0]
     assert_equal [["three", 3.0]], result[1]
-  rescue RedisRuby::CommandError => e
+  rescue RR::CommandError => e
     skip "ZMPOP not supported (requires Redis 7.0+)" if e.message.include?("unknown command")
     raise
   ensure
@@ -870,7 +870,7 @@ class SortedSetsCommandsTest < RedisRubyTestCase
 
     assert_equal "test:zset", result[0]
     assert_equal [["one", 1.0], ["two", 2.0]], result[1]
-  rescue RedisRuby::CommandError => e
+  rescue RR::CommandError => e
     skip "ZMPOP not supported (requires Redis 7.0+)" if e.message.include?("unknown command")
     raise
   ensure
@@ -885,7 +885,7 @@ class SortedSetsCommandsTest < RedisRubyTestCase
     # Pops from first non-empty set
     assert_equal "test:zset2", result[0]
     assert_equal [["five", 5.0]], result[1]
-  rescue RedisRuby::CommandError => e
+  rescue RR::CommandError => e
     skip "ZMPOP not supported (requires Redis 7.0+)" if e.message.include?("unknown command")
     raise
   ensure
@@ -898,7 +898,7 @@ class SortedSetsCommandsTest < RedisRubyTestCase
     result = redis.zmpop("test:zset1", "test:zset2", modifier: :min)
 
     assert_nil result
-  rescue RedisRuby::CommandError => e
+  rescue RR::CommandError => e
     skip "ZMPOP not supported (requires Redis 7.0+)" if e.message.include?("unknown command")
     raise
   end

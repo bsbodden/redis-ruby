@@ -7,7 +7,7 @@ class PooledClientIntegrationTest < RedisRubyTestCase
 
   def setup
     super
-    @pooled_client = RedisRuby::PooledClient.new(url: @redis_url, pool: { size: 5 })
+    @pooled_client = RR::PooledClient.new(url: @redis_url, pool: { size: 5 })
   end
 
   def teardown
@@ -116,7 +116,7 @@ class PooledClientIntegrationTest < RedisRubyTestCase
   end
 
   def test_pooled_helper_method
-    client = RedisRuby.pooled(url: @redis_url, pool: { size: 3 })
+    client = RR.pooled(url: @redis_url, pool: { size: 3 })
     client.set("pooled:helper", "works")
 
     assert_equal "works", client.get("pooled:helper")

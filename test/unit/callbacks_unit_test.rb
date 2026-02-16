@@ -4,7 +4,7 @@ require_relative "unit_test_helper"
 
 class CallbacksUnitTest < Minitest::Test
   def setup
-    @callbacks = RedisRuby::ResponseCallbacks.new
+    @callbacks = RR::ResponseCallbacks.new
   end
 
   # ============================================================
@@ -12,7 +12,7 @@ class CallbacksUnitTest < Minitest::Test
   # ============================================================
 
   def test_initialize_creates_empty_callbacks
-    callbacks = RedisRuby::ResponseCallbacks.new
+    callbacks = RR::ResponseCallbacks.new
 
     assert_empty(callbacks.to_h)
   end
@@ -296,7 +296,7 @@ class CallbacksUnitTest < Minitest::Test
 
   def test_parse_info_with_sections
     raw = "# Server\nredis_version:7.0.0\ntcp_port:6379\n\n# Clients\nconnected_clients:5\n"
-    result = RedisRuby::ResponseCallbacks.parse_info(raw)
+    result = RR::ResponseCallbacks.parse_info(raw)
 
     assert_instance_of Hash, result
     assert_equal "7.0.0", result[:server]["redis_version"]
@@ -306,42 +306,42 @@ class CallbacksUnitTest < Minitest::Test
 
   def test_parse_info_without_section
     raw = "redis_version:7.0.0\ntcp_port:6379\n"
-    result = RedisRuby::ResponseCallbacks.parse_info(raw)
+    result = RR::ResponseCallbacks.parse_info(raw)
 
     assert_equal "7.0.0", result["redis_version"]
     assert_equal 6379, result["tcp_port"]
   end
 
   def test_parse_info_non_string_returns_as_is
-    result = RedisRuby::ResponseCallbacks.parse_info(42)
+    result = RR::ResponseCallbacks.parse_info(42)
 
     assert_equal 42, result
   end
 
   def test_parse_info_empty_lines_skipped
     raw = "# Server\n\nredis_version:7.0.0\n\n"
-    result = RedisRuby::ResponseCallbacks.parse_info(raw)
+    result = RR::ResponseCallbacks.parse_info(raw)
 
     assert_equal "7.0.0", result[:server]["redis_version"]
   end
 
   def test_parse_info_value_integer
     raw = "connected_clients:5\n"
-    result = RedisRuby::ResponseCallbacks.parse_info(raw)
+    result = RR::ResponseCallbacks.parse_info(raw)
 
     assert_equal 5, result["connected_clients"]
   end
 
   def test_parse_info_value_float
     raw = "used_cpu_sys:1.23\n"
-    result = RedisRuby::ResponseCallbacks.parse_info(raw)
+    result = RR::ResponseCallbacks.parse_info(raw)
 
     assert_in_delta 1.23, result["used_cpu_sys"], 0.001
   end
 
   def test_parse_info_value_string
     raw = "redis_git_sha1:abcdef\n"
-    result = RedisRuby::ResponseCallbacks.parse_info(raw)
+    result = RR::ResponseCallbacks.parse_info(raw)
 
     assert_equal "abcdef", result["redis_git_sha1"]
   end
@@ -351,25 +351,25 @@ class CallbacksUnitTest < Minitest::Test
   # ============================================================
 
   def test_parse_info_value_integer_string
-    result = RedisRuby::ResponseCallbacks.parse_info_value("42")
+    result = RR::ResponseCallbacks.parse_info_value("42")
 
     assert_equal 42, result
   end
 
   def test_parse_info_value_float_string
-    result = RedisRuby::ResponseCallbacks.parse_info_value("3.14")
+    result = RR::ResponseCallbacks.parse_info_value("3.14")
 
     assert_in_delta 3.14, result, 0.001
   end
 
   def test_parse_info_value_plain_string
-    result = RedisRuby::ResponseCallbacks.parse_info_value("abcdef")
+    result = RR::ResponseCallbacks.parse_info_value("abcdef")
 
     assert_equal "abcdef", result
   end
 
   def test_parse_info_value_empty_string
-    result = RedisRuby::ResponseCallbacks.parse_info_value("")
+    result = RR::ResponseCallbacks.parse_info_value("")
 
     assert_equal "", result
   end
@@ -380,7 +380,7 @@ class CallbacksUnitTest < Minitest::Test
 
   def test_parse_client_list_string
     raw = "id=1 addr=127.0.0.1:1234 fd=5 name=myconn\nid=2 addr=127.0.0.1:1235 fd=6 name=\n"
-    result = RedisRuby::ResponseCallbacks.parse_client_list(raw)
+    result = RR::ResponseCallbacks.parse_client_list(raw)
 
     assert_instance_of Array, result
     assert_equal 2, result.size
@@ -392,14 +392,14 @@ class CallbacksUnitTest < Minitest::Test
   end
 
   def test_parse_client_list_non_string
-    result = RedisRuby::ResponseCallbacks.parse_client_list([{ "id" => 1 }])
+    result = RR::ResponseCallbacks.parse_client_list([{ "id" => 1 }])
 
     assert_equal [{ "id" => 1 }], result
   end
 
   def test_parse_client_list_single_client
     raw = "id=42 addr=10.0.0.1:5000"
-    result = RedisRuby::ResponseCallbacks.parse_client_list(raw)
+    result = RR::ResponseCallbacks.parse_client_list(raw)
 
     assert_equal 1, result.size
     assert_equal "42", result[0]["id"]
@@ -412,7 +412,7 @@ class CallbacksUnitTest < Minitest::Test
 
   def test_parse_debug_object_string
     raw = "Value at:0x7f8e encoding:ziplist refcount:1 serializedlength:42 lru:123456"
-    result = RedisRuby::ResponseCallbacks.parse_debug_object(raw)
+    result = RR::ResponseCallbacks.parse_debug_object(raw)
 
     assert_instance_of Hash, result
     # "at:0x7f8e" => pair split on ":"
@@ -424,14 +424,14 @@ class CallbacksUnitTest < Minitest::Test
   end
 
   def test_parse_debug_object_non_string
-    result = RedisRuby::ResponseCallbacks.parse_debug_object({ "encoding" => "raw" })
+    result = RR::ResponseCallbacks.parse_debug_object({ "encoding" => "raw" })
 
     assert_equal({ "encoding" => "raw" }, result)
   end
 
   def test_parse_debug_object_no_colons
     raw = "Value nocolon"
-    result = RedisRuby::ResponseCallbacks.parse_debug_object(raw)
+    result = RR::ResponseCallbacks.parse_debug_object(raw)
     # "Value" and "nocolon" don't contain colons, so nothing parsed
     assert_empty(result)
   end
@@ -441,14 +441,14 @@ class CallbacksUnitTest < Minitest::Test
   # ============================================================
 
   def test_defaults_frozen
-    assert_predicate RedisRuby::ResponseCallbacks::DEFAULTS, :frozen?
+    assert_predicate RR::ResponseCallbacks::DEFAULTS, :frozen?
   end
 
   def test_defaults_keys
     expected_keys = ["INFO", "CLIENT LIST", "DEBUG OBJECT", "MEMORY STATS", "CONFIG GET", "ACL LOG"]
 
     expected_keys.each do |key|
-      assert RedisRuby::ResponseCallbacks::DEFAULTS.key?(key), "Expected DEFAULTS to have key #{key}"
+      assert RR::ResponseCallbacks::DEFAULTS.key?(key), "Expected DEFAULTS to have key #{key}"
     end
   end
 

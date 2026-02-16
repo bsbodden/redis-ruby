@@ -5,7 +5,7 @@ require_relative "../../test_helper"
 
 class FunctionsCommandsTest < Minitest::Test
   def setup
-    @client = RedisRuby::Client.new
+    @client = RR::Client.new
     @connection = mock("connection")
     @client.instance_variable_set(:@connection, @connection)
     @connection.stubs(:connected?).returns(true)

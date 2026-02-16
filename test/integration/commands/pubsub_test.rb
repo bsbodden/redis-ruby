@@ -25,7 +25,7 @@ class PubSubIntegrationTest < RedisRubyTestCase
 
   def create_publisher_connection
     # Use the same URL as the main redis connection (from testcontainers or ENV)
-    RedisRuby.new(url: @redis_url)
+    RR.new(url: @redis_url)
   end
 
   public
@@ -198,7 +198,7 @@ class PubSubIntegrationTest < RedisRubyTestCase
     result = redis.pubsub_shardchannels
 
     assert_kind_of Array, result
-  rescue RedisRuby::CommandError => e
+  rescue RR::CommandError => e
     skip "PUBSUB SHARDCHANNELS not supported" if e.message.include?("unknown subcommand")
     raise
   end
@@ -207,7 +207,7 @@ class PubSubIntegrationTest < RedisRubyTestCase
     result = redis.pubsub_shardnumsub("shard:channel1")
 
     assert_kind_of Hash, result
-  rescue RedisRuby::CommandError => e
+  rescue RR::CommandError => e
     skip "PUBSUB SHARDNUMSUB not supported" if e.message.include?("unknown subcommand")
     raise
   end
@@ -222,7 +222,7 @@ class PubSubIntegrationTest < RedisRubyTestCase
     result = redis.spublish("shard:test:channel", "hello")
 
     assert_equal 0, result
-  rescue RedisRuby::CommandError => e
+  rescue RR::CommandError => e
     skip "SPUBLISH not supported (requires Redis 7.0+)" if e.message.include?("unknown command")
     raise
   end
@@ -231,7 +231,7 @@ class PubSubIntegrationTest < RedisRubyTestCase
     result = redis.spublish("shard:test:channel", "test message")
 
     assert_kind_of Integer, result
-  rescue RedisRuby::CommandError => e
+  rescue RR::CommandError => e
     skip "SPUBLISH not supported (requires Redis 7.0+)" if e.message.include?("unknown command")
     raise
   end
@@ -271,7 +271,7 @@ class PubSubIntegrationTest < RedisRubyTestCase
     assert_equal 2, messages.size
     assert_equal ["shard:test:block", "message1"], messages[0]
     assert_equal ["shard:test:block", "message2"], messages[1]
-  rescue RedisRuby::CommandError => e
+  rescue RR::CommandError => e
     skip "SSUBSCRIBE not supported (requires Redis 7.0+)" if e.message.include?("unknown command")
     raise
   end
@@ -303,7 +303,7 @@ class PubSubIntegrationTest < RedisRubyTestCase
     assert_includes channels_subscribed, "shard:test:multi1"
     assert_includes channels_subscribed, "shard:test:multi2"
     assert_equal 2, messages.size
-  rescue RedisRuby::CommandError => e
+  rescue RR::CommandError => e
     skip "SSUBSCRIBE not supported (requires Redis 7.0+)" if e.message.include?("unknown command")
     raise
   end
@@ -321,7 +321,7 @@ class PubSubIntegrationTest < RedisRubyTestCase
 
     assert_operator elapsed, :>=, 0.4
     assert_operator elapsed, :<, 2.0
-  rescue RedisRuby::CommandError => e
+  rescue RR::CommandError => e
     skip "SSUBSCRIBE not supported (requires Redis 7.0+)" if e.message.include?("unknown command")
     raise
   end
@@ -330,7 +330,7 @@ class PubSubIntegrationTest < RedisRubyTestCase
     result = redis.pubsub_shardchannels("shard:test:*")
 
     assert_kind_of Array, result
-  rescue RedisRuby::CommandError => e
+  rescue RR::CommandError => e
     skip "PUBSUB SHARDCHANNELS not supported" if e.message.include?("unknown subcommand")
     raise
   end

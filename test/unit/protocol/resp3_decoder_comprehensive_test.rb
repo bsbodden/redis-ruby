@@ -6,7 +6,7 @@ require "stringio"
 class RESP3DecoderComprehensiveTest < Minitest::Test
   def decoder_for(data)
     io = StringIO.new(data.b)
-    RedisRuby::Protocol::RESP3Decoder.new(io)
+    RR::Protocol::RESP3Decoder.new(io)
   end
 
   # ============================================================
@@ -39,7 +39,7 @@ class RESP3DecoderComprehensiveTest < Minitest::Test
     decoder = decoder_for("-ERR unknown command\r\n")
     result = decoder.decode
 
-    assert_instance_of RedisRuby::CommandError, result
+    assert_instance_of RR::CommandError, result
     assert_equal "ERR unknown command", result.message
   end
 
@@ -47,7 +47,7 @@ class RESP3DecoderComprehensiveTest < Minitest::Test
     decoder = decoder_for("-WRONGTYPE Operation against a key holding the wrong kind of value\r\n")
     result = decoder.decode
 
-    assert_instance_of RedisRuby::CommandError, result
+    assert_instance_of RR::CommandError, result
     assert_includes result.message, "WRONGTYPE"
   end
 
@@ -195,7 +195,7 @@ class RESP3DecoderComprehensiveTest < Minitest::Test
 
   def test_decode_boolean_invalid
     decoder = decoder_for("#x\r\n")
-    assert_raises(RedisRuby::Protocol::ProtocolError) { decoder.decode }
+    assert_raises(RR::Protocol::ProtocolError) { decoder.decode }
   end
 
   # ============================================================
@@ -262,7 +262,7 @@ class RESP3DecoderComprehensiveTest < Minitest::Test
     decoder = decoder_for("!21\r\nSYNTAX invalid syntax\r\n")
     result = decoder.decode
 
-    assert_instance_of RedisRuby::CommandError, result
+    assert_instance_of RR::CommandError, result
     assert_equal "SYNTAX invalid syntax", result.message
   end
 
@@ -344,7 +344,7 @@ class RESP3DecoderComprehensiveTest < Minitest::Test
     decoder = decoder_for(">3\r\n$7\r\nmessage\r\n$7\r\nchannel\r\n$7\r\npayload\r\n")
     result = decoder.decode
 
-    assert_instance_of RedisRuby::Protocol::PushMessage, result
+    assert_instance_of RR::Protocol::PushMessage, result
     assert_equal %w[message channel payload], result.data
   end
 
@@ -354,7 +354,7 @@ class RESP3DecoderComprehensiveTest < Minitest::Test
 
   def test_decode_unknown_type
     decoder = decoder_for("@invalid\r\n")
-    assert_raises(RedisRuby::Protocol::ProtocolError) { decoder.decode }
+    assert_raises(RR::Protocol::ProtocolError) { decoder.decode }
   end
 
   # ============================================================
@@ -384,7 +384,7 @@ class RESP3DecoderComprehensiveTest < Minitest::Test
   # ============================================================
 
   def test_push_message_data_accessor
-    msg = RedisRuby::Protocol::PushMessage.new(%w[type channel data])
+    msg = RR::Protocol::PushMessage.new(%w[type channel data])
 
     assert_equal %w[type channel data], msg.data
   end

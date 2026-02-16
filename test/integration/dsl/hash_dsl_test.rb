@@ -17,7 +17,7 @@ class HashDSLTest < RedisRubyTestCase
   def test_hash_proxy_creation
     proxy = redis.hash(:user, 123)
     
-    assert_instance_of RedisRuby::DSL::HashProxy, proxy
+    assert_instance_of RR::DSL::HashProxy, proxy
     assert_equal "user:123", proxy.key
   end
 

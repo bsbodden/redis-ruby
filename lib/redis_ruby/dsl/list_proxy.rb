@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module RedisRuby
+module RR
   module DSL
     # Idiomatic Ruby interface for Redis Lists
     #
@@ -25,7 +25,7 @@ module RedisRuby
     #   list[0] = "new_value"
     #
     class ListProxy
-      # @param redis [RedisRuby::Client] Redis client instance
+      # @param [RR::Client] Redis client instance
       # @param key_parts [Array<String, Symbol, Integer>] Key components to join with ':'
       def initialize(redis, *key_parts)
         @redis = redis

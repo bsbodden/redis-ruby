@@ -22,12 +22,12 @@ This example demonstrates how to use pipelining to batch multiple Redis commands
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-require "redis_ruby"
+require "redis_ruby"  # Native RR API
 require "benchmark"
 
 puts "=== Pipelining Example ===\n\n"
 
-redis = RedisRuby.new(url: "redis://localhost:6379")
+redis = RR.new(url: "redis://localhost:6379")
 
 # ============================================================================
 # Basic Pipelining

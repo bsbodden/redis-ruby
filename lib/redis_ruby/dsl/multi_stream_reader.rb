@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module RedisRuby
+module RR
   module DSL
     # Fluent builder for reading from multiple Redis Streams
     #
@@ -13,7 +13,7 @@ module RedisRuby
     # @example Block for new entries
     #   redis.streams(events: "$", logs: "$").block(5000).execute
     class MultiStreamReader
-      # @param redis [RedisRuby::Client] Redis client
+      # @param [RR::Client] Redis client
       # @param streams [Hash] Hash of stream_key => start_id pairs
       def initialize(redis, streams)
         @redis = redis

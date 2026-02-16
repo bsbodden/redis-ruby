@@ -8,7 +8,7 @@ class AsyncClientIntegrationTest < RedisRubyTestCase
 
   def setup
     super
-    @async_client = RedisRuby::AsyncClient.new(url: @redis_url)
+    @async_client = RR::AsyncClient.new(url: @redis_url)
   end
 
   def teardown
@@ -152,7 +152,7 @@ class AsyncClientIntegrationTest < RedisRubyTestCase
 
   def test_async_client_multiple_connections
     # Test that multiple async clients can work concurrently
-    client2 = RedisRuby::AsyncClient.new(url: @redis_url)
+    client2 = RR::AsyncClient.new(url: @redis_url)
 
     Async do |task|
       task.async { @async_client.set("async:multi:1", "client1") }

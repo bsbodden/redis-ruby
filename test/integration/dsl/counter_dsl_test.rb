@@ -17,7 +17,7 @@ class CounterDSLTest < RedisRubyTestCase
   def test_counter_proxy_creation
     proxy = redis.counter(:page, :views, 123)
     
-    assert_instance_of RedisRuby::DSL::CounterProxy, proxy
+    assert_instance_of RR::DSL::CounterProxy, proxy
     assert_equal "page:views:123", proxy.key
   end
 

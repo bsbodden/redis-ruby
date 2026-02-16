@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module RedisRuby
+module RR
   # URL parsing and connection setup for Client
   #
   # Handles parsing of redis://, rediss://, and unix:// URLs

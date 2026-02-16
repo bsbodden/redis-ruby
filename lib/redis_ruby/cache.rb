@@ -2,7 +2,7 @@
 
 require "monitor"
 
-module RedisRuby
+module RR
   # Client-side cache with RESP3 push-based invalidation
   #
   # Provides automatic caching of Redis GET results with server-assisted
@@ -12,7 +12,7 @@ module RedisRuby
   # modified by any client. This ensures cache consistency without polling.
   #
   # @example Basic usage
-  #   cache = RedisRuby::Cache.new(client)
+  #   cache = RR::Cache.new(client)
   #   cache.enable!
   #
   #   # First call fetches from Redis and caches
@@ -24,10 +24,10 @@ module RedisRuby
   #   # If another client modifies "key", cache is automatically invalidated
   #
   # @example With TTL
-  #   cache = RedisRuby::Cache.new(client, ttl: 60)  # 60 second max TTL
+  #   cache = RR::Cache.new(client, ttl: 60)  # 60 second max TTL
   #
   # @example OPTIN mode (only cache explicitly requested keys)
-  #   cache = RedisRuby::Cache.new(client, mode: :optin)
+  #   cache = RR::Cache.new(client, mode: :optin)
   #   cache.enable!
   #   cache.get("key", cache: true)  # Cache this key
   #   cache.get("other")             # Don't cache this key
@@ -50,7 +50,7 @@ module RedisRuby
 
     # Initialize a new client-side cache
     #
-    # @param client [RedisRuby::Client] Redis client (must be RESP3)
+    # @param [RR::Client] Redis client (must be RESP3)
     # @param max_entries [Integer] Maximum cache size (LRU eviction)
     # @param ttl [Float, nil] Time-to-live for entries in seconds
     # @param mode [Symbol] :default, :optin, :optout, or :broadcast

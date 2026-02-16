@@ -71,22 +71,22 @@ class ClientBranchTest < Minitest::Test
   class ErrorConnection < MockConnection
     def call_direct(command, *args)
       @last_command = [command, *args]
-      RedisRuby::CommandError.new("ERR test error")
+      RR::CommandError.new("ERR test error")
     end
 
     def call_1arg(command, arg)
       @last_command = [command, arg]
-      RedisRuby::CommandError.new("ERR test error")
+      RR::CommandError.new("ERR test error")
     end
 
     def call_2args(command, arg1, arg2)
       @last_command = [command, arg1, arg2]
-      RedisRuby::CommandError.new("ERR test error")
+      RR::CommandError.new("ERR test error")
     end
 
     def call_3args(command, arg1, arg2, arg3)
       @last_command = [command, arg1, arg2, arg3]
-      RedisRuby::CommandError.new("ERR test error")
+      RR::CommandError.new("ERR test error")
     end
   end
 
@@ -95,7 +95,7 @@ class ClientBranchTest < Minitest::Test
   # ============================================================
 
   def test_default_initialization
-    client = RedisRuby::Client.new
+    client = RR::Client.new
 
     assert_equal "localhost", client.host
     assert_equal 6379, client.port
@@ -108,39 +108,39 @@ class ClientBranchTest < Minitest::Test
   end
 
   def test_custom_host_and_port
-    client = RedisRuby::Client.new(host: "10.0.0.1", port: 7000)
+    client = RR::Client.new(host: "10.0.0.1", port: 7000)
 
     assert_equal "10.0.0.1", client.host
     assert_equal 7000, client.port
   end
 
   def test_custom_db
-    client = RedisRuby::Client.new(db: 5)
+    client = RR::Client.new(db: 5)
 
     assert_equal 5, client.db
   end
 
   def test_custom_timeout
-    client = RedisRuby::Client.new(timeout: 10.0)
+    client = RR::Client.new(timeout: 10.0)
 
     assert_in_delta(10.0, client.timeout)
   end
 
   def test_unix_socket_path
-    client = RedisRuby::Client.new(path: "/tmp/redis.sock")
+    client = RR::Client.new(path: "/tmp/redis.sock")
 
     assert_equal "/tmp/redis.sock", client.path
     assert_predicate client, :unix?
   end
 
   def test_ssl_flag
-    client = RedisRuby::Client.new(ssl: true)
+    client = RR::Client.new(ssl: true)
 
     assert_predicate client, :ssl?
   end
 
   def test_ssl_false_by_default
-    client = RedisRuby::Client.new
+    client = RR::Client.new
 
     refute_predicate client, :ssl?
   end
@@ -150,7 +150,7 @@ class ClientBranchTest < Minitest::Test
   # ============================================================
 
   def test_parse_redis_url
-    client = RedisRuby::Client.new(url: "redis://myhost:7000/3")
+    client = RR::Client.new(url: "redis://myhost:7000/3")
 
     assert_equal "myhost", client.host
     assert_equal 7000, client.port
@@ -159,21 +159,21 @@ class ClientBranchTest < Minitest::Test
   end
 
   def test_parse_redis_url_defaults
-    client = RedisRuby::Client.new(url: "redis://myhost")
+    client = RR::Client.new(url: "redis://myhost")
 
     assert_equal "myhost", client.host
     assert_equal 6379, client.port
   end
 
   def test_parse_redis_url_with_password_only
-    client = RedisRuby::Client.new(url: "redis://:secret@localhost:6379")
+    client = RR::Client.new(url: "redis://:secret@localhost:6379")
 
     assert_equal "localhost", client.host
     # Password is private, just verify no error
   end
 
   def test_parse_redis_url_with_user_and_password
-    client = RedisRuby::Client.new(url: "redis://admin:secret@localhost:6379")
+    client = RR::Client.new(url: "redis://admin:secret@localhost:6379")
 
     assert_equal "localhost", client.host
   end
@@ -183,7 +183,7 @@ class ClientBranchTest < Minitest::Test
   # ============================================================
 
   def test_parse_rediss_url
-    client = RedisRuby::Client.new(url: "rediss://secure.host:6380/1")
+    client = RR::Client.new(url: "rediss://secure.host:6380/1")
 
     assert_equal "secure.host", client.host
     assert_equal 6380, client.port
@@ -196,7 +196,7 @@ class ClientBranchTest < Minitest::Test
   # ============================================================
 
   def test_parse_unix_url
-    client = RedisRuby::Client.new(url: "unix:///var/run/redis.sock")
+    client = RR::Client.new(url: "unix:///var/run/redis.sock")
 
     assert_equal "/var/run/redis.sock", client.path
     assert_nil client.host
@@ -205,14 +205,14 @@ class ClientBranchTest < Minitest::Test
   end
 
   def test_parse_unix_url_with_db_query
-    client = RedisRuby::Client.new(url: "unix:///var/run/redis.sock?db=4")
+    client = RR::Client.new(url: "unix:///var/run/redis.sock?db=4")
 
     assert_equal "/var/run/redis.sock", client.path
     assert_equal 4, client.db
   end
 
   def test_parse_unix_url_without_query_defaults_db
-    client = RedisRuby::Client.new(url: "unix:///var/run/redis.sock")
+    client = RR::Client.new(url: "unix:///var/run/redis.sock")
 
     assert_equal 0, client.db
   end
@@ -223,7 +223,7 @@ class ClientBranchTest < Minitest::Test
 
   def test_parse_invalid_url_scheme
     error = assert_raises(ArgumentError) do
-      RedisRuby::Client.new(url: "http://localhost:6379")
+      RR::Client.new(url: "http://localhost:6379")
     end
     assert_match(/Unsupported URL scheme/, error.message)
   end
@@ -233,7 +233,7 @@ class ClientBranchTest < Minitest::Test
   # ============================================================
 
   def test_url_overrides_host_and_port
-    client = RedisRuby::Client.new(url: "redis://urlhost:9000", host: "explicit", port: 1234)
+    client = RR::Client.new(url: "redis://urlhost:9000", host: "explicit", port: 1234)
 
     assert_equal "urlhost", client.host
     assert_equal 9000, client.port
@@ -244,13 +244,13 @@ class ClientBranchTest < Minitest::Test
   # ============================================================
 
   def test_connected_false_when_no_connection
-    client = RedisRuby::Client.new
+    client = RR::Client.new
 
     refute_predicate client, :connected?
   end
 
   def test_connected_returns_connection_state
-    client = RedisRuby::Client.new
+    client = RR::Client.new
     mock_conn = MockConnection.new
     client.instance_variable_set(:@connection, mock_conn)
 
@@ -258,7 +258,7 @@ class ClientBranchTest < Minitest::Test
   end
 
   def test_connected_false_when_connection_nil
-    client = RedisRuby::Client.new
+    client = RR::Client.new
     client.instance_variable_set(:@connection, nil)
 
     refute_predicate client, :connected?
@@ -269,7 +269,7 @@ class ClientBranchTest < Minitest::Test
   # ============================================================
 
   def test_close_with_connection
-    client = RedisRuby::Client.new
+    client = RR::Client.new
     mock_conn = MockConnection.new
     client.instance_variable_set(:@connection, mock_conn)
 
@@ -280,7 +280,7 @@ class ClientBranchTest < Minitest::Test
   end
 
   def test_close_without_connection
-    client = RedisRuby::Client.new
+    client = RR::Client.new
     # Should not raise
     client.close
 
@@ -288,7 +288,7 @@ class ClientBranchTest < Minitest::Test
   end
 
   def test_disconnect_alias
-    client = RedisRuby::Client.new
+    client = RR::Client.new
 
     assert_respond_to client, :disconnect
     # Should behave same as close
@@ -296,7 +296,7 @@ class ClientBranchTest < Minitest::Test
   end
 
   def test_quit_alias
-    client = RedisRuby::Client.new
+    client = RR::Client.new
 
     assert_respond_to client, :quit
     client.quit
@@ -307,7 +307,7 @@ class ClientBranchTest < Minitest::Test
   # ============================================================
 
   def test_call_returns_result
-    client = RedisRuby::Client.new
+    client = RR::Client.new
     mock_conn = MockConnection.new
     client.instance_variable_set(:@connection, mock_conn)
 
@@ -317,11 +317,11 @@ class ClientBranchTest < Minitest::Test
   end
 
   def test_call_raises_command_error
-    client = RedisRuby::Client.new
+    client = RR::Client.new
     error_conn = ErrorConnection.new
     client.instance_variable_set(:@connection, error_conn)
 
-    assert_raises(RedisRuby::CommandError) do
+    assert_raises(RR::CommandError) do
       client.call("GET", "key")
     end
   end
@@ -331,7 +331,7 @@ class ClientBranchTest < Minitest::Test
   # ============================================================
 
   def test_call_1arg_returns_result
-    client = RedisRuby::Client.new
+    client = RR::Client.new
     mock_conn = MockConnection.new
     client.instance_variable_set(:@connection, mock_conn)
 
@@ -341,11 +341,11 @@ class ClientBranchTest < Minitest::Test
   end
 
   def test_call_1arg_raises_command_error
-    client = RedisRuby::Client.new
+    client = RR::Client.new
     error_conn = ErrorConnection.new
     client.instance_variable_set(:@connection, error_conn)
 
-    assert_raises(RedisRuby::CommandError) do
+    assert_raises(RR::CommandError) do
       client.get("mykey")
     end
   end
@@ -355,7 +355,7 @@ class ClientBranchTest < Minitest::Test
   # ============================================================
 
   def test_call_2args_returns_result
-    client = RedisRuby::Client.new
+    client = RR::Client.new
     mock_conn = MockConnection.new
     client.instance_variable_set(:@connection, mock_conn)
 
@@ -365,11 +365,11 @@ class ClientBranchTest < Minitest::Test
   end
 
   def test_call_2args_raises_command_error
-    client = RedisRuby::Client.new
+    client = RR::Client.new
     error_conn = ErrorConnection.new
     client.instance_variable_set(:@connection, error_conn)
 
-    assert_raises(RedisRuby::CommandError) do
+    assert_raises(RR::CommandError) do
       client.set("mykey", "myval")
     end
   end
@@ -379,7 +379,7 @@ class ClientBranchTest < Minitest::Test
   # ============================================================
 
   def test_call_3args_returns_result
-    client = RedisRuby::Client.new
+    client = RR::Client.new
     mock_conn = MockConnection.new
     client.instance_variable_set(:@connection, mock_conn)
 
@@ -389,11 +389,11 @@ class ClientBranchTest < Minitest::Test
   end
 
   def test_call_3args_raises_command_error
-    client = RedisRuby::Client.new
+    client = RR::Client.new
     error_conn = ErrorConnection.new
     client.instance_variable_set(:@connection, error_conn)
 
-    assert_raises(RedisRuby::CommandError) do
+    assert_raises(RR::CommandError) do
       client.hset("myhash", "field", "val")
     end
   end
@@ -403,7 +403,7 @@ class ClientBranchTest < Minitest::Test
   # ============================================================
 
   def test_decode_responses_string_unfrozen
-    client = RedisRuby::Client.new(decode_responses: true, encoding: "UTF-8")
+    client = RR::Client.new(decode_responses: true, encoding: "UTF-8")
     mock_conn = MockConnection.new
     client.instance_variable_set(:@connection, mock_conn)
 
@@ -414,7 +414,7 @@ class ClientBranchTest < Minitest::Test
   end
 
   def test_decode_responses_string_frozen
-    client = RedisRuby::Client.new(decode_responses: true, encoding: "UTF-8")
+    client = RR::Client.new(decode_responses: true, encoding: "UTF-8")
 
     # Create a connection that returns frozen strings
     frozen_conn = MockConnection.new
@@ -430,7 +430,7 @@ class ClientBranchTest < Minitest::Test
   end
 
   def test_decode_responses_array
-    client = RedisRuby::Client.new(decode_responses: true, encoding: "UTF-8")
+    client = RR::Client.new(decode_responses: true, encoding: "UTF-8")
 
     array_conn = MockConnection.new
     def array_conn.call_direct(_command, *_args)
@@ -446,7 +446,7 @@ class ClientBranchTest < Minitest::Test
   end
 
   def test_decode_responses_hash
-    client = RedisRuby::Client.new(decode_responses: true, encoding: "UTF-8")
+    client = RR::Client.new(decode_responses: true, encoding: "UTF-8")
 
     hash_conn = MockConnection.new
     def hash_conn.call_direct(_command, *_args)
@@ -464,7 +464,7 @@ class ClientBranchTest < Minitest::Test
   end
 
   def test_decode_responses_integer_passthrough
-    client = RedisRuby::Client.new(decode_responses: true, encoding: "UTF-8")
+    client = RR::Client.new(decode_responses: true, encoding: "UTF-8")
 
     int_conn = MockConnection.new
     def int_conn.call_direct(_command, *_args)
@@ -479,7 +479,7 @@ class ClientBranchTest < Minitest::Test
   end
 
   def test_decode_responses_nil_passthrough
-    client = RedisRuby::Client.new(decode_responses: true, encoding: "UTF-8")
+    client = RR::Client.new(decode_responses: true, encoding: "UTF-8")
 
     nil_conn = MockConnection.new
     def nil_conn.call_1arg(_command, _arg)
@@ -493,7 +493,7 @@ class ClientBranchTest < Minitest::Test
   end
 
   def test_decode_responses_disabled
-    client = RedisRuby::Client.new(decode_responses: false)
+    client = RR::Client.new(decode_responses: false)
     mock_conn = MockConnection.new
     client.instance_variable_set(:@connection, mock_conn)
 
@@ -503,7 +503,7 @@ class ClientBranchTest < Minitest::Test
   end
 
   def test_decode_responses_custom_encoding
-    client = RedisRuby::Client.new(decode_responses: true, encoding: "ISO-8859-1")
+    client = RR::Client.new(decode_responses: true, encoding: "ISO-8859-1")
     mock_conn = MockConnection.new
     client.instance_variable_set(:@connection, mock_conn)
 
@@ -517,7 +517,7 @@ class ClientBranchTest < Minitest::Test
   # ============================================================
 
   def test_ping
-    client = RedisRuby::Client.new
+    client = RR::Client.new
     mock_conn = MockConnection.new
     client.instance_variable_set(:@connection, mock_conn)
 
@@ -531,13 +531,13 @@ class ClientBranchTest < Minitest::Test
   # ============================================================
 
   def test_pipelined_executes_commands
-    client = RedisRuby::Client.new
+    client = RR::Client.new
     mock_conn = MockConnection.new
 
     # We need to mock Pipeline properly
     pipeline = mock("pipeline")
     pipeline.expects(:execute).returns(%w[OK value])
-    RedisRuby::Pipeline.expects(:new).with(mock_conn).returns(pipeline)
+    RR::Pipeline.expects(:new).with(mock_conn).returns(pipeline)
 
     client.instance_variable_set(:@connection, mock_conn)
 
@@ -549,17 +549,17 @@ class ClientBranchTest < Minitest::Test
   end
 
   def test_pipelined_raises_command_error_in_results
-    client = RedisRuby::Client.new
+    client = RR::Client.new
     mock_conn = MockConnection.new
 
-    cmd_error = RedisRuby::CommandError.new("ERR pipeline error")
+    cmd_error = RR::CommandError.new("ERR pipeline error")
     pipeline = mock("pipeline")
     pipeline.expects(:execute).returns(["OK", cmd_error])
-    RedisRuby::Pipeline.expects(:new).with(mock_conn).returns(pipeline)
+    RR::Pipeline.expects(:new).with(mock_conn).returns(pipeline)
 
     client.instance_variable_set(:@connection, mock_conn)
 
-    assert_raises(RedisRuby::CommandError) do
+    assert_raises(RR::CommandError) do
       client.pipelined { |_pipe| }
     end
   end
@@ -569,12 +569,12 @@ class ClientBranchTest < Minitest::Test
   # ============================================================
 
   def test_multi_executes_transaction
-    client = RedisRuby::Client.new
+    client = RR::Client.new
     mock_conn = MockConnection.new
 
     transaction = mock("transaction")
     transaction.expects(:execute).returns(["OK", 1])
-    RedisRuby::Transaction.expects(:new).with(mock_conn).returns(transaction)
+    RR::Transaction.expects(:new).with(mock_conn).returns(transaction)
 
     client.instance_variable_set(:@connection, mock_conn)
 
@@ -584,12 +584,12 @@ class ClientBranchTest < Minitest::Test
   end
 
   def test_multi_returns_nil_when_aborted
-    client = RedisRuby::Client.new
+    client = RR::Client.new
     mock_conn = MockConnection.new
 
     transaction = mock("transaction")
     transaction.expects(:execute).returns(nil)
-    RedisRuby::Transaction.expects(:new).with(mock_conn).returns(transaction)
+    RR::Transaction.expects(:new).with(mock_conn).returns(transaction)
 
     client.instance_variable_set(:@connection, mock_conn)
 
@@ -599,33 +599,33 @@ class ClientBranchTest < Minitest::Test
   end
 
   def test_multi_raises_command_error_from_transaction_itself
-    client = RedisRuby::Client.new
+    client = RR::Client.new
     mock_conn = MockConnection.new
 
-    cmd_error = RedisRuby::CommandError.new("MISCONF config error")
+    cmd_error = RR::CommandError.new("MISCONF config error")
     transaction = mock("transaction")
     transaction.expects(:execute).returns(cmd_error)
-    RedisRuby::Transaction.expects(:new).with(mock_conn).returns(transaction)
+    RR::Transaction.expects(:new).with(mock_conn).returns(transaction)
 
     client.instance_variable_set(:@connection, mock_conn)
 
-    assert_raises(RedisRuby::CommandError) do
+    assert_raises(RR::CommandError) do
       client.multi { |_tx| }
     end
   end
 
   def test_multi_raises_command_error_in_results
-    client = RedisRuby::Client.new
+    client = RR::Client.new
     mock_conn = MockConnection.new
 
-    cmd_error = RedisRuby::CommandError.new("ERR in result")
+    cmd_error = RR::CommandError.new("ERR in result")
     transaction = mock("transaction")
     transaction.expects(:execute).returns(["OK", cmd_error])
-    RedisRuby::Transaction.expects(:new).with(mock_conn).returns(transaction)
+    RR::Transaction.expects(:new).with(mock_conn).returns(transaction)
 
     client.instance_variable_set(:@connection, mock_conn)
 
-    assert_raises(RedisRuby::CommandError) do
+    assert_raises(RR::CommandError) do
       client.multi { |_tx| }
     end
   end
@@ -635,7 +635,7 @@ class ClientBranchTest < Minitest::Test
   # ============================================================
 
   def test_watch_without_block
-    client = RedisRuby::Client.new
+    client = RR::Client.new
     mock_conn = MockConnection.new
     client.instance_variable_set(:@connection, mock_conn)
 
@@ -645,7 +645,7 @@ class ClientBranchTest < Minitest::Test
   end
 
   def test_watch_with_block
-    client = RedisRuby::Client.new
+    client = RR::Client.new
     mock_conn = MockConnection.new
     client.instance_variable_set(:@connection, mock_conn)
 
@@ -660,7 +660,7 @@ class ClientBranchTest < Minitest::Test
   end
 
   def test_watch_with_block_unwatches_on_exception
-    client = RedisRuby::Client.new
+    client = RR::Client.new
     mock_conn = MockConnection.new
     client.instance_variable_set(:@connection, mock_conn)
 
@@ -679,7 +679,7 @@ class ClientBranchTest < Minitest::Test
   # ============================================================
 
   def test_discard
-    client = RedisRuby::Client.new
+    client = RR::Client.new
     mock_conn = MockConnection.new
     client.instance_variable_set(:@connection, mock_conn)
 
@@ -689,7 +689,7 @@ class ClientBranchTest < Minitest::Test
   end
 
   def test_unwatch
-    client = RedisRuby::Client.new
+    client = RR::Client.new
     mock_conn = MockConnection.new
     client.instance_variable_set(:@connection, mock_conn)
 
@@ -703,9 +703,9 @@ class ClientBranchTest < Minitest::Test
   # ============================================================
 
   def test_ensure_connected_creates_tcp_connection
-    client = RedisRuby::Client.new(host: "localhost", port: 6379)
+    client = RR::Client.new(host: "localhost", port: 6379)
 
-    RedisRuby::Connection::TCP.expects(:new)
+    RR::Connection::TCP.expects(:new)
       .with(host: "localhost", port: 6379, timeout: 5.0)
       .returns(MockConnection.new)
 
@@ -715,9 +715,9 @@ class ClientBranchTest < Minitest::Test
   end
 
   def test_ensure_connected_creates_ssl_connection
-    client = RedisRuby::Client.new(host: "localhost", port: 6380, ssl: true, ssl_params: { verify_mode: 0 })
+    client = RR::Client.new(host: "localhost", port: 6380, ssl: true, ssl_params: { verify_mode: 0 })
 
-    RedisRuby::Connection::SSL.expects(:new)
+    RR::Connection::SSL.expects(:new)
       .with(host: "localhost", port: 6380, timeout: 5.0,
             ssl_params: { verify_mode: 0 })
       .returns(MockConnection.new)
@@ -728,9 +728,9 @@ class ClientBranchTest < Minitest::Test
   end
 
   def test_ensure_connected_creates_unix_connection
-    client = RedisRuby::Client.new(path: "/tmp/redis.sock")
+    client = RR::Client.new(path: "/tmp/redis.sock")
 
-    RedisRuby::Connection::Unix.expects(:new)
+    RR::Connection::Unix.expects(:new)
       .with(path: "/tmp/redis.sock", timeout: 5.0)
       .returns(MockConnection.new)
 
@@ -740,12 +740,12 @@ class ClientBranchTest < Minitest::Test
   end
 
   def test_ensure_connected_skips_when_already_connected
-    client = RedisRuby::Client.new
+    client = RR::Client.new
     mock_conn = MockConnection.new
     client.instance_variable_set(:@connection, mock_conn)
 
     # Should not create a new connection
-    RedisRuby::Connection::TCP.expects(:new).never
+    RR::Connection::TCP.expects(:new).never
 
     client.send(:ensure_connected)
   end
@@ -755,10 +755,10 @@ class ClientBranchTest < Minitest::Test
   # ============================================================
 
   def test_authenticate_with_password_only
-    client = RedisRuby::Client.new(password: "secret")
+    client = RR::Client.new(password: "secret")
     mock_conn = MockConnection.new
 
-    RedisRuby::Connection::TCP.expects(:new).returns(mock_conn)
+    RR::Connection::TCP.expects(:new).returns(mock_conn)
 
     client.send(:ensure_connected)
 
@@ -770,10 +770,10 @@ class ClientBranchTest < Minitest::Test
   end
 
   def test_authenticate_with_username_and_password
-    client = RedisRuby::Client.new(username: "admin", password: "secret")
+    client = RR::Client.new(username: "admin", password: "secret")
     mock_conn = MockConnection.new
 
-    RedisRuby::Connection::TCP.expects(:new).returns(mock_conn)
+    RR::Connection::TCP.expects(:new).returns(mock_conn)
 
     client.send(:ensure_connected)
 
@@ -784,10 +784,10 @@ class ClientBranchTest < Minitest::Test
   end
 
   def test_no_authenticate_without_password
-    client = RedisRuby::Client.new
+    client = RR::Client.new
     mock_conn = MockConnection.new
 
-    RedisRuby::Connection::TCP.expects(:new).returns(mock_conn)
+    RR::Connection::TCP.expects(:new).returns(mock_conn)
 
     client.send(:ensure_connected)
 
@@ -801,10 +801,10 @@ class ClientBranchTest < Minitest::Test
   # ============================================================
 
   def test_select_db_when_positive
-    client = RedisRuby::Client.new(db: 3)
+    client = RR::Client.new(db: 3)
     mock_conn = MockConnection.new
 
-    RedisRuby::Connection::TCP.expects(:new).returns(mock_conn)
+    RR::Connection::TCP.expects(:new).returns(mock_conn)
 
     client.send(:ensure_connected)
 
@@ -815,10 +815,10 @@ class ClientBranchTest < Minitest::Test
   end
 
   def test_no_select_db_when_zero
-    client = RedisRuby::Client.new(db: 0)
+    client = RR::Client.new(db: 0)
     mock_conn = MockConnection.new
 
-    RedisRuby::Connection::TCP.expects(:new).returns(mock_conn)
+    RR::Connection::TCP.expects(:new).returns(mock_conn)
 
     client.send(:ensure_connected)
 
@@ -832,32 +832,32 @@ class ClientBranchTest < Minitest::Test
   # ============================================================
 
   def test_retry_policy_with_reconnect_attempts
-    client = RedisRuby::Client.new(reconnect_attempts: 3)
+    client = RR::Client.new(reconnect_attempts: 3)
     policy = client.instance_variable_get(:@retry_policy)
 
-    assert_instance_of RedisRuby::Retry, policy
+    assert_instance_of RR::Retry, policy
   end
 
   def test_retry_policy_with_zero_reconnect_attempts
-    client = RedisRuby::Client.new(reconnect_attempts: 0)
+    client = RR::Client.new(reconnect_attempts: 0)
     policy = client.instance_variable_get(:@retry_policy)
 
-    assert_instance_of RedisRuby::Retry, policy
+    assert_instance_of RR::Retry, policy
   end
 
   def test_custom_retry_policy_overrides_reconnect_attempts
-    custom_policy = RedisRuby::Retry.new(retries: 5)
-    client = RedisRuby::Client.new(retry_policy: custom_policy, reconnect_attempts: 10)
+    custom_policy = RR::Retry.new(retries: 5)
+    client = RR::Client.new(retry_policy: custom_policy, reconnect_attempts: 10)
     policy = client.instance_variable_get(:@retry_policy)
 
     assert_same custom_policy, policy
   end
 
   def test_retry_policy_nil_builds_default
-    client = RedisRuby::Client.new(retry_policy: nil, reconnect_attempts: 2)
+    client = RR::Client.new(retry_policy: nil, reconnect_attempts: 2)
     policy = client.instance_variable_get(:@retry_policy)
 
-    assert_instance_of RedisRuby::Retry, policy
+    assert_instance_of RR::Retry, policy
   end
 
   # ============================================================
@@ -866,27 +866,27 @@ class ClientBranchTest < Minitest::Test
 
   def test_parse_tcp_url_empty_username_becomes_nil
     # redis://:password@host - user is empty string
-    client = RedisRuby::Client.new(url: "redis://:mysecret@localhost:6379")
+    client = RR::Client.new(url: "redis://:mysecret@localhost:6379")
     username = client.instance_variable_get(:@username)
 
     assert_nil username
   end
 
   def test_parse_tcp_url_no_password
-    client = RedisRuby::Client.new(url: "redis://localhost:6379")
+    client = RR::Client.new(url: "redis://localhost:6379")
     password = client.instance_variable_get(:@password)
 
     assert_nil password
   end
 
   def test_parse_tcp_url_no_db_defaults_to_zero
-    client = RedisRuby::Client.new(url: "redis://localhost:6379")
+    client = RR::Client.new(url: "redis://localhost:6379")
 
     assert_equal 0, client.db
   end
 
   def test_parse_unix_url_with_password
-    client = RedisRuby::Client.new(url: "unix://mypass@/var/run/redis.sock")
+    client = RR::Client.new(url: "unix://mypass@/var/run/redis.sock")
     password = client.instance_variable_get(:@password)
 
     assert_equal "mypass", password
@@ -897,25 +897,25 @@ class ClientBranchTest < Minitest::Test
   # ============================================================
 
   def test_ssl_false_default
-    client = RedisRuby::Client.new
+    client = RR::Client.new
 
     refute_predicate client, :ssl?
   end
 
   def test_ssl_true_when_set
-    client = RedisRuby::Client.new(ssl: true)
+    client = RR::Client.new(ssl: true)
 
     assert_predicate client, :ssl?
   end
 
   def test_unix_false_when_no_path
-    client = RedisRuby::Client.new
+    client = RR::Client.new
 
     refute_predicate client, :unix?
   end
 
   def test_unix_true_when_path_set
-    client = RedisRuby::Client.new(path: "/tmp/redis.sock")
+    client = RR::Client.new(path: "/tmp/redis.sock")
 
     assert_predicate client, :unix?
   end
@@ -925,7 +925,7 @@ class ClientBranchTest < Minitest::Test
   # ============================================================
 
   def test_decode_nested_array_in_array
-    client = RedisRuby::Client.new(decode_responses: true, encoding: "UTF-8")
+    client = RR::Client.new(decode_responses: true, encoding: "UTF-8")
 
     nested_conn = MockConnection.new
     def nested_conn.call_direct(_command, *_args)
@@ -942,7 +942,7 @@ class ClientBranchTest < Minitest::Test
   end
 
   def test_decode_nested_hash_with_array_values
-    client = RedisRuby::Client.new(decode_responses: true, encoding: "UTF-8")
+    client = RR::Client.new(decode_responses: true, encoding: "UTF-8")
 
     nested_conn = MockConnection.new
     def nested_conn.call_direct(_command, *_args)
@@ -961,7 +961,7 @@ class ClientBranchTest < Minitest::Test
   # ============================================================
 
   def test_decode_responses_boolean_passthrough
-    client = RedisRuby::Client.new(decode_responses: true, encoding: "UTF-8")
+    client = RR::Client.new(decode_responses: true, encoding: "UTF-8")
 
     bool_conn = MockConnection.new
     def bool_conn.call_direct(_command, *_args)
@@ -975,7 +975,7 @@ class ClientBranchTest < Minitest::Test
   end
 
   def test_decode_responses_float_passthrough
-    client = RedisRuby::Client.new(decode_responses: true, encoding: "UTF-8")
+    client = RR::Client.new(decode_responses: true, encoding: "UTF-8")
 
     float_conn = MockConnection.new
     def float_conn.call_direct(_command, *_args)

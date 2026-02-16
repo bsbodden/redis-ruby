@@ -22,7 +22,7 @@ This example demonstrates how to use Redis Pub/Sub for real-time messaging and e
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-require "redis_ruby"
+require "redis_ruby"  # Native RR API
 
 puts "=== Pub/Sub Example ===\n\n"
 
@@ -33,10 +33,10 @@ puts "=== Pub/Sub Example ===\n\n"
 puts "1. Basic Pub/Sub..."
 
 # Create subscriber
-subscriber = RedisRuby.new(url: "redis://localhost:6379")
+subscriber = RR.new(url: "redis://localhost:6379")
 
 # Create publisher
-publisher = RedisRuby.new(url: "redis://localhost:6379")
+publisher = RR.new(url: "redis://localhost:6379")
 
 # Subscribe in a background thread
 messages = []
@@ -69,7 +69,7 @@ puts "   Received #{messages.size} messages\n\n"
 
 puts "2. Pattern subscriptions..."
 
-subscriber2 = RedisRuby.new(url: "redis://localhost:6379")
+subscriber2 = RR.new(url: "redis://localhost:6379")
 pattern_messages = []
 
 thread2 = Thread.new do
@@ -99,7 +99,7 @@ puts "   Received #{pattern_messages.size} pattern messages\n\n"
 
 puts "3. Multiple channels..."
 
-subscriber3 = RedisRuby.new(url: "redis://localhost:6379")
+subscriber3 = RR.new(url: "redis://localhost:6379")
 multi_messages = []
 
 thread3 = Thread.new do
@@ -130,7 +130,7 @@ puts "4. Real-time notification system..."
 
 class NotificationSystem
   def initialize(redis_url)
-    @publisher = RedisRuby.new(url: redis_url)
+    @publisher = RR.new(url: redis_url)
   end
 
   def notify_user(user_id, message)
@@ -148,7 +148,7 @@ end
 
 class NotificationListener
   def initialize(redis_url, user_id)
-    @subscriber = RedisRuby.new(url: redis_url)
+    @subscriber = RR.new(url: redis_url)
     @user_id = user_id
     @messages = []
   end

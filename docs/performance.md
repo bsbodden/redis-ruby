@@ -90,13 +90,13 @@ bundle exec --yjit rails server
 **Option 3: Runtime (Ruby 3.3+)**
 
 ```ruby
-require "redis_ruby"
+require "redis_ruby"  # Native RR API
 
 # Enable YJIT at runtime
-RedisRuby::Utils::YJITMonitor.enable!
+RR::Utils::YJITMonitor.enable!
 
 # Check if YJIT is enabled
-if RedisRuby::Utils::YJITMonitor.enabled?
+if RR::Utils::YJITMonitor.enabled?
   puts "YJIT is enabled!"
 else
   puts "YJIT is not available"
@@ -106,10 +106,10 @@ end
 ### Verifying YJIT Status
 
 ```ruby
-require "redis_ruby"
+require "redis_ruby"  # Native RR API
 
 # Get YJIT status report
-puts RedisRuby::Utils::YJITMonitor.status_report
+puts RR::Utils::YJITMonitor.status_report
 
 # Output:
 # YJIT Status Report
@@ -156,10 +156,10 @@ Connection pools prevent contention and improve throughput:
 
 ```ruby
 # ❌ Slow: Single connection shared across threads
-redis = RedisRuby.new(host: "localhost")
+redis = RR.new(host: "localhost")
 
 # ✅ Fast: Connection pool with one connection per thread
-redis = RedisRuby.pooled(
+redis = RR.pooled(
   host: "localhost",
   pool: { size: 20 }  # Match your thread count
 )
@@ -228,10 +228,10 @@ RESP3 provides better performance and native support for new data types:
 
 ```ruby
 # RESP3 is enabled by default
-redis = RedisRuby.new(url: "redis://localhost:6379")
+redis = RR.new(url: "redis://localhost:6379")
 
 # To use RESP2 (for compatibility)
-redis = RedisRuby.new(url: "redis://localhost:6379", protocol: 2)
+redis = RR.new(url: "redis://localhost:6379", protocol: 2)
 ```
 
 ## Comparison with Other Clients
@@ -284,14 +284,14 @@ Reuse connections instead of creating new ones:
 ```ruby
 # ❌ Slow: Create new connection for each request
 def get_value(key)
-  redis = RedisRuby.new(host: "localhost")
+  redis = RR.new(host: "localhost")
   value = redis.get(key)
   redis.close
   value
 end
 
 # ✅ Fast: Reuse connection
-REDIS = RedisRuby.new(host: "localhost")
+REDIS = RR.new(host: "localhost")
 
 def get_value(key)
   REDIS.get(key)
@@ -376,9 +376,9 @@ RUBYOPT="--yjit" bundle exec ruby benchmarks/verify_gates.rb
 
 ```ruby
 require "benchmark"
-require "redis_ruby"
+require "redis_ruby"  # Native RR API
 
-redis = RedisRuby.new(host: "localhost")
+redis = RR.new(host: "localhost")
 
 # Benchmark GET operations
 time = Benchmark.realtime do

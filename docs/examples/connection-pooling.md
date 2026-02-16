@@ -22,7 +22,7 @@ This example demonstrates how to use connection pools for thread-safe, high-perf
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-require "redis_ruby"
+require "redis_ruby"  # Native RR API
 require "benchmark"
 
 puts "=== Connection Pooling Example ===\n\n"
@@ -34,7 +34,7 @@ puts "=== Connection Pooling Example ===\n\n"
 puts "1. Creating a thread-safe connection pool..."
 
 # Create a pooled client with 10 connections
-redis = RedisRuby.pooled(
+redis = RR.pooled(
   url: "redis://localhost:6379",
   pool: { size: 10, timeout: 5 }
 )
@@ -74,7 +74,7 @@ puts "3. Performance comparison: Single connection vs Pool..."
 redis.set("counter", 0)
 
 # Single connection (unsafe for multi-threading)
-single_redis = RedisRuby.new(url: "redis://localhost:6379")
+single_redis = RR.new(url: "redis://localhost:6379")
 
 time_single = Benchmark.realtime do
   100.times { single_redis.incr("counter") }
@@ -129,7 +129,7 @@ puts "6. Puma/Rails configuration example..."
 
 puts <<~EXAMPLE
    # config/initializers/redis.rb
-   REDIS_POOL = RedisRuby.pooled(
+   REDIS_POOL = RR.pooled(
      url: ENV["REDIS_URL"],
      pool: {
        size: ENV.fetch("RAILS_MAX_THREADS", 5).to_i,

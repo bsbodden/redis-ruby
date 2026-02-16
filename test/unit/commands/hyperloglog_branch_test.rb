@@ -4,7 +4,7 @@ require_relative "../unit_test_helper"
 
 # MockClient that includes HyperLogLog module
 class HyperLogLogMockClient
-  include RedisRuby::Commands::HyperLogLog
+  include RR::Commands::HyperLogLog
 
   attr_accessor :last_call, :last_call_1arg, :last_call_2args,
                 :call_return_value, :call_1arg_return_value, :call_2arg_return_value
@@ -130,8 +130,8 @@ class HyperLogLogBranchTest < Minitest::Test
   # ============================================================
 
   def test_frozen_command_constants
-    assert_equal "PFADD", RedisRuby::Commands::HyperLogLog::CMD_PFADD
-    assert_equal "PFCOUNT", RedisRuby::Commands::HyperLogLog::CMD_PFCOUNT
-    assert_equal "PFMERGE", RedisRuby::Commands::HyperLogLog::CMD_PFMERGE
+    assert_equal "PFADD", RR::Commands::HyperLogLog::CMD_PFADD
+    assert_equal "PFCOUNT", RR::Commands::HyperLogLog::CMD_PFCOUNT
+    assert_equal "PFMERGE", RR::Commands::HyperLogLog::CMD_PFMERGE
   end
 end

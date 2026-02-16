@@ -43,10 +43,10 @@ Redis Sentinel provides high availability for Redis through:
 Connect to Redis through Sentinel by providing Sentinel addresses and service name:
 
 ```ruby
-require "redis_ruby"
+require "redis_ruby"  # Native RR API
 
 # Connect to master through Sentinel
-redis = RedisRuby.sentinel(
+redis = RR.sentinel(
   sentinels: [
     { host: "sentinel1.example.com", port: 26379 },
     { host: "sentinel2.example.com", port: 26379 },
@@ -64,14 +64,14 @@ redis.get("key")  # => "value"
 
 ```ruby
 # Redis password
-redis = RedisRuby.sentinel(
+redis = RR.sentinel(
   sentinels: [{ host: "sentinel1", port: 26379 }],
   service_name: "mymaster",
   password: "redis-password"
 )
 
 # Sentinel password (if Sentinels require authentication)
-redis = RedisRuby.sentinel(
+redis = RR.sentinel(
   sentinels: [{ host: "sentinel1", port: 26379 }],
   service_name: "mymaster",
   password: "redis-password",
@@ -82,7 +82,7 @@ redis = RedisRuby.sentinel(
 ### Connection Options
 
 ```ruby
-redis = RedisRuby.sentinel(
+redis = RR.sentinel(
   sentinels: [{ host: "sentinel1", port: 26379 }],
   service_name: "mymaster",
   role: :master,                    # :master or :replica
@@ -102,7 +102,7 @@ redis = RedisRuby.sentinel(
 ```ruby
 require "redis_ruby/sentinel_client"
 
-client = RedisRuby::SentinelClient.new(
+client = RR::SentinelClient.new(
   sentinels: [
     { host: "sentinel1", port: 26379 },
     { host: "sentinel2", port: 26379 }
@@ -127,7 +127,7 @@ The client discovers the current master through Sentinels:
 5. Verifies role with `ROLE` command
 
 ```ruby
-redis = RedisRuby.sentinel(
+redis = RR.sentinel(
   sentinels: [
     { host: "sentinel1", port: 26379 },
     { host: "sentinel2", port: 26379 }
@@ -146,7 +146,7 @@ If the first Sentinel is unavailable, the client tries the next:
 
 ```ruby
 # Even if sentinel1 is down, client will try sentinel2 and sentinel3
-redis = RedisRuby.sentinel(
+redis = RR.sentinel(
   sentinels: [
     { host: "sentinel1", port: 26379 },  # Down
     { host: "sentinel2", port: 26379 },  # Will try this
@@ -173,7 +173,7 @@ When a master fails, Sentinel automatically promotes a replica:
 The client automatically handles failover:
 
 ```ruby
-redis = RedisRuby.sentinel(
+redis = RR.sentinel(
   sentinels: [{ host: "sentinel1", port: 26379 }],
   service_name: "mymaster",
   reconnect_attempts: 3
@@ -246,7 +246,7 @@ For production, use at least 3 Sentinels:
 
 ```ruby
 # Minimum recommended setup
-redis = RedisRuby.sentinel(
+redis = RR.sentinel(
   sentinels: [
     { host: "sentinel1", port: 26379 },
     { host: "sentinel2", port: 26379 },
@@ -275,7 +275,7 @@ The client automatically discovers other Sentinels:
 
 ```ruby
 # Provide just one Sentinel
-redis = RedisRuby.sentinel(
+redis = RR.sentinel(
   sentinels: [{ host: "sentinel1", port: 26379 }],
   service_name: "mymaster"
 )
@@ -289,7 +289,7 @@ redis = RedisRuby.sentinel(
 Require minimum number of peer Sentinels:
 
 ```ruby
-redis = RedisRuby.sentinel(
+redis = RR.sentinel(
   sentinels: [{ host: "sentinel1", port: 26379 }],
   service_name: "mymaster",
   min_other_sentinels: 2  # Require at least 2 other Sentinels
@@ -306,7 +306,7 @@ Monitor Sentinel health:
 
 ```ruby
 # Connect directly to Sentinel
-sentinel = RedisRuby::Client.new(host: "sentinel1", port: 26379)
+sentinel = RR::Client.new(host: "sentinel1", port: 26379)
 
 # Ping Sentinel
 sentinel.call("PING")  # => "PONG"
@@ -321,7 +321,7 @@ info = sentinel.call("SENTINEL", "MASTERS")
 Check master health through Sentinel:
 
 ```ruby
-sentinel = RedisRuby::Client.new(host: "sentinel1", port: 26379)
+sentinel = RR::Client.new(host: "sentinel1", port: 26379)
 
 # Get master address
 address = sentinel.call("SENTINEL", "GET-MASTER-ADDR-BY-NAME", "mymaster")
@@ -342,7 +342,7 @@ puts "Replicas: #{master_info['num-slaves']}"
 Check replica status:
 
 ```ruby
-sentinel = RedisRuby::Client.new(host: "sentinel1", port: 26379)
+sentinel = RR::Client.new(host: "sentinel1", port: 26379)
 
 # Get all replicas for a master
 replicas = sentinel.call("SENTINEL", "REPLICAS", "mymaster")
@@ -358,7 +358,7 @@ end
 
 ```ruby
 # Subscribe to Sentinel events (requires pub/sub)
-sentinel = RedisRuby::Client.new(host: "sentinel1", port: 26379)
+sentinel = RR::Client.new(host: "sentinel1", port: 26379)
 
 sentinel.subscribe("+switch-master", "+sdown", "+odown") do |event, data|
   case event
@@ -377,7 +377,7 @@ end
 ### Master Information
 
 ```ruby
-sentinel = RedisRuby::Client.new(host: "sentinel1", port: 26379)
+sentinel = RR::Client.new(host: "sentinel1", port: 26379)
 
 # Get all monitored masters
 masters = sentinel.call("SENTINEL", "MASTERS")
@@ -444,7 +444,7 @@ Always deploy at least 3 Sentinels for production:
 
 ```ruby
 # Good - 3 Sentinels for high availability
-redis = RedisRuby.sentinel(
+redis = RR.sentinel(
   sentinels: [
     { host: "sentinel1", port: 26379 },
     { host: "sentinel2", port: 26379 },
@@ -454,7 +454,7 @@ redis = RedisRuby.sentinel(
 )
 
 # Bad - single Sentinel (single point of failure)
-redis = RedisRuby.sentinel(
+redis = RR.sentinel(
   sentinels: [{ host: "sentinel1", port: 26379 }],
   service_name: "mymaster"
 )
@@ -475,7 +475,7 @@ sentinel monitor mymaster 127.0.0.1 6379 3
 ### 3. Handle Failover Gracefully
 
 ```ruby
-redis = RedisRuby.sentinel(
+redis = RR.sentinel(
   sentinels: [{ host: "sentinel1", port: 26379 }],
   service_name: "mymaster",
   reconnect_attempts: 3  # Retry during failover
@@ -483,11 +483,11 @@ redis = RedisRuby.sentinel(
 
 begin
   redis.set("key", "value")
-rescue RedisRuby::ConnectionError => e
+rescue RR::ConnectionError => e
   # Failover in progress
   logger.warn("Connection failed during failover: #{e.message}")
   # Client will retry automatically
-rescue RedisRuby::Error => e
+rescue RR::Error => e
   logger.error("Redis error: #{e.message}")
   raise
 end
@@ -499,7 +499,7 @@ end
 def check_sentinel_health(sentinels)
   sentinels.each do |sentinel_config|
     begin
-      sentinel = RedisRuby::Client.new(
+      sentinel = RR::Client.new(
         host: sentinel_config[:host],
         port: sentinel_config[:port],
         timeout: 1.0
@@ -526,14 +526,14 @@ end
 
 ```ruby
 # For local network
-redis = RedisRuby.sentinel(
+redis = RR.sentinel(
   sentinels: [{ host: "sentinel1", port: 26379 }],
   service_name: "mymaster",
   timeout: 1.0  # 1 second
 )
 
 # For remote/slow network
-redis = RedisRuby.sentinel(
+redis = RR.sentinel(
   sentinels: [{ host: "sentinel1", port: 26379 }],
   service_name: "mymaster",
   timeout: 5.0  # 5 seconds
@@ -547,7 +547,7 @@ Deploy Sentinels on different network segments than Redis:
 ```ruby
 # Sentinels on management network
 # Redis on data network
-redis = RedisRuby.sentinel(
+redis = RR.sentinel(
   sentinels: [
     { host: "mgmt-sentinel1.example.com", port: 26379 },
     { host: "mgmt-sentinel2.example.com", port: 26379 },
@@ -562,7 +562,7 @@ redis = RedisRuby.sentinel(
 ```ruby
 # Automated failover test
 def test_failover
-  redis = RedisRuby.sentinel(
+  redis = RR.sentinel(
     sentinels: [{ host: "sentinel1", port: 26379 }],
     service_name: "mymaster"
   )
@@ -571,7 +571,7 @@ def test_failover
   original_master = redis.current_address
 
   # Trigger failover
-  sentinel = RedisRuby::Client.new(host: "sentinel1", port: 26379)
+  sentinel = RR::Client.new(host: "sentinel1", port: 26379)
   sentinel.call("SENTINEL", "FAILOVER", "mymaster")
 
   # Wait for failover
@@ -590,14 +590,14 @@ end
 
 ```ruby
 # Write to master
-writer = RedisRuby.sentinel(
+writer = RR.sentinel(
   sentinels: [{ host: "sentinel1", port: 26379 }],
   service_name: "mymaster",
   role: :master
 )
 
 # Read from replica
-reader = RedisRuby.sentinel(
+reader = RR.sentinel(
   sentinels: [{ host: "sentinel1", port: 26379 }],
   service_name: "mymaster",
   role: :replica
@@ -638,7 +638,7 @@ sentinel client-reconfig-script mymaster /path/to/reconfig.sh
 ```ruby
 class SentinelMonitor
   def initialize(sentinels, service_name)
-    @sentinel = RedisRuby::Client.new(
+    @sentinel = RR::Client.new(
       host: sentinels.first[:host],
       port: sentinels.first[:port]
     )
@@ -673,7 +673,7 @@ end
 ```ruby
 class RedisConnection
   def self.create
-    RedisRuby.sentinel(
+    RR.sentinel(
       sentinels: ENV["REDIS_SENTINELS"].split(",").map do |s|
         host, port = s.split(":")
         { host: host, port: port.to_i }
@@ -694,13 +694,13 @@ redis = RedisConnection.create
 ```ruby
 class RedisPool
   def initialize
-    @writer = RedisRuby.sentinel(
+    @writer = RR.sentinel(
       sentinels: sentinels,
       service_name: "mymaster",
       role: :master
     )
 
-    @reader = RedisRuby.sentinel(
+    @reader = RR.sentinel(
       sentinels: sentinels,
       service_name: "mymaster",
       role: :replica
@@ -737,7 +737,7 @@ pool.read { |redis| redis.get("key") }
 ```ruby
 class CacheWithFallback
   def initialize
-    @redis = RedisRuby.sentinel(
+    @redis = RR.sentinel(
       sentinels: [{ host: "sentinel1", port: 26379 }],
       service_name: "mymaster",
       reconnect_attempts: 2
@@ -747,7 +747,7 @@ class CacheWithFallback
 
   def get(key)
     @redis.get(key)
-  rescue RedisRuby::Error => e
+  rescue RR::Error => e
     logger.warn("Redis unavailable, using local cache: #{e.message}")
     @local_cache[key]
   end
@@ -755,7 +755,7 @@ class CacheWithFallback
   def set(key, value)
     @redis.set(key, value)
     @local_cache[key] = value
-  rescue RedisRuby::Error => e
+  rescue RR::Error => e
     logger.warn("Redis unavailable, storing in local cache: #{e.message}")
     @local_cache[key] = value
   end
@@ -770,7 +770,7 @@ end
 # Error: "No master found for 'mymaster'"
 
 # Check Sentinels are running
-sentinel = RedisRuby::Client.new(host: "sentinel1", port: 26379)
+sentinel = RR::Client.new(host: "sentinel1", port: 26379)
 sentinel.call("PING")  # Should return "PONG"
 
 # Check master is configured
@@ -786,7 +786,7 @@ puts address.inspect
 
 ```ruby
 # Increase timeout
-redis = RedisRuby.sentinel(
+redis = RR.sentinel(
   sentinels: [{ host: "sentinel1", port: 26379 }],
   service_name: "mymaster",
   timeout: 10.0  # Increase from default 5.0
@@ -808,7 +808,7 @@ sentinel failover-timeout mymaster 120000  # 2 minutes
 ```ruby
 # Client connected to replica but trying to write
 # Solution: Ensure role is :master for write operations
-redis = RedisRuby.sentinel(
+redis = RR.sentinel(
   sentinels: [{ host: "sentinel1", port: 26379 }],
   service_name: "mymaster",
   role: :master  # Not :replica

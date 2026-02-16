@@ -3,7 +3,7 @@
 require_relative "../dsl/bitmap_proxy"
 require_relative "../dsl/bitfield_builder"
 
-module RedisRuby
+module RR
   module Commands
     # Bitmap commands for bit-level string operations
     #
@@ -29,7 +29,7 @@ module RedisRuby
       # and permissions with extremely efficient memory usage (1 bit per element).
       #
       # @param key_parts [Array<String, Symbol, Integer>] Key components
-      # @return [RedisRuby::DSL::BitmapProxy] Bitmap proxy instance
+      # @return [RR::DSL::BitmapProxy] Bitmap proxy instance
       #
       # @example Daily active users
       #   today = redis.bitmap(:dau, Date.today.to_s)

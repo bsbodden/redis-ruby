@@ -220,7 +220,7 @@ redis.script_flush(:async)
 # Manual error handling
 begin
   result = redis.evalsha(sha, 1, "key")
-rescue RedisRuby::CommandError => e
+rescue RR::CommandError => e
   if e.message.include?("NOSCRIPT")
     # Script not cached, use EVAL
     result = redis.eval(script, 1, "key")
@@ -385,7 +385,7 @@ LUA
 
 begin
   redis.eval(script, 1, "key", -5)
-rescue RedisRuby::CommandError => e
+rescue RR::CommandError => e
   puts e.message  # => "Value must be positive"
 end
 ```

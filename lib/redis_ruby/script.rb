@@ -2,7 +2,7 @@
 
 require "digest/sha1"
 
-module RedisRuby
+module RR
   # Cached script object for efficient Lua script execution
   #
   # Created via Client#register_script. Automatically tries EVALSHA first

@@ -4,7 +4,7 @@ require_relative "../unit_test_helper"
 
 class KeysBranchTest < Minitest::Test
   class MockClient
-    include RedisRuby::Commands::Keys
+    include RR::Commands::Keys
 
     attr_reader :last_command
 
@@ -547,7 +547,7 @@ class KeysBranchTest < Minitest::Test
 
   # Test scan_iter with multiple cursor iterations
   class MultiCursorMockClient
-    include RedisRuby::Commands::Keys
+    include RR::Commands::Keys
 
     attr_reader :scan_calls
 

@@ -8,33 +8,33 @@ class RetryComprehensiveTest < Minitest::Test
   # ============================================================
 
   def test_retry_class_exists
-    assert_kind_of Class, RedisRuby::Retry
+    assert_kind_of Class, RR::Retry
   end
 
   def test_retry_can_be_instantiated
-    retry_policy = RedisRuby::Retry.new
+    retry_policy = RR::Retry.new
 
-    assert_instance_of RedisRuby::Retry, retry_policy
+    assert_instance_of RR::Retry, retry_policy
   end
 
   def test_retry_with_custom_retries
-    retry_policy = RedisRuby::Retry.new(retries: 5)
+    retry_policy = RR::Retry.new(retries: 5)
 
-    assert_instance_of RedisRuby::Retry, retry_policy
+    assert_instance_of RR::Retry, retry_policy
   end
 
   def test_retry_with_custom_backoff
-    backoff = RedisRuby::NoBackoff.new
-    retry_policy = RedisRuby::Retry.new(backoff: backoff)
+    backoff = RR::NoBackoff.new
+    retry_policy = RR::Retry.new(backoff: backoff)
 
-    assert_instance_of RedisRuby::Retry, retry_policy
+    assert_instance_of RR::Retry, retry_policy
   end
 
   def test_retry_with_callback
     callback = ->(error, attempt) { puts "Attempt #{attempt}: #{error}" }
-    retry_policy = RedisRuby::Retry.new(on_retry: callback)
+    retry_policy = RR::Retry.new(on_retry: callback)
 
-    assert_instance_of RedisRuby::Retry, retry_policy
+    assert_instance_of RR::Retry, retry_policy
   end
 
   # ============================================================
@@ -42,7 +42,7 @@ class RetryComprehensiveTest < Minitest::Test
   # ============================================================
 
   def test_call_succeeds_without_retry
-    retry_policy = RedisRuby::Retry.new(retries: 3, backoff: RedisRuby::NoBackoff.new)
+    retry_policy = RR::Retry.new(retries: 3, backoff: RR::NoBackoff.new)
     call_count = 0
 
     result = retry_policy.call do
@@ -55,12 +55,12 @@ class RetryComprehensiveTest < Minitest::Test
   end
 
   def test_call_retries_on_connection_error
-    retry_policy = RedisRuby::Retry.new(retries: 3, backoff: RedisRuby::NoBackoff.new)
+    retry_policy = RR::Retry.new(retries: 3, backoff: RR::NoBackoff.new)
     call_count = 0
 
     result = retry_policy.call do
       call_count += 1
-      raise RedisRuby::ConnectionError, "Connection lost" if call_count < 2
+      raise RR::ConnectionError, "Connection lost" if call_count < 2
 
       "success"
     end
@@ -70,12 +70,12 @@ class RetryComprehensiveTest < Minitest::Test
   end
 
   def test_call_retries_on_timeout_error
-    retry_policy = RedisRuby::Retry.new(retries: 3, backoff: RedisRuby::NoBackoff.new)
+    retry_policy = RR::Retry.new(retries: 3, backoff: RR::NoBackoff.new)
     call_count = 0
 
     result = retry_policy.call do
       call_count += 1
-      raise RedisRuby::TimeoutError, "Timed out" if call_count < 2
+      raise RR::TimeoutError, "Timed out" if call_count < 2
 
       "success"
     end
@@ -85,13 +85,13 @@ class RetryComprehensiveTest < Minitest::Test
   end
 
   def test_call_raises_after_max_retries
-    retry_policy = RedisRuby::Retry.new(retries: 3, backoff: RedisRuby::NoBackoff.new)
+    retry_policy = RR::Retry.new(retries: 3, backoff: RR::NoBackoff.new)
     call_count = 0
 
-    assert_raises(RedisRuby::ConnectionError) do
+    assert_raises(RR::ConnectionError) do
       retry_policy.call do
         call_count += 1
-        raise RedisRuby::ConnectionError, "Connection lost"
+        raise RR::ConnectionError, "Connection lost"
       end
     end
 
@@ -100,13 +100,13 @@ class RetryComprehensiveTest < Minitest::Test
   end
 
   def test_call_does_not_retry_command_errors
-    retry_policy = RedisRuby::Retry.new(retries: 3, backoff: RedisRuby::NoBackoff.new)
+    retry_policy = RR::Retry.new(retries: 3, backoff: RR::NoBackoff.new)
     call_count = 0
 
-    assert_raises(RedisRuby::CommandError) do
+    assert_raises(RR::CommandError) do
       retry_policy.call do
         call_count += 1
-        raise RedisRuby::CommandError, "WRONGTYPE"
+        raise RR::CommandError, "WRONGTYPE"
       end
     end
 
@@ -114,7 +114,7 @@ class RetryComprehensiveTest < Minitest::Test
   end
 
   def test_call_does_not_retry_standard_errors
-    retry_policy = RedisRuby::Retry.new(retries: 3, backoff: RedisRuby::NoBackoff.new)
+    retry_policy = RR::Retry.new(retries: 3, backoff: RR::NoBackoff.new)
     call_count = 0
 
     assert_raises(StandardError) do
@@ -128,13 +128,13 @@ class RetryComprehensiveTest < Minitest::Test
   end
 
   def test_call_with_zero_retries
-    retry_policy = RedisRuby::Retry.new(retries: 0, backoff: RedisRuby::NoBackoff.new)
+    retry_policy = RR::Retry.new(retries: 0, backoff: RR::NoBackoff.new)
     call_count = 0
 
-    assert_raises(RedisRuby::ConnectionError) do
+    assert_raises(RR::ConnectionError) do
       retry_policy.call do
         call_count += 1
-        raise RedisRuby::ConnectionError, "fail"
+        raise RR::ConnectionError, "fail"
       end
     end
 
@@ -144,12 +144,12 @@ class RetryComprehensiveTest < Minitest::Test
   def test_callback_is_called_on_retry
     callback_calls = []
     callback = ->(error, attempt) { callback_calls << [error.message, attempt] }
-    retry_policy = RedisRuby::Retry.new(retries: 2, backoff: RedisRuby::NoBackoff.new, on_retry: callback)
+    retry_policy = RR::Retry.new(retries: 2, backoff: RR::NoBackoff.new, on_retry: callback)
     call_count = 0
 
     result = retry_policy.call do
       call_count += 1
-      raise RedisRuby::ConnectionError, "fail" if call_count < 2
+      raise RR::ConnectionError, "fail" if call_count < 2
 
       "success"
     end
@@ -164,7 +164,7 @@ class RetryComprehensiveTest < Minitest::Test
   # ============================================================
 
   def test_no_backoff
-    backoff = RedisRuby::NoBackoff.new
+    backoff = RR::NoBackoff.new
 
     assert_equal 0, backoff.compute(1)
     assert_equal 0, backoff.compute(5)
@@ -172,7 +172,7 @@ class RetryComprehensiveTest < Minitest::Test
   end
 
   def test_constant_backoff
-    backoff = RedisRuby::ConstantBackoff.new(0.5)
+    backoff = RR::ConstantBackoff.new(0.5)
 
     assert_in_delta 0.5, backoff.compute(1), 0.001
     assert_in_delta 0.5, backoff.compute(5), 0.001
@@ -180,7 +180,7 @@ class RetryComprehensiveTest < Minitest::Test
   end
 
   def test_exponential_backoff
-    backoff = RedisRuby::ExponentialBackoff.new(base: 0.1, cap: 10.0)
+    backoff = RR::ExponentialBackoff.new(base: 0.1, cap: 10.0)
     # failures=1: 0.1 * 2^0 = 0.1
     assert_in_delta 0.1, backoff.compute(1), 0.001
     # failures=2: 0.1 * 2^1 = 0.2
@@ -190,13 +190,13 @@ class RetryComprehensiveTest < Minitest::Test
   end
 
   def test_exponential_backoff_cap
-    backoff = RedisRuby::ExponentialBackoff.new(base: 1.0, cap: 5.0)
+    backoff = RR::ExponentialBackoff.new(base: 1.0, cap: 5.0)
     # failures=10: 1.0 * 2^9 = 512, capped at 5.0
     assert_in_delta 5.0, backoff.compute(10), 0.001
   end
 
   def test_exponential_with_jitter_backoff
-    backoff = RedisRuby::ExponentialWithJitterBackoff.new(base: 0.1, cap: 10.0)
+    backoff = RR::ExponentialWithJitterBackoff.new(base: 0.1, cap: 10.0)
     # Result should be in [0, 0.1] for failures=1
     100.times do
       delay = backoff.compute(1)
@@ -207,7 +207,7 @@ class RetryComprehensiveTest < Minitest::Test
   end
 
   def test_exponential_with_jitter_backoff_cap
-    backoff = RedisRuby::ExponentialWithJitterBackoff.new(base: 1.0, cap: 5.0)
+    backoff = RR::ExponentialWithJitterBackoff.new(base: 1.0, cap: 5.0)
     # Result should be in [0, 5.0] for high failure counts
     100.times do
       delay = backoff.compute(10)
@@ -218,7 +218,7 @@ class RetryComprehensiveTest < Minitest::Test
   end
 
   def test_equal_jitter_backoff
-    backoff = RedisRuby::EqualJitterBackoff.new(base: 1.0, cap: 10.0)
+    backoff = RR::EqualJitterBackoff.new(base: 1.0, cap: 10.0)
     # For failures=1, delay = 1.0, half = 0.5
     # Result should be in [0.5, 1.0]
     100.times do
@@ -230,7 +230,7 @@ class RetryComprehensiveTest < Minitest::Test
   end
 
   def test_equal_jitter_backoff_cap
-    backoff = RedisRuby::EqualJitterBackoff.new(base: 1.0, cap: 6.0)
+    backoff = RR::EqualJitterBackoff.new(base: 1.0, cap: 6.0)
     # For high failures, delay is capped at 6.0, half = 3.0
     # Result should be in [3.0, 6.0]
     100.times do

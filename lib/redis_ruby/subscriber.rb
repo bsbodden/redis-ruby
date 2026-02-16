@@ -1,13 +1,13 @@
 # frozen_string_literal: true
 
-module RedisRuby
+module RR
   # Background subscriber for Redis Pub/Sub
   #
   # Provides a way to run Pub/Sub subscriptions in a background thread,
   # freeing the main thread for other work.
   #
   # @example Basic background subscription
-  #   subscriber = RedisRuby::Subscriber.new(client)
+  #   subscriber = RR::Subscriber.new(client)
   #
   #   subscriber.on_message do |channel, message|
   #     puts "Received: #{message} on #{channel}"
@@ -22,7 +22,7 @@ module RedisRuby
   #   thread.join
   #
   # @example With pattern subscriptions
-  #   subscriber = RedisRuby::Subscriber.new(client)
+  #   subscriber = RR::Subscriber.new(client)
   #
   #   subscriber.on_pmessage do |pattern, channel, message|
   #     puts "#{pattern} matched #{channel}: #{message}"
@@ -36,7 +36,7 @@ module RedisRuby
 
     # Initialize a new subscriber
     #
-    # @param client [RedisRuby::Client] Redis client (a dedicated connection will be created)
+    # @param [RR::Client] Redis client (a dedicated connection will be created)
     def initialize(client)
       @client_config = extract_client_config(client)
       @channels = []

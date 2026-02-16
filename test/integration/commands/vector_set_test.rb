@@ -12,7 +12,7 @@ class VectorSetCommandsTest < RedisRubyTestCase
     # Check if Vector Set commands are available (Redis 8.0+)
     begin
       redis.vcard("__test_vset__")
-    rescue RedisRuby::CommandError => e
+    rescue RR::CommandError => e
       if e.message.include?("unknown command") || e.message.include?("ERR unknown")
         skip "Vector Set commands not available (requires Redis 8.0+)"
       end

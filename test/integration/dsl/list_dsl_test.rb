@@ -4,7 +4,7 @@ require "test_helper"
 
 class ListDSLTest < Minitest::Test
   def setup
-    @redis = RedisRuby.new(url: ENV.fetch("REDIS_URL", "redis://localhost:6379"))
+    @redis = RR.new(url: ENV.fetch("REDIS_URL", "redis://localhost:6379"))
     @key = "test:list:#{SecureRandom.hex(8)}"
   end
 
@@ -23,7 +23,7 @@ class ListDSLTest < Minitest::Test
 
   def test_list_creates_proxy
     list = redis.list(@key)
-    assert_instance_of RedisRuby::DSL::ListProxy, list
+    assert_instance_of RR::DSL::ListProxy, list
   end
 
   def test_list_with_composite_key

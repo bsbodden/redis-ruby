@@ -20,14 +20,14 @@ class ProbabilisticDSLTest < RedisRubyTestCase
   def test_bloom_filter_proxy_creation
     proxy = redis.bloom_filter(:spam, :emails)
     
-    assert_instance_of RedisRuby::DSL::BloomFilterProxy, proxy
+    assert_instance_of RR::DSL::BloomFilterProxy, proxy
     assert_equal "spam:emails", proxy.key
   end
 
   def test_bloom_alias
     proxy = redis.bloom(:spam, :emails)
     
-    assert_instance_of RedisRuby::DSL::BloomFilterProxy, proxy
+    assert_instance_of RR::DSL::BloomFilterProxy, proxy
     assert_equal "spam:emails", proxy.key
   end
 
@@ -153,14 +153,14 @@ class ProbabilisticDSLTest < RedisRubyTestCase
   def test_cuckoo_filter_proxy_creation
     proxy = redis.cuckoo_filter(:sessions)
 
-    assert_instance_of RedisRuby::DSL::CuckooFilterProxy, proxy
+    assert_instance_of RR::DSL::CuckooFilterProxy, proxy
     assert_equal "sessions", proxy.key
   end
 
   def test_cuckoo_alias
     proxy = redis.cuckoo(:sessions)
 
-    assert_instance_of RedisRuby::DSL::CuckooFilterProxy, proxy
+    assert_instance_of RR::DSL::CuckooFilterProxy, proxy
     assert_equal "sessions", proxy.key
   end
 
@@ -299,14 +299,14 @@ class ProbabilisticDSLTest < RedisRubyTestCase
   def test_count_min_sketch_proxy_creation
     proxy = redis.count_min_sketch(:pageviews)
 
-    assert_instance_of RedisRuby::DSL::CountMinSketchProxy, proxy
+    assert_instance_of RR::DSL::CountMinSketchProxy, proxy
     assert_equal "pageviews", proxy.key
   end
 
   def test_cms_alias
     proxy = redis.cms(:pageviews)
 
-    assert_instance_of RedisRuby::DSL::CountMinSketchProxy, proxy
+    assert_instance_of RR::DSL::CountMinSketchProxy, proxy
     assert_equal "pageviews", proxy.key
   end
 
@@ -451,7 +451,7 @@ class ProbabilisticDSLTest < RedisRubyTestCase
   def test_top_k_proxy_creation
     proxy = redis.top_k(:trending, :products)
 
-    assert_instance_of RedisRuby::DSL::TopKProxy, proxy
+    assert_instance_of RR::DSL::TopKProxy, proxy
     assert_equal "trending:products", proxy.key
   end
 

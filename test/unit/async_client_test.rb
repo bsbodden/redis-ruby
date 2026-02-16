@@ -16,7 +16,7 @@ class AsyncClientBranchTest < Minitest::Test
   def test_initialization_defaults
     setup_connected_socket
 
-    client = RedisRuby::AsyncClient.new(host: "localhost", port: 6379)
+    client = RR::AsyncClient.new(host: "localhost", port: 6379)
 
     assert_equal "localhost", client.host
     assert_equal 6379, client.port
@@ -32,7 +32,7 @@ class AsyncClientBranchTest < Minitest::Test
     @mock_socket.stubs(:flush)
     @mock_socket.stubs(:read_nonblock).returns("+OK\r\n")
 
-    client = RedisRuby::AsyncClient.new(url: "redis://localhost:6380/2")
+    client = RR::AsyncClient.new(url: "redis://localhost:6380/2")
 
     assert_equal "localhost", client.host
     assert_equal 6380, client.port
@@ -47,9 +47,9 @@ class AsyncClientBranchTest < Minitest::Test
     @mock_socket.stubs(:flush)
     @mock_socket.stubs(:read_nonblock).returns("+OK\r\n")
 
-    client = RedisRuby::AsyncClient.new(host: "localhost", port: 6379, password: "secret")
+    client = RR::AsyncClient.new(host: "localhost", port: 6379, password: "secret")
 
-    assert_kind_of RedisRuby::AsyncClient, client
+    assert_kind_of RR::AsyncClient, client
     client.close
   end
 
@@ -59,7 +59,7 @@ class AsyncClientBranchTest < Minitest::Test
     @mock_socket.stubs(:flush)
     @mock_socket.stubs(:read_nonblock).returns("+OK\r\n")
 
-    client = RedisRuby::AsyncClient.new(url: "redis://:mypass@localhost:6379/0")
+    client = RR::AsyncClient.new(url: "redis://:mypass@localhost:6379/0")
 
     assert_equal "localhost", client.host
     assert_equal 6379, client.port
@@ -69,7 +69,7 @@ class AsyncClientBranchTest < Minitest::Test
   def test_initialization_db_zero_does_not_select
     setup_connected_socket
     # With db=0, no SELECT should be called
-    client = RedisRuby::AsyncClient.new(host: "localhost", port: 6379, db: 0)
+    client = RR::AsyncClient.new(host: "localhost", port: 6379, db: 0)
 
     assert_equal 0, client.db
     client.close
@@ -84,7 +84,7 @@ class AsyncClientBranchTest < Minitest::Test
     @mock_socket.expects(:write)
     @mock_socket.expects(:read_nonblock).returns("+PONG\r\n")
 
-    client = RedisRuby::AsyncClient.new(host: "localhost", port: 6379)
+    client = RR::AsyncClient.new(host: "localhost", port: 6379)
     result = client.call("PING")
 
     assert_equal "PONG", result
@@ -96,8 +96,8 @@ class AsyncClientBranchTest < Minitest::Test
     @mock_socket.expects(:write)
     @mock_socket.expects(:read_nonblock).returns("-ERR bad command\r\n")
 
-    client = RedisRuby::AsyncClient.new(host: "localhost", port: 6379)
-    assert_raises(RedisRuby::CommandError) { client.call("BAD") }
+    client = RR::AsyncClient.new(host: "localhost", port: 6379)
+    assert_raises(RR::CommandError) { client.call("BAD") }
     client.close
   end
 
@@ -106,7 +106,7 @@ class AsyncClientBranchTest < Minitest::Test
     @mock_socket.expects(:write)
     @mock_socket.expects(:read_nonblock).returns("$5\r\nhello\r\n")
 
-    client = RedisRuby::AsyncClient.new(host: "localhost", port: 6379)
+    client = RR::AsyncClient.new(host: "localhost", port: 6379)
     result = client.call_1arg("GET", "key")
 
     assert_equal "hello", result
@@ -118,8 +118,8 @@ class AsyncClientBranchTest < Minitest::Test
     @mock_socket.expects(:write)
     @mock_socket.expects(:read_nonblock).returns("-ERR problem\r\n")
 
-    client = RedisRuby::AsyncClient.new(host: "localhost", port: 6379)
-    assert_raises(RedisRuby::CommandError) { client.call_1arg("GET", "key") }
+    client = RR::AsyncClient.new(host: "localhost", port: 6379)
+    assert_raises(RR::CommandError) { client.call_1arg("GET", "key") }
     client.close
   end
 
@@ -128,7 +128,7 @@ class AsyncClientBranchTest < Minitest::Test
     @mock_socket.expects(:write)
     @mock_socket.expects(:read_nonblock).returns("+OK\r\n")
 
-    client = RedisRuby::AsyncClient.new(host: "localhost", port: 6379)
+    client = RR::AsyncClient.new(host: "localhost", port: 6379)
     result = client.call_2args("SET", "key", "val")
 
     assert_equal "OK", result
@@ -140,8 +140,8 @@ class AsyncClientBranchTest < Minitest::Test
     @mock_socket.expects(:write)
     @mock_socket.expects(:read_nonblock).returns("-ERR problem\r\n")
 
-    client = RedisRuby::AsyncClient.new(host: "localhost", port: 6379)
-    assert_raises(RedisRuby::CommandError) { client.call_2args("SET", "key", "val") }
+    client = RR::AsyncClient.new(host: "localhost", port: 6379)
+    assert_raises(RR::CommandError) { client.call_2args("SET", "key", "val") }
     client.close
   end
 
@@ -150,7 +150,7 @@ class AsyncClientBranchTest < Minitest::Test
     @mock_socket.expects(:write)
     @mock_socket.expects(:read_nonblock).returns(":1\r\n")
 
-    client = RedisRuby::AsyncClient.new(host: "localhost", port: 6379)
+    client = RR::AsyncClient.new(host: "localhost", port: 6379)
     result = client.call_3args("HSET", "hash", "field", "value")
 
     assert_equal 1, result
@@ -162,8 +162,8 @@ class AsyncClientBranchTest < Minitest::Test
     @mock_socket.expects(:write)
     @mock_socket.expects(:read_nonblock).returns("-ERR problem\r\n")
 
-    client = RedisRuby::AsyncClient.new(host: "localhost", port: 6379)
-    assert_raises(RedisRuby::CommandError) { client.call_3args("CMD", "a", "b", "c") }
+    client = RR::AsyncClient.new(host: "localhost", port: 6379)
+    assert_raises(RR::CommandError) { client.call_3args("CMD", "a", "b", "c") }
     client.close
   end
 
@@ -176,7 +176,7 @@ class AsyncClientBranchTest < Minitest::Test
     @mock_socket.expects(:write).with("*1\r\n$4\r\nPING\r\n")
     @mock_socket.expects(:read_nonblock).returns("+PONG\r\n")
 
-    client = RedisRuby::AsyncClient.new(host: "localhost", port: 6379)
+    client = RR::AsyncClient.new(host: "localhost", port: 6379)
 
     assert_equal "PONG", client.ping
     client.close
@@ -190,7 +190,7 @@ class AsyncClientBranchTest < Minitest::Test
     setup_connected_socket
     @mock_socket.stubs(:closed?).returns(false)
 
-    client = RedisRuby::AsyncClient.new(host: "localhost", port: 6379)
+    client = RR::AsyncClient.new(host: "localhost", port: 6379)
 
     assert_predicate client, :connected?
     client.close
@@ -198,7 +198,7 @@ class AsyncClientBranchTest < Minitest::Test
 
   def test_connected_false_after_close
     setup_connected_socket
-    client = RedisRuby::AsyncClient.new(host: "localhost", port: 6379)
+    client = RR::AsyncClient.new(host: "localhost", port: 6379)
     @mock_socket.expects(:close)
     client.close
 
@@ -208,7 +208,7 @@ class AsyncClientBranchTest < Minitest::Test
   def test_connected_false_when_no_connection
     # Create client, close it, set connection to nil
     setup_connected_socket
-    client = RedisRuby::AsyncClient.new(host: "localhost", port: 6379)
+    client = RR::AsyncClient.new(host: "localhost", port: 6379)
     @mock_socket.expects(:close)
     client.close
 
@@ -221,7 +221,7 @@ class AsyncClientBranchTest < Minitest::Test
 
   def test_disconnect_alias
     setup_connected_socket
-    client = RedisRuby::AsyncClient.new(host: "localhost", port: 6379)
+    client = RR::AsyncClient.new(host: "localhost", port: 6379)
     @mock_socket.expects(:close)
     client.disconnect
 
@@ -230,7 +230,7 @@ class AsyncClientBranchTest < Minitest::Test
 
   def test_quit_alias
     setup_connected_socket
-    client = RedisRuby::AsyncClient.new(host: "localhost", port: 6379)
+    client = RR::AsyncClient.new(host: "localhost", port: 6379)
     @mock_socket.expects(:close)
     client.quit
 
@@ -247,7 +247,7 @@ class AsyncClientBranchTest < Minitest::Test
     @mock_socket.stubs(:flush)
     @mock_socket.stubs(:read_nonblock).returns("+OK\r\n")
 
-    client = RedisRuby::AsyncClient.new(host: "localhost", port: 6379)
+    client = RR::AsyncClient.new(host: "localhost", port: 6379)
     result = client.watch("key1")
 
     assert_equal "OK", result
@@ -260,7 +260,7 @@ class AsyncClientBranchTest < Minitest::Test
     @mock_socket.stubs(:flush)
     @mock_socket.stubs(:read_nonblock).returns("+OK\r\n")
 
-    client = RedisRuby::AsyncClient.new(host: "localhost", port: 6379)
+    client = RR::AsyncClient.new(host: "localhost", port: 6379)
     block_executed = false
     client.watch("key1") { block_executed = true }
 
@@ -278,7 +278,7 @@ class AsyncClientBranchTest < Minitest::Test
     @mock_socket.stubs(:flush)
     @mock_socket.stubs(:read_nonblock).returns("+OK\r\n")
 
-    client = RedisRuby::AsyncClient.new(host: "localhost", port: 6379)
+    client = RR::AsyncClient.new(host: "localhost", port: 6379)
     result = client.unwatch
 
     assert_equal "OK", result
@@ -291,7 +291,7 @@ class AsyncClientBranchTest < Minitest::Test
 
   def test_includes_all_command_modules
     setup_connected_socket
-    client = RedisRuby::AsyncClient.new(host: "localhost", port: 6379)
+    client = RR::AsyncClient.new(host: "localhost", port: 6379)
 
     assert_respond_to client, :get
     assert_respond_to client, :set
@@ -312,7 +312,7 @@ class AsyncClientBranchTest < Minitest::Test
   def test_ensure_connected_reconnects_when_disconnected
     setup_connected_socket
 
-    client = RedisRuby::AsyncClient.new(host: "localhost", port: 6379)
+    client = RR::AsyncClient.new(host: "localhost", port: 6379)
     @mock_socket.expects(:close)
     client.close
 

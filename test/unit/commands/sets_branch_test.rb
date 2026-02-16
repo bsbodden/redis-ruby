@@ -8,7 +8,7 @@ class SetsBranchTest < Minitest::Test
   # ============================================================
 
   class MockClient
-    include RedisRuby::Commands::Sets
+    include RR::Commands::Sets
 
     attr_reader :last_command
 
@@ -362,7 +362,7 @@ class SetsBranchTest < Minitest::Test
   end
 
   class MultiIterMock
-    include RedisRuby::Commands::Sets
+    include RR::Commands::Sets
 
     attr_accessor :call_count
 

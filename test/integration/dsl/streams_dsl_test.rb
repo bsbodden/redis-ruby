@@ -28,7 +28,7 @@ class StreamsDSLTest < RedisRubyTestCase
   def test_stream_proxy_creation
     stream = redis.stream(:events)
     
-    assert_instance_of RedisRuby::DSL::StreamProxy, stream
+    assert_instance_of RR::DSL::StreamProxy, stream
     assert_equal "events", stream.key
   end
 
@@ -266,7 +266,7 @@ class StreamsDSLTest < RedisRubyTestCase
     stream = redis.stream(@stream_key)
     consumer = stream.consumer(:mygroup, :worker1)
 
-    assert_instance_of RedisRuby::DSL::ConsumerProxy, consumer
+    assert_instance_of RR::DSL::ConsumerProxy, consumer
     assert_equal @stream_key, consumer.stream_key
     assert_equal "mygroup", consumer.group_name
     assert_equal "worker1", consumer.consumer_name
@@ -340,7 +340,7 @@ class StreamsDSLTest < RedisRubyTestCase
   def test_multi_stream_reader_creation
     reader = redis.streams(events: "0-0", metrics: "0-0")
 
-    assert_instance_of RedisRuby::DSL::MultiStreamReader, reader
+    assert_instance_of RR::DSL::MultiStreamReader, reader
   end
 
   def test_multi_stream_read
@@ -444,7 +444,7 @@ class StreamsDSLTest < RedisRubyTestCase
       .add(b: 2)
       .add(c: 3)
 
-    assert_instance_of RedisRuby::DSL::StreamProxy, result
+    assert_instance_of RR::DSL::StreamProxy, result
     assert_equal 3, redis.xlen(@stream_key)
   end
 end

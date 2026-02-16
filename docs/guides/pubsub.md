@@ -43,9 +43,9 @@ Redis Pub/Sub implements the publish/subscribe messaging paradigm where:
 Publishing is simple and non-blocking:
 
 ```ruby
-require "redis_ruby"
+require "redis_ruby"  # Native RR API
 
-redis = RedisRuby.new(host: "localhost")
+redis = RR.new(host: "localhost")
 
 # Publish a message to a channel
 # Returns the number of subscribers that received the message
@@ -92,7 +92,7 @@ end
 Subscribing blocks the connection and enters subscription mode:
 
 ```ruby
-redis = RedisRuby.new(host: "localhost")
+redis = RR.new(host: "localhost")
 
 # Subscribe to one or more channels
 redis.subscribe("news", "events") do |on|
@@ -117,7 +117,7 @@ end
 
 ```ruby
 # In one terminal/process - Subscriber
-redis = RedisRuby.new(host: "localhost")
+redis = RR.new(host: "localhost")
 
 redis.subscribe("chat") do |on|
   on.message do |channel, message|
@@ -126,7 +126,7 @@ redis.subscribe("chat") do |on|
 end
 
 # In another terminal/process - Publisher
-redis = RedisRuby.new(host: "localhost")
+redis = RR.new(host: "localhost")
 redis.publish("chat", "Hello, World!")
 # Subscriber sees: "chat: Hello, World!"
 ```
@@ -311,7 +311,7 @@ redis.subscribe("events") do |on|
       # Log error but keep subscription alive
       puts "Error processing message: #{e.message}"
       # Optionally publish to error channel
-      redis_publisher = RedisRuby.new(host: "localhost")
+      redis_publisher = RR.new(host: "localhost")
       redis_publisher.publish("errors", "#{channel}: #{e.message}")
     end
   end
@@ -336,11 +336,11 @@ end
 For non-blocking subscriptions, use the `Subscriber` class to run subscriptions in a background thread:
 
 ```ruby
-require "redis_ruby"
+require "redis_ruby"  # Native RR API
 
 # Create a subscriber with a dedicated connection
-client = RedisRuby.new(host: "localhost")
-subscriber = RedisRuby::Subscriber.new(client)
+client = RR.new(host: "localhost")
+subscriber = RR::Subscriber.new(client)
 
 # Register callbacks
 subscriber.on_message do |channel, message|
@@ -366,7 +366,7 @@ puts "Subscriber running in background..."
 sleep 1
 
 # Publish from main thread
-publisher = RedisRuby.new(host: "localhost")
+publisher = RR.new(host: "localhost")
 publisher.publish("news", "Breaking news!")
 publisher.publish("events", "Important event!")
 
@@ -382,7 +382,7 @@ puts "Subscriber stopped"
 ### Pattern Subscriptions in Background
 
 ```ruby
-subscriber = RedisRuby::Subscriber.new(client)
+subscriber = RR::Subscriber.new(client)
 
 subscriber.on_pmessage do |pattern, channel, message|
   puts "#{pattern} -> #{channel}: #{message}"
@@ -400,7 +400,7 @@ thread.join
 ### Error Handling in Background Subscriptions
 
 ```ruby
-subscriber = RedisRuby::Subscriber.new(client)
+subscriber = RR::Subscriber.new(client)
 
 subscriber.on_message do |channel, message|
   # Process message
@@ -456,8 +456,8 @@ Always use separate Redis connections for publishing and subscribing:
 
 ```ruby
 # ✅ Good: Separate connections
-subscriber = RedisRuby.new(host: "localhost")
-publisher = RedisRuby.new(host: "localhost")
+subscriber = RR.new(host: "localhost")
+publisher = RR.new(host: "localhost")
 
 Thread.new do
   subscriber.subscribe("events") do |on|
@@ -470,7 +470,7 @@ publisher.publish("events", "Hello!")
 
 ```ruby
 # ❌ Bad: Same connection for both
-redis = RedisRuby.new(host: "localhost")
+redis = RR.new(host: "localhost")
 
 # This won't work - connection is blocked in subscription mode
 redis.subscribe("events") do |on|
@@ -489,7 +489,7 @@ def subscribe_with_retry(redis, channel)
       redis.subscribe(channel) do |on|
         on.message { |ch, msg| process_message(msg) }
       end
-    rescue RedisRuby::ConnectionError => e
+    rescue RR::ConnectionError => e
       puts "Connection lost: #{e.message}"
       sleep 5
       puts "Reconnecting..."
@@ -536,7 +536,7 @@ end
 
 ```ruby
 # ✅ Good: Non-blocking subscription
-subscriber = RedisRuby::Subscriber.new(client)
+subscriber = RR::Subscriber.new(client)
 subscriber.on_message { |ch, msg| process_message(msg) }
 subscriber.subscribe("events")
 thread = subscriber.run_in_thread
@@ -558,8 +558,8 @@ end
 # Notification service
 class NotificationService
   def initialize
-    @subscriber = RedisRuby::Subscriber.new(RedisRuby.new)
-    @publisher = RedisRuby.new
+    @subscriber = RR::Subscriber.new(RR.new)
+    @publisher = RR.new
   end
 
   def start
@@ -598,8 +598,8 @@ class ChatRoom
   def initialize(room_id)
     @room_id = room_id
     @channel = "chat:#{room_id}"
-    @subscriber = RedisRuby.new
-    @publisher = RedisRuby.new
+    @subscriber = RR.new
+    @publisher = RR.new
   end
 
   def join(username)
@@ -638,8 +638,8 @@ room.send_message("Alice", "Hello everyone!")
 # Event bus for microservices
 class EventBus
   def initialize
-    @publisher = RedisRuby.new
-    @subscriber = RedisRuby::Subscriber.new(RedisRuby.new)
+    @publisher = RR.new
+    @subscriber = RR::Subscriber.new(RR.new)
     @handlers = {}
   end
 
@@ -695,8 +695,8 @@ bus.publish("order_placed", { order_id: 12345, amount: 99.99 })
 class CacheInvalidator
   def initialize
     @cache = {}
-    @subscriber = RedisRuby::Subscriber.new(RedisRuby.new)
-    @publisher = RedisRuby.new
+    @subscriber = RR::Subscriber.new(RR.new)
+    @publisher = RR.new
   end
 
   def start
@@ -742,8 +742,8 @@ end
 # Real-time metrics dashboard
 class MetricsDashboard
   def initialize
-    @subscriber = RedisRuby::Subscriber.new(RedisRuby.new)
-    @publisher = RedisRuby.new
+    @subscriber = RR::Subscriber.new(RR.new)
+    @publisher = RR.new
   end
 
   def start

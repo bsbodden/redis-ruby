@@ -4,7 +4,7 @@ require_relative "../unit_test_helper"
 
 class ScriptingBranchTest < Minitest::Test
   class MockClient
-    include RedisRuby::Commands::Scripting
+    include RR::Commands::Scripting
 
     attr_reader :last_command
 
@@ -153,7 +153,7 @@ class ScriptingBranchTest < Minitest::Test
   def test_register_script
     script_obj = @client.register_script("return 42")
 
-    assert_instance_of RedisRuby::Script, script_obj
+    assert_instance_of RR::Script, script_obj
   end
 
   # evalsha_or_eval
@@ -173,13 +173,13 @@ class ScriptingBranchTest < Minitest::Test
   end
 
   class NoscriptMockClient
-    include RedisRuby::Commands::Scripting
+    include RR::Commands::Scripting
 
     attr_reader :eval_called
 
     def call(*args)
       if args[0] == "EVALSHA"
-        raise RedisRuby::CommandError, "NOSCRIPT No matching script"
+        raise RR::CommandError, "NOSCRIPT No matching script"
       elsif args[0] == "EVAL"
         @eval_called = true
         "eval_result"
@@ -188,7 +188,7 @@ class ScriptingBranchTest < Minitest::Test
 
     def call_2args(cmd, _a1, _a2)
       if cmd == "EVALSHA"
-        raise RedisRuby::CommandError, "NOSCRIPT No matching script"
+        raise RR::CommandError, "NOSCRIPT No matching script"
       elsif cmd == "EVAL"
         @eval_called = true
         "eval_result"
@@ -198,20 +198,20 @@ class ScriptingBranchTest < Minitest::Test
 
   def test_evalsha_or_eval_non_noscript_error_raised
     client = OtherErrorMockClient.new
-    assert_raises(RedisRuby::CommandError) do
+    assert_raises(RR::CommandError) do
       client.evalsha_or_eval("return 42")
     end
   end
 
   class OtherErrorMockClient
-    include RedisRuby::Commands::Scripting
+    include RR::Commands::Scripting
 
     def call(*_args)
-      raise RedisRuby::CommandError, "ERR some other error"
+      raise RR::CommandError, "ERR some other error"
     end
 
     def call_2args(_cmd, _a1, _a2)
-      raise RedisRuby::CommandError, "ERR some other error"
+      raise RR::CommandError, "ERR some other error"
     end
   end
 end

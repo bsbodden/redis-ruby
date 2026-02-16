@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module RedisRuby
+module RR
   module Utils
     # YJIT performance monitoring utilities
     #
@@ -8,11 +8,11 @@ module RedisRuby
     # Useful for verifying that redis-ruby is running optimally with YJIT.
     #
     # @example Check YJIT status
-    #   RedisRuby::Utils::YJITMonitor.enabled?  # => true
-    #   RedisRuby::Utils::YJITMonitor.stats     # => { ratio_in_yjit: 97.5, ... }
+    #   RR::Utils::YJITMonitor.enabled?  # => true
+    #   RR::Utils::YJITMonitor.stats     # => { ratio_in_yjit: 97.5, ... }
     #
     # @example Enable YJIT at runtime (Ruby 3.3+)
-    #   RedisRuby::Utils::YJITMonitor.enable!
+    #   RR::Utils::YJITMonitor.enable!
     #
     module YJITMonitor
       class << self

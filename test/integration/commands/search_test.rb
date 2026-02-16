@@ -11,7 +11,7 @@ class SearchCommandsTest < RedisRubyTestCase
     # Clean up any leftover indexes
     begin
       redis.ft_dropindex(@index_name, delete_docs: true)
-    rescue RedisRuby::CommandError
+    rescue RR::CommandError
       # Index doesn't exist, that's fine
     end
   end
@@ -20,7 +20,7 @@ class SearchCommandsTest < RedisRubyTestCase
     # Clean up after each test
     begin
       redis.ft_dropindex(@index_name, delete_docs: true)
-    rescue RedisRuby::CommandError
+    rescue RR::CommandError
       # Index doesn't exist, that's fine
     end
     super

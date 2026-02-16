@@ -3,7 +3,7 @@
 require_relative "unit_test_helper"
 
 # Load the Redis compat layer
-require_relative "../../lib/redis/errors"
+require_relative "../../lib/redis-rb-compat/errors"
 
 class RedisErrorsTest < Minitest::Test
   # ============================================================
@@ -129,7 +129,7 @@ class RedisErrorsTest < Minitest::Test
   # ============================================================
 
   def test_translate_connection_error
-    original = RedisRuby::ConnectionError.new("connection lost")
+    original = RR::ConnectionError.new("connection lost")
     translated = Redis::ErrorTranslation.translate(original)
 
     assert_instance_of Redis::ConnectionError, translated
@@ -137,7 +137,7 @@ class RedisErrorsTest < Minitest::Test
   end
 
   def test_translate_timeout_error
-    original = RedisRuby::TimeoutError.new("timed out")
+    original = RR::TimeoutError.new("timed out")
     translated = Redis::ErrorTranslation.translate(original)
 
     assert_instance_of Redis::TimeoutError, translated
@@ -145,7 +145,7 @@ class RedisErrorsTest < Minitest::Test
   end
 
   def test_translate_command_error_generic
-    original = RedisRuby::CommandError.new("ERR something failed")
+    original = RR::CommandError.new("ERR something failed")
     translated = Redis::ErrorTranslation.translate(original)
 
     assert_instance_of Redis::CommandError, translated
@@ -153,56 +153,56 @@ class RedisErrorsTest < Minitest::Test
   end
 
   def test_translate_command_error_wrongtype
-    original = RedisRuby::CommandError.new("WRONGTYPE Operation against a key")
+    original = RR::CommandError.new("WRONGTYPE Operation against a key")
     translated = Redis::ErrorTranslation.translate(original)
 
     assert_instance_of Redis::WrongTypeError, translated
   end
 
   def test_translate_command_error_noauth
-    original = RedisRuby::CommandError.new("NOAUTH Authentication required")
+    original = RR::CommandError.new("NOAUTH Authentication required")
     translated = Redis::ErrorTranslation.translate(original)
 
     assert_instance_of Redis::AuthenticationError, translated
   end
 
   def test_translate_command_error_err_auth
-    original = RedisRuby::CommandError.new("ERR AUTH failed")
+    original = RR::CommandError.new("ERR AUTH failed")
     translated = Redis::ErrorTranslation.translate(original)
 
     assert_instance_of Redis::AuthenticationError, translated
   end
 
   def test_translate_command_error_noperm
-    original = RedisRuby::CommandError.new("NOPERM no permission")
+    original = RR::CommandError.new("NOPERM no permission")
     translated = Redis::ErrorTranslation.translate(original)
 
     assert_instance_of Redis::PermissionError, translated
   end
 
   def test_translate_cluster_down_error
-    original = RedisRuby::ClusterDownError.new("CLUSTERDOWN cluster is down")
+    original = RR::ClusterDownError.new("CLUSTERDOWN cluster is down")
     translated = Redis::ErrorTranslation.translate(original)
 
     assert_instance_of Redis::ClusterDownError, translated
   end
 
   def test_translate_moved_error
-    original = RedisRuby::MovedError.new("MOVED 12345 127.0.0.1:6379")
+    original = RR::MovedError.new("MOVED 12345 127.0.0.1:6379")
     translated = Redis::ErrorTranslation.translate(original)
 
     assert_instance_of Redis::MovedError, translated
   end
 
   def test_translate_ask_error
-    original = RedisRuby::AskError.new("ASK 5000 192.168.1.1:7000")
+    original = RR::AskError.new("ASK 5000 192.168.1.1:7000")
     translated = Redis::ErrorTranslation.translate(original)
 
     assert_instance_of Redis::AskError, translated
   end
 
   def test_translate_generic_cluster_error
-    original = RedisRuby::ClusterError.new("cluster problem")
+    original = RR::ClusterError.new("cluster problem")
     translated = Redis::ErrorTranslation.translate(original)
 
     assert_instance_of Redis::ClusterError, translated

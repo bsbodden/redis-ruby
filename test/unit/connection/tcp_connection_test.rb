@@ -13,7 +13,7 @@ class TCPConnectionTest < Minitest::Test
     TCPSocket.expects(:new).with("localhost", 6379).returns(@mock_socket)
     setup_mock_socket_options
 
-    conn = RedisRuby::Connection::TCP.new
+    conn = RR::Connection::TCP.new
 
     assert_equal "localhost", conn.host
     assert_equal 6379, conn.port
@@ -23,7 +23,7 @@ class TCPConnectionTest < Minitest::Test
     TCPSocket.expects(:new).with("redis.example.com", 6380).returns(@mock_socket)
     setup_mock_socket_options
 
-    conn = RedisRuby::Connection::TCP.new(host: "redis.example.com", port: 6380)
+    conn = RR::Connection::TCP.new(host: "redis.example.com", port: 6380)
 
     assert_equal "redis.example.com", conn.host
     assert_equal 6380, conn.port
@@ -37,7 +37,7 @@ class TCPConnectionTest < Minitest::Test
     @mock_socket.expects(:setsockopt).with(Socket::SOL_SOCKET, Socket::SO_KEEPALIVE, 1).once
     @mock_socket.stubs(:sync=)
 
-    RedisRuby::Connection::TCP.new
+    RR::Connection::TCP.new
   end
 
   def test_sets_keepalive
@@ -47,7 +47,7 @@ class TCPConnectionTest < Minitest::Test
     @mock_socket.expects(:setsockopt).with(Socket::SOL_SOCKET, Socket::SO_KEEPALIVE, 1).once
     @mock_socket.stubs(:sync=)
 
-    RedisRuby::Connection::TCP.new
+    RR::Connection::TCP.new
   end
 
   def test_sets_sync_false_for_buffering
@@ -55,7 +55,7 @@ class TCPConnectionTest < Minitest::Test
     @mock_socket.stubs(:setsockopt)
     @mock_socket.expects(:sync=).with(false)
 
-    RedisRuby::Connection::TCP.new
+    RR::Connection::TCP.new
   end
 
   # Command execution
@@ -67,7 +67,7 @@ class TCPConnectionTest < Minitest::Test
     # BufferedIO uses read_nonblock
     @mock_socket.expects(:read_nonblock).returns("+PONG\r\n")
 
-    conn = RedisRuby::Connection::TCP.new
+    conn = RR::Connection::TCP.new
     result = conn.call("PING")
 
     assert_equal "PONG", result
@@ -80,7 +80,7 @@ class TCPConnectionTest < Minitest::Test
     @mock_socket.expects(:write).with(expected_encoded)
     @mock_socket.expects(:read_nonblock).returns("+OK\r\n")
 
-    conn = RedisRuby::Connection::TCP.new
+    conn = RR::Connection::TCP.new
     result = conn.call("SET", "key", "value")
 
     assert_equal "OK", result
@@ -92,7 +92,7 @@ class TCPConnectionTest < Minitest::Test
     @mock_socket.expects(:write)
     @mock_socket.expects(:read_nonblock).returns(":42\r\n")
 
-    conn = RedisRuby::Connection::TCP.new
+    conn = RR::Connection::TCP.new
     result = conn.call("INCR", "counter")
 
     assert_equal 42, result
@@ -104,7 +104,7 @@ class TCPConnectionTest < Minitest::Test
     @mock_socket.expects(:write)
     @mock_socket.expects(:read_nonblock).returns("$-1\r\n")
 
-    conn = RedisRuby::Connection::TCP.new
+    conn = RR::Connection::TCP.new
     result = conn.call("GET", "nonexistent")
 
     assert_nil result
@@ -116,10 +116,10 @@ class TCPConnectionTest < Minitest::Test
     @mock_socket.expects(:write)
     @mock_socket.expects(:read_nonblock).returns("-ERR unknown command\r\n")
 
-    conn = RedisRuby::Connection::TCP.new
+    conn = RR::Connection::TCP.new
     error = conn.call("BADCMD")
 
-    assert_instance_of RedisRuby::CommandError, error
+    assert_instance_of RR::CommandError, error
     assert_equal "ERR unknown command", error.message
   end
 
@@ -134,7 +134,7 @@ class TCPConnectionTest < Minitest::Test
     # Both responses in one read (buffered)
     @mock_socket.expects(:read_nonblock).returns("+OK\r\n$6\r\nvalue1\r\n")
 
-    conn = RedisRuby::Connection::TCP.new
+    conn = RR::Connection::TCP.new
     results = conn.pipeline([
       %w[SET key1 value1],
       %w[GET key1],
@@ -148,7 +148,7 @@ class TCPConnectionTest < Minitest::Test
     setup_connected_socket
     @mock_socket.expects(:close)
 
-    conn = RedisRuby::Connection::TCP.new
+    conn = RR::Connection::TCP.new
     conn.close
   end
 
@@ -156,7 +156,7 @@ class TCPConnectionTest < Minitest::Test
     setup_connected_socket
     @mock_socket.stubs(:closed?).returns(false)
 
-    conn = RedisRuby::Connection::TCP.new
+    conn = RR::Connection::TCP.new
 
     assert_predicate conn, :connected?
   end
@@ -165,14 +165,14 @@ class TCPConnectionTest < Minitest::Test
     setup_connected_socket
     @mock_socket.stubs(:closed?).returns(true)
 
-    conn = RedisRuby::Connection::TCP.new
+    conn = RR::Connection::TCP.new
 
     refute_predicate conn, :connected?
   end
 
   # Fork safety
   def test_has_fork_safety_methods
-    methods = RedisRuby::Connection::TCP.instance_methods(false)
+    methods = RR::Connection::TCP.instance_methods(false)
 
     assert_includes methods, :ensure_connected
     assert_includes methods, :reconnect
@@ -181,7 +181,7 @@ class TCPConnectionTest < Minitest::Test
   def test_tracks_process_id_for_fork_detection
     setup_connected_socket
 
-    conn = RedisRuby::Connection::TCP.new
+    conn = RR::Connection::TCP.new
 
     # Verify the pid is tracked after connect
     assert_equal Process.pid, conn.instance_variable_get(:@pid)
@@ -195,7 +195,7 @@ class TCPConnectionTest < Minitest::Test
     @mock_socket.stubs(:close)
     TCPSocket.stubs(:new).returns(@mock_socket)
 
-    conn = RedisRuby::Connection::TCP.new
+    conn = RR::Connection::TCP.new
 
     # Second connection setup
     @mock_socket2 = mock("socket2")
@@ -220,7 +220,7 @@ class TCPConnectionTest < Minitest::Test
     @mock_socket.stubs(:close)
     TCPSocket.stubs(:new).returns(@mock_socket)
 
-    conn = RedisRuby::Connection::TCP.new
+    conn = RR::Connection::TCP.new
 
     # Now make socket appear closed
     @mock_socket.stubs(:closed?).returns(true)

@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module RedisRuby
+module RR
   module DSL
     # Chainable proxy for Redis Stream operations
     #
@@ -23,7 +23,7 @@ module RedisRuby
     #   entries = consumer.read.count(10).execute
     #   consumer.ack(*entries.map(&:first))
     class StreamProxy
-      # @param redis [RedisRuby::Client] Redis client
+      # @param [RR::Client] Redis client
       # @param key [String] Stream key
       def initialize(redis, key)
         @redis = redis

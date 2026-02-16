@@ -2,10 +2,10 @@
 
 require_relative "../unit_test_helper"
 
-# Comprehensive branch coverage tests for RedisRuby::Commands::Geo
+# Comprehensive branch coverage tests for RR::Commands::Geo
 class GeoBranchTest < Minitest::Test
   class MockClient
-    include RedisRuby::Commands::Geo
+    include RR::Commands::Geo
 
     attr_reader :last_command
 

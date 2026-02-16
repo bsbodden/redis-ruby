@@ -4,7 +4,7 @@ require_relative "../unit_test_helper"
 
 class StringsBranchTest < Minitest::Test
   class MockClient
-    include RedisRuby::Commands::Strings
+    include RR::Commands::Strings
 
     attr_reader :last_command
 
@@ -46,7 +46,7 @@ class StringsBranchTest < Minitest::Test
 
   # MockClient that returns a non-String for INCRBYFLOAT to test the else branch
   class MockClientFloatDirect
-    include RedisRuby::Commands::Strings
+    include RR::Commands::Strings
 
     attr_reader :last_command
 
@@ -337,7 +337,7 @@ class StringsBranchTest < Minitest::Test
   end
 
   class MockClientSetnxFalse
-    include RedisRuby::Commands::Strings
+    include RR::Commands::Strings
 
     def call(*_args) = 0
     def call_1arg(_cmd, _a1) = 0

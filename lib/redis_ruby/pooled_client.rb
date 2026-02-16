@@ -3,14 +3,14 @@
 require "uri"
 require_relative "concerns/pooled_operations"
 
-module RedisRuby
+module RR
   # Thread-safe Redis client with connection pooling
   #
   # Each command checks out a connection from the pool, executes,
   # and returns it. This provides thread-safety without a single mutex.
   #
   # @example Basic usage
-  #   client = RedisRuby::PooledClient.new(url: "redis://localhost:6379", pool: { size: 10 })
+  #   client = RR::PooledClient.new(url: "redis://localhost:6379", pool: { size: 10 })
   #   client.set("key", "value")
   #   client.get("key") # => "value"
   #

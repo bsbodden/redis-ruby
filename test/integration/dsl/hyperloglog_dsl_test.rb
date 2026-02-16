@@ -17,14 +17,14 @@ class HyperLogLogDSLTest < RedisRubyTestCase
   def test_hyperloglog_proxy_creation
     proxy = redis.hyperloglog(:visitors)
     
-    assert_instance_of RedisRuby::DSL::HyperLogLogProxy, proxy
+    assert_instance_of RR::DSL::HyperLogLogProxy, proxy
     assert_equal "visitors", proxy.key
   end
 
   def test_hll_alias
     proxy = redis.hll(:visitors)
     
-    assert_instance_of RedisRuby::DSL::HyperLogLogProxy, proxy
+    assert_instance_of RR::DSL::HyperLogLogProxy, proxy
     assert_equal "visitors", proxy.key
   end
 

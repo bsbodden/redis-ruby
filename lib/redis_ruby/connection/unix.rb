@@ -2,7 +2,7 @@
 
 require "socket"
 
-module RedisRuby
+module RR
   module Connection
     # Unix Domain Socket connection to Redis server
     #

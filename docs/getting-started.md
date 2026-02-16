@@ -79,16 +79,16 @@ gem install redis-ruby
 ### Connecting to Redis
 
 ```ruby
-require "redis_ruby"
+require "redis_ruby"  # Native RR API
 
 # Connect to localhost:6379 (default)
-redis = RedisRuby.new
+redis = RR.new
 
 # Connect with URL
-redis = RedisRuby.new(url: "redis://localhost:6379")
+redis = RR.new(url: "redis://localhost:6379")
 
 # Connect with options
-redis = RedisRuby.new(
+redis = RR.new(
   host: "localhost",
   port: 6379,
   db: 0,

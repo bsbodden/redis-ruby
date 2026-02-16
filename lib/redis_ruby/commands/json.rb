@@ -3,7 +3,7 @@
 require "json"
 require_relative "../dsl/json_proxy"
 
-module RedisRuby
+module RR
   module Commands
     # RedisJSON commands for native JSON document storage
     #
@@ -315,7 +315,7 @@ module RedisRuby
       # Create a chainable JSON proxy for idiomatic operations
       #
       # @param key_parts [Array<Symbol, String>] Key components (joined with ":")
-      # @return [RedisRuby::DSL::JSONProxy] Chainable JSON proxy
+      # @return [RR::DSL::JSONProxy] Chainable JSON proxy
       #
       # @example Basic usage
       #   redis.json(:user, 1).set(name: "Alice", age: 30)
@@ -332,7 +332,7 @@ module RedisRuby
       #   redis.json(:user, 1).get(:name)  # => "Alice"
       #   redis.json(:user, 1).increment(:age)
       def json(*key_parts)
-        RedisRuby::DSL::JSONProxy.new(self, *key_parts)
+        RR::DSL::JSONProxy.new(self, *key_parts)
       end
     end
   end

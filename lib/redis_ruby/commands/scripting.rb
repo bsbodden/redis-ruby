@@ -2,7 +2,7 @@
 
 require "digest/sha1"
 
-module RedisRuby
+module RR
   module Commands
     # Lua scripting commands
     #

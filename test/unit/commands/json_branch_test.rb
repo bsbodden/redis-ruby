@@ -8,7 +8,7 @@ class JSONBranchTest < Minitest::Test
   # ============================================================
 
   class MockClient
-    include RedisRuby::Commands::JSON
+    include RR::Commands::JSON
 
     attr_reader :last_command
 
@@ -138,7 +138,7 @@ class JSONBranchTest < Minitest::Test
   end
 
   class NilJsonGetMock
-    include RedisRuby::Commands::JSON
+    include RR::Commands::JSON
 
     def call(*) = nil
     def call_1arg(*, **) = nil
@@ -396,7 +396,7 @@ class JSONBranchTest < Minitest::Test
   end
 
   class NilArrpopMock
-    include RedisRuby::Commands::JSON
+    include RR::Commands::JSON
 
     def call(*) = nil
     def call_1arg(*, **) = nil
@@ -412,7 +412,7 @@ class JSONBranchTest < Minitest::Test
   end
 
   class ScalarArrpopMock
-    include RedisRuby::Commands::JSON
+    include RR::Commands::JSON
 
     def call(*) = '"last_tag"'
     def call_1arg(*, **) = '"last_tag"'
@@ -428,7 +428,7 @@ class JSONBranchTest < Minitest::Test
   end
 
   class ArrayWithNilArrpopMock
-    include RedisRuby::Commands::JSON
+    include RR::Commands::JSON
 
     def call(*) = [nil, '"tag"']
     def call_1arg(*, **) = [nil, '"tag"']
@@ -524,7 +524,7 @@ class JSONBranchTest < Minitest::Test
   end
 
   class ToggleFalseMock
-    include RedisRuby::Commands::JSON
+    include RR::Commands::JSON
 
     def call(*) = [0]
     def call_1arg(*, **) = [0]

@@ -264,7 +264,7 @@ results = redis.ft_search("products", "laptop",
 require "redis_ruby/search/query"
 
 # Build complex query
-query = RedisRuby::Search::Query.new("laptop")
+query = RR::Search::Query.new("laptop")
   .filter("price", 500, 2000)
   .filter("category", "electronics")
   .sort_by("price", :asc)
@@ -318,11 +318,11 @@ results = redis.ft_aggregate("products", "*",
 require "redis_ruby/search/query"
 
 # Build aggregation query
-agg = RedisRuby::Search::AggregateQuery.new("*")
+agg = RR::Search::AggregateQuery.new("*")
   .group_by("@category", reducers: [
-    RedisRuby::Search::Reducer.count.as("count"),
-    RedisRuby::Search::Reducer.avg("@price").as("avg_price"),
-    RedisRuby::Search::Reducer.sum("@stock").as("total_stock")
+    RR::Search::Reducer.count.as("count"),
+    RR::Search::Reducer.avg("@price").as("avg_price"),
+    RR::Search::Reducer.sum("@stock").as("total_stock")
   ])
   .sort_by("@count", :desc)
   .limit(0, 10)
@@ -334,11 +334,11 @@ results = agg.execute(redis, "products")
 
 ```ruby
 # Aggregate with filtering
-agg = RedisRuby::Search::AggregateQuery.new("@category:{electronics}")
+agg = RR::Search::AggregateQuery.new("@category:{electronics}")
   .group_by("@category", reducers: [
-    RedisRuby::Search::Reducer.count.as("count"),
-    RedisRuby::Search::Reducer.min("@price").as("min_price"),
-    RedisRuby::Search::Reducer.max("@price").as("max_price")
+    RR::Search::Reducer.count.as("count"),
+    RR::Search::Reducer.min("@price").as("min_price"),
+    RR::Search::Reducer.max("@price").as("max_price")
   ])
 
 results = agg.execute(redis, "products")
@@ -526,7 +526,7 @@ results = redis.ft_search("docs",
 ```ruby
 begin
   redis.ft_create("products", "SCHEMA", "name", "TEXT")
-rescue RedisRuby::CommandError => e
+rescue RR::CommandError => e
   if e.message.include?("Index already exists")
     puts "Index already exists, skipping creation"
   else

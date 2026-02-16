@@ -4,7 +4,7 @@ require "test_helper"
 
 class SortedSetDSLTest < Minitest::Test
   def setup
-    @redis = RedisRuby.new(url: ENV.fetch("REDIS_URL", "redis://localhost:6379"))
+    @redis = RR.new(url: ENV.fetch("REDIS_URL", "redis://localhost:6379"))
     @key = "test:sorted_set:#{SecureRandom.hex(8)}"
   end
 
@@ -24,7 +24,7 @@ class SortedSetDSLTest < Minitest::Test
   def test_sorted_set_creates_proxy
     sorted_set = redis.sorted_set(@key)
     
-    assert_instance_of RedisRuby::DSL::SortedSetProxy, sorted_set
+    assert_instance_of RR::DSL::SortedSetProxy, sorted_set
     assert_equal @key, sorted_set.key
   end
 

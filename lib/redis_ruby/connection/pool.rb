@@ -2,7 +2,7 @@
 
 require "connection_pool"
 
-module RedisRuby
+module RR
   module Connection
     # Thread-safe connection pool for Redis connections
     #

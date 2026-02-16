@@ -8,7 +8,7 @@ rescue LoadError
   # async-pool not available, that's fine
 end
 
-module RedisRuby
+module RR
   module Connection
     # Fiber-aware connection pool for async Redis operations
     #

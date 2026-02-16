@@ -2,7 +2,7 @@
 
 require_relative "../dsl/sorted_set_proxy"
 
-module RedisRuby
+module RR
   module Commands
     # Sorted Set commands
     #
@@ -15,7 +15,7 @@ module RedisRuby
       # Create a sorted set proxy for idiomatic operations
       #
       # @param key_parts [Array<String, Symbol, Integer>] Key components joined with ":"
-      # @return [RedisRuby::DSL::SortedSetProxy] Chainable sorted set proxy
+      # @return [RR::DSL::SortedSetProxy] Chainable sorted set proxy
       #
       # @example Gaming leaderboard
       #   leaderboard = redis.sorted_set(:game, :leaderboard)

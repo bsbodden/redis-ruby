@@ -3,7 +3,7 @@
 require_relative "../dsl/string_proxy"
 require_relative "../dsl/counter_proxy"
 
-module RedisRuby
+module RR
   module Commands
     # String commands
     #
@@ -53,7 +53,7 @@ module RedisRuby
       # Optimized for configuration, caching, and text storage use cases.
       #
       # @param key_parts [Array<String, Symbol, Integer>] Key components
-      # @return [RedisRuby::DSL::StringProxy] String proxy instance
+      # @return [RR::DSL::StringProxy] String proxy instance
       #
       # @example Basic usage
       #   api_key = redis.string(:config, :api_key)
@@ -79,7 +79,7 @@ module RedisRuby
       # Optimized for rate limiting, distributed counters, and metrics.
       #
       # @param key_parts [Array<String, Symbol, Integer>] Key components
-      # @return [RedisRuby::DSL::CounterProxy] Counter proxy instance
+      # @return [RR::DSL::CounterProxy] Counter proxy instance
       #
       # @example Page view counter
       #   views = redis.counter(:page, :views, 123)

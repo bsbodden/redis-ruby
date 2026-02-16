@@ -3,21 +3,21 @@
 require "uri"
 require_relative "cluster_topology"
 
-module RedisRuby
+module RR
   # Redis Cluster client
   #
   # Provides automatic sharding, failover, and routing for Redis Cluster.
   # Handles MOVED and ASK redirections transparently.
   #
   # @example Basic usage
-  #   client = RedisRuby::ClusterClient.new(
+  #   client = RR::ClusterClient.new(
   #     nodes: ["redis://node1:6379", "redis://node2:6379", "redis://node3:6379"]
   #   )
   #   client.set("key", "value")  # Automatically routes to correct node
   #   client.get("key")
   #
   # @example With read from replicas
-  #   client = RedisRuby::ClusterClient.new(
+  #   client = RR::ClusterClient.new(
   #     nodes: ["redis://node1:6379"],
   #     read_from: :replicas
   #   )
@@ -190,13 +190,13 @@ module RedisRuby
 
     # Execute command with retry and redirection handling
     def execute_with_retry(command, args, slot, redirections: 0)
-      raise RedisRuby::Error, "Too many redirections" if redirections >= MAX_REDIRECTIONS
+      raise RR::Error, "Too many redirections" if redirections >= MAX_REDIRECTIONS
 
       retries = 0
 
       begin
         node_addr = determine_target_node(command, slot)
-        raise RedisRuby::ConnectionError, "No node available for slot #{slot}" unless node_addr
+        raise RR::ConnectionError, "No node available for slot #{slot}" unless node_addr
 
         conn = get_connection(node_addr)
         result = conn.call(command, *args)
@@ -236,7 +236,7 @@ module RedisRuby
       elsif message.start_with?("ASK")
         handle_ask_error(message, command, args)
       elsif message.start_with?("CLUSTERDOWN")
-        raise RedisRuby::Error, "Cluster is down: #{message}"
+        raise RR::Error, "Cluster is down: #{message}"
       else
         raise error
       end

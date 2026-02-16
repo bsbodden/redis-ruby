@@ -2,7 +2,7 @@
 
 require "json"
 
-module RedisRuby
+module RR
   module DSL
     # Fluent builder for subscribing to Redis Pub/Sub channels
     #
@@ -30,7 +30,7 @@ module RedisRuby
 
       # Initialize a new subscriber builder
       #
-      # @param redis [RedisRuby::Client] Redis client instance
+      # @param [RR::Client] Redis client instance
       def initialize(redis)
         @redis = redis
         @channels = []
@@ -205,7 +205,7 @@ module RedisRuby
 
       # Create the underlying Subscriber instance
       def create_subscriber
-        @subscriber = RedisRuby::Subscriber.new(@redis)
+        @subscriber = RR::Subscriber.new(@redis)
       end
 
       # Configure callbacks on the subscriber

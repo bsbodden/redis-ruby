@@ -17,7 +17,7 @@ class StringDSLTest < RedisRubyTestCase
   def test_string_proxy_creation
     proxy = redis.string(:config, :api_key)
     
-    assert_instance_of RedisRuby::DSL::StringProxy, proxy
+    assert_instance_of RR::DSL::StringProxy, proxy
     assert_equal "config:api_key", proxy.key
   end
 

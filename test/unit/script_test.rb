@@ -5,7 +5,7 @@ require_relative "../test_helper"
 
 class ScriptTest < Minitest::Test
   def setup
-    @client = RedisRuby::Client.new
+    @client = RR::Client.new
     @connection = mock("connection")
     @client.instance_variable_set(:@connection, @connection)
     @connection.stubs(:connected?).returns(true)
@@ -14,7 +14,7 @@ class ScriptTest < Minitest::Test
   def test_register_script_returns_script_object
     script = @client.register_script("return 1")
 
-    assert_instance_of RedisRuby::Script, script
+    assert_instance_of RR::Script, script
   end
 
   def test_script_sha
@@ -34,7 +34,7 @@ class ScriptTest < Minitest::Test
 
   def test_script_call_falls_back_to_eval_on_noscript
     script = @client.register_script("return 1")
-    error = RedisRuby::CommandError.new("NOSCRIPT No matching script")
+    error = RR::CommandError.new("NOSCRIPT No matching script")
     # No keys/args uses call_2args fast path
     @connection.expects(:call_2args).with("EVALSHA", script.sha, 0).raises(error)
     @connection.expects(:call_2args).with("EVAL", "return 1", 0).returns(1)
@@ -81,10 +81,10 @@ class ScriptTest < Minitest::Test
 
   def test_script_does_not_catch_other_command_errors
     script = @client.register_script("return invalid")
-    error = RedisRuby::CommandError.new("ERR Error compiling script")
+    error = RR::CommandError.new("ERR Error compiling script")
     # No keys/args uses call_2args fast path
     @connection.expects(:call_2args).with("EVALSHA", script.sha, 0).raises(error)
-    assert_raises(RedisRuby::CommandError) { script.call }
+    assert_raises(RR::CommandError) { script.call }
   end
 
   def test_script_source

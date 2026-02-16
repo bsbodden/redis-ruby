@@ -210,7 +210,7 @@ module SentinelTestContainerSupport
         raise "Timeout waiting for Sentinel cluster" if Time.now - start_time > timeout
 
         begin
-          conn = RedisRuby::Connection::TCP.new(
+          conn = RR::Connection::TCP.new(
             host: sentinel_host,
             port: sentinel_port,
             timeout: 5.0
@@ -340,7 +340,7 @@ module SentinelTestContainerSupport
 
         begin
           mapped_port = container.mapped_port(port)
-          conn = RedisRuby::Connection::TCP.new(
+          conn = RR::Connection::TCP.new(
             host: container.host,
             port: mapped_port,
             timeout: 2.0
@@ -366,7 +366,7 @@ module SentinelTestContainerSupport
         begin
           sentinel = @sentinel_containers.first
           port = sentinel.mapped_port(26_379)
-          conn = RedisRuby::Connection::TCP.new(
+          conn = RR::Connection::TCP.new(
             host: sentinel.host,
             port: port,
             timeout: 5.0
@@ -467,7 +467,7 @@ class SentinelTestCase < Minitest::Test
   # Create a SentinelClient with NAT translation for Docker Compose
   # This translates internal Docker IPs to localhost with mapped ports
   def create_sentinel_client_with_nat_translation(sentinels:, service_name:, **options)
-    client = RedisRuby::SentinelClient.new(
+    client = RR::SentinelClient.new(
       sentinels: sentinels,
       service_name: service_name,
       **options

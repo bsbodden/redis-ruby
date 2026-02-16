@@ -132,7 +132,7 @@ class ScriptingIntegrationTest < RedisRubyTestCase
   def test_evalsha_noscript_error
     fake_sha = "0000000000000000000000000000000000000000"
 
-    error = assert_raises(RedisRuby::CommandError) do
+    error = assert_raises(RR::CommandError) do
       redis.evalsha(fake_sha, 0)
     end
     assert_match(/NOSCRIPT/, error.message)

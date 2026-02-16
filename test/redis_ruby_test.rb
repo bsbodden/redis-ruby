@@ -7,7 +7,7 @@ class RedisRubyTest < RedisRubyTestCase
   use_testcontainers!
 
   def test_version
-    refute_nil RedisRuby::VERSION
+    refute_nil RR::VERSION
   end
 
   def test_ping

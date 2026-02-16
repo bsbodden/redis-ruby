@@ -4,7 +4,7 @@ require_relative "../dsl/stream_proxy"
 require_relative "../dsl/consumer_group_builder"
 require_relative "../dsl/multi_stream_reader"
 
-module RedisRuby
+module RR
   module Commands
     # Stream commands for log-like data structures
     #

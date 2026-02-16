@@ -655,7 +655,7 @@ redis.expire("session:#{session_id}", 3600)  # 1 hour
 ```ruby
 begin
   redis.json_set("user:1", "$.invalid.path", "value", xx: true)
-rescue RedisRuby::CommandError => e
+rescue RR::CommandError => e
   puts "Error: #{e.message}"
   # Handle path not found, type mismatch, etc.
 end

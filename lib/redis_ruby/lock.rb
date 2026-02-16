@@ -2,7 +2,7 @@
 
 require "securerandom"
 
-module RedisRuby
+module RR
   # Distributed lock implementation using Redis
   #
   # Provides a reliable distributed lock with automatic expiration,
@@ -11,7 +11,7 @@ module RedisRuby
   # Uses Lua scripts for atomic operations to ensure correctness.
   #
   # @example Basic usage
-  #   lock = RedisRuby::Lock.new(client, "my-resource")
+  #   lock = RR::Lock.new(client, "my-resource")
   #   if lock.acquire
   #     begin
   #       # Critical section
@@ -21,13 +21,13 @@ module RedisRuby
   #   end
   #
   # @example Block syntax (recommended)
-  #   lock = RedisRuby::Lock.new(client, "my-resource")
+  #   lock = RR::Lock.new(client, "my-resource")
   #   lock.synchronize do
   #     # Critical section - lock automatically released
   #   end
   #
   # @example With timeout and blocking
-  #   lock = RedisRuby::Lock.new(client, "my-resource", timeout: 30)
+  #   lock = RR::Lock.new(client, "my-resource", timeout: 30)
   #   if lock.acquire(blocking: true, blocking_timeout: 5)
   #     # Got the lock within 5 seconds
   #   end
@@ -79,7 +79,7 @@ module RedisRuby
 
     # Initialize a new distributed lock
     #
-    # @param client [RedisRuby::Client] Redis client instance
+    # @param [RR::Client] Redis client instance
     # @param name [String] Lock name (key in Redis)
     # @param timeout [Float] Lock expiration time in seconds (default: 10)
     # @param sleep [Float] Sleep interval when polling for lock (default: 0.1)

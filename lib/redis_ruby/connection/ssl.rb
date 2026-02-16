@@ -3,7 +3,7 @@
 require "socket"
 require "openssl"
 
-module RedisRuby
+module RR
   module Connection
     # SSL/TLS connection to Redis server
     #

@@ -44,10 +44,10 @@ Redis Cluster is Redis's native sharding solution that provides:
 Connect to a Redis Cluster by providing one or more seed nodes:
 
 ```ruby
-require "redis_ruby"
+require "redis_ruby"  # Native RR API
 
 # Connect using seed nodes
-redis = RedisRuby.cluster(
+redis = RR.cluster(
   nodes: [
     "redis://node1.example.com:6379",
     "redis://node2.example.com:6379",
@@ -63,7 +63,7 @@ redis.get("mykey")  # => "myvalue"
 ### Connection with Authentication
 
 ```ruby
-redis = RedisRuby.cluster(
+redis = RR.cluster(
   nodes: ["redis://node1:6379", "redis://node2:6379"],
   password: "your-cluster-password"
 )
@@ -72,7 +72,7 @@ redis = RedisRuby.cluster(
 ### Connection Options
 
 ```ruby
-redis = RedisRuby.cluster(
+redis = RR.cluster(
   nodes: ["redis://node1:6379"],
   password: nil,              # Cluster password
   timeout: 5.0,               # Connection timeout in seconds
@@ -87,7 +87,7 @@ redis = RedisRuby.cluster(
 ```ruby
 require "redis_ruby/cluster_client"
 
-client = RedisRuby::ClusterClient.new(
+client = RR::ClusterClient.new(
   nodes: [
     { host: "node1", port: 6379 },
     { host: "node2", port: 6379 }
@@ -208,7 +208,7 @@ Operations spanning multiple slots will fail:
 # This will raise an error - keys on different nodes
 begin
   redis.mget("user:1000", "user:2000", "user:3000")
-rescue RedisRuby::Error => e
+rescue RR::Error => e
   puts e.message  # => "CROSSSLOT Keys in request don't hash to the same slot"
 end
 
@@ -234,7 +234,7 @@ begin
     tx.set("user:100", "Alice")
     tx.set("user:200", "Bob")  # Different slot!
   end
-rescue RedisRuby::Error => e
+rescue RR::Error => e
   puts "Transaction failed: #{e.message}"
 end
 ```
@@ -298,7 +298,7 @@ redis.cluster_setslot(1000, :node, node_id)
 Redis Cluster automatically handles failover when a master fails:
 
 ```ruby
-redis = RedisRuby.cluster(
+redis = RR.cluster(
   nodes: ["redis://node1:6379"],
   retry_count: 3  # Retry failed operations
 )
@@ -365,19 +365,19 @@ Configure where read operations are sent:
 
 ```ruby
 # Read from masters only (default)
-redis = RedisRuby.cluster(
+redis = RR.cluster(
   nodes: ["redis://node1:6379"],
   read_from: :master
 )
 
 # Read from replicas only
-redis = RedisRuby.cluster(
+redis = RR.cluster(
   nodes: ["redis://node1:6379"],
   read_from: :replica
 )
 
 # Prefer replicas, fall back to master if no replica available
-redis = RedisRuby.cluster(
+redis = RR.cluster(
   nodes: ["redis://node1:6379"],
   read_from: :replica_preferred
 )
@@ -388,7 +388,7 @@ redis = RedisRuby.cluster(
 Only read operations are sent to replicas:
 
 ```ruby
-redis = RedisRuby.cluster(
+redis = RR.cluster(
   nodes: ["redis://node1:6379"],
   read_from: :replica
 )
@@ -440,7 +440,7 @@ Always provide multiple seed nodes for redundancy:
 
 ```ruby
 # Good - multiple seed nodes
-redis = RedisRuby.cluster(
+redis = RR.cluster(
   nodes: [
     "redis://node1:6379",
     "redis://node2:6379",
@@ -449,7 +449,7 @@ redis = RedisRuby.cluster(
 )
 
 # Acceptable - single seed node (client discovers others)
-redis = RedisRuby.cluster(
+redis = RR.cluster(
   nodes: ["redis://node1:6379"]
 )
 ```
@@ -459,11 +459,11 @@ redis = RedisRuby.cluster(
 ```ruby
 begin
   redis.set("key", "value")
-rescue RedisRuby::ConnectionError => e
+rescue RR::ConnectionError => e
   # Cluster node unreachable
   logger.error("Cluster connection failed: #{e.message}")
   # Implement retry logic or fallback
-rescue RedisRuby::Error => e
+rescue RR::Error => e
   if e.message.include?("CLUSTERDOWN")
     # Cluster is down or reconfiguring
     logger.error("Cluster is down: #{e.message}")
@@ -477,13 +477,13 @@ end
 
 ```ruby
 # For critical operations
-redis = RedisRuby.cluster(
+redis = RR.cluster(
   nodes: ["redis://node1:6379"],
   retry_count: 5  # More retries for important operations
 )
 
 # For non-critical operations
-redis = RedisRuby.cluster(
+redis = RR.cluster(
   nodes: ["redis://node1:6379"],
   retry_count: 1  # Fail fast
 )
@@ -515,7 +515,7 @@ end
 When cluster nodes announce IPs that aren't reachable (e.g., Docker internal IPs):
 
 ```ruby
-redis = RedisRuby.cluster(
+redis = RR.cluster(
   nodes: ["redis://localhost:7000"],
   host_translation: {
     "172.17.0.2" => "localhost",  # Map Docker IP to localhost
@@ -531,7 +531,7 @@ redis = RedisRuby.cluster(
 # Bad - will fail with CROSSSLOT error
 begin
   redis.mget("user:1", "user:2", "user:3")
-rescue RedisRuby::Error => e
+rescue RR::Error => e
   puts "Failed: #{e.message}"
 end
 
@@ -560,13 +560,13 @@ redis.set("cache:{global}:sessions", data)
 
 ```ruby
 # For read-heavy workloads
-redis = RedisRuby.cluster(
+redis = RR.cluster(
   nodes: ["redis://node1:6379"],
   read_from: :replica_preferred  # Distribute reads to replicas
 )
 
 # For write-heavy or strong consistency needs
-redis = RedisRuby.cluster(
+redis = RR.cluster(
   nodes: ["redis://node1:6379"],
   read_from: :master  # All operations on masters
 )
@@ -577,7 +577,7 @@ redis = RedisRuby.cluster(
 ```ruby
 # Simulate failover in tests
 def test_failover_handling
-  redis = RedisRuby.cluster(nodes: ["redis://node1:6379"])
+  redis = RR.cluster(nodes: ["redis://node1:6379"])
 
   # Set initial value
   redis.set("test-key", "value")
@@ -597,7 +597,7 @@ end
 ```ruby
 class SessionStore
   def initialize
-    @redis = RedisRuby.cluster(
+    @redis = RR.cluster(
       nodes: ENV["REDIS_CLUSTER_NODES"].split(","),
       password: ENV["REDIS_PASSWORD"]
     )
@@ -622,7 +622,7 @@ end
 ```ruby
 class DistributedCounter
   def initialize(counter_name)
-    @redis = RedisRuby.cluster(nodes: ["redis://node1:6379"])
+    @redis = RR.cluster(nodes: ["redis://node1:6379"])
     @counter_name = counter_name
   end
 
@@ -646,7 +646,7 @@ counter.increment
 ```ruby
 class ShardedCache
   def initialize
-    @redis = RedisRuby.cluster(
+    @redis = RR.cluster(
       nodes: ["redis://node1:6379"],
       read_from: :replica_preferred
     )
@@ -696,7 +696,7 @@ redis.refresh_slots
 
 ```ruby
 # Increase timeout for slow networks
-redis = RedisRuby.cluster(
+redis = RR.cluster(
   nodes: ["redis://node1:6379"],
   timeout: 10.0  # 10 seconds
 )

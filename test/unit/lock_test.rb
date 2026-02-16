@@ -14,7 +14,7 @@ class LockTest < Minitest::Test
     @mock_client.expect(:register_script, @mock_script, [String])
     @mock_client.expect(:register_script, @mock_script, [String])
 
-    lock = RedisRuby::Lock.new(@mock_client, "my-resource")
+    lock = RR::Lock.new(@mock_client, "my-resource")
 
     assert_equal "lock:my-resource", lock.name
     assert_in_delta(10.0, lock.timeout)
@@ -26,7 +26,7 @@ class LockTest < Minitest::Test
     @mock_client.expect(:register_script, @mock_script, [String])
     @mock_client.expect(:register_script, @mock_script, [String])
 
-    lock = RedisRuby::Lock.new(@mock_client, "resource", timeout: 30.0)
+    lock = RR::Lock.new(@mock_client, "resource", timeout: 30.0)
 
     assert_in_delta(30.0, lock.timeout)
   end
@@ -36,7 +36,7 @@ class LockTest < Minitest::Test
     @mock_client.expect(:register_script, @mock_script, [String])
     @mock_client.expect(:register_script, @mock_script, [String])
 
-    lock = RedisRuby::Lock.new(@mock_client, "resource")
+    lock = RR::Lock.new(@mock_client, "resource")
 
     # Use a proc to match any arguments and return the expected result
     @mock_client.expect(:set, "OK") do |key, _token, **opts|
@@ -54,7 +54,7 @@ class LockTest < Minitest::Test
     @mock_client.expect(:register_script, @mock_script, [String])
     @mock_client.expect(:register_script, @mock_script, [String])
 
-    lock = RedisRuby::Lock.new(@mock_client, "resource")
+    lock = RR::Lock.new(@mock_client, "resource")
 
     @mock_client.expect(:set, nil) do |key, _token, **opts|
       key == "lock:resource" && opts[:nx] == true && opts[:px] == 10_000
@@ -71,7 +71,7 @@ class LockTest < Minitest::Test
     @mock_client.expect(:register_script, @mock_script, [String])
     @mock_client.expect(:register_script, @mock_script, [String])
 
-    lock = RedisRuby::Lock.new(@mock_client, "resource")
+    lock = RR::Lock.new(@mock_client, "resource")
 
     @mock_client.expect(:set, "OK") do |key, _token, **opts|
       key == "lock:resource" && opts[:nx] == true && opts[:px] == 10_000
@@ -95,7 +95,7 @@ class LockTest < Minitest::Test
     @mock_client.expect(:register_script, @mock_script, [String])
     @mock_client.expect(:register_script, @mock_script, [String])
 
-    lock = RedisRuby::Lock.new(@mock_client, "resource")
+    lock = RR::Lock.new(@mock_client, "resource")
     # Never acquired, so no token
 
     result = lock.release
@@ -108,7 +108,7 @@ class LockTest < Minitest::Test
     @mock_client.expect(:register_script, @mock_script, [String])
     @mock_client.expect(:register_script, @mock_script, [String])
 
-    lock = RedisRuby::Lock.new(@mock_client, "resource")
+    lock = RR::Lock.new(@mock_client, "resource")
 
     @mock_client.expect(:set, "OK") do |key, _token, **opts|
       key == "lock:resource" && opts[:nx] == true && opts[:px] == 10_000
@@ -129,7 +129,7 @@ class LockTest < Minitest::Test
     @mock_client.expect(:register_script, @mock_script, [String])
     @mock_client.expect(:register_script, @mock_script, [String])
 
-    lock = RedisRuby::Lock.new(@mock_client, "resource")
+    lock = RR::Lock.new(@mock_client, "resource")
 
     @mock_client.expect(:set, "OK") do |key, _token, **opts|
       key == "lock:resource" && opts[:nx] == true && opts[:px] == 10_000
@@ -149,7 +149,7 @@ class LockTest < Minitest::Test
     @mock_client.expect(:register_script, @mock_script, [String])
     @mock_client.expect(:exists, 1, ["lock:resource"])
 
-    lock = RedisRuby::Lock.new(@mock_client, "resource")
+    lock = RR::Lock.new(@mock_client, "resource")
 
     assert_predicate lock, :locked?
     @mock_client.verify
@@ -161,7 +161,7 @@ class LockTest < Minitest::Test
     @mock_client.expect(:register_script, @mock_script, [String])
     @mock_client.expect(:exists, 0, ["lock:resource"])
 
-    lock = RedisRuby::Lock.new(@mock_client, "resource")
+    lock = RR::Lock.new(@mock_client, "resource")
 
     refute_predicate lock, :locked?
     @mock_client.verify
@@ -173,7 +173,7 @@ class LockTest < Minitest::Test
     @mock_client.expect(:register_script, @mock_script, [String])
     @mock_client.expect(:pttl, 5000, ["lock:resource"])
 
-    lock = RedisRuby::Lock.new(@mock_client, "resource")
+    lock = RR::Lock.new(@mock_client, "resource")
 
     assert_in_delta(5.0, lock.ttl)
     @mock_client.verify
@@ -185,7 +185,7 @@ class LockTest < Minitest::Test
     @mock_client.expect(:register_script, @mock_script, [String])
     @mock_client.expect(:pttl, -2, ["lock:resource"])
 
-    lock = RedisRuby::Lock.new(@mock_client, "resource")
+    lock = RR::Lock.new(@mock_client, "resource")
 
     assert_nil lock.ttl
     @mock_client.verify
@@ -196,7 +196,7 @@ class LockTest < Minitest::Test
     @mock_client.expect(:register_script, @mock_script, [String])
     @mock_client.expect(:register_script, @mock_script, [String])
 
-    lock = RedisRuby::Lock.new(@mock_client, "resource")
+    lock = RR::Lock.new(@mock_client, "resource")
 
     @mock_client.expect(:set, "OK") do |key, _token, **opts|
       key == "lock:resource" && opts[:nx] == true && opts[:px] == 10_000
@@ -219,9 +219,9 @@ class LockTest < Minitest::Test
     @mock_client.expect(:register_script, @mock_script, [String])
     @mock_client.expect(:register_script, @mock_script, [String])
 
-    lock = RedisRuby::Lock.new(@mock_client, "resource")
+    lock = RR::Lock.new(@mock_client, "resource")
 
-    assert_raises(RedisRuby::Lock::LockNotOwnedError) do
+    assert_raises(RR::Lock::LockNotOwnedError) do
       lock.extend(additional_time: 10)
     end
   end
@@ -231,7 +231,7 @@ class LockTest < Minitest::Test
     @mock_client.expect(:register_script, @mock_script, [String])
     @mock_client.expect(:register_script, @mock_script, [String])
 
-    lock = RedisRuby::Lock.new(@mock_client, "resource")
+    lock = RR::Lock.new(@mock_client, "resource")
 
     @mock_client.expect(:set, "OK") do |key, _token, **opts|
       key == "lock:resource" && opts[:nx] == true && opts[:px] == 10_000
@@ -254,9 +254,9 @@ class LockTest < Minitest::Test
     @mock_client.expect(:register_script, @mock_script, [String])
     @mock_client.expect(:register_script, @mock_script, [String])
 
-    lock = RedisRuby::Lock.new(@mock_client, "resource")
+    lock = RR::Lock.new(@mock_client, "resource")
 
-    assert_raises(RedisRuby::Lock::LockNotOwnedError) do
+    assert_raises(RR::Lock::LockNotOwnedError) do
       lock.reacquire
     end
   end
@@ -266,7 +266,7 @@ class LockTest < Minitest::Test
     @mock_client.expect(:register_script, @mock_script, [String])
     @mock_client.expect(:register_script, @mock_script, [String])
 
-    lock = RedisRuby::Lock.new(@mock_client, "resource")
+    lock = RR::Lock.new(@mock_client, "resource")
 
     @mock_client.expect(:set, "OK") do |key, _token, **opts|
       key == "lock:resource" && opts[:nx] == true && opts[:px] == 10_000
@@ -290,7 +290,7 @@ class LockTest < Minitest::Test
     @mock_client.expect(:register_script, @mock_script, [String])
     @mock_client.expect(:register_script, @mock_script, [String])
 
-    lock = RedisRuby::Lock.new(@mock_client, "resource")
+    lock = RR::Lock.new(@mock_client, "resource")
 
     @mock_client.expect(:set, "OK") do |key, _token, **opts|
       key == "lock:resource" && opts[:nx] == true && opts[:px] == 10_000
@@ -314,13 +314,13 @@ class LockTest < Minitest::Test
     @mock_client.expect(:register_script, @mock_script, [String])
     @mock_client.expect(:register_script, @mock_script, [String])
 
-    lock = RedisRuby::Lock.new(@mock_client, "resource")
+    lock = RR::Lock.new(@mock_client, "resource")
 
     @mock_client.expect(:set, nil) do |key, _token, **opts|
       key == "lock:resource" && opts[:nx] == true && opts[:px] == 10_000
     end
 
-    assert_raises(RedisRuby::Lock::LockAcquireError) do
+    assert_raises(RR::Lock::LockAcquireError) do
       lock.synchronize(blocking: false) do
         # Should not reach here
       end
@@ -332,7 +332,7 @@ class LockTest < Minitest::Test
     @mock_client.expect(:register_script, @mock_script, [String])
     @mock_client.expect(:register_script, @mock_script, [String])
 
-    lock = RedisRuby::Lock.new(@mock_client, "resource", thread_local: true)
+    lock = RR::Lock.new(@mock_client, "resource", thread_local: true)
 
     # Verify thread-local storage is used
     assert_kind_of Hash, lock.instance_variable_get(:@local_tokens)
@@ -344,7 +344,7 @@ class LockTest < Minitest::Test
     @mock_client.expect(:register_script, @mock_script, [String])
     @mock_client.expect(:register_script, @mock_script, [String])
 
-    lock = RedisRuby::Lock.new(@mock_client, "resource", thread_local: false)
+    lock = RR::Lock.new(@mock_client, "resource", thread_local: false)
 
     refute lock.instance_variable_get(:@thread_local)
   end

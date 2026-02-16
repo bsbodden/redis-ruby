@@ -2,7 +2,7 @@
 
 require "uri"
 
-module RedisRuby
+module RR
   module Utils
     # Utility for parsing Redis URLs
     #

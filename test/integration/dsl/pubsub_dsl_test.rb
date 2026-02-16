@@ -10,7 +10,7 @@ class PubSubDSLTest < RedisRubyTestCase
     super
     @channel = "test:channel:#{SecureRandom.hex(8)}"
     # Create separate client for publishing (can't share connection with subscriber)
-    @publisher_redis = RedisRuby.new(url: @redis_url)
+    @publisher_redis = RR.new(url: @redis_url)
   end
 
   def teardown
@@ -25,7 +25,7 @@ class PubSubDSLTest < RedisRubyTestCase
   def test_publisher_proxy_creation
     publisher = redis.publisher(:events)
     
-    assert_instance_of RedisRuby::DSL::PublisherProxy, publisher
+    assert_instance_of RR::DSL::PublisherProxy, publisher
     assert_equal ["events"], publisher.channels
   end
 
@@ -187,7 +187,7 @@ class PubSubDSLTest < RedisRubyTestCase
   def test_subscriber_builder_creation
     subscriber = redis.subscriber
 
-    assert_instance_of RedisRuby::DSL::SubscriberBuilder, subscriber
+    assert_instance_of RR::DSL::SubscriberBuilder, subscriber
   end
 
   def test_subscriber_on_single_channel
@@ -383,7 +383,7 @@ class PubSubDSLTest < RedisRubyTestCase
 
   def test_broadcaster_mixin
     service_class = Class.new do
-      include RedisRuby::Broadcaster
+      include RR::Broadcaster
 
       def initialize(redis_client)
         self.redis_client = redis_client
@@ -403,7 +403,7 @@ class PubSubDSLTest < RedisRubyTestCase
 
   def test_broadcaster_channel_prefix
     service_class = Class.new do
-      include RedisRuby::Broadcaster
+      include RR::Broadcaster
 
       def self.name
         "OrderService"
@@ -415,7 +415,7 @@ class PubSubDSLTest < RedisRubyTestCase
 
   def test_broadcaster_custom_channel_prefix
     service_class = Class.new do
-      include RedisRuby::Broadcaster
+      include RR::Broadcaster
       set_channel_prefix :custom_prefix
     end
 
@@ -424,7 +424,7 @@ class PubSubDSLTest < RedisRubyTestCase
 
   def test_broadcaster_broadcast_publishes_to_redis
     service_class = Class.new do
-      include RedisRuby::Broadcaster
+      include RR::Broadcaster
 
       def self.name
         "TestService"
@@ -466,7 +466,7 @@ class PubSubDSLTest < RedisRubyTestCase
 
   def test_broadcaster_broadcast_with_string_argument
     service_class = Class.new do
-      include RedisRuby::Broadcaster
+      include RR::Broadcaster
 
       def self.name
         "TestService"

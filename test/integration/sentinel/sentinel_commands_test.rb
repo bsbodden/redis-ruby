@@ -182,7 +182,7 @@ class SentinelCommandsIntegrationTest < SentinelTestCase
     end
 
     # Connect to the master
-    master_conn = RedisRuby::Connection::TCP.new(
+    master_conn = RR::Connection::TCP.new(
       host: host,
       port: port.to_i,
       timeout: 5.0
@@ -210,7 +210,7 @@ class SentinelCommandsIntegrationTest < SentinelTestCase
 
   def connect_to_sentinel
     addr = sentinel_addresses.first
-    RedisRuby::Connection::TCP.new(
+    RR::Connection::TCP.new(
       host: addr[:host],
       port: addr[:port],
       timeout: 5.0

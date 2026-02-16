@@ -2,7 +2,7 @@
 
 require_relative "search_field"
 
-module RedisRuby
+module RR
   module DSL
     # DSL for building search index schemas
     #

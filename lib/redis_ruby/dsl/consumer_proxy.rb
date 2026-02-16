@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module RedisRuby
+module RR
   module DSL
     # Proxy for Redis Stream consumer operations
     #
@@ -15,7 +15,7 @@ module RedisRuby
     # @example Claiming entries
     #   claimed = consumer.claim(min_idle: 60000, ids: ["1000-0", "1000-1"])
     class ConsumerProxy
-      # @param redis [RedisRuby::Client] Redis client
+      # @param [RR::Client] Redis client
       # @param stream_key [String] Stream key
       # @param group_name [String] Consumer group name
       # @param consumer_name [String] Consumer name

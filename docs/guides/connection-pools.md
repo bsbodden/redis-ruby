@@ -31,7 +31,7 @@ Redis connections are **not thread-safe**. If you're building a multi-threaded a
 
 ```ruby
 # ❌ UNSAFE: Single connection shared across threads
-redis = RedisRuby.new(host: "localhost")
+redis = RR.new(host: "localhost")
 
 threads = 10.times.map do |i|
   Thread.new do
@@ -46,7 +46,7 @@ threads.each(&:join)
 
 ```ruby
 # ✅ SAFE: Each thread gets its own connection from the pool
-redis = RedisRuby.pooled(
+redis = RR.pooled(
   host: "localhost",
   pool: { size: 10 }
 )
@@ -62,15 +62,15 @@ threads.each(&:join)
 
 ## Thread-Safe Pools
 
-redis-ruby provides `RedisRuby.pooled` for thread-safe connection pooling using the `connection_pool` gem.
+redis-ruby provides `RR.pooled` for thread-safe connection pooling using the `connection_pool` gem.
 
 ### Basic Usage
 
 ```ruby
-require "redis_ruby"
+require "redis_ruby"  # Native RR API
 
 # Create a pooled client
-redis = RedisRuby.pooled(
+redis = RR.pooled(
   url: "redis://localhost:6379",
   pool: { size: 10, timeout: 5 }
 )
@@ -86,7 +86,7 @@ redis.get("key")  # => "value"
 ### Pool Configuration
 
 ```ruby
-redis = RedisRuby.pooled(
+redis = RR.pooled(
   url: "redis://localhost:6379",
   pool: {
     size: 10,      # Maximum number of connections (default: 5)
@@ -98,7 +98,7 @@ redis = RedisRuby.pooled(
 ### Multi-Threaded Example
 
 ```ruby
-redis = RedisRuby.pooled(
+redis = RR.pooled(
   host: "localhost",
   pool: { size: 20 }
 )
@@ -122,7 +122,7 @@ puts "Total requests: #{redis.get('request:count')}"
 
 ```ruby
 # config/initializers/redis.rb
-REDIS_POOL = RedisRuby.pooled(
+REDIS_POOL = RR.pooled(
   url: ENV["REDIS_URL"],
   pool: {
     size: ENV.fetch("RAILS_MAX_THREADS", 5).to_i,
@@ -163,7 +163,7 @@ end
 Sometimes you need multiple commands to use the same connection:
 
 ```ruby
-redis = RedisRuby.pooled(pool: { size: 10 })
+redis = RR.pooled(pool: { size: 10 })
 
 # Use with_connection to ensure all commands use the same connection
 redis.with_connection do |conn|
@@ -181,7 +181,7 @@ This is useful for:
 
 ## Fiber-Safe Pools (Async)
 
-For async applications using the `async` gem, redis-ruby provides fiber-safe connection pooling with `RedisRuby.async_pooled`.
+For async applications using the `async` gem, redis-ruby provides fiber-safe connection pooling with `RR.async_pooled`.
 
 ### Why Fiber-Safe Pools?
 
@@ -194,10 +194,10 @@ Traditional thread-safe pools don't work well with fibers because:
 
 ```ruby
 require "async"
-require "redis_ruby"
+require "redis_ruby"  # Native RR API
 
 Async do
-  redis = RedisRuby.async_pooled(
+  redis = RR.async_pooled(
     url: "redis://localhost:6379",
     pool: { limit: 10 }
   )
@@ -214,7 +214,7 @@ end
 require "async"
 
 Async do |task|
-  redis = RedisRuby.async_pooled(
+  redis = RR.async_pooled(
     host: "localhost",
     pool: { limit: 20 }
   )
@@ -236,7 +236,7 @@ end
 ### Pool Configuration
 
 ```ruby
-redis = RedisRuby.async_pooled(
+redis = RR.async_pooled(
   url: "redis://localhost:6379",
   pool: {
     limit: 10  # Maximum number of connections (default: 5)
@@ -251,10 +251,10 @@ redis = RedisRuby.async_pooled(
 ```ruby
 # config.ru
 require "async"
-require "redis_ruby"
+require "redis_ruby"  # Native RR API
 
 # Create a shared async pool
-REDIS = RedisRuby.async_pooled(
+REDIS = RR.async_pooled(
   url: ENV["REDIS_URL"],
   pool: { limit: 50 }
 )
@@ -273,7 +273,7 @@ run lambda { |env|
 
 ```ruby
 Async do
-  redis = RedisRuby.async_pooled(pool: { limit: 10 })
+  redis = RR.async_pooled(pool: { limit: 10 })
 
   # Use with_connection for batch operations
   redis.with_connection do |conn|
@@ -309,7 +309,7 @@ pool_size = number_of_concurrent_workers + buffer
 The timeout determines how long to wait for an available connection:
 
 ```ruby
-redis = RedisRuby.pooled(
+redis = RR.pooled(
   pool: {
     size: 10,
     timeout: 5  # Wait up to 5 seconds for a connection
@@ -323,7 +323,7 @@ redis = RedisRuby.pooled(
 ### Monitoring Pool Usage
 
 ```ruby
-redis = RedisRuby.pooled(pool: { size: 10 })
+redis = RR.pooled(pool: { size: 10 })
 
 # Check pool size
 redis.pool_size  # => 10
@@ -335,7 +335,7 @@ redis.pool_available  # => 7 (if 3 are in use)
 For async pools:
 
 ```ruby
-redis = RedisRuby.async_pooled(pool: { limit: 10 })
+redis = RR.async_pooled(pool: { limit: 10 })
 
 # Check pool limit
 redis.pool_limit  # => 10
@@ -350,29 +350,29 @@ redis.pool_available?  # => true/false
 
 ```ruby
 # ❌ Too small: Connections will be exhausted
-redis = RedisRuby.pooled(pool: { size: 2 })  # For 20 threads
+redis = RR.pooled(pool: { size: 2 })  # For 20 threads
 
 # ❌ Too large: Wastes resources
-redis = RedisRuby.pooled(pool: { size: 1000 })  # For 5 threads
+redis = RR.pooled(pool: { size: 1000 })  # For 5 threads
 
 # ✅ Just right: Matches concurrency
-redis = RedisRuby.pooled(pool: { size: 20 })  # For 20 threads
+redis = RR.pooled(pool: { size: 20 })  # For 20 threads
 ```
 
 ### 2. Use Connection Pools in Multi-Threaded Environments
 
 ```ruby
 # ❌ Don't share a single connection
-redis = RedisRuby.new(host: "localhost")
+redis = RR.new(host: "localhost")
 
 # ✅ Use a connection pool
-redis = RedisRuby.pooled(host: "localhost", pool: { size: 10 })
+redis = RR.pooled(host: "localhost", pool: { size: 10 })
 ```
 
 ### 3. Close Pools When Done
 
 ```ruby
-redis = RedisRuby.pooled(pool: { size: 10 })
+redis = RR.pooled(pool: { size: 10 })
 
 # Use the pool...
 
@@ -385,19 +385,19 @@ redis.close
 ```ruby
 # ❌ Don't use thread pools with async
 Async do
-  redis = RedisRuby.pooled(pool: { size: 10 })  # Wrong!
+  redis = RR.pooled(pool: { size: 10 })  # Wrong!
 end
 
 # ✅ Use async pools
 Async do
-  redis = RedisRuby.async_pooled(pool: { limit: 10 })  # Correct!
+  redis = RR.async_pooled(pool: { limit: 10 })  # Correct!
 end
 ```
 
 ### 5. Monitor Pool Exhaustion
 
 ```ruby
-redis = RedisRuby.pooled(pool: { size: 10, timeout: 1 })
+redis = RR.pooled(pool: { size: 10, timeout: 1 })
 
 begin
   redis.get("key")
@@ -416,11 +416,11 @@ Connection pools add minimal overhead:
 
 ```ruby
 # Single connection (baseline)
-redis = RedisRuby.new(host: "localhost")
+redis = RR.new(host: "localhost")
 # ~100,000 ops/sec
 
 # Pooled connection
-redis = RedisRuby.pooled(host: "localhost", pool: { size: 10 })
+redis = RR.pooled(host: "localhost", pool: { size: 10 })
 # ~95,000 ops/sec (5% overhead)
 ```
 
@@ -473,7 +473,7 @@ Async pools can handle more concurrency with fewer connections.
 
 ```ruby
 # config/initializers/redis.rb
-REDIS = RedisRuby.pooled(
+REDIS = RR.pooled(
   url: ENV["REDIS_URL"],
   pool: { size: 20 }
 )
@@ -497,7 +497,7 @@ end
 class RedisMiddleware
   def initialize(app)
     @app = app
-    @pool = RedisRuby.pooled(pool: { size: 20 })
+    @pool = RR.pooled(pool: { size: 20 })
   end
 
   def call(env)
@@ -514,7 +514,7 @@ end
 ```ruby
 class RedisService
   def self.pool
-    @pool ||= RedisRuby.pooled(
+    @pool ||= RR.pooled(
       url: ENV["REDIS_URL"],
       pool: { size: 10 }
     )
@@ -530,17 +530,17 @@ end
 
 ```ruby
 # Different pools for different purposes
-CACHE_REDIS = RedisRuby.pooled(
+CACHE_REDIS = RR.pooled(
   url: ENV["CACHE_REDIS_URL"],
   pool: { size: 20 }
 )
 
-SESSION_REDIS = RedisRuby.pooled(
+SESSION_REDIS = RR.pooled(
   url: ENV["SESSION_REDIS_URL"],
   pool: { size: 10 }
 )
 
-QUEUE_REDIS = RedisRuby.pooled(
+QUEUE_REDIS = RR.pooled(
   url: ENV["QUEUE_REDIS_URL"],
   pool: { size: 5 }
 )
@@ -555,10 +555,10 @@ QUEUE_REDIS = RedisRuby.pooled(
 # Cause: All connections are busy
 
 # Solution 1: Increase pool size
-redis = RedisRuby.pooled(pool: { size: 20 })  # Was 10
+redis = RR.pooled(pool: { size: 20 })  # Was 10
 
 # Solution 2: Increase timeout
-redis = RedisRuby.pooled(pool: { size: 10, timeout: 10 })  # Was 5
+redis = RR.pooled(pool: { size: 10, timeout: 10 })  # Was 5
 
 # Solution 3: Optimize slow operations
 redis.with_connection do |conn|

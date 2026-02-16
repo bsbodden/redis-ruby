@@ -58,9 +58,9 @@ end
 ### Simple Transaction
 
 ```ruby
-require "redis_ruby"
+require "redis_ruby"  # Native RR API
 
-redis = RedisRuby.new(host: "localhost")
+redis = RR.new(host: "localhost")
 
 # Execute multiple commands atomically
 results = redis.multi do |tx|
@@ -331,7 +331,7 @@ begin
     tx.incr("key")  # Error: value is not an integer
     tx.get("key")
   end
-rescue RedisRuby::CommandError => e
+rescue RR::CommandError => e
   puts "Transaction error: #{e.message}"
   # Error: ERR value is not an integer or out of range
 end
@@ -349,7 +349,7 @@ def safe_transaction(redis, max_retries: 3)
       # Transaction aborted (WATCH failed)
       puts "Transaction aborted, retrying (attempt #{attempt + 1})"
       sleep 0.01
-    rescue RedisRuby::CommandError => e
+    rescue RR::CommandError => e
       puts "Command error: #{e.message}"
       return nil
     end

@@ -12,7 +12,7 @@ class RedisCompatTest < Minitest::Test
     @mock_client = mock("redis_ruby_client")
     @mock_client.stubs(:connected?).returns(true)
     @mock_client.stubs(:close)
-    RedisRuby::Client.stubs(:new).returns(@mock_client)
+    RR::Client.stubs(:new).returns(@mock_client)
   end
 
   def build_redis(options = {})
@@ -163,19 +163,19 @@ class RedisCompatTest < Minitest::Test
   # Sentinel configuration
   def test_initialize_with_sentinels
     mock_sentinel_client = mock("sentinel_client")
-    RedisRuby.stubs(:sentinel).returns(mock_sentinel_client)
+    RR.stubs(:sentinel).returns(mock_sentinel_client)
 
     redis = build_redis(
       sentinels: [{ host: "s1", port: 26_379 }],
       name: "mymaster"
     )
-    # It should have called RedisRuby.sentinel
+    # It should have called RR.sentinel
     assert_instance_of Redis, redis
   end
 
   def test_initialize_sentinel_with_role
     mock_sentinel_client = mock("sentinel_client")
-    RedisRuby.expects(:sentinel).with(
+    RR.expects(:sentinel).with(
       sentinels: [{ host: "s1", port: 26_379 }],
       service_name: "mymaster",
       role: :replica,
@@ -193,7 +193,7 @@ class RedisCompatTest < Minitest::Test
 
   def test_initialize_sentinel_default_role_is_master
     mock_sentinel_client = mock("sentinel_client")
-    RedisRuby.expects(:sentinel).with(
+    RR.expects(:sentinel).with(
       sentinels: [{ host: "s1", port: 26_379 }],
       service_name: "mymaster",
       role: :master,
@@ -213,7 +213,7 @@ class RedisCompatTest < Minitest::Test
   # =================================================================
 
   def test_version
-    assert_equal RedisRuby::VERSION, Redis::VERSION
+    assert_equal RR::VERSION, Redis::VERSION
   end
 
   # =================================================================
@@ -341,55 +341,55 @@ class RedisCompatTest < Minitest::Test
   # =================================================================
 
   def test_error_translation_connection_error
-    @mock_client.expects(:ping).raises(RedisRuby::ConnectionError, "conn lost")
+    @mock_client.expects(:ping).raises(RR::ConnectionError, "conn lost")
     redis = build_redis
     assert_raises(Redis::ConnectionError) { redis.ping }
   end
 
   def test_error_translation_timeout_error
-    @mock_client.expects(:ping).raises(RedisRuby::TimeoutError, "timed out")
+    @mock_client.expects(:ping).raises(RR::TimeoutError, "timed out")
     redis = build_redis
     assert_raises(Redis::TimeoutError) { redis.ping }
   end
 
   def test_error_translation_command_error
-    @mock_client.expects(:ping).raises(RedisRuby::CommandError, "ERR unknown")
+    @mock_client.expects(:ping).raises(RR::CommandError, "ERR unknown")
     redis = build_redis
     assert_raises(Redis::CommandError) { redis.ping }
   end
 
   def test_error_translation_wrongtype
-    @mock_client.expects(:get).with("k").raises(RedisRuby::CommandError, "WRONGTYPE Operation")
+    @mock_client.expects(:get).with("k").raises(RR::CommandError, "WRONGTYPE Operation")
     redis = build_redis
     assert_raises(Redis::WrongTypeError) { redis.get("k") }
   end
 
   def test_error_translation_auth_error
-    @mock_client.expects(:ping).raises(RedisRuby::CommandError, "NOAUTH Authentication required")
+    @mock_client.expects(:ping).raises(RR::CommandError, "NOAUTH Authentication required")
     redis = build_redis
     assert_raises(Redis::AuthenticationError) { redis.ping }
   end
 
   def test_error_translation_auth_error_err_auth
-    @mock_client.expects(:ping).raises(RedisRuby::CommandError, "ERR AUTH failed")
+    @mock_client.expects(:ping).raises(RR::CommandError, "ERR AUTH failed")
     redis = build_redis
     assert_raises(Redis::AuthenticationError) { redis.ping }
   end
 
   def test_error_translation_permission_error
-    @mock_client.expects(:ping).raises(RedisRuby::CommandError, "NOPERM this user")
+    @mock_client.expects(:ping).raises(RR::CommandError, "NOPERM this user")
     redis = build_redis
     assert_raises(Redis::PermissionError) { redis.ping }
   end
 
   def test_error_translation_cluster_down
-    @mock_client.expects(:ping).raises(RedisRuby::ClusterDownError, "CLUSTERDOWN")
+    @mock_client.expects(:ping).raises(RR::ClusterDownError, "CLUSTERDOWN")
     redis = build_redis
     assert_raises(Redis::ClusterDownError) { redis.ping }
   end
 
   def test_error_translation_moved_error
-    @mock_client.expects(:ping).raises(RedisRuby::MovedError, "MOVED 12345 127.0.0.1:6379")
+    @mock_client.expects(:ping).raises(RR::MovedError, "MOVED 12345 127.0.0.1:6379")
     redis = build_redis
     err = assert_raises(Redis::MovedError) { redis.ping }
     assert_equal 12_345, err.slot
@@ -398,7 +398,7 @@ class RedisCompatTest < Minitest::Test
   end
 
   def test_error_translation_ask_error
-    @mock_client.expects(:ping).raises(RedisRuby::AskError, "ASK 999 10.0.0.1:6380")
+    @mock_client.expects(:ping).raises(RR::AskError, "ASK 999 10.0.0.1:6380")
     redis = build_redis
     err = assert_raises(Redis::AskError) { redis.ping }
     assert_equal 999, err.slot
@@ -407,7 +407,7 @@ class RedisCompatTest < Minitest::Test
   end
 
   def test_error_translation_cluster_error
-    @mock_client.expects(:ping).raises(RedisRuby::ClusterError, "cluster problem")
+    @mock_client.expects(:ping).raises(RR::ClusterError, "cluster problem")
     redis = build_redis
     assert_raises(Redis::ClusterError) { redis.ping }
   end
@@ -2572,7 +2572,7 @@ class RedisCompatTest < Minitest::Test
     mock_pipeline.expects(:call_1arg).with("GET", "k")
     mock_pipeline.expects(:execute).returns(%w[OK v])
 
-    RedisRuby::Pipeline.stubs(:new).with(mock_connection).returns(mock_pipeline)
+    RR::Pipeline.stubs(:new).with(mock_connection).returns(mock_pipeline)
 
     redis = build_redis
     results = redis.pipelined do |pipe|
@@ -2588,13 +2588,13 @@ class RedisCompatTest < Minitest::Test
     @mock_client.stubs(:send).with(:ensure_connected)
     @mock_client.stubs(:instance_variable_get).with(:@connection).returns(mock_connection)
 
-    cmd_error = RedisRuby::CommandError.new("ERR something")
+    cmd_error = RR::CommandError.new("ERR something")
 
     mock_pipeline = mock("pipeline")
     mock_pipeline.expects(:call_2args).with("SET", "k", "v")
     mock_pipeline.expects(:execute).returns([cmd_error])
 
-    RedisRuby::Pipeline.stubs(:new).with(mock_connection).returns(mock_pipeline)
+    RR::Pipeline.stubs(:new).with(mock_connection).returns(mock_pipeline)
 
     redis = build_redis
     assert_raises(Redis::CommandError) do
@@ -2609,13 +2609,13 @@ class RedisCompatTest < Minitest::Test
     @mock_client.stubs(:send).with(:ensure_connected)
     @mock_client.stubs(:instance_variable_get).with(:@connection).returns(mock_connection)
 
-    cmd_error = RedisRuby::CommandError.new("ERR something")
+    cmd_error = RR::CommandError.new("ERR something")
 
     mock_pipeline = mock("pipeline")
     mock_pipeline.expects(:call_2args).with("SET", "k", "v")
     mock_pipeline.expects(:execute).returns([cmd_error])
 
-    RedisRuby::Pipeline.stubs(:new).with(mock_connection).returns(mock_pipeline)
+    RR::Pipeline.stubs(:new).with(mock_connection).returns(mock_pipeline)
 
     redis = build_redis
     # exception: false should not raise, but still resolve futures
@@ -2624,7 +2624,7 @@ class RedisCompatTest < Minitest::Test
     end
 
     # The error is resolved as the value
-    assert_instance_of RedisRuby::CommandError, results[0]
+    assert_instance_of RR::CommandError, results[0]
   end
 
   # =================================================================
@@ -2641,7 +2641,7 @@ class RedisCompatTest < Minitest::Test
     mock_transaction.expects(:call_1arg).with("GET", "k")
     mock_transaction.expects(:execute).returns(%w[OK v])
 
-    RedisRuby::Transaction.stubs(:new).with(mock_connection).returns(mock_transaction)
+    RR::Transaction.stubs(:new).with(mock_connection).returns(mock_transaction)
 
     redis = build_redis
     results = redis.multi do |tx|
@@ -2660,7 +2660,7 @@ class RedisCompatTest < Minitest::Test
     mock_transaction = mock("transaction")
     mock_transaction.expects(:execute).returns(nil)
 
-    RedisRuby::Transaction.stubs(:new).with(mock_connection).returns(mock_transaction)
+    RR::Transaction.stubs(:new).with(mock_connection).returns(mock_transaction)
 
     redis = build_redis
     result = redis.multi { |_tx| }
@@ -2673,11 +2673,11 @@ class RedisCompatTest < Minitest::Test
     @mock_client.stubs(:send).with(:ensure_connected)
     @mock_client.stubs(:instance_variable_get).with(:@connection).returns(mock_connection)
 
-    cmd_error = RedisRuby::CommandError.new("ERR transaction failed")
+    cmd_error = RR::CommandError.new("ERR transaction failed")
     mock_transaction = mock("transaction")
     mock_transaction.expects(:execute).returns(cmd_error)
 
-    RedisRuby::Transaction.stubs(:new).with(mock_connection).returns(mock_transaction)
+    RR::Transaction.stubs(:new).with(mock_connection).returns(mock_transaction)
 
     redis = build_redis
     assert_raises(Redis::CommandError) { redis.multi { |_tx| } }
@@ -2688,12 +2688,12 @@ class RedisCompatTest < Minitest::Test
     @mock_client.stubs(:send).with(:ensure_connected)
     @mock_client.stubs(:instance_variable_get).with(:@connection).returns(mock_connection)
 
-    cmd_error = RedisRuby::CommandError.new("WRONGTYPE")
+    cmd_error = RR::CommandError.new("WRONGTYPE")
     mock_transaction = mock("transaction")
     mock_transaction.expects(:call_1arg).with("INCR", "k")
     mock_transaction.expects(:execute).returns([cmd_error])
 
-    RedisRuby::Transaction.stubs(:new).with(mock_connection).returns(mock_transaction)
+    RR::Transaction.stubs(:new).with(mock_connection).returns(mock_transaction)
 
     redis = build_redis
     assert_raises(Redis::WrongTypeError) do
@@ -2708,13 +2708,13 @@ class RedisCompatTest < Minitest::Test
     @mock_client.stubs(:send).with(:ensure_connected)
     @mock_client.stubs(:instance_variable_get).with(:@connection).returns(mock_connection)
 
-    cmd_error = RedisRuby::CommandError.new("ERR command error")
+    cmd_error = RR::CommandError.new("ERR command error")
     mock_transaction = mock("transaction")
     mock_transaction.expects(:call_2args).with("SET", "k", "v")
     mock_transaction.expects(:call_1arg).with("INCR", "k2")
     mock_transaction.expects(:execute).returns(["OK", cmd_error])
 
-    RedisRuby::Transaction.stubs(:new).with(mock_connection).returns(mock_transaction)
+    RR::Transaction.stubs(:new).with(mock_connection).returns(mock_transaction)
 
     redis = build_redis
     # The first error in results causes a raise; first result gets resolved, second doesn't
@@ -3178,8 +3178,8 @@ class RedisCompatTest < Minitest::Test
   # =================================================================
 
   def test_create_client_passes_options
-    RedisRuby::Client.unstub(:new)
-    RedisRuby::Client.expects(:new).with(
+    RR::Client.unstub(:new)
+    RR::Client.expects(:new).with(
       url: nil,
       host: "myhost",
       port: 7000,
@@ -3207,8 +3207,8 @@ class RedisCompatTest < Minitest::Test
   end
 
   def test_create_client_default_ssl_params
-    RedisRuby::Client.unstub(:new)
-    RedisRuby::Client.expects(:new).with(
+    RR::Client.unstub(:new)
+    RR::Client.expects(:new).with(
       has_entries(ssl_params: {}, reconnect_attempts: 0)
     ).returns(@mock_client)
 

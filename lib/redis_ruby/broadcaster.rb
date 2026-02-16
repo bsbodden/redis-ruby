@@ -2,7 +2,7 @@
 
 require "json"
 
-module RedisRuby
+module RR
   # Wisper-style broadcaster mixin for Redis Pub/Sub
   #
   # Provides a familiar API for applications migrating from Wisper.
@@ -10,7 +10,7 @@ module RedisRuby
   #
   # @example Basic usage
   #   class OrderService
-  #     include RedisRuby::Broadcaster
+  #     include RR::Broadcaster
   #
   #     def create_order(params)
   #       order = Order.create(params)
@@ -37,12 +37,12 @@ module RedisRuby
     module ClassMethods
       # Get or set the Redis client for this class
       #
-      # @param client [RedisRuby::Client, nil] Redis client to use
-      # @return [RedisRuby::Client] The Redis client
+      # @param [RR::Client, nil] Redis client to use
+      # @return [RR::Client] The Redis client
       #
       # @example
       #   class MyService
-      #     include RedisRuby::Broadcaster
+      #     include RR::Broadcaster
       #     redis_client RedisRuby.new
       #   end
       def redis_client(client = nil)
@@ -74,7 +74,7 @@ module RedisRuby
       #
       # @example
       #   class OrderService
-      #     include RedisRuby::Broadcaster
+      #     include RR::Broadcaster
       #     set_channel_prefix :orders
       #   end
       def set_channel_prefix(prefix)
@@ -125,14 +125,14 @@ module RedisRuby
 
     # Get the Redis client for this instance
     #
-    # @return [RedisRuby::Client]
+    # @return [RR::Client]
     def redis_client
       @redis_client ||= self.class.redis_client
     end
 
     # Set a custom Redis client for this instance
     #
-    # @param client [RedisRuby::Client] Redis client
+    # @param [RR::Client] Redis client
     def redis_client=(client)
       @redis_client = client
     end

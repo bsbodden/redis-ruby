@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module RedisRuby
+module RR
   # Transaction for atomic command execution
   #
   # Transactions in Redis use MULTI/EXEC to execute multiple commands

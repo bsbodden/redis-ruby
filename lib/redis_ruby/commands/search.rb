@@ -3,7 +3,7 @@
 require_relative "../dsl/search_index_builder"
 require_relative "../dsl/search_query_builder"
 
-module RedisRuby
+module RR
   module Commands
     # RediSearch commands module
     #
@@ -494,7 +494,7 @@ module RedisRuby
       #     end
       #   end
       def index(index_name, &block)
-        builder = RedisRuby::DSL::SearchIndexBuilder.new(index_name, self)
+        builder = RR::DSL::SearchIndexBuilder.new(index_name, self)
         builder.instance_eval(&block)
         builder.create
       end
@@ -507,7 +507,7 @@ module RedisRuby
       # Create a fluent search query builder
       #
       # @param index_name [Symbol, String] Index name
-      # @return [RedisRuby::DSL::SearchQueryBuilder] Query builder
+      # @return [RR::DSL::SearchQueryBuilder] Query builder
       #
       # @example Fluent search
       #   redis.search(:products)
@@ -518,7 +518,7 @@ module RedisRuby
       #     .with_scores
       #     .execute
       def search(index_name)
-        RedisRuby::DSL::SearchQueryBuilder.new(index_name, self)
+        RR::DSL::SearchQueryBuilder.new(index_name, self)
       end
 
       private

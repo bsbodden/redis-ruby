@@ -3,7 +3,7 @@
 require "uri"
 require_relative "concerns/single_connection_operations"
 
-module RedisRuby
+module RR
   # Asynchronous Redis client for single-fiber use
   #
   # Provides a single connection for use within one fiber. When used inside
@@ -17,7 +17,7 @@ module RedisRuby
   #   require "async"
   #
   #   Async do
-  #     client = RedisRuby::AsyncClient.new(url: "redis://localhost:6379")
+  #     client = RR::AsyncClient.new(url: "redis://localhost:6379")
   #     client.set("key", "value")
   #     client.get("key") # => "value"
   #   end
@@ -27,7 +27,7 @@ module RedisRuby
   #
   #   Async do |task|
   #     # For concurrent access, use AsyncPooledClient
-  #     client = RedisRuby::AsyncPooledClient.new(
+  #     client = RR::AsyncPooledClient.new(
   #       url: "redis://localhost:6379",
   #       pool: { limit: 10 }
   #     )

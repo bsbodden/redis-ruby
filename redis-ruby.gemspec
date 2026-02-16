@@ -4,7 +4,7 @@ require_relative "lib/redis_ruby/version"
 
 Gem::Specification.new do |spec|
   spec.name = "redis-ruby"
-  spec.version = RedisRuby::VERSION
+  spec.version = RR::VERSION
   spec.authors = ["Brian Sam-Bodden"]
   spec.email = ["brian@redis.com"]
 

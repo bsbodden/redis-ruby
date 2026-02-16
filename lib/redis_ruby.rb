@@ -2,7 +2,7 @@
 
 require_relative "redis_ruby/version"
 
-module RedisRuby
+module RR
   class Error < StandardError; end
   class ConnectionError < Error; end
   class CommandError < Error; end
@@ -26,7 +26,7 @@ module RedisRuby
     #
     # @param url [String, nil] Redis URL (redis://host:port/db)
     # @param kwargs [Hash] Connection options (host, port, db, password, etc.)
-    # @return [RedisRuby::Client]
+    # @return [RR::Client]
     def new(url: nil, **kwargs)
       Client.new(url: url, **kwargs)
     end
@@ -38,11 +38,11 @@ module RedisRuby
     #
     # @param url [String, nil] Redis URL (redis://host:port/db)
     # @param kwargs [Hash] Connection options (host, port, db, password, etc.)
-    # @return [RedisRuby::AsyncClient]
+    # @return [RR::AsyncClient]
     # @example
     #   require "async"
     #   Async do
-    #     client = RedisRuby.async(url: "redis://localhost:6379")
+    #     client = RR.async(url: "redis://localhost:6379")
     #     client.set("key", "value")
     #   end
     def async(url: nil, **kwargs)
@@ -56,9 +56,9 @@ module RedisRuby
     #
     # @param url [String, nil] Redis URL (redis://host:port/db)
     # @param kwargs [Hash] Connection and pool options (pool hash with size and timeout, host, port, etc.)
-    # @return [RedisRuby::PooledClient]
+    # @return [RR::PooledClient]
     # @example
-    #   client = RedisRuby.pooled(url: "redis://localhost:6379", pool: { size: 10 })
+    #   client = RR.pooled(url: "redis://localhost:6379", pool: { size: 10 })
     #   client.set("key", "value")
     def pooled(url: nil, **kwargs)
       PooledClient.new(url: url, **kwargs)
@@ -73,11 +73,11 @@ module RedisRuby
     #
     # @param url [String, nil] Redis URL (redis://host:port/db)
     # @param kwargs [Hash] Connection and pool options (pool hash with limit, host, port, etc.)
-    # @return [RedisRuby::AsyncPooledClient]
+    # @return [RR::AsyncPooledClient]
     # @example
     #   require "async"
     #   Async do
-    #     client = RedisRuby.async_pooled(pool: { limit: 10 })
+    #     client = RR.async_pooled(pool: { limit: 10 })
     #     # 100 concurrent operations with 10 connections
     #     tasks = 100.times.map { |i| task.async { client.get("key:#{i}") } }
     #   end
@@ -94,9 +94,9 @@ module RedisRuby
     # @param service_name [String] Name of the monitored master
     # @param role [Symbol] :master or :replica (defaults to :master)
     # @param kwargs [Hash] Additional connection options (password, db, etc.)
-    # @return [RedisRuby::SentinelClient]
+    # @return [RR::SentinelClient]
     # @example
-    #   client = RedisRuby.sentinel(
+    #   client = RR.sentinel(
     #     sentinels: [{ host: "sentinel1", port: 26379 }],
     #     service_name: "mymaster"
     #   )
@@ -112,15 +112,15 @@ module RedisRuby
     #
     # @param nodes [Array<String, Hash>] Seed nodes (URLs or hashes with host and port keys)
     # @param kwargs [Hash] Additional connection options (password, read_from, etc.)
-    # @return [RedisRuby::ClusterClient]
+    # @return [RR::ClusterClient]
     # @example
-    #   client = RedisRuby.cluster(
+    #   client = RR.cluster(
     #     nodes: ["redis://node1:6379", "redis://node2:6379", "redis://node3:6379"]
     #   )
     #   client.set("key", "value")
     #
     # @example Read from replicas
-    #   client = RedisRuby.cluster(
+    #   client = RR.cluster(
     #     nodes: ["redis://node1:6379"],
     #     read_from: :replica_preferred
     #   )

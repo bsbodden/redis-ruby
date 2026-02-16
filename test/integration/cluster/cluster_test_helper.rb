@@ -172,7 +172,7 @@ module ClusterTestContainerSupport
         raise "Timeout waiting for Redis Cluster" if Time.now - start_time > timeout
 
         begin
-          conn = RedisRuby::Connection::TCP.new(
+          conn = RR::Connection::TCP.new(
             host: host,
             port: port,
             timeout: 5.0
@@ -243,7 +243,7 @@ module ClusterTestContainerSupport
         raise "Timeout waiting for Redis Cluster" if Time.now - start_time > timeout
 
         begin
-          conn = RedisRuby::Connection::TCP.new(
+          conn = RR::Connection::TCP.new(
             host: @container.host,
             port: 7000,
             timeout: 5.0
@@ -301,7 +301,7 @@ class ClusterTestCase < Minitest::Test
     end
 
     host_translation = ClusterTestContainerSupport.host_translation
-    @cluster = RedisRuby::ClusterClient.new(
+    @cluster = RR::ClusterClient.new(
       nodes: @cluster_nodes,
       host_translation: host_translation
     )
@@ -311,13 +311,13 @@ class ClusterTestCase < Minitest::Test
     # Try to connect and execute a simple command
     # This will fail if the cluster announces addresses we can't reach
     host_translation = ClusterTestContainerSupport.host_translation
-    client = RedisRuby::ClusterClient.new(
+    client = RR::ClusterClient.new(
       nodes: @cluster_nodes,
       host_translation: host_translation
     )
     client.call("PING")
     client.close
-  rescue Errno::ECONNREFUSED, RedisRuby::ConnectionError => e
+  rescue Errno::ECONNREFUSED, RR::ConnectionError => e
     skip "Cluster nodes announce unreachable addresses (127.0.0.1). " \
          "Set REDIS_CLUSTER_URL for external cluster or use host networking. " \
          "Error: #{e.message}"

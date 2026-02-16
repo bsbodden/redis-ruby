@@ -4,7 +4,7 @@ require_relative "../unit_test_helper"
 
 class ClusterCommandsTest < Minitest::Test
   class MockClient
-    include RedisRuby::Commands::Cluster
+    include RR::Commands::Cluster
 
     attr_reader :last_command
 
@@ -92,7 +92,7 @@ class ClusterCommandsTest < Minitest::Test
   end
 
   class ClusterInfoMalformedMock
-    include RedisRuby::Commands::Cluster
+    include RR::Commands::Cluster
 
     def call(*) = "OK"
 
@@ -162,7 +162,7 @@ class ClusterCommandsTest < Minitest::Test
   end
 
   class ClusterNodesSingleSlotMock
-    include RedisRuby::Commands::Cluster
+    include RR::Commands::Cluster
 
     def call(*) = "OK"
 
@@ -187,7 +187,7 @@ class ClusterCommandsTest < Minitest::Test
   end
 
   class ClusterNodesEmptyMock
-    include RedisRuby::Commands::Cluster
+    include RR::Commands::Cluster
 
     def call(*) = "OK"
 
@@ -214,7 +214,7 @@ class ClusterCommandsTest < Minitest::Test
   end
 
   class ClusterNodesNonSlotMock
-    include RedisRuby::Commands::Cluster
+    include RR::Commands::Cluster
 
     def call(*) = "OK"
 

@@ -15,7 +15,7 @@ class StreamsIntegrationTest < RedisRubyTestCase
     # Clean up consumer groups
     begin
       redis.xgroup_destroy(@stream_key, "mygroup")
-    rescue RedisRuby::CommandError
+    rescue RR::CommandError
       # Ignore if group doesn't exist
     end
     begin
@@ -433,7 +433,7 @@ class StreamsIntegrationTest < RedisRubyTestCase
     result = redis.xgroup_create(@stream_key, "mygroup", "$", entriesread: 1)
 
     assert_equal "OK", result
-  rescue RedisRuby::CommandError => e
+  rescue RR::CommandError => e
     skip "ENTRIESREAD not supported (requires Redis 7.0+)" if e.message.include?("ENTRIESREAD")
     raise
   end
@@ -480,7 +480,7 @@ class StreamsIntegrationTest < RedisRubyTestCase
     assert_kind_of String, next_id
     assert_kind_of Array, entries
     assert_kind_of Array, deleted
-  rescue RedisRuby::CommandError => e
+  rescue RR::CommandError => e
     skip "XAUTOCLAIM not supported (requires Redis 6.2+)" if e.message.include?("unknown command")
     raise
   end
@@ -496,7 +496,7 @@ class StreamsIntegrationTest < RedisRubyTestCase
     _next_id, entries, _deleted = result
     # Should claim at most 1 entry
     assert_equal 1, entries.length
-  rescue RedisRuby::CommandError => e
+  rescue RR::CommandError => e
     skip "XAUTOCLAIM not supported (requires Redis 6.2+)" if e.message.include?("unknown command")
     raise
   end
@@ -514,7 +514,7 @@ class StreamsIntegrationTest < RedisRubyTestCase
     assert_equal 1, entries.length
     assert_kind_of String, entries[0]
     assert_equal id, entries[0]
-  rescue RedisRuby::CommandError => e
+  rescue RR::CommandError => e
     skip "XAUTOCLAIM not supported (requires Redis 6.2+)" if e.message.include?("unknown command")
     raise
   end
@@ -530,7 +530,7 @@ class StreamsIntegrationTest < RedisRubyTestCase
     _next_id, entries, _deleted = result
 
     assert_empty entries
-  rescue RedisRuby::CommandError => e
+  rescue RR::CommandError => e
     skip "XAUTOCLAIM not supported (requires Redis 6.2+)" if e.message.include?("unknown command")
     raise
   end

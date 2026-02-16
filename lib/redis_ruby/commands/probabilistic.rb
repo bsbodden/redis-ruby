@@ -5,7 +5,7 @@ require_relative "../dsl/cuckoo_filter_proxy"
 require_relative "../dsl/count_min_sketch_proxy"
 require_relative "../dsl/top_k_proxy"
 
-module RedisRuby
+module RR
   module Commands
     # Redis Probabilistic Data Structures
     #
@@ -105,7 +105,7 @@ module RedisRuby
       # False positives are possible, but false negatives are not.
       #
       # @param key_parts [Array<String, Symbol, Integer>] Key components
-      # @return [RedisRuby::DSL::BloomFilterProxy] Bloom Filter proxy instance
+      # @return [RR::DSL::BloomFilterProxy] Bloom Filter proxy instance
       #
       # @example Spam detection
       #   spam = redis.bloom_filter(:spam, :emails)
@@ -131,7 +131,7 @@ module RedisRuby
       # generally have better lookup performance.
       #
       # @param key_parts [Array<String, Symbol, Integer>] Key components
-      # @return [RedisRuby::DSL::CuckooFilterProxy] Cuckoo Filter proxy instance
+      # @return [RR::DSL::CuckooFilterProxy] Cuckoo Filter proxy instance
       #
       # @example Session tracking
       #   sessions = redis.cuckoo_filter(:active, :sessions)
@@ -156,7 +156,7 @@ module RedisRuby
       # It may over-estimate but never under-estimates counts.
       #
       # @param key_parts [Array<String, Symbol, Integer>] Key components
-      # @return [RedisRuby::DSL::CountMinSketchProxy] Count-Min Sketch proxy instance
+      # @return [RR::DSL::CountMinSketchProxy] Count-Min Sketch proxy instance
       #
       # @example Page view counting
       #   pageviews = redis.count_min_sketch(:pageviews)
@@ -181,7 +181,7 @@ module RedisRuby
       # Top-K tracks the top K most frequent items in a stream with constant memory.
       #
       # @param key_parts [Array<String, Symbol, Integer>] Key components
-      # @return [RedisRuby::DSL::TopKProxy] Top-K proxy instance
+      # @return [RR::DSL::TopKProxy] Top-K proxy instance
       #
       # @example Trending products
       #   trending = redis.top_k(:trending, :products)

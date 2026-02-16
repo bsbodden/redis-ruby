@@ -10,7 +10,7 @@ class AsyncPoolPooledConnectionTest < Minitest::Test
 
   def test_pooled_connection_initialize
     mock_conn = mock("connection")
-    pc = RedisRuby::Connection::AsyncPool::PooledConnection.new(mock_conn)
+    pc = RR::Connection::AsyncPool::PooledConnection.new(mock_conn)
 
     assert_equal 1, pc.concurrency
     assert_equal 0, pc.count
@@ -19,7 +19,7 @@ class AsyncPoolPooledConnectionTest < Minitest::Test
   def test_pooled_connection_call_increments_count
     mock_conn = mock("connection")
     mock_conn.expects(:call).with("PING").returns("PONG")
-    pc = RedisRuby::Connection::AsyncPool::PooledConnection.new(mock_conn)
+    pc = RR::Connection::AsyncPool::PooledConnection.new(mock_conn)
     result = pc.call("PING")
 
     assert_equal "PONG", result
@@ -29,7 +29,7 @@ class AsyncPoolPooledConnectionTest < Minitest::Test
   def test_pooled_connection_call_1arg
     mock_conn = mock("connection")
     mock_conn.expects(:call_1arg).with("GET", "key").returns("value")
-    pc = RedisRuby::Connection::AsyncPool::PooledConnection.new(mock_conn)
+    pc = RR::Connection::AsyncPool::PooledConnection.new(mock_conn)
     result = pc.call_1arg("GET", "key")
 
     assert_equal "value", result
@@ -39,7 +39,7 @@ class AsyncPoolPooledConnectionTest < Minitest::Test
   def test_pooled_connection_call_2args
     mock_conn = mock("connection")
     mock_conn.expects(:call_2args).with("SET", "k", "v").returns("OK")
-    pc = RedisRuby::Connection::AsyncPool::PooledConnection.new(mock_conn)
+    pc = RR::Connection::AsyncPool::PooledConnection.new(mock_conn)
     result = pc.call_2args("SET", "k", "v")
 
     assert_equal "OK", result
@@ -49,7 +49,7 @@ class AsyncPoolPooledConnectionTest < Minitest::Test
   def test_pooled_connection_call_3args
     mock_conn = mock("connection")
     mock_conn.expects(:call_3args).with("HSET", "h", "f", "v").returns(1)
-    pc = RedisRuby::Connection::AsyncPool::PooledConnection.new(mock_conn)
+    pc = RR::Connection::AsyncPool::PooledConnection.new(mock_conn)
     result = pc.call_3args("HSET", "h", "f", "v")
 
     assert_equal 1, result
@@ -59,7 +59,7 @@ class AsyncPoolPooledConnectionTest < Minitest::Test
   def test_pooled_connection_pipeline
     mock_conn = mock("connection")
     mock_conn.expects(:pipeline).returns(%w[OK value])
-    pc = RedisRuby::Connection::AsyncPool::PooledConnection.new(mock_conn)
+    pc = RR::Connection::AsyncPool::PooledConnection.new(mock_conn)
     result = pc.pipeline
 
     assert_equal %w[OK value], result
@@ -69,14 +69,14 @@ class AsyncPoolPooledConnectionTest < Minitest::Test
   def test_pooled_connection_viable_true
     mock_conn = mock("connection")
     mock_conn.expects(:connected?).returns(true)
-    pc = RedisRuby::Connection::AsyncPool::PooledConnection.new(mock_conn)
+    pc = RR::Connection::AsyncPool::PooledConnection.new(mock_conn)
 
     assert_predicate pc, :viable?
   end
 
   def test_pooled_connection_viable_false_when_closed
     mock_conn = mock("connection")
-    pc = RedisRuby::Connection::AsyncPool::PooledConnection.new(mock_conn)
+    pc = RR::Connection::AsyncPool::PooledConnection.new(mock_conn)
     pc.instance_variable_set(:@closed, true)
 
     refute_predicate pc, :viable?
@@ -85,14 +85,14 @@ class AsyncPoolPooledConnectionTest < Minitest::Test
   def test_pooled_connection_viable_false_when_disconnected
     mock_conn = mock("connection")
     mock_conn.expects(:connected?).returns(false)
-    pc = RedisRuby::Connection::AsyncPool::PooledConnection.new(mock_conn)
+    pc = RR::Connection::AsyncPool::PooledConnection.new(mock_conn)
 
     refute_predicate pc, :viable?
   end
 
   def test_pooled_connection_closed_true
     mock_conn = mock("connection")
-    pc = RedisRuby::Connection::AsyncPool::PooledConnection.new(mock_conn)
+    pc = RR::Connection::AsyncPool::PooledConnection.new(mock_conn)
     pc.instance_variable_set(:@closed, true)
 
     assert_predicate pc, :closed?
@@ -101,7 +101,7 @@ class AsyncPoolPooledConnectionTest < Minitest::Test
   def test_pooled_connection_closed_false
     mock_conn = mock("connection")
     mock_conn.expects(:connected?).returns(true)
-    pc = RedisRuby::Connection::AsyncPool::PooledConnection.new(mock_conn)
+    pc = RR::Connection::AsyncPool::PooledConnection.new(mock_conn)
 
     refute_predicate pc, :closed?
   end
@@ -109,7 +109,7 @@ class AsyncPoolPooledConnectionTest < Minitest::Test
   def test_pooled_connection_closed_when_not_connected
     mock_conn = mock("connection")
     mock_conn.expects(:connected?).returns(false)
-    pc = RedisRuby::Connection::AsyncPool::PooledConnection.new(mock_conn)
+    pc = RR::Connection::AsyncPool::PooledConnection.new(mock_conn)
 
     assert_predicate pc, :closed?
   end
@@ -117,7 +117,7 @@ class AsyncPoolPooledConnectionTest < Minitest::Test
   def test_pooled_connection_close
     mock_conn = mock("connection")
     mock_conn.expects(:close)
-    pc = RedisRuby::Connection::AsyncPool::PooledConnection.new(mock_conn)
+    pc = RR::Connection::AsyncPool::PooledConnection.new(mock_conn)
     pc.close
 
     assert pc.instance_variable_get(:@closed)
@@ -126,14 +126,14 @@ class AsyncPoolPooledConnectionTest < Minitest::Test
   def test_pooled_connection_reusable
     mock_conn = mock("connection")
     mock_conn.expects(:connected?).returns(true)
-    pc = RedisRuby::Connection::AsyncPool::PooledConnection.new(mock_conn)
+    pc = RR::Connection::AsyncPool::PooledConnection.new(mock_conn)
 
     assert_predicate pc, :reusable?
   end
 
   def test_pooled_connection_not_reusable_when_closed
     mock_conn = mock("connection")
-    pc = RedisRuby::Connection::AsyncPool::PooledConnection.new(mock_conn)
+    pc = RR::Connection::AsyncPool::PooledConnection.new(mock_conn)
     pc.instance_variable_set(:@closed, true)
 
     refute_predicate pc, :reusable?
@@ -143,7 +143,7 @@ class AsyncPoolPooledConnectionTest < Minitest::Test
     mock_conn = mock("connection")
     mock_conn.stubs(:call).returns("PONG")
     mock_conn.stubs(:call_1arg).returns("val")
-    pc = RedisRuby::Connection::AsyncPool::PooledConnection.new(mock_conn)
+    pc = RR::Connection::AsyncPool::PooledConnection.new(mock_conn)
     pc.call("PING")
     pc.call("PING")
     pc.call_1arg("GET", "k")
@@ -158,13 +158,13 @@ class AsyncPoolTest < Minitest::Test
   # ============================================================
 
   def test_async_pool_default_limit
-    assert_equal 5, RedisRuby::Connection::AsyncPool::DEFAULT_LIMIT
+    assert_equal 5, RR::Connection::AsyncPool::DEFAULT_LIMIT
   end
 
   def test_async_pool_requires_async_pool_gem
     # Verify that the pool requires Async::Pool::Controller
     # We test this indirectly by checking the constant exists
-    assert defined?(RedisRuby::Connection::AsyncPool)
+    assert defined?(RR::Connection::AsyncPool)
   end
 
   # ============================================================
@@ -175,7 +175,7 @@ class AsyncPoolTest < Minitest::Test
     mock_pool_controller = mock("pool_controller")
     Async::Pool::Controller.stubs(:wrap).returns(mock_pool_controller)
 
-    pool = RedisRuby::Connection::AsyncPool.new(host: "localhost", port: 6379, limit: 10)
+    pool = RR::Connection::AsyncPool.new(host: "localhost", port: 6379, limit: 10)
 
     assert_equal 10, pool.limit
   end
@@ -185,7 +185,7 @@ class AsyncPoolTest < Minitest::Test
     mock_pool_controller.expects(:size).returns(3)
     Async::Pool::Controller.stubs(:wrap).returns(mock_pool_controller)
 
-    pool = RedisRuby::Connection::AsyncPool.new(host: "localhost", port: 6379)
+    pool = RR::Connection::AsyncPool.new(host: "localhost", port: 6379)
 
     assert_equal 3, pool.size
   end
@@ -195,7 +195,7 @@ class AsyncPoolTest < Minitest::Test
     mock_pool_controller.expects(:available?).returns(true)
     Async::Pool::Controller.stubs(:wrap).returns(mock_pool_controller)
 
-    pool = RedisRuby::Connection::AsyncPool.new(host: "localhost", port: 6379)
+    pool = RR::Connection::AsyncPool.new(host: "localhost", port: 6379)
 
     assert_predicate pool, :available?
   end
@@ -205,7 +205,7 @@ class AsyncPoolTest < Minitest::Test
     mock_pool_controller.expects(:close)
     Async::Pool::Controller.stubs(:wrap).returns(mock_pool_controller)
 
-    pool = RedisRuby::Connection::AsyncPool.new(host: "localhost", port: 6379)
+    pool = RR::Connection::AsyncPool.new(host: "localhost", port: 6379)
     pool.close
   end
 
@@ -214,7 +214,7 @@ class AsyncPoolTest < Minitest::Test
     mock_pool_controller.expects(:close)
     Async::Pool::Controller.stubs(:wrap).returns(mock_pool_controller)
 
-    pool = RedisRuby::Connection::AsyncPool.new(host: "localhost", port: 6379)
+    pool = RR::Connection::AsyncPool.new(host: "localhost", port: 6379)
     pool.shutdown
   end
 
@@ -223,7 +223,7 @@ class AsyncPoolTest < Minitest::Test
     mock_pool_controller.define_singleton_method(:acquire) { |&block| block.call("mock_connection") }
     Async::Pool::Controller.stubs(:wrap).returns(mock_pool_controller)
 
-    pool = RedisRuby::Connection::AsyncPool.new(host: "localhost", port: 6379)
+    pool = RR::Connection::AsyncPool.new(host: "localhost", port: 6379)
     result = pool.acquire { |conn| conn }
 
     assert_equal "mock_connection", result
@@ -234,7 +234,7 @@ class AsyncPoolTest < Minitest::Test
     mock_pool_controller.define_singleton_method(:acquire) { |&block| block.call("conn") }
     Async::Pool::Controller.stubs(:wrap).returns(mock_pool_controller)
 
-    pool = RedisRuby::Connection::AsyncPool.new(host: "localhost", port: 6379)
+    pool = RR::Connection::AsyncPool.new(host: "localhost", port: 6379)
     result = pool.with { |c| c }
 
     assert_equal "conn", result

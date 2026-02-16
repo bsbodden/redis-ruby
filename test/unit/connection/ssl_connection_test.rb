@@ -7,18 +7,18 @@ class SSLConnectionTest < Minitest::Test
   # Full SSL testing requires actual SSL server (integration tests)
 
   def test_ssl_class_exists
-    assert defined?(RedisRuby::Connection::SSL)
+    assert defined?(RR::Connection::SSL)
   end
 
   def test_ssl_default_values
     # Test that defaults are defined
-    assert_equal "localhost", RedisRuby::Connection::SSL::DEFAULT_HOST
-    assert_equal 6379, RedisRuby::Connection::SSL::DEFAULT_PORT
-    assert_in_delta(5.0, RedisRuby::Connection::SSL::DEFAULT_TIMEOUT)
+    assert_equal "localhost", RR::Connection::SSL::DEFAULT_HOST
+    assert_equal 6379, RR::Connection::SSL::DEFAULT_PORT
+    assert_in_delta(5.0, RR::Connection::SSL::DEFAULT_TIMEOUT)
   end
 
   def test_ssl_has_required_methods
-    methods = RedisRuby::Connection::SSL.instance_methods(false)
+    methods = RR::Connection::SSL.instance_methods(false)
 
     assert_includes methods, :host
     assert_includes methods, :port

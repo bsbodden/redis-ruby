@@ -2,7 +2,7 @@
 
 require "io/wait" unless IO.method_defined?(:wait_readable) && IO.method_defined?(:wait_writable)
 
-module RedisRuby
+module RR
   module Protocol
     # High-performance buffered IO wrapper for RESP3 parsing
     #

@@ -335,7 +335,7 @@ class ListsCommandsTest < RedisRubyTestCase
   def test_lset_out_of_bounds_raises
     redis.rpush("test:list", "a", "b", "c")
 
-    assert_raises(RedisRuby::CommandError) do
+    assert_raises(RR::CommandError) do
       redis.lset("test:list", 10, "value")
     end
   ensure
@@ -420,7 +420,7 @@ class ListsCommandsTest < RedisRubyTestCase
     assert_equal "test:list", result[0]
     assert_equal ["a"], result[1]
     assert_equal %w[b c], redis.lrange("test:list", 0, -1)
-  rescue RedisRuby::CommandError => e
+  rescue RR::CommandError => e
     skip "LMPOP not supported (requires Redis 7.0+)" if e.message.include?("unknown command")
     raise
   ensure
@@ -435,7 +435,7 @@ class ListsCommandsTest < RedisRubyTestCase
     assert_equal "test:list", result[0]
     assert_equal ["c"], result[1]
     assert_equal %w[a b], redis.lrange("test:list", 0, -1)
-  rescue RedisRuby::CommandError => e
+  rescue RR::CommandError => e
     skip "LMPOP not supported (requires Redis 7.0+)" if e.message.include?("unknown command")
     raise
   ensure
@@ -450,7 +450,7 @@ class ListsCommandsTest < RedisRubyTestCase
     assert_equal "test:list", result[0]
     assert_equal %w[a b c], result[1]
     assert_equal %w[d e], redis.lrange("test:list", 0, -1)
-  rescue RedisRuby::CommandError => e
+  rescue RR::CommandError => e
     skip "LMPOP not supported (requires Redis 7.0+)" if e.message.include?("unknown command")
     raise
   ensure
@@ -465,7 +465,7 @@ class ListsCommandsTest < RedisRubyTestCase
     # Pops from first non-empty list
     assert_equal "test:list2", result[0]
     assert_equal ["x"], result[1]
-  rescue RedisRuby::CommandError => e
+  rescue RR::CommandError => e
     skip "LMPOP not supported (requires Redis 7.0+)" if e.message.include?("unknown command")
     raise
   ensure
@@ -478,7 +478,7 @@ class ListsCommandsTest < RedisRubyTestCase
     result = redis.lmpop("test:list1", "test:list2", direction: :left)
 
     assert_nil result
-  rescue RedisRuby::CommandError => e
+  rescue RR::CommandError => e
     skip "LMPOP not supported (requires Redis 7.0+)" if e.message.include?("unknown command")
     raise
   end
@@ -490,7 +490,7 @@ class ListsCommandsTest < RedisRubyTestCase
 
     assert_equal "test:list", result[0]
     assert_equal ["a"], result[1] # Left pop = first element
-  rescue RedisRuby::CommandError => e
+  rescue RR::CommandError => e
     skip "LMPOP not supported (requires Redis 7.0+)" if e.message.include?("unknown command")
     raise
   ensure

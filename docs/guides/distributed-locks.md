@@ -7,7 +7,7 @@ nav_order: 10
 
 # Distributed Locks
 
-This guide covers distributed locks in redis-ruby, enabling safe coordination of access to shared resources across multiple processes and servers using the RedisRuby::Lock implementation.
+This guide covers distributed locks in redis-ruby, enabling safe coordination of access to shared resources across multiple processes and servers using the RR::Lock implementation.
 
 ## Table of Contents
 
@@ -37,7 +37,7 @@ mutex.synchronize do
 end
 
 # Distributed lock - works across multiple processes/servers
-lock = RedisRuby::Lock.new(redis, "resource:1")
+lock = RR::Lock.new(redis, "resource:1")
 lock.synchronize do
   # Only one process ANYWHERE can execute
 end
@@ -65,7 +65,7 @@ if balance >= 100
 end
 
 # ✅ With lock: Safe
-lock = RedisRuby::Lock.new(redis, "account:123")
+lock = RR::Lock.new(redis, "account:123")
 lock.synchronize do
   balance = redis.get("account:123:balance").to_i
   if balance >= 100
@@ -78,7 +78,7 @@ end
 
 ```ruby
 # Ensure only one worker processes a job
-lock = RedisRuby::Lock.new(redis, "job:#{job_id}")
+lock = RR::Lock.new(redis, "job:#{job_id}")
 if lock.acquire(blocking: false)
   begin
     process_job(job_id)
@@ -95,7 +95,7 @@ end
 
 ```ruby
 # Coordinate access to external API with rate limits
-lock = RedisRuby::Lock.new(redis, "api:external-service")
+lock = RR::Lock.new(redis, "api:external-service")
 lock.synchronize do
   # Only one process calls the API at a time
   response = ExternalAPI.call(params)
@@ -107,10 +107,10 @@ end
 ### Simple Acquire and Release
 
 ```ruby
-require "redis_ruby"
+require "redis_ruby"  # Native RR API
 
-redis = RedisRuby.new(host: "localhost")
-lock = RedisRuby::Lock.new(redis, "my-resource")
+redis = RR.new(host: "localhost")
+lock = RR::Lock.new(redis, "my-resource")
 
 # Acquire the lock
 if lock.acquire
@@ -132,7 +132,7 @@ end
 The `synchronize` method automatically handles acquisition and release:
 
 ```ruby
-lock = RedisRuby::Lock.new(redis, "my-resource")
+lock = RR::Lock.new(redis, "my-resource")
 
 lock.synchronize do
   # Lock is automatically acquired before block
@@ -144,7 +144,7 @@ end
 ### Non-Blocking Acquisition
 
 ```ruby
-lock = RedisRuby::Lock.new(redis, "resource")
+lock = RR::Lock.new(redis, "resource")
 
 # Try to acquire, return immediately if unavailable
 if lock.acquire(blocking: false)
@@ -161,7 +161,7 @@ end
 ### Blocking with Timeout
 
 ```ruby
-lock = RedisRuby::Lock.new(redis, "resource")
+lock = RR::Lock.new(redis, "resource")
 
 # Wait up to 5 seconds for the lock
 if lock.acquire(blocking: true, blocking_timeout: 5)
@@ -178,14 +178,14 @@ end
 ### Using synchronize with Options
 
 ```ruby
-lock = RedisRuby::Lock.new(redis, "resource")
+lock = RR::Lock.new(redis, "resource")
 
 begin
   lock.synchronize(blocking: true, blocking_timeout: 10) do
     # Wait up to 10 seconds for lock
     puts "Got the lock, doing work..."
   end
-rescue RedisRuby::Lock::LockAcquireError
+rescue RR::Lock::LockAcquireError
   puts "Failed to acquire lock within timeout"
 end
 ```
@@ -198,13 +198,13 @@ The timeout determines how long the lock is held before automatic expiration:
 
 ```ruby
 # Lock expires after 10 seconds (default)
-lock = RedisRuby::Lock.new(redis, "resource")
+lock = RR::Lock.new(redis, "resource")
 
 # Lock expires after 30 seconds
-lock = RedisRuby::Lock.new(redis, "resource", timeout: 30)
+lock = RR::Lock.new(redis, "resource", timeout: 30)
 
 # Short-lived lock (1 second)
-lock = RedisRuby::Lock.new(redis, "quick-task", timeout: 1)
+lock = RR::Lock.new(redis, "quick-task", timeout: 1)
 ```
 
 **Choosing the right timeout:**
@@ -218,13 +218,13 @@ Controls polling frequency when waiting for a lock:
 
 ```ruby
 # Check every 100ms (default)
-lock = RedisRuby::Lock.new(redis, "resource")
+lock = RR::Lock.new(redis, "resource")
 
 # Check every 10ms (more responsive, more Redis load)
-lock = RedisRuby::Lock.new(redis, "resource", sleep: 0.01)
+lock = RR::Lock.new(redis, "resource", sleep: 0.01)
 
 # Check every 500ms (less responsive, less Redis load)
-lock = RedisRuby::Lock.new(redis, "resource", sleep: 0.5)
+lock = RR::Lock.new(redis, "resource", sleep: 0.5)
 ```
 
 ### Thread-Local Tokens
@@ -233,16 +233,16 @@ By default, locks use thread-local token storage for thread safety:
 
 ```ruby
 # Thread-local tokens (default, thread-safe)
-lock = RedisRuby::Lock.new(redis, "resource", thread_local: true)
+lock = RR::Lock.new(redis, "resource", thread_local: true)
 
 # Instance tokens (not thread-safe, but simpler)
-lock = RedisRuby::Lock.new(redis, "resource", thread_local: false)
+lock = RR::Lock.new(redis, "resource", thread_local: false)
 ```
 
 ### Complete Configuration Example
 
 ```ruby
-lock = RedisRuby::Lock.new(
+lock = RR::Lock.new(
   redis,
   "critical-resource",
   timeout: 30,           # Lock expires after 30 seconds
@@ -264,7 +264,7 @@ For long-running operations, you can periodically renew the lock to prevent expi
 ### Manual Renewal with reacquire
 
 ```ruby
-lock = RedisRuby::Lock.new(redis, "long-task", timeout: 10)
+lock = RR::Lock.new(redis, "long-task", timeout: 10)
 
 lock.synchronize do
   # Do some work (5 seconds)
@@ -304,7 +304,7 @@ def with_auto_renewal(lock, interval: 5)
 end
 
 # Usage
-lock = RedisRuby::Lock.new(redis, "long-task", timeout: 10)
+lock = RR::Lock.new(redis, "long-task", timeout: 10)
 lock.synchronize do
   with_auto_renewal(lock, interval: 5) do
     # Lock is automatically renewed every 5 seconds
@@ -318,7 +318,7 @@ end
 ```ruby
 class AutoRenewingLock
   def initialize(redis, name, timeout: 10, renewal_interval: nil)
-    @lock = RedisRuby::Lock.new(redis, name, timeout: timeout)
+    @lock = RR::Lock.new(redis, name, timeout: timeout)
     @renewal_interval = renewal_interval || (timeout * 0.5)
     @renewal_thread = nil
   end
@@ -368,7 +368,7 @@ Extend the lock's TTL without resetting it completely:
 ### Basic Extension
 
 ```ruby
-lock = RedisRuby::Lock.new(redis, "resource", timeout: 10)
+lock = RR::Lock.new(redis, "resource", timeout: 10)
 
 lock.synchronize do
   # Do some work
@@ -385,7 +385,7 @@ end
 ### Replace TTL
 
 ```ruby
-lock = RedisRuby::Lock.new(redis, "resource", timeout: 10)
+lock = RR::Lock.new(redis, "resource", timeout: 10)
 
 lock.synchronize do
   # Initial work
@@ -402,7 +402,7 @@ end
 ### Conditional Extension
 
 ```ruby
-lock = RedisRuby::Lock.new(redis, "resource", timeout: 10)
+lock = RR::Lock.new(redis, "resource", timeout: 10)
 
 lock.synchronize do
   items.each do |item|
@@ -419,7 +419,7 @@ end
 ### Checking Lock Status
 
 ```ruby
-lock = RedisRuby::Lock.new(redis, "resource")
+lock = RR::Lock.new(redis, "resource")
 
 lock.synchronize do
   # Check if we own the lock
@@ -438,14 +438,14 @@ end
 ### Handling Acquisition Failures
 
 ```ruby
-lock = RedisRuby::Lock.new(redis, "resource")
+lock = RR::Lock.new(redis, "resource")
 
 begin
   lock.synchronize(blocking: false) do
     # This raises if lock cannot be acquired
     perform_work
   end
-rescue RedisRuby::Lock::LockAcquireError => e
+rescue RR::Lock::LockAcquireError => e
   puts "Could not acquire lock: #{e.message}"
   # Handle gracefully - retry, skip, or queue for later
 end
@@ -454,7 +454,7 @@ end
 ### Handling Lock Not Owned Errors
 
 ```ruby
-lock = RedisRuby::Lock.new(redis, "resource")
+lock = RR::Lock.new(redis, "resource")
 
 lock.acquire
 
@@ -464,7 +464,7 @@ begin
 
   # This will raise LockNotOwnedError
   lock.extend(additional_time: 10)
-rescue RedisRuby::Lock::LockNotOwnedError => e
+rescue RR::Lock::LockNotOwnedError => e
   puts "Lost ownership of lock: #{e.message}"
   # Lock expired or was released by another process
 end
@@ -474,17 +474,17 @@ end
 
 ```ruby
 def safe_lock_operation(redis, resource_name)
-  lock = RedisRuby::Lock.new(redis, resource_name, timeout: 30)
+  lock = RR::Lock.new(redis, resource_name, timeout: 30)
 
   begin
     lock.synchronize(blocking: true, blocking_timeout: 5) do
       yield
     end
-  rescue RedisRuby::Lock::LockAcquireError => e
+  rescue RR::Lock::LockAcquireError => e
     # Could not acquire lock
     Rails.logger.warn("Failed to acquire lock for #{resource_name}: #{e.message}")
     false
-  rescue RedisRuby::Lock::LockNotOwnedError => e
+  rescue RR::Lock::LockNotOwnedError => e
     # Lost lock ownership during operation
     Rails.logger.error("Lost lock ownership for #{resource_name}: #{e.message}")
     false
@@ -505,7 +505,7 @@ end
 
 ```ruby
 def with_lock_retry(redis, resource_name, max_attempts: 3, retry_delay: 1)
-  lock = RedisRuby::Lock.new(redis, resource_name)
+  lock = RR::Lock.new(redis, resource_name)
   attempts = 0
 
   begin
@@ -513,7 +513,7 @@ def with_lock_retry(redis, resource_name, max_attempts: 3, retry_delay: 1)
     lock.synchronize(blocking: true, blocking_timeout: 5) do
       yield
     end
-  rescue RedisRuby::Lock::LockAcquireError => e
+  rescue RR::Lock::LockAcquireError => e
     if attempts < max_attempts
       sleep retry_delay * attempts  # Exponential backoff
       retry
@@ -537,7 +537,7 @@ The Redlock algorithm provides stronger guarantees by using multiple Redis insta
 
 ```ruby
 # Single Redis instance (simple but less reliable)
-lock = RedisRuby::Lock.new(redis, "resource")
+lock = RR::Lock.new(redis, "resource")
 
 # Redlock with multiple instances (more reliable)
 # Note: redis-ruby doesn't include Redlock by default
@@ -554,7 +554,7 @@ class Redlock
 
     # Try to acquire lock on all instances
     acquired = @instances.count do |redis|
-      lock = RedisRuby::Lock.new(redis, resource, timeout: ttl)
+      lock = RR::Lock.new(redis, resource, timeout: ttl)
       lock.acquire(blocking: false, token: token)
     end
 
@@ -567,7 +567,7 @@ class Redlock
     else
       # Failed to get quorum, release acquired locks
       @instances.each do |redis|
-        lock = RedisRuby::Lock.new(redis, resource)
+        lock = RR::Lock.new(redis, resource)
         lock.release rescue nil
       end
       nil
@@ -576,9 +576,9 @@ class Redlock
 end
 
 # Usage with multiple Redis instances
-redis1 = RedisRuby.new(host: "redis1.example.com")
-redis2 = RedisRuby.new(host: "redis2.example.com")
-redis3 = RedisRuby.new(host: "redis3.example.com")
+redis1 = RR.new(host: "redis1.example.com")
+redis2 = RR.new(host: "redis2.example.com")
+redis3 = RR.new(host: "redis3.example.com")
 
 redlock = Redlock.new([redis1, redis2, redis3])
 if lock_info = redlock.lock("critical-resource", ttl: 30)
@@ -611,13 +611,13 @@ end
 
 ```ruby
 # ❌ Bad: Timeout too short
-lock = RedisRuby::Lock.new(redis, "resource", timeout: 1)
+lock = RR::Lock.new(redis, "resource", timeout: 1)
 lock.synchronize do
   sleep 5  # Lock expires before work completes!
 end
 
 # ✅ Good: Timeout covers expected duration + buffer
-lock = RedisRuby::Lock.new(redis, "resource", timeout: 10)
+lock = RR::Lock.new(redis, "resource", timeout: 10)
 lock.synchronize do
   process_data  # Expected to take 3-5 seconds
 end
@@ -627,13 +627,13 @@ end
 
 ```ruby
 # ❌ Bad: Manual acquire/release (error-prone)
-lock = RedisRuby::Lock.new(redis, "resource")
+lock = RR::Lock.new(redis, "resource")
 lock.acquire
 process_data
 lock.release  # Might not execute if error occurs!
 
 # ✅ Good: Block syntax ensures release
-lock = RedisRuby::Lock.new(redis, "resource")
+lock = RR::Lock.new(redis, "resource")
 lock.synchronize do
   process_data
 end  # Always releases, even on error
@@ -643,19 +643,19 @@ end  # Always releases, even on error
 
 ```ruby
 # ❌ Bad: Generic names
-lock = RedisRuby::Lock.new(redis, "lock1")
+lock = RR::Lock.new(redis, "lock1")
 
 # ✅ Good: Descriptive, namespaced names
-lock = RedisRuby::Lock.new(redis, "order:#{order_id}:payment")
-lock = RedisRuby::Lock.new(redis, "inventory:product:#{product_id}")
-lock = RedisRuby::Lock.new(redis, "user:#{user_id}:profile:update")
+lock = RR::Lock.new(redis, "order:#{order_id}:payment")
+lock = RR::Lock.new(redis, "inventory:product:#{product_id}")
+lock = RR::Lock.new(redis, "user:#{user_id}:profile:update")
 ```
 
 ### 4. Keep Critical Sections Small
 
 ```ruby
 # ❌ Bad: Large critical section
-lock = RedisRuby::Lock.new(redis, "resource")
+lock = RR::Lock.new(redis, "resource")
 lock.synchronize do
   data = fetch_from_database  # Slow
   processed = process_data(data)  # Slow
@@ -667,7 +667,7 @@ end
 data = fetch_from_database
 processed = process_data(data)
 
-lock = RedisRuby::Lock.new(redis, "resource")
+lock = RR::Lock.new(redis, "resource")
 lock.synchronize do
   # Only lock for the critical update
   save_to_database(processed)
@@ -680,18 +680,18 @@ send_notifications(processed)
 
 ```ruby
 # ❌ Bad: Assume lock is always acquired
-lock = RedisRuby::Lock.new(redis, "resource")
+lock = RR::Lock.new(redis, "resource")
 lock.synchronize do
   process_data
 end
 
 # ✅ Good: Handle acquisition failure
-lock = RedisRuby::Lock.new(redis, "resource")
+lock = RR::Lock.new(redis, "resource")
 begin
   lock.synchronize(blocking: true, blocking_timeout: 5) do
     process_data
   end
-rescue RedisRuby::Lock::LockAcquireError
+rescue RR::Lock::LockAcquireError
   # Queue for retry or handle gracefully
   enqueue_for_later_processing
 end
@@ -702,7 +702,7 @@ end
 ```ruby
 class MonitoredLock
   def initialize(redis, name, **options)
-    @lock = RedisRuby::Lock.new(redis, name, **options)
+    @lock = RR::Lock.new(redis, name, **options)
     @redis = redis
     @name = name
   end
@@ -717,7 +717,7 @@ class MonitoredLock
         @redis.hincrby("lock:stats:#{@name}", "acquired", 1)
         yield
       end
-    rescue RedisRuby::Lock::LockAcquireError
+    rescue RR::Lock::LockAcquireError
       @redis.hincrby("lock:stats:#{@name}", "failed", 1)
       raise
     ensure
@@ -746,7 +746,7 @@ stats = redis.hgetall("lock:stats:critical-resource")
 
 ```ruby
 # ✅ Good: Skip if lock unavailable
-lock = RedisRuby::Lock.new(redis, "cache:refresh")
+lock = RR::Lock.new(redis, "cache:refresh")
 
 if lock.acquire(blocking: false)
   begin
@@ -774,7 +774,7 @@ class JobProcessor
   end
 
   def process(job_id)
-    lock = RedisRuby::Lock.new(@redis, "job:#{job_id}", timeout: 300)
+    lock = RR::Lock.new(@redis, "job:#{job_id}", timeout: 300)
 
     begin
       lock.synchronize(blocking: false) do
@@ -787,7 +787,7 @@ class JobProcessor
         # Mark as complete
         mark_complete(job_id, result)
       end
-    rescue RedisRuby::Lock::LockAcquireError
+    rescue RR::Lock::LockAcquireError
       # Another worker is processing this job
       Rails.logger.info("Job #{job_id} already being processed")
     end
@@ -824,7 +824,7 @@ class ResourceAllocator
   end
 
   def allocate(resource_type, user_id)
-    lock = RedisRuby::Lock.new(@redis, "allocate:#{resource_type}", timeout: 10)
+    lock = RR::Lock.new(@redis, "allocate:#{resource_type}", timeout: 10)
 
     lock.synchronize do
       # Check available resources
@@ -843,7 +843,7 @@ class ResourceAllocator
   end
 
   def release(resource_type, user_id)
-    lock = RedisRuby::Lock.new(@redis, "allocate:#{resource_type}", timeout: 10)
+    lock = RR::Lock.new(@redis, "allocate:#{resource_type}", timeout: 10)
 
     lock.synchronize do
       if @redis.sismember("resources:#{resource_type}:allocated", user_id)
@@ -884,7 +884,7 @@ class ScheduledTask
   end
 
   def run_if_due
-    lock = RedisRuby::Lock.new(@redis, "scheduled:#{@task_name}", timeout: 3600)
+    lock = RR::Lock.new(@redis, "scheduled:#{@task_name}", timeout: 3600)
 
     # Try to acquire lock (non-blocking)
     if lock.acquire(blocking: false)
@@ -936,7 +936,7 @@ class InventoryManager
   end
 
   def reserve(product_id, quantity)
-    lock = RedisRuby::Lock.new(@redis, "inventory:#{product_id}", timeout: 30)
+    lock = RR::Lock.new(@redis, "inventory:#{product_id}", timeout: 30)
 
     lock.synchronize do
       # Get current stock
@@ -972,7 +972,7 @@ class InventoryManager
     product_id = reservation["product_id"]
     quantity = reservation["quantity"].to_i
 
-    lock = RedisRuby::Lock.new(@redis, "inventory:#{product_id}", timeout: 30)
+    lock = RR::Lock.new(@redis, "inventory:#{product_id}", timeout: 30)
 
     lock.synchronize do
       @redis.decrby("product:#{product_id}:reserved", quantity)
@@ -988,7 +988,7 @@ class InventoryManager
     product_id = reservation["product_id"]
     quantity = reservation["quantity"].to_i
 
-    lock = RedisRuby::Lock.new(@redis, "inventory:#{product_id}", timeout: 30)
+    lock = RR::Lock.new(@redis, "inventory:#{product_id}", timeout: 30)
 
     lock.synchronize do
       # Return stock
@@ -1026,7 +1026,7 @@ class DistributedRateLimiter
   end
 
   def allow?(key, limit:, window:)
-    lock = RedisRuby::Lock.new(@redis, "ratelimit:lock:#{key}", timeout: 1)
+    lock = RR::Lock.new(@redis, "ratelimit:lock:#{key}", timeout: 1)
 
     lock.synchronize(blocking: true, blocking_timeout: 0.5) do
       current_window = Time.now.to_i / window
@@ -1045,7 +1045,7 @@ class DistributedRateLimiter
         { allowed: false, remaining: 0, retry_after: window }
       end
     end
-  rescue RedisRuby::Lock::LockAcquireError
+  rescue RR::Lock::LockAcquireError
     # Couldn't acquire lock quickly, deny request
     { allowed: false, remaining: 0, error: "Rate limiter busy" }
   end
@@ -1079,7 +1079,7 @@ class CacheManager
     return cached if cached
 
     # Cache miss - use lock to prevent stampede
-    lock = RedisRuby::Lock.new(@redis, "cache:generate:#{key}", timeout: lock_timeout)
+    lock = RR::Lock.new(@redis, "cache:generate:#{key}", timeout: lock_timeout)
 
     begin
       lock.synchronize(blocking: true, blocking_timeout: 5) do
@@ -1095,7 +1095,7 @@ class CacheManager
 
         value
       end
-    rescue RedisRuby::Lock::LockAcquireError
+    rescue RR::Lock::LockAcquireError
       # Another process is generating, wait and retry
       sleep 0.1
       @redis.get("cache:#{key}") || yield
@@ -1137,7 +1137,7 @@ end
 # ✅ Automatic expiration
 # ❌ Additional complexity
 
-lock = RedisRuby::Lock.new(redis, "counter")
+lock = RR::Lock.new(redis, "counter")
 lock.synchronize do
   current = redis.get("counter").to_i
   redis.set("counter", current + 1)
@@ -1171,7 +1171,7 @@ redis.eval(script, keys: ["counter"], argv: [100])
 # ❌ Multiple round-trips
 # ❌ Not atomic without transactions
 
-lock = RedisRuby::Lock.new(redis, "counter")
+lock = RR::Lock.new(redis, "counter")
 lock.synchronize do
   current = redis.get("counter").to_i
   redis.set("counter", 100) if current < 100
@@ -1200,7 +1200,7 @@ end
 # ❌ No ACID guarantees
 # ❌ Requires separate infrastructure
 
-lock = RedisRuby::Lock.new(redis, "record:#{id}")
+lock = RR::Lock.new(redis, "record:#{id}")
 lock.synchronize do
   record = Record.find(id)
   record.update(status: "processing")
@@ -1233,7 +1233,7 @@ end
 # ❌ Manual retry logic
 # ❌ No persistence
 
-lock = RedisRuby::Lock.new(redis, "resource:#{resource_id}")
+lock = RR::Lock.new(redis, "resource:#{resource_id}")
 lock.synchronize do
   process_resource(resource_id)
 end
@@ -1262,7 +1262,7 @@ class LockWithFallback
   end
 
   def execute(fallback_value: nil)
-    lock = RedisRuby::Lock.new(@redis, @name, timeout: @timeout)
+    lock = RR::Lock.new(@redis, @name, timeout: @timeout)
 
     if lock.acquire(blocking: false)
       begin
@@ -1311,12 +1311,12 @@ class HierarchicalLock
 
   def acquire_all
     @resources.each do |resource|
-      lock = RedisRuby::Lock.new(@redis, resource, timeout: @timeout)
+      lock = RR::Lock.new(@redis, resource, timeout: @timeout)
 
       unless lock.acquire(blocking: true, blocking_timeout: 5)
         # Failed to acquire, release all and raise
         release_all
-        raise RedisRuby::Lock::LockAcquireError, "Failed to acquire lock: #{resource}"
+        raise RR::Lock::LockAcquireError, "Failed to acquire lock: #{resource}"
       end
 
       @locks << lock
@@ -1349,7 +1349,7 @@ class MonitoredLock
   end
 
   def synchronize
-    lock = RedisRuby::Lock.new(@redis, @name, timeout: @timeout)
+    lock = RR::Lock.new(@redis, @name, timeout: @timeout)
     start_time = Time.now
 
     begin
@@ -1362,7 +1362,7 @@ class MonitoredLock
           alert_slow_lock(elapsed)
         end
       end
-    rescue RedisRuby::Lock::LockAcquireError => e
+    rescue RR::Lock::LockAcquireError => e
       record_failure
       raise
     end
@@ -1403,7 +1403,7 @@ class ReentrantLock
     @redis = redis
     @name = name
     @timeout = timeout
-    @lock = RedisRuby::Lock.new(redis, name, timeout: timeout)
+    @lock = RR::Lock.new(redis, name, timeout: timeout)
     @depth = 0
   end
 
@@ -1451,12 +1451,12 @@ end
 
 ```ruby
 # Problem: Process crashes before releasing lock
-lock = RedisRuby::Lock.new(redis, "resource", timeout: 10)
+lock = RR::Lock.new(redis, "resource", timeout: 10)
 lock.acquire
 # Process crashes here - lock never released!
 
 # Solution: Always use block syntax or ensure release
-lock = RedisRuby::Lock.new(redis, "resource", timeout: 10)
+lock = RR::Lock.new(redis, "resource", timeout: 10)
 lock.synchronize do
   # Lock automatically released even if exception occurs
   perform_work
@@ -1467,17 +1467,17 @@ end
 
 ```ruby
 # Problem: Operation takes longer than timeout
-lock = RedisRuby::Lock.new(redis, "resource", timeout: 5)
+lock = RR::Lock.new(redis, "resource", timeout: 5)
 lock.synchronize do
   sleep 10  # Lock expires after 5 seconds!
   # Lost ownership, another process can acquire
 end
 
 # Solution 1: Increase timeout
-lock = RedisRuby::Lock.new(redis, "resource", timeout: 15)
+lock = RR::Lock.new(redis, "resource", timeout: 15)
 
 # Solution 2: Use lock extension
-lock = RedisRuby::Lock.new(redis, "resource", timeout: 10)
+lock = RR::Lock.new(redis, "resource", timeout: 10)
 lock.synchronize do
   process_batch_1
   lock.extend(additional_time: 10)  # Add more time
@@ -1498,7 +1498,7 @@ end
 # Problem: Many processes competing for same lock
 100.times do
   Thread.new do
-    lock = RedisRuby::Lock.new(redis, "resource")
+    lock = RR::Lock.new(redis, "resource")
     lock.synchronize do
       process_data
     end
@@ -1506,7 +1506,7 @@ end
 end
 
 # Solution 1: Reduce critical section size
-lock = RedisRuby::Lock.new(redis, "resource")
+lock = RR::Lock.new(redis, "resource")
 data = prepare_data  # Outside lock
 
 lock.synchronize do
@@ -1516,7 +1516,7 @@ end
 
 # Solution 2: Use sharding
 shard = id % 10
-lock = RedisRuby::Lock.new(redis, "resource:shard:#{shard}")
+lock = RR::Lock.new(redis, "resource:shard:#{shard}")
 
 # Solution 3: Use queue instead of lock
 # Push to queue, single worker processes
@@ -1527,7 +1527,7 @@ redis.lpush("work_queue", work_item)
 
 ```ruby
 # Check if lock exists
-lock = RedisRuby::Lock.new(redis, "resource")
+lock = RR::Lock.new(redis, "resource")
 puts "Locked: #{lock.locked?}"
 
 # Check remaining TTL
@@ -1556,7 +1556,7 @@ redis.del("lock:resource")
 ```ruby
 require "benchmark"
 
-redis = RedisRuby.new(host: "localhost")
+redis = RR.new(host: "localhost")
 
 # Measure lock overhead
 time_without_lock = Benchmark.realtime do
@@ -1565,7 +1565,7 @@ end
 
 time_with_lock = Benchmark.realtime do
   1000.times do
-    lock = RedisRuby::Lock.new(redis, "counter")
+    lock = RR::Lock.new(redis, "counter")
     lock.synchronize { redis.incr("counter") }
   end
 end
@@ -1585,14 +1585,14 @@ puts "Overhead: #{((time_with_lock / time_without_lock - 1) * 100).round(1)}%"
 ```ruby
 # ❌ Bad: Lock per operation
 1000.times do |i|
-  lock = RedisRuby::Lock.new(redis, "batch")
+  lock = RR::Lock.new(redis, "batch")
   lock.synchronize do
     redis.lpush("queue", "item:#{i}")
   end
 end
 
 # ✅ Good: Single lock for batch
-lock = RedisRuby::Lock.new(redis, "batch")
+lock = RR::Lock.new(redis, "batch")
 lock.synchronize do
   1000.times do |i|
     redis.lpush("queue", "item:#{i}")
@@ -1600,7 +1600,7 @@ lock.synchronize do
 end
 
 # ✅ Better: Use pipeline inside lock
-lock = RedisRuby::Lock.new(redis, "batch")
+lock = RR::Lock.new(redis, "batch")
 lock.synchronize do
   redis.pipelined do |pipe|
     1000.times do |i|

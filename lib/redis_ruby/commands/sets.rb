@@ -2,7 +2,7 @@
 
 require_relative "../dsl/set_proxy"
 
-module RedisRuby
+module RR
   module Commands
     # Set commands
     #
@@ -20,7 +20,7 @@ module RedisRuby
       # Note: Named `redis_set` to avoid conflict with the Redis SET command for strings.
       #
       # @param key_parts [Array<String, Symbol, Integer>] Key components
-      # @return [RedisRuby::DSL::SetProxy] Set proxy instance
+      # @return [RR::DSL::SetProxy] Set proxy instance
       #
       # @example Basic usage
       #   tags = redis.redis_set(:tags)

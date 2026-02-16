@@ -603,7 +603,7 @@ class KeysCommandsTest < RedisRubyTestCase
   end
 
   def test_rename_missing_key_raises
-    assert_raises(RedisRuby::CommandError) do
+    assert_raises(RR::CommandError) do
       redis.rename("test:nonexistent", "test:new")
     end
   end
@@ -669,7 +669,7 @@ class KeysCommandsTest < RedisRubyTestCase
     redis.set("test:source", "modified")
 
     # Without REPLACE, should fail
-    assert_raises(RedisRuby::CommandError) do
+    assert_raises(RR::CommandError) do
       redis.restore("test:source", 0, serialized)
     end
 

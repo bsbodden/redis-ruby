@@ -22,10 +22,10 @@ This example demonstrates the fundamentals of using redis-ruby, including connec
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-require "redis_ruby"
+require "redis_ruby"  # Native RR API
 
 # Connect to Redis
-redis = RedisRuby.new(url: "redis://localhost:6379")
+redis = RR.new(url: "redis://localhost:6379")
 
 puts "Connected to Redis!"
 puts "Redis version: #{redis.info["redis_version"]}"
@@ -229,15 +229,15 @@ begin
   # Try to increment a non-numeric value
   redis.set("text", "hello")
   redis.incr("text")
-rescue RedisRuby::CommandError => e
+rescue RR::CommandError => e
   puts "Caught error: #{e.message}"
 end
 
 begin
   # Try to connect to invalid host
-  bad_redis = RedisRuby.new(host: "invalid-host", timeout: 1)
+  bad_redis = RR.new(host: "invalid-host", timeout: 1)
   bad_redis.ping
-rescue RedisRuby::ConnectionError => e
+rescue RR::ConnectionError => e
   puts "Connection error: #{e.message}"
 end
 
@@ -326,14 +326,14 @@ Connection closed
 
 ## Key Takeaways
 
-1. **Connection** - Use `RedisRuby.new` to connect to Redis
+1. **Connection** - Use `RR.new` to connect to Redis
 2. **String Operations** - GET, SET, INCR, MGET, MSET for simple key-value storage
 3. **Hashes** - Store structured data with HSET, HGET, HGETALL
 4. **Lists** - Ordered collections with LPUSH, RPUSH, LRANGE, LPOP
 5. **Sets** - Unique collections with SADD, SMEMBERS, set operations
 6. **Sorted Sets** - Scored collections with ZADD, ZRANGE, ZSCORE
 7. **Key Management** - EXISTS, DEL, EXPIRE, TTL for key lifecycle
-8. **Error Handling** - Catch `RedisRuby::CommandError` and `RedisRuby::ConnectionError`
+8. **Error Handling** - Catch `RR::CommandError` and `RR::ConnectionError`
 
 ## Next Steps
 

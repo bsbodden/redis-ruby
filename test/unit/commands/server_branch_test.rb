@@ -4,7 +4,7 @@ require_relative "../unit_test_helper"
 
 class ServerBranchTest < Minitest::Test
   class MockClient
-    include RedisRuby::Commands::Server
+    include RR::Commands::Server
 
     attr_reader :last_command
 

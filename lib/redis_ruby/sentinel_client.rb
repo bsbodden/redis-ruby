@@ -3,7 +3,7 @@
 require "uri"
 require_relative "concerns/single_connection_operations"
 
-module RedisRuby
+module RR
   # Sentinel-backed Redis client
   #
   # Automatically discovers and connects to the Redis master or replica
@@ -12,7 +12,7 @@ module RedisRuby
   # Based on patterns from redis-py, redis-client (Ruby), and async-redis.
   #
   # @example Connect to master
-  #   client = RedisRuby::SentinelClient.new(
+  #   client = RR::SentinelClient.new(
   #     sentinels: [{ host: "sentinel1", port: 26379 }],
   #     service_name: "mymaster",
   #     role: :master
@@ -20,7 +20,7 @@ module RedisRuby
   #   client.set("key", "value")
   #
   # @example Connect to replica (read-only)
-  #   client = RedisRuby::SentinelClient.new(
+  #   client = RR::SentinelClient.new(
   #     sentinels: [{ host: "sentinel1", port: 26379 }],
   #     service_name: "mymaster",
   #     role: :replica

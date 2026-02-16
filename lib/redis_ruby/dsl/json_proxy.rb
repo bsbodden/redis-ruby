@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module RedisRuby
+module RR
   module DSL
     # Chainable proxy for JSON operations
     #
@@ -18,7 +18,7 @@ module RedisRuby
     #     .append(:tags, "ruby", "redis")
     #
     class JSONProxy
-      # @param client [RedisRuby::Client] Redis client
+      # @param [RR::Client] Redis client
       # @param key_parts [Array] Key components (will be joined with ":")
       def initialize(client, *key_parts)
         @client = client

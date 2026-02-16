@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module RedisRuby
+module RR
   # Response callbacks for custom response parsing
   #
   # Allows registering custom transformations for command responses.

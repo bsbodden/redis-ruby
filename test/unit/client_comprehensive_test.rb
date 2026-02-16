@@ -8,7 +8,7 @@ class ClientComprehensiveTest < Minitest::Test
   # ============================================================
 
   def test_parse_redis_url
-    client = RedisRuby::Client.new(url: "redis://localhost:6379")
+    client = RR::Client.new(url: "redis://localhost:6379")
 
     assert_equal "localhost", client.host
     assert_equal 6379, client.port
@@ -16,7 +16,7 @@ class ClientComprehensiveTest < Minitest::Test
   end
 
   def test_parse_redis_url_with_db
-    client = RedisRuby::Client.new(url: "redis://localhost:6379/5")
+    client = RR::Client.new(url: "redis://localhost:6379/5")
 
     assert_equal "localhost", client.host
     assert_equal 6379, client.port
@@ -24,7 +24,7 @@ class ClientComprehensiveTest < Minitest::Test
   end
 
   def test_parse_rediss_url
-    client = RedisRuby::Client.new(url: "rediss://localhost:6380")
+    client = RR::Client.new(url: "rediss://localhost:6380")
 
     assert_equal "localhost", client.host
     assert_equal 6380, client.port
@@ -32,7 +32,7 @@ class ClientComprehensiveTest < Minitest::Test
   end
 
   def test_parse_unix_url
-    client = RedisRuby::Client.new(url: "unix:///var/run/redis/redis.sock")
+    client = RR::Client.new(url: "unix:///var/run/redis/redis.sock")
 
     assert_equal "/var/run/redis/redis.sock", client.path
     assert_nil client.host
@@ -41,21 +41,21 @@ class ClientComprehensiveTest < Minitest::Test
   end
 
   def test_parse_unix_url_with_db
-    client = RedisRuby::Client.new(url: "unix:///var/run/redis/redis.sock?db=3")
+    client = RR::Client.new(url: "unix:///var/run/redis/redis.sock?db=3")
 
     assert_equal "/var/run/redis/redis.sock", client.path
     assert_equal 3, client.db
   end
 
   def test_parse_url_with_password
-    client = RedisRuby::Client.new(url: "redis://:secret@localhost:6379")
+    client = RR::Client.new(url: "redis://:secret@localhost:6379")
 
     assert_equal "localhost", client.host
     # Password is private, just verify parsing didn't fail
   end
 
   def test_parse_url_with_username_and_password
-    client = RedisRuby::Client.new(url: "redis://user:pass@localhost:6379")
+    client = RR::Client.new(url: "redis://user:pass@localhost:6379")
 
     assert_equal "localhost", client.host
     # Username and password are private, just verify parsing didn't fail
@@ -63,12 +63,12 @@ class ClientComprehensiveTest < Minitest::Test
 
   def test_parse_url_invalid_scheme
     assert_raises(ArgumentError) do
-      RedisRuby::Client.new(url: "http://localhost:6379")
+      RR::Client.new(url: "http://localhost:6379")
     end
   end
 
   def test_parse_url_overrides_options
-    client = RedisRuby::Client.new(
+    client = RR::Client.new(
       url: "redis://remote:7000/2",
       host: "localhost",
       port: 6379,
@@ -85,37 +85,37 @@ class ClientComprehensiveTest < Minitest::Test
   # ============================================================
 
   def test_default_host
-    client = RedisRuby::Client.new
+    client = RR::Client.new
 
     assert_equal "localhost", client.host
   end
 
   def test_default_port
-    client = RedisRuby::Client.new
+    client = RR::Client.new
 
     assert_equal 6379, client.port
   end
 
   def test_default_db
-    client = RedisRuby::Client.new
+    client = RR::Client.new
 
     assert_equal 0, client.db
   end
 
   def test_default_timeout
-    client = RedisRuby::Client.new
+    client = RR::Client.new
 
     assert_in_delta(5.0, client.timeout)
   end
 
   def test_default_ssl
-    client = RedisRuby::Client.new
+    client = RR::Client.new
 
     refute_predicate client, :ssl?
   end
 
   def test_default_unix
-    client = RedisRuby::Client.new
+    client = RR::Client.new
 
     refute_predicate client, :unix?
   end
@@ -125,37 +125,37 @@ class ClientComprehensiveTest < Minitest::Test
   # ============================================================
 
   def test_custom_host
-    client = RedisRuby::Client.new(host: "192.168.1.1")
+    client = RR::Client.new(host: "192.168.1.1")
 
     assert_equal "192.168.1.1", client.host
   end
 
   def test_custom_port
-    client = RedisRuby::Client.new(port: 7000)
+    client = RR::Client.new(port: 7000)
 
     assert_equal 7000, client.port
   end
 
   def test_custom_db
-    client = RedisRuby::Client.new(db: 5)
+    client = RR::Client.new(db: 5)
 
     assert_equal 5, client.db
   end
 
   def test_custom_timeout
-    client = RedisRuby::Client.new(timeout: 10.0)
+    client = RR::Client.new(timeout: 10.0)
 
     assert_in_delta(10.0, client.timeout)
   end
 
   def test_custom_ssl
-    client = RedisRuby::Client.new(ssl: true)
+    client = RR::Client.new(ssl: true)
 
     assert_predicate client, :ssl?
   end
 
   def test_custom_path
-    client = RedisRuby::Client.new(path: "/tmp/redis.sock")
+    client = RR::Client.new(path: "/tmp/redis.sock")
 
     assert_equal "/tmp/redis.sock", client.path
     assert_predicate client, :unix?
@@ -166,13 +166,13 @@ class ClientComprehensiveTest < Minitest::Test
   # ============================================================
 
   def test_connected_returns_false_when_not_connected
-    client = RedisRuby::Client.new
+    client = RR::Client.new
 
     refute_predicate client, :connected?
   end
 
   def test_close_when_not_connected
-    client = RedisRuby::Client.new
+    client = RR::Client.new
     # Should not raise
     client.close
 
@@ -180,13 +180,13 @@ class ClientComprehensiveTest < Minitest::Test
   end
 
   def test_disconnect_alias
-    client = RedisRuby::Client.new
+    client = RR::Client.new
     # disconnect should be an alias for close
     assert_respond_to client, :disconnect
   end
 
   def test_quit_alias
-    client = RedisRuby::Client.new
+    client = RR::Client.new
     # quit should be an alias for close
     assert_respond_to client, :quit
   end
@@ -196,22 +196,22 @@ class ClientComprehensiveTest < Minitest::Test
   # ============================================================
 
   def test_default_retry_policy_with_zero_attempts
-    client = RedisRuby::Client.new(reconnect_attempts: 0)
+    client = RR::Client.new(reconnect_attempts: 0)
     # Just verify it's created without errors
-    assert_instance_of RedisRuby::Client, client
+    assert_instance_of RR::Client, client
   end
 
   def test_custom_retry_attempts
-    client = RedisRuby::Client.new(reconnect_attempts: 3)
+    client = RR::Client.new(reconnect_attempts: 3)
     # Just verify it's created without errors
-    assert_instance_of RedisRuby::Client, client
+    assert_instance_of RR::Client, client
   end
 
   def test_custom_retry_policy
-    policy = RedisRuby::Retry.new(retries: 5, backoff: RedisRuby::ConstantBackoff.new(0.1))
-    client = RedisRuby::Client.new(retry_policy: policy)
+    policy = RR::Retry.new(retries: 5, backoff: RR::ConstantBackoff.new(0.1))
+    client = RR::Client.new(retry_policy: policy)
 
-    assert_instance_of RedisRuby::Client, client
+    assert_instance_of RR::Client, client
   end
 
   # ============================================================
@@ -219,21 +219,21 @@ class ClientComprehensiveTest < Minitest::Test
   # ============================================================
 
   def test_decode_responses_disabled_by_default
-    client = RedisRuby::Client.new
+    client = RR::Client.new
     # decode_responses is a private option but we can test the client is created
-    assert_instance_of RedisRuby::Client, client
+    assert_instance_of RR::Client, client
   end
 
   def test_decode_responses_enabled
-    client = RedisRuby::Client.new(decode_responses: true)
+    client = RR::Client.new(decode_responses: true)
 
-    assert_instance_of RedisRuby::Client, client
+    assert_instance_of RR::Client, client
   end
 
   def test_decode_responses_with_custom_encoding
-    client = RedisRuby::Client.new(decode_responses: true, encoding: "ISO-8859-1")
+    client = RR::Client.new(decode_responses: true, encoding: "ISO-8859-1")
 
-    assert_instance_of RedisRuby::Client, client
+    assert_instance_of RR::Client, client
   end
 
   # ============================================================
@@ -241,7 +241,7 @@ class ClientComprehensiveTest < Minitest::Test
   # ============================================================
 
   def test_ssl_with_params
-    client = RedisRuby::Client.new(
+    client = RR::Client.new(
       ssl: true,
       ssl_params: { verify_mode: 0 } # VERIFY_NONE
     )
@@ -254,7 +254,7 @@ class ClientComprehensiveTest < Minitest::Test
   # ============================================================
 
   def test_includes_strings_commands
-    client = RedisRuby::Client.new
+    client = RR::Client.new
 
     assert_respond_to client, :get
     assert_respond_to client, :set
@@ -263,7 +263,7 @@ class ClientComprehensiveTest < Minitest::Test
   end
 
   def test_includes_keys_commands
-    client = RedisRuby::Client.new
+    client = RR::Client.new
 
     assert_respond_to client, :del
     assert_respond_to client, :exists
@@ -272,7 +272,7 @@ class ClientComprehensiveTest < Minitest::Test
   end
 
   def test_includes_hashes_commands
-    client = RedisRuby::Client.new
+    client = RR::Client.new
 
     assert_respond_to client, :hget
     assert_respond_to client, :hset
@@ -281,7 +281,7 @@ class ClientComprehensiveTest < Minitest::Test
   end
 
   def test_includes_lists_commands
-    client = RedisRuby::Client.new
+    client = RR::Client.new
 
     assert_respond_to client, :lpush
     assert_respond_to client, :rpush
@@ -291,7 +291,7 @@ class ClientComprehensiveTest < Minitest::Test
   end
 
   def test_includes_sets_commands
-    client = RedisRuby::Client.new
+    client = RR::Client.new
 
     assert_respond_to client, :sadd
     assert_respond_to client, :srem
@@ -300,7 +300,7 @@ class ClientComprehensiveTest < Minitest::Test
   end
 
   def test_includes_sorted_sets_commands
-    client = RedisRuby::Client.new
+    client = RR::Client.new
 
     assert_respond_to client, :zadd
     assert_respond_to client, :zrem
@@ -309,7 +309,7 @@ class ClientComprehensiveTest < Minitest::Test
   end
 
   def test_includes_geo_commands
-    client = RedisRuby::Client.new
+    client = RR::Client.new
 
     assert_respond_to client, :geoadd
     assert_respond_to client, :geopos
@@ -317,7 +317,7 @@ class ClientComprehensiveTest < Minitest::Test
   end
 
   def test_includes_hyperloglog_commands
-    client = RedisRuby::Client.new
+    client = RR::Client.new
 
     assert_respond_to client, :pfadd
     assert_respond_to client, :pfcount
@@ -325,7 +325,7 @@ class ClientComprehensiveTest < Minitest::Test
   end
 
   def test_includes_bitmap_commands
-    client = RedisRuby::Client.new
+    client = RR::Client.new
 
     assert_respond_to client, :setbit
     assert_respond_to client, :getbit
@@ -333,7 +333,7 @@ class ClientComprehensiveTest < Minitest::Test
   end
 
   def test_includes_scripting_commands
-    client = RedisRuby::Client.new
+    client = RR::Client.new
 
     assert_respond_to client, :eval
     assert_respond_to client, :evalsha
@@ -342,7 +342,7 @@ class ClientComprehensiveTest < Minitest::Test
   end
 
   def test_includes_streams_commands
-    client = RedisRuby::Client.new
+    client = RR::Client.new
 
     assert_respond_to client, :xadd
     assert_respond_to client, :xread
@@ -350,7 +350,7 @@ class ClientComprehensiveTest < Minitest::Test
   end
 
   def test_includes_pubsub_commands
-    client = RedisRuby::Client.new
+    client = RR::Client.new
 
     assert_respond_to client, :publish
     assert_respond_to client, :pubsub_channels
@@ -358,7 +358,7 @@ class ClientComprehensiveTest < Minitest::Test
   end
 
   def test_includes_server_commands
-    client = RedisRuby::Client.new
+    client = RR::Client.new
 
     assert_respond_to client, :info
     assert_respond_to client, :dbsize
@@ -370,37 +370,37 @@ class ClientComprehensiveTest < Minitest::Test
   # ============================================================
 
   def test_responds_to_pipelined
-    client = RedisRuby::Client.new
+    client = RR::Client.new
 
     assert_respond_to client, :pipelined
   end
 
   def test_responds_to_multi
-    client = RedisRuby::Client.new
+    client = RR::Client.new
 
     assert_respond_to client, :multi
   end
 
   def test_responds_to_watch
-    client = RedisRuby::Client.new
+    client = RR::Client.new
 
     assert_respond_to client, :watch
   end
 
   def test_responds_to_unwatch
-    client = RedisRuby::Client.new
+    client = RR::Client.new
 
     assert_respond_to client, :unwatch
   end
 
   def test_responds_to_discard
-    client = RedisRuby::Client.new
+    client = RR::Client.new
 
     assert_respond_to client, :discard
   end
 
   def test_responds_to_ping
-    client = RedisRuby::Client.new
+    client = RR::Client.new
 
     assert_respond_to client, :ping
   end

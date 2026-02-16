@@ -900,7 +900,7 @@ The `broadcaster` provides a Wisper-style API for event broadcasting:
 
 ```ruby
 class UserService
-  include RedisRuby::DSL::Broadcaster
+  include RR::DSL::Broadcaster
 
   def create_user(name)
     user = User.create(name: name)
@@ -1083,7 +1083,7 @@ All data structures follow the same patterns:
 - ✅ **Time Series** - `redis.time_series(key)`, `redis.ts(key)`, `redis.ts_query`
 - ✅ **Vector Sets** - `redis.vectors(key)`
 - ✅ **Streams** - `redis.stream(key)`, `redis.consumer_group`, `redis.streams`
-- ✅ **Pub/Sub** - `redis.subscribe`, `redis.publisher`, `RedisRuby::DSL::Broadcaster`
+- ✅ **Pub/Sub** - `redis.subscribe`, `redis.publisher`, `RR::DSL::Broadcaster`
 
 ---
 

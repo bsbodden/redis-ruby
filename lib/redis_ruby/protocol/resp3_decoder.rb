@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module RedisRuby
+module RR
   module Protocol
     # Represents a RESP3 push message (pub/sub, invalidation, etc.)
     class PushMessage
@@ -285,6 +285,6 @@ module RedisRuby
     end
 
     # Protocol error for malformed RESP3 data
-    class ProtocolError < RedisRuby::Error; end
+    class ProtocolError < RR::Error; end
   end
 end

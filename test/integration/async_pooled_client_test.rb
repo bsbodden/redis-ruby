@@ -8,7 +8,7 @@ class AsyncPooledClientIntegrationTest < RedisRubyTestCase
 
   def setup
     super
-    @async_pooled_client = RedisRuby::AsyncPooledClient.new(
+    @async_pooled_client = RR::AsyncPooledClient.new(
       url: @redis_url,
       pool: { limit: 5 }
     )
@@ -119,7 +119,7 @@ class AsyncPooledClientIntegrationTest < RedisRubyTestCase
   end
 
   def test_async_pooled_helper_method
-    client = RedisRuby.async_pooled(url: @redis_url, pool: { limit: 3 })
+    client = RR.async_pooled(url: @redis_url, pool: { limit: 3 })
 
     Async do
       client.set("async_pooled:helper", "works")

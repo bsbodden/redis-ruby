@@ -4,7 +4,7 @@ require_relative "../unit_test_helper"
 
 class RESP3EncoderBranchTest < Minitest::Test
   def setup
-    @encoder = RedisRuby::Protocol::RESP3Encoder.new
+    @encoder = RR::Protocol::RESP3Encoder.new
   end
 
   # ============================================================

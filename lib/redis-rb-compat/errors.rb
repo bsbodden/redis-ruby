@@ -78,7 +78,7 @@ class Redis
     # @return [Exception] translated error
     def translate(error)
       case error
-      when ::RedisRuby::CommandError
+      when ::RR::CommandError
         translate_command_error(error)
       else
         translate_by_class(error)
@@ -88,12 +88,12 @@ class Redis
     # Translate non-command errors by class mapping
     # Order matters: specific subclasses before parent classes
     ERROR_MAP = [
-      [::RedisRuby::ConnectionError, Redis::ConnectionError],
-      [::RedisRuby::TimeoutError, Redis::TimeoutError],
-      [::RedisRuby::ClusterDownError, Redis::ClusterDownError],
-      [::RedisRuby::MovedError, Redis::MovedError],
-      [::RedisRuby::AskError, Redis::AskError],
-      [::RedisRuby::ClusterError, Redis::ClusterError],
+      [::RR::ConnectionError, Redis::ConnectionError],
+      [::RR::TimeoutError, Redis::TimeoutError],
+      [::RR::ClusterDownError, Redis::ClusterDownError],
+      [::RR::MovedError, Redis::MovedError],
+      [::RR::AskError, Redis::AskError],
+      [::RR::ClusterError, Redis::ClusterError],
     ].freeze
 
     def translate_by_class(error)

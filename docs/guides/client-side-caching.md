@@ -43,13 +43,13 @@ Client-side caching stores frequently accessed data in the application's memory,
 ### Enabling Client-Side Caching
 
 ```ruby
-require "redis_ruby"
+require "redis_ruby"  # Native RR API
 
 # Create a Redis client (must use RESP3)
-redis = RedisRuby.new(url: "redis://localhost:6379")
+redis = RR.new(url: "redis://localhost:6379")
 
 # Create and enable cache
-cache = RedisRuby::Cache.new(redis)
+cache = RR::Cache.new(redis)
 cache.enable!
 
 # First access - fetches from Redis and caches
@@ -64,7 +64,7 @@ value = cache.get("user:1000")  # No network round-trip!
 ### How Tracking Works
 
 ```ruby
-cache = RedisRuby::Cache.new(redis)
+cache = RR::Cache.new(redis)
 cache.enable!
 
 # Behind the scenes:
@@ -85,7 +85,7 @@ cache.enable!
 ### Cache Statistics
 
 ```ruby
-cache = RedisRuby::Cache.new(redis)
+cache = RR::Cache.new(redis)
 cache.enable!
 
 # Perform some operations
@@ -108,14 +108,14 @@ puts "Size: #{stats[:size]} entries"
 Redis automatically sends invalidation messages:
 
 ```ruby
-cache = RedisRuby::Cache.new(redis)
+cache = RR::Cache.new(redis)
 cache.enable!
 
 # Cache a value
 cache.get("product:100")  # => "Widget"
 
 # Another client modifies it
-other_client = RedisRuby.new(url: "redis://localhost:6379")
+other_client = RR.new(url: "redis://localhost:6379")
 other_client.set("product:100", "Gadget")
 
 # Cache is automatically invalidated
@@ -126,7 +126,7 @@ cache.get("product:100")  # => "Gadget" (from Redis, not cache)
 ### Manual Invalidation
 
 ```ruby
-cache = RedisRuby::Cache.new(redis)
+cache = RR::Cache.new(redis)
 cache.enable!
 
 # Invalidate a specific key
@@ -143,7 +143,7 @@ cache.flush
 
 ```ruby
 # Track invalidation events
-cache = RedisRuby::Cache.new(redis)
+cache = RR::Cache.new(redis)
 cache.enable!
 
 # Get invalidation count
@@ -156,8 +156,8 @@ cache.enable!
 ```ruby
 require "benchmark"
 
-redis = RedisRuby.new(url: "redis://localhost:6379")
-cache = RedisRuby::Cache.new(redis)
+redis = RR.new(url: "redis://localhost:6379")
+cache = RR::Cache.new(redis)
 cache.enable!
 
 # Warm up cache
@@ -202,7 +202,7 @@ puts "Hit rate: #{stats[:hit_rate]}%"  # => 99.9%
 
 ```ruby
 # Configure based on your needs
-cache = RedisRuby::Cache.new(
+cache = RR::Cache.new(
   redis,
   max_entries: 10_000,  # ~1-10MB depending on value sizes
   ttl: 300              # 5 minute max staleness
@@ -225,7 +225,7 @@ cache = RedisRuby::Cache.new(
 Track all keys accessed with GET:
 
 ```ruby
-cache = RedisRuby::Cache.new(redis, mode: :default)
+cache = RR::Cache.new(redis, mode: :default)
 cache.enable!
 
 # All GET operations are tracked and cached
@@ -238,7 +238,7 @@ cache.get("key2")  # Tracked and cached
 Only track explicitly requested keys:
 
 ```ruby
-cache = RedisRuby::Cache.new(redis, mode: :optin)
+cache = RR::Cache.new(redis, mode: :optin)
 cache.enable!
 
 # Explicitly cache this key
@@ -256,7 +256,7 @@ cache.get("another:key", cache: true)  # Tracked and cached
 Track all keys except explicitly excluded:
 
 ```ruby
-cache = RedisRuby::Cache.new(redis, mode: :optout)
+cache = RR::Cache.new(redis, mode: :optout)
 cache.enable!
 
 # Cache by default
@@ -274,7 +274,7 @@ cache.get("key2")  # Tracked and cached
 Track keys matching a prefix pattern:
 
 ```ruby
-cache = RedisRuby::Cache.new(redis, mode: :broadcast)
+cache = RR::Cache.new(redis, mode: :broadcast)
 cache.enable!
 
 # Configure broadcast prefixes in Redis
@@ -292,7 +292,7 @@ cache.get("session:abc")   # Not tracked (no prefix match)
 
 ```ruby
 # Good - frequently read, rarely written
-cache = RedisRuby::Cache.new(redis)
+cache = RR::Cache.new(redis)
 cache.enable!
 
 # Product catalog (read often, updated occasionally)
@@ -313,7 +313,7 @@ cache.get("user:#{user_id}")
 # Desired cache entries: 10,000
 # Memory usage: ~10MB
 
-cache = RedisRuby::Cache.new(
+cache = RR::Cache.new(
   redis,
   max_entries: 10_000
 )
@@ -330,7 +330,7 @@ end
 
 ```ruby
 # Add TTL as safety net against stale data
-cache = RedisRuby::Cache.new(
+cache = RR::Cache.new(
   redis,
   ttl: 300  # 5 minutes max staleness
 )
@@ -342,14 +342,14 @@ cache = RedisRuby::Cache.new(
 
 ```ruby
 # Default mode - simple, cache everything
-cache = RedisRuby::Cache.new(redis, mode: :default)
+cache = RR::Cache.new(redis, mode: :default)
 
 # OPTIN mode - fine-grained control, cache only important keys
-cache = RedisRuby::Cache.new(redis, mode: :optin)
+cache = RR::Cache.new(redis, mode: :optin)
 cache.get("critical:key", cache: true)
 
 # OPTOUT mode - cache most things, exclude volatile data
-cache = RedisRuby::Cache.new(redis, mode: :optout)
+cache = RR::Cache.new(redis, mode: :optout)
 cache.get("realtime:data", cache: false)
 ```
 
@@ -390,7 +390,7 @@ monitor.report
 class ResilientCache
   def initialize(redis)
     @redis = redis
-    @cache = RedisRuby::Cache.new(redis)
+    @cache = RR::Cache.new(redis)
     @cache.enable!
   rescue => e
     # Cache initialization failed - continue without caching
@@ -415,7 +415,7 @@ end
 ### 7. Use OPTIN for Selective Caching
 
 ```ruby
-cache = RedisRuby::Cache.new(redis, mode: :optin)
+cache = RR::Cache.new(redis, mode: :optin)
 cache.enable!
 
 # Cache stable, frequently accessed data
@@ -439,7 +439,7 @@ end
 ```ruby
 class TieredCache
   def initialize(redis)
-    @redis_cache = RedisRuby::Cache.new(redis, ttl: 300)
+    @redis_cache = RR::Cache.new(redis, ttl: 300)
     @redis_cache.enable!
     @local_cache = {}
   end
@@ -464,7 +464,7 @@ end
 ### 9. Disable for Write-Heavy Operations
 
 ```ruby
-cache = RedisRuby::Cache.new(redis)
+cache = RR::Cache.new(redis)
 cache.enable!
 
 # For bulk writes, temporarily disable caching
@@ -486,8 +486,8 @@ require "minitest/autorun"
 
 class CacheTest < Minitest::Test
   def setup
-    @redis = RedisRuby.new(url: "redis://localhost:6379")
-    @cache = RedisRuby::Cache.new(@redis)
+    @redis = RR.new(url: "redis://localhost:6379")
+    @cache = RR::Cache.new(@redis)
     @cache.enable!
   end
 
@@ -507,7 +507,7 @@ class CacheTest < Minitest::Test
     assert @cache.cached?("test:key")
 
     # Modify from another client
-    other_client = RedisRuby.new(url: "redis://localhost:6379")
+    other_client = RR.new(url: "redis://localhost:6379")
     other_client.set("test:key", "new value")
 
     # Give invalidation time to propagate
@@ -526,8 +526,8 @@ end
 ```ruby
 class SessionCache
   def initialize
-    redis = RedisRuby.new(url: "redis://localhost:6379")
-    @cache = RedisRuby::Cache.new(
+    redis = RR.new(url: "redis://localhost:6379")
+    @cache = RR::Cache.new(
       redis,
       max_entries: 10_000,
       ttl: 300  # 5 minute sessions
@@ -553,8 +553,8 @@ end
 ```ruby
 class ProductCache
   def initialize
-    redis = RedisRuby.new(url: "redis://localhost:6379")
-    @cache = RedisRuby::Cache.new(
+    redis = RR.new(url: "redis://localhost:6379")
+    @cache = RR::Cache.new(
       redis,
       max_entries: 50_000,  # Large catalog
       ttl: 3600,            # 1 hour
@@ -582,8 +582,8 @@ end
 ```ruby
 class ConfigCache
   def initialize
-    redis = RedisRuby.new(url: "redis://localhost:6379")
-    @cache = RedisRuby::Cache.new(
+    redis = RR.new(url: "redis://localhost:6379")
+    @cache = RR::Cache.new(
       redis,
       max_entries: 1000,
       ttl: 600  # 10 minutes
@@ -607,12 +607,12 @@ end
 
 ```ruby
 # Verify RESP3 is enabled
-redis = RedisRuby.new(url: "redis://localhost:6379")
+redis = RR.new(url: "redis://localhost:6379")
 info = redis.call("INFO", "server")
 puts info  # Check redis_version >= 6.0
 
 # Verify tracking is enabled
-cache = RedisRuby::Cache.new(redis)
+cache = RR::Cache.new(redis)
 result = cache.enable!
 puts "Tracking enabled: #{result}"  # Should be true
 ```
@@ -643,13 +643,13 @@ end
 
 ```ruby
 # Reduce cache size
-cache = RedisRuby::Cache.new(
+cache = RR::Cache.new(
   redis,
   max_entries: 1000  # Reduce from 10,000
 )
 
 # Or add/reduce TTL
-cache = RedisRuby::Cache.new(
+cache = RR::Cache.new(
   redis,
   max_entries: 10_000,
   ttl: 60  # Entries expire after 1 minute
@@ -670,7 +670,7 @@ if cache.cached?("test:key")
 end
 
 # Add TTL as safety net
-cache = RedisRuby::Cache.new(redis, ttl: 60)
+cache = RR::Cache.new(redis, ttl: 60)
 ```
 
 ## Further Reading
@@ -686,10 +686,10 @@ cache = RedisRuby::Cache.new(redis, ttl: 60)
 
 ```ruby
 # Default configuration
-cache = RedisRuby::Cache.new(redis)
+cache = RR::Cache.new(redis)
 
 # With custom settings
-cache = RedisRuby::Cache.new(
+cache = RR::Cache.new(
   redis,
   max_entries: 10_000,  # Maximum cache size (LRU eviction)
   ttl: 60,              # Time-to-live in seconds (nil = no TTL)
@@ -701,7 +701,7 @@ cache = RedisRuby::Cache.new(
 
 ```ruby
 # Limit cache to 1000 entries
-cache = RedisRuby::Cache.new(redis, max_entries: 1000)
+cache = RR::Cache.new(redis, max_entries: 1000)
 
 # When cache is full, least recently used entries are evicted
 1001.times { |i| cache.get("key:#{i}") }
@@ -715,7 +715,7 @@ cache.cached?("key:1000")  # => true
 
 ```ruby
 # Cache entries expire after 60 seconds
-cache = RedisRuby::Cache.new(redis, ttl: 60)
+cache = RR::Cache.new(redis, ttl: 60)
 
 cache.get("key")  # Cached
 

@@ -52,7 +52,7 @@ class ClusterFailoverIntegrationTest < ClusterTestCase
 
     # Reinitialize with host translation
     host_translation = ClusterTestContainerSupport.host_translation
-    @cluster = RedisRuby::ClusterClient.new(
+    @cluster = RR::ClusterClient.new(
       nodes: @cluster_nodes,
       host_translation: host_translation
     )
@@ -105,7 +105,7 @@ class ClusterFailoverIntegrationTest < ClusterTestCase
     # Close and reopen with host translation
     cluster.close
     host_translation = ClusterTestContainerSupport.host_translation
-    @cluster = RedisRuby::ClusterClient.new(
+    @cluster = RR::ClusterClient.new(
       nodes: @cluster_nodes,
       host_translation: host_translation
     )

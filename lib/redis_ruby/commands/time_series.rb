@@ -4,7 +4,7 @@ require_relative "../dsl/time_series_builder"
 require_relative "../dsl/time_series_proxy"
 require_relative "../dsl/time_series_query_builder"
 
-module RedisRuby
+module RR
   module Commands
     # Redis TimeSeries commands module
     #
@@ -435,7 +435,7 @@ module RedisRuby
       #     end
       #   end
       def time_series(key, &block)
-        builder = RedisRuby::DSL::TimeSeriesBuilder.new(key.to_s, self)
+        builder = RR::DSL::TimeSeriesBuilder.new(key.to_s, self)
         builder.instance_eval(&block)
         builder.create
       end
@@ -454,7 +454,7 @@ module RedisRuby
       #   redis.ts("temperature:sensor1")
       #     .range(from: 1.hour.ago, to: Time.now)
       def ts(*key_parts)
-        RedisRuby::DSL::TimeSeriesProxy.new(self, *key_parts)
+        RR::DSL::TimeSeriesProxy.new(self, *key_parts)
       end
 
       # Idiomatic Ruby API: Fluent query builder
@@ -469,7 +469,7 @@ module RedisRuby
       #     .with_labels
       #     .execute
       def ts_query(key = nil)
-        RedisRuby::DSL::TimeSeriesQueryBuilder.new(self, key)
+        RR::DSL::TimeSeriesQueryBuilder.new(self, key)
       end
 
       private

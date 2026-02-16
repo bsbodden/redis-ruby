@@ -2,7 +2,7 @@
 
 require_relative "../dsl/hash_proxy"
 
-module RedisRuby
+module RR
   module Commands
     # Hash commands
     #
@@ -30,7 +30,7 @@ module RedisRuby
       # Supports composite keys with automatic ":" joining.
       #
       # @param key_parts [Array<String, Symbol, Integer>] Key components
-      # @return [RedisRuby::DSL::HashProxy] Hash proxy instance
+      # @return [RR::DSL::HashProxy] Hash proxy instance
       #
       # @example Basic usage
       #   user = redis.hash(:user, 123)

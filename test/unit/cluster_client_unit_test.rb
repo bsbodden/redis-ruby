@@ -118,41 +118,41 @@ class ClusterClientUnitTest < Minitest::Test
     # Test through the private method via the error path
     # Valid URLs should not raise
     mock_conn = mock("connection")
-    mock_conn.stubs(:call).returns(RedisRuby::CommandError.new("ERR"))
+    mock_conn.stubs(:call).returns(RR::CommandError.new("ERR"))
     mock_conn.stubs(:close)
-    RedisRuby::Connection::TCP.stubs(:new).raises(RedisRuby::ConnectionError, "Connection refused")
+    RR::Connection::TCP.stubs(:new).raises(RR::ConnectionError, "Connection refused")
 
-    assert_raises(RedisRuby::ConnectionError) do
-      RedisRuby::ClusterClient.new(nodes: ["redis://host1:6379", "redis://host2:7000"])
+    assert_raises(RR::ConnectionError) do
+      RR::ClusterClient.new(nodes: ["redis://host1:6379", "redis://host2:7000"])
     end
   end
 
   def test_normalize_nodes_with_hash
-    RedisRuby::Connection::TCP.stubs(:new).raises(RedisRuby::ConnectionError, "refused")
+    RR::Connection::TCP.stubs(:new).raises(RR::ConnectionError, "refused")
 
-    assert_raises(RedisRuby::ConnectionError) do
-      RedisRuby::ClusterClient.new(nodes: [{ host: "myhost", port: 7001 }])
+    assert_raises(RR::ConnectionError) do
+      RR::ClusterClient.new(nodes: [{ host: "myhost", port: 7001 }])
     end
   end
 
   def test_normalize_nodes_with_hash_defaults
-    RedisRuby::Connection::TCP.stubs(:new).raises(RedisRuby::ConnectionError, "refused")
+    RR::Connection::TCP.stubs(:new).raises(RR::ConnectionError, "refused")
 
-    assert_raises(RedisRuby::ConnectionError) do
-      RedisRuby::ClusterClient.new(nodes: [{}])
+    assert_raises(RR::ConnectionError) do
+      RR::ClusterClient.new(nodes: [{}])
     end
   end
 
   def test_normalize_nodes_invalid_type_raises
     assert_raises(ArgumentError) do
-      RedisRuby::ClusterClient.new(nodes: [123])
+      RR::ClusterClient.new(nodes: [123])
     end
   end
 
   def test_normalize_nodes_url_without_host_uses_default
-    RedisRuby::Connection::TCP.stubs(:new).raises(RedisRuby::ConnectionError, "refused")
-    assert_raises(RedisRuby::ConnectionError) do
-      RedisRuby::ClusterClient.new(nodes: ["redis://:6379"])
+    RR::Connection::TCP.stubs(:new).raises(RR::ConnectionError, "refused")
+    assert_raises(RR::ConnectionError) do
+      RR::ClusterClient.new(nodes: ["redis://:6379"])
     end
   end
 
@@ -325,7 +325,7 @@ class ClusterClientUnitTest < Minitest::Test
     moved_conn.stubs(:close)
 
     # Use slot 100 which is in our mapped range (0-5460)
-    error = RedisRuby::CommandError.new("MOVED 100 host3:6379")
+    error = RR::CommandError.new("MOVED 100 host3:6379")
     client.stubs(:get_connection).returns(moved_conn)
     client.stubs(:refresh_slots)
 
@@ -344,7 +344,7 @@ class ClusterClientUnitTest < Minitest::Test
 
     client.stubs(:get_connection).returns(ask_conn)
 
-    error = RedisRuby::CommandError.new("ASK 12182 host4:6379")
+    error = RR::CommandError.new("ASK 12182 host4:6379")
     result = client.send(:handle_command_error, error, "GET", ["foo"], 12_182, 0)
 
     assert_equal "bar", result
@@ -360,7 +360,7 @@ class ClusterClientUnitTest < Minitest::Test
 
     client.stubs(:get_connection).returns(ask_conn)
 
-    error = RedisRuby::CommandError.new("ASK 100 internal:6379")
+    error = RR::CommandError.new("ASK 100 internal:6379")
     result = client.send(:handle_command_error, error, "GET", ["foo"], 100, 0)
 
     assert_equal "bar", result
@@ -371,14 +371,14 @@ class ClusterClientUnitTest < Minitest::Test
 
     ask_conn = mock("ask_conn")
     ask_conn.stubs(:call).with("ASKING").returns("OK")
-    inner_error = RedisRuby::CommandError.new("ERR unknown command")
+    inner_error = RR::CommandError.new("ERR unknown command")
     ask_conn.stubs(:call).with("GET", "foo").returns(inner_error)
     ask_conn.stubs(:close)
 
     client.stubs(:get_connection).returns(ask_conn)
 
-    error = RedisRuby::CommandError.new("ASK 12182 host4:6379")
-    assert_raises(RedisRuby::CommandError) do
+    error = RR::CommandError.new("ASK 12182 host4:6379")
+    assert_raises(RR::CommandError) do
       client.send(:handle_command_error, error, "GET", ["foo"], 12_182, 0)
     end
   end
@@ -386,8 +386,8 @@ class ClusterClientUnitTest < Minitest::Test
   def test_handle_clusterdown_error
     client = build_cluster_with_mock_topology
 
-    error = RedisRuby::CommandError.new("CLUSTERDOWN The cluster is down")
-    assert_raises(RedisRuby::Error) do
+    error = RR::CommandError.new("CLUSTERDOWN The cluster is down")
+    assert_raises(RR::Error) do
       client.send(:handle_command_error, error, "GET", ["foo"], 12_182, 0)
     end
   end
@@ -395,8 +395,8 @@ class ClusterClientUnitTest < Minitest::Test
   def test_handle_generic_command_error
     client = build_cluster_with_mock_topology
 
-    error = RedisRuby::CommandError.new("ERR unknown command")
-    assert_raises(RedisRuby::CommandError) do
+    error = RR::CommandError.new("ERR unknown command")
+    assert_raises(RR::CommandError) do
       client.send(:handle_command_error, error, "BADCMD", [], nil, 0)
     end
   end
@@ -407,7 +407,7 @@ class ClusterClientUnitTest < Minitest::Test
 
   def test_execute_with_retry_too_many_redirections
     client = build_cluster_with_mock_topology
-    assert_raises(RedisRuby::Error) do
+    assert_raises(RR::Error) do
       client.send(:execute_with_retry, "GET", ["foo"], 100, redirections: 5)
     end
   end
@@ -415,7 +415,7 @@ class ClusterClientUnitTest < Minitest::Test
   def test_execute_with_retry_no_node_available
     client = build_cluster_with_mock_topology
     # Unmapped slot
-    assert_raises(RedisRuby::ConnectionError) do
+    assert_raises(RR::ConnectionError) do
       client.send(:execute_with_retry, "GET", ["foo"], 15_000, redirections: 0)
     end
   end
@@ -435,7 +435,7 @@ class ClusterClientUnitTest < Minitest::Test
   def test_execute_with_retry_handles_command_error_result
     client = build_cluster_with_mock_topology
     conn = mock("conn")
-    error = RedisRuby::CommandError.new("MOVED 100 host2:6379")
+    error = RR::CommandError.new("MOVED 100 host2:6379")
     conn.stubs(:call).returns(error)
     client.stubs(:get_connection).returns(conn)
 
@@ -457,7 +457,7 @@ class ClusterClientUnitTest < Minitest::Test
     conn = stub("conn")
     conn.stubs(:call).with do |*_args|
       attempt += 1
-      raise RedisRuby::ConnectionError, "Connection lost" if attempt <= 1
+      raise RR::ConnectionError, "Connection lost" if attempt <= 1
 
       true
     end.returns("PONG")
@@ -470,11 +470,11 @@ class ClusterClientUnitTest < Minitest::Test
     # Just verify it retries (the stub behavior may be complex - verify retry path exists)
     # Test that max retries eventually raises
     always_fail_conn = stub("always_fail_conn")
-    always_fail_conn.stubs(:call).raises(RedisRuby::ConnectionError, "lost")
+    always_fail_conn.stubs(:call).raises(RR::ConnectionError, "lost")
     always_fail_conn.stubs(:close)
     client.stubs(:get_connection).returns(always_fail_conn)
 
-    assert_raises(RedisRuby::ConnectionError) do
+    assert_raises(RR::ConnectionError) do
       client.send(:execute_with_retry, "PING", [], 0, redirections: 0)
     end
   end
@@ -482,12 +482,12 @@ class ClusterClientUnitTest < Minitest::Test
   def test_execute_with_retry_gives_up_after_max_retries
     client = build_cluster_with_mock_topology
     conn = mock("conn")
-    conn.stubs(:call).raises(RedisRuby::ConnectionError, "Connection lost")
+    conn.stubs(:call).raises(RR::ConnectionError, "Connection lost")
     client.stubs(:get_connection).returns(conn)
     client.stubs(:refresh_slots)
     client.stubs(:sleep) # Skip actual sleep
 
-    assert_raises(RedisRuby::ConnectionError) do
+    assert_raises(RR::ConnectionError) do
       client.send(:execute_with_retry, "PING", [], 0, redirections: 0)
     end
   end
@@ -627,7 +627,7 @@ class ClusterClientUnitTest < Minitest::Test
   def test_cluster_healthy_returns_false_on_command_error
     client = build_cluster_with_mock_topology
     conn = mock("conn")
-    conn.stubs(:call).returns(RedisRuby::CommandError.new("ERR"))
+    conn.stubs(:call).returns(RR::CommandError.new("ERR"))
     client.stubs(:get_connection).returns(conn)
     client.stubs(:random_master).returns("host1:6379")
 
@@ -710,11 +710,11 @@ class ClusterClientUnitTest < Minitest::Test
   # ==========================================================================
 
   def test_read_commands_constant_is_frozen
-    assert_predicate RedisRuby::ClusterClient::READ_COMMANDS, :frozen?
+    assert_predicate RR::ClusterClient::READ_COMMANDS, :frozen?
   end
 
   def test_read_commands_includes_expected
-    rc = RedisRuby::ClusterClient::READ_COMMANDS
+    rc = RR::ClusterClient::READ_COMMANDS
 
     %w[GET MGET HGET HMGET HGETALL LRANGE LINDEX SMEMBERS SISMEMBER
        ZRANGE ZREVRANGE ZSCORE EXISTS TTL PTTL KEYS PFCOUNT
@@ -728,23 +728,23 @@ class ClusterClientUnitTest < Minitest::Test
   # ==========================================================================
 
   def test_hash_slots_constant
-    assert_equal 16_384, RedisRuby::ClusterClient::HASH_SLOTS
+    assert_equal 16_384, RR::ClusterClient::HASH_SLOTS
   end
 
   def test_max_redirections_constant
-    assert_equal 5, RedisRuby::ClusterClient::MAX_REDIRECTIONS
+    assert_equal 5, RR::ClusterClient::MAX_REDIRECTIONS
   end
 
   def test_default_timeout_constant
-    assert_in_delta(5.0, RedisRuby::ClusterClient::DEFAULT_TIMEOUT)
+    assert_in_delta(5.0, RR::ClusterClient::DEFAULT_TIMEOUT)
   end
 
   def test_crc16_table_is_frozen
-    assert_predicate RedisRuby::ClusterClient::CRC16_TABLE, :frozen?
+    assert_predicate RR::ClusterClient::CRC16_TABLE, :frozen?
   end
 
   def test_crc16_table_has_256_entries
-    assert_equal 256, RedisRuby::ClusterClient::CRC16_TABLE.length
+    assert_equal 256, RR::ClusterClient::CRC16_TABLE.length
   end
 
   # ==========================================================================
@@ -810,10 +810,10 @@ class ClusterClientUnitTest < Minitest::Test
     mock_conn.stubs(:call).raises(StandardError, "fail")
     mock_conn.stubs(:close)
 
-    RedisRuby::Connection::TCP.stubs(:new).returns(mock_conn)
+    RR::Connection::TCP.stubs(:new).returns(mock_conn)
 
-    assert_raises(RedisRuby::ConnectionError) do
-      RedisRuby::ClusterClient.new(nodes: ["redis://unreachable:6379"])
+    assert_raises(RR::ConnectionError) do
+      RR::ClusterClient.new(nodes: ["redis://unreachable:6379"])
     end
   end
 
@@ -822,39 +822,39 @@ class ClusterClientUnitTest < Minitest::Test
   # ==========================================================================
 
   def test_includes_string_commands
-    assert RedisRuby::ClusterClient.method_defined?(:set)
-    assert RedisRuby::ClusterClient.method_defined?(:get)
+    assert RR::ClusterClient.method_defined?(:set)
+    assert RR::ClusterClient.method_defined?(:get)
   end
 
   def test_includes_key_commands
-    assert RedisRuby::ClusterClient.method_defined?(:del)
-    assert RedisRuby::ClusterClient.method_defined?(:exists)
+    assert RR::ClusterClient.method_defined?(:del)
+    assert RR::ClusterClient.method_defined?(:exists)
   end
 
   def test_includes_hash_commands
-    assert RedisRuby::ClusterClient.method_defined?(:hset)
-    assert RedisRuby::ClusterClient.method_defined?(:hget)
+    assert RR::ClusterClient.method_defined?(:hset)
+    assert RR::ClusterClient.method_defined?(:hget)
   end
 
   def test_includes_list_commands
-    assert RedisRuby::ClusterClient.method_defined?(:lpush)
-    assert RedisRuby::ClusterClient.method_defined?(:rpush)
+    assert RR::ClusterClient.method_defined?(:lpush)
+    assert RR::ClusterClient.method_defined?(:rpush)
   end
 
   def test_includes_set_commands
-    assert RedisRuby::ClusterClient.method_defined?(:sadd)
-    assert RedisRuby::ClusterClient.method_defined?(:smembers)
+    assert RR::ClusterClient.method_defined?(:sadd)
+    assert RR::ClusterClient.method_defined?(:smembers)
   end
 
   def test_includes_sorted_set_commands
-    assert RedisRuby::ClusterClient.method_defined?(:zadd)
-    assert RedisRuby::ClusterClient.method_defined?(:zrange)
+    assert RR::ClusterClient.method_defined?(:zadd)
+    assert RR::ClusterClient.method_defined?(:zrange)
   end
 
   def test_includes_cluster_commands
-    assert RedisRuby::ClusterClient.method_defined?(:cluster_info)
-    assert RedisRuby::ClusterClient.method_defined?(:cluster_nodes)
-    assert RedisRuby::ClusterClient.method_defined?(:cluster_slots)
+    assert RR::ClusterClient.method_defined?(:cluster_info)
+    assert RR::ClusterClient.method_defined?(:cluster_nodes)
+    assert RR::ClusterClient.method_defined?(:cluster_slots)
   end
 
   private
@@ -870,9 +870,9 @@ class ClusterClientUnitTest < Minitest::Test
     ])
     mock_conn.stubs(:close)
 
-    RedisRuby::Connection::TCP.stubs(:new).returns(mock_conn)
+    RR::Connection::TCP.stubs(:new).returns(mock_conn)
 
-    RedisRuby::ClusterClient.new(
+    RR::ClusterClient.new(
       nodes: ["redis://host1:6379"],
       read_from: read_from,
       host_translation: host_translation

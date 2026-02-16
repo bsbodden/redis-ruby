@@ -110,7 +110,7 @@ class TransactionTest < RedisRubyTestCase
 
       # Modify the key while watching (simulates another client)
       # We need a separate connection for this
-      redis2 = RedisRuby::Client.new(url: @redis_url)
+      redis2 = RR::Client.new(url: @redis_url)
       redis2.set("test:watched", "changed_by_other")
       redis2.close
 

@@ -3,7 +3,7 @@
 require "uri"
 require_relative "concerns/pooled_operations"
 
-module RedisRuby
+module RR
   # Fiber-aware Redis client with connection pooling
   #
   # Combines the async-pool gem for fiber-safe connection management
@@ -17,7 +17,7 @@ module RedisRuby
   #   require "async"
   #
   #   Async do
-  #     client = RedisRuby::AsyncPooledClient.new(
+  #     client = RR::AsyncPooledClient.new(
   #       url: "redis://localhost:6379",
   #       pool: { limit: 10 }
   #     )
@@ -28,7 +28,7 @@ module RedisRuby
   #
   # @example Concurrent operations
   #   Async do |task|
-  #     client = RedisRuby::AsyncPooledClient.new(pool: { limit: 20 })
+  #     client = RR::AsyncPooledClient.new(pool: { limit: 20 })
   #
   #     # Run 100 operations concurrently with only 20 connections
   #     tasks = 100.times.map do |i|

@@ -4,7 +4,7 @@ require_relative "../unit_test_helper"
 
 class RESP3EncoderTest < Minitest::Test
   def setup
-    @encoder = RedisRuby::Protocol::RESP3Encoder.new
+    @encoder = RR::Protocol::RESP3Encoder.new
   end
 
   # Command encoding - the primary use case for encoder

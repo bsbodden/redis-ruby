@@ -90,7 +90,7 @@ class ClusterRedirectIntegrationTest < ClusterTestCase
     skip "Keys happened to be in same slot" if slots.size == 1
 
     # MSET with cross-slot keys should fail
-    error = assert_raises(RedisRuby::CommandError) do
+    error = assert_raises(RR::CommandError) do
       cluster.call("MSET", "key1", "v1", "key2", "v2", "key3", "v3")
     end
 
@@ -208,7 +208,7 @@ class ClusterRedirectIntegrationTest < ClusterTestCase
   def test_max_redirections_limit
     # This test verifies the client has a redirect limit
     # The actual limit is tested via implementation
-    assert_equal 5, RedisRuby::ClusterClient::MAX_REDIRECTIONS
+    assert_equal 5, RR::ClusterClient::MAX_REDIRECTIONS
   end
 
   # Test: Operations on keys across all slots work

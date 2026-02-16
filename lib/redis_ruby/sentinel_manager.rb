@@ -2,7 +2,7 @@
 
 require "socket"
 
-module RedisRuby
+module RR
   # Sentinel discovery and management
   #
   # Handles discovering Redis masters and replicas through Sentinel servers.

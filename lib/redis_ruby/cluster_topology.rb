@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module RedisRuby
+module RR
   # Cluster topology management for ClusterClient
   #
   # Handles slot mapping, node connections, CRC16 hashing,
@@ -117,7 +117,7 @@ module RedisRuby
         next
       end
 
-      raise RedisRuby::ConnectionError, "Could not connect to any cluster node"
+      raise RR::ConnectionError, "Could not connect to any cluster node"
     end
 
     # Update slots mapping from CLUSTER SLOTS result

@@ -2,13 +2,13 @@
 
 require_relative "../unit_test_helper"
 
-# Branch-coverage unit tests for RedisRuby::Commands::Probabilistic
+# Branch-coverage unit tests for RR::Commands::Probabilistic
 # Uses a lightweight MockClient that includes the module directly
 # and records every command sent through call / call_Nargs.
 class ProbabilisticBranchTest < Minitest::Test
   # ------------------------------------------------------------------ mock --
   class MockClient
-    include RedisRuby::Commands::Probabilistic
+    include RR::Commands::Probabilistic
 
     attr_reader :last_command
     attr_accessor :next_return

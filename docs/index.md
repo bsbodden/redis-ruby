@@ -61,7 +61,7 @@ gem install redis-ruby
 require 'redis_ruby'
 
 # Create a client
-client = RedisRuby.new(url: "redis://localhost:6379")
+client = RR.new(url: "redis://localhost:6379")
 
 # Basic operations
 client.set("key", "value")
@@ -80,7 +80,7 @@ client.lrange("queue", 0, -1)  # => ["job3", "job2", "job1"]
 
 ```ruby
 # Thread-safe connection pool
-client = RedisRuby.pooled(
+client = RR.pooled(
   url: "redis://localhost:6379",
   pool: { size: 10, timeout: 5 }
 )
@@ -97,7 +97,7 @@ end.each(&:join)
 require 'async'
 
 Async do
-  client = RedisRuby.async(url: "redis://localhost:6379")
+  client = RR.async(url: "redis://localhost:6379")
   
   # Non-blocking operations
   client.set("key", "value")

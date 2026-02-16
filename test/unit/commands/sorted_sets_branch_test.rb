@@ -4,7 +4,7 @@ require_relative "../unit_test_helper"
 
 class SortedSetsBranchTest < Minitest::Test
   class MockClient
-    include RedisRuby::Commands::SortedSets
+    include RR::Commands::SortedSets
 
     attr_reader :last_command
 

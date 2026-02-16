@@ -3,7 +3,7 @@
 require_relative "../dsl/publisher_proxy"
 require_relative "../dsl/subscriber_builder"
 
-module RedisRuby
+module RR
   module Commands
     # Pub/Sub commands for publish/subscribe messaging
     #

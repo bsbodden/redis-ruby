@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module RedisRuby
+module RR
   module Commands
     # ACL (Access Control List) commands (Redis 6.0+)
     #

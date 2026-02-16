@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module RedisRuby
+module RR
   module Protocol
     # Fast-path dispatch and encoding logic for common Redis commands
     #

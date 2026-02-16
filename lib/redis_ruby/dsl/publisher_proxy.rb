@@ -2,7 +2,7 @@
 
 require "json"
 
-module RedisRuby
+module RR
   module DSL
     # Chainable proxy for publishing messages to Redis Pub/Sub channels
     #
@@ -29,7 +29,7 @@ module RedisRuby
 
       # Initialize a new publisher proxy
       #
-      # @param redis [RedisRuby::Client] Redis client instance
+      # @param [RR::Client] Redis client instance
       # @param channels [Array<String, Symbol>] Initial channels to publish to
       def initialize(redis, *channels)
         @redis = redis

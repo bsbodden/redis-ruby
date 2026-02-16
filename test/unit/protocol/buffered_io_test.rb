@@ -54,7 +54,7 @@ class BufferedIOTest < Minitest::Test
 
   def test_initialize_with_defaults
     io = FakeIO.new
-    bio = RedisRuby::Protocol::BufferedIO.new(io)
+    bio = RR::Protocol::BufferedIO.new(io)
 
     assert_in_delta(5.0, bio.read_timeout)
     assert_in_delta(5.0, bio.write_timeout)
@@ -62,7 +62,7 @@ class BufferedIOTest < Minitest::Test
 
   def test_initialize_with_custom_timeouts
     io = FakeIO.new
-    bio = RedisRuby::Protocol::BufferedIO.new(io, read_timeout: 10.0, write_timeout: 15.0)
+    bio = RR::Protocol::BufferedIO.new(io, read_timeout: 10.0, write_timeout: 15.0)
 
     assert_in_delta(10.0, bio.read_timeout)
     assert_in_delta(15.0, bio.write_timeout)
@@ -70,9 +70,9 @@ class BufferedIOTest < Minitest::Test
 
   def test_initialize_with_custom_chunk_size
     io = FakeIO.new
-    bio = RedisRuby::Protocol::BufferedIO.new(io, chunk_size: 8192)
+    bio = RR::Protocol::BufferedIO.new(io, chunk_size: 8192)
 
-    assert_instance_of RedisRuby::Protocol::BufferedIO, bio
+    assert_instance_of RR::Protocol::BufferedIO, bio
   end
 
   # ============================================================
@@ -81,14 +81,14 @@ class BufferedIOTest < Minitest::Test
 
   def test_getbyte_returns_byte_value
     io = FakeIO.new(["A"])
-    bio = RedisRuby::Protocol::BufferedIO.new(io)
+    bio = RR::Protocol::BufferedIO.new(io)
 
     assert_equal 65, bio.getbyte
   end
 
   def test_getbyte_fills_buffer_when_offset_past_end
     io = FakeIO.new(["AB"])
-    bio = RedisRuby::Protocol::BufferedIO.new(io)
+    bio = RR::Protocol::BufferedIO.new(io)
 
     assert_equal 65, bio.getbyte
     assert_equal 66, bio.getbyte
@@ -96,9 +96,9 @@ class BufferedIOTest < Minitest::Test
 
   def test_getbyte_eof_raises_connection_error
     io = FakeIO.new(["A", nil])
-    bio = RedisRuby::Protocol::BufferedIO.new(io)
+    bio = RR::Protocol::BufferedIO.new(io)
     bio.getbyte # consumes 'A'
-    assert_raises(RedisRuby::ConnectionError) { bio.getbyte }
+    assert_raises(RR::ConnectionError) { bio.getbyte }
   end
 
   # ============================================================
@@ -107,14 +107,14 @@ class BufferedIOTest < Minitest::Test
 
   def test_gets_chomp_reads_line
     io = FakeIO.new(["OK\r\n"])
-    bio = RedisRuby::Protocol::BufferedIO.new(io)
+    bio = RR::Protocol::BufferedIO.new(io)
 
     assert_equal "OK", bio.gets_chomp
   end
 
   def test_gets_chomp_with_multiple_lines
     io = FakeIO.new(["hello\r\nworld\r\n"])
-    bio = RedisRuby::Protocol::BufferedIO.new(io)
+    bio = RR::Protocol::BufferedIO.new(io)
 
     assert_equal "hello", bio.gets_chomp
     assert_equal "world", bio.gets_chomp
@@ -122,14 +122,14 @@ class BufferedIOTest < Minitest::Test
 
   def test_gets_chomp_fills_until_eol_found
     io = FakeIO.new(["hel", "lo\r\n"])
-    bio = RedisRuby::Protocol::BufferedIO.new(io)
+    bio = RR::Protocol::BufferedIO.new(io)
 
     assert_equal "hello", bio.gets_chomp
   end
 
   def test_gets_chomp_empty_line
     io = FakeIO.new(["\r\n"])
-    bio = RedisRuby::Protocol::BufferedIO.new(io)
+    bio = RR::Protocol::BufferedIO.new(io)
 
     assert_equal "", bio.gets_chomp
   end
@@ -140,35 +140,35 @@ class BufferedIOTest < Minitest::Test
 
   def test_gets_integer_positive
     io = FakeIO.new(["42\r\n"])
-    bio = RedisRuby::Protocol::BufferedIO.new(io)
+    bio = RR::Protocol::BufferedIO.new(io)
 
     assert_equal 42, bio.gets_integer
   end
 
   def test_gets_integer_negative
     io = FakeIO.new(["-7\r\n"])
-    bio = RedisRuby::Protocol::BufferedIO.new(io)
+    bio = RR::Protocol::BufferedIO.new(io)
 
     assert_equal(-7, bio.gets_integer)
   end
 
   def test_gets_integer_zero
     io = FakeIO.new(["0\r\n"])
-    bio = RedisRuby::Protocol::BufferedIO.new(io)
+    bio = RR::Protocol::BufferedIO.new(io)
 
     assert_equal 0, bio.gets_integer
   end
 
   def test_gets_integer_multi_digit
     io = FakeIO.new(["12345\r\n"])
-    bio = RedisRuby::Protocol::BufferedIO.new(io)
+    bio = RR::Protocol::BufferedIO.new(io)
 
     assert_equal 12_345, bio.gets_integer
   end
 
   def test_gets_integer_needing_refill
     io = FakeIO.new(["12", "3\r\n"])
-    bio = RedisRuby::Protocol::BufferedIO.new(io)
+    bio = RR::Protocol::BufferedIO.new(io)
 
     assert_equal 123, bio.gets_integer
   end
@@ -179,14 +179,14 @@ class BufferedIOTest < Minitest::Test
 
   def test_read_chomp_reads_exact_bytes
     io = FakeIO.new(["hello\r\n"])
-    bio = RedisRuby::Protocol::BufferedIO.new(io)
+    bio = RR::Protocol::BufferedIO.new(io)
 
     assert_equal "hello", bio.read_chomp(5)
   end
 
   def test_read_chomp_with_remaining_data
     io = FakeIO.new(["foobar\r\nbaz\r\n"])
-    bio = RedisRuby::Protocol::BufferedIO.new(io)
+    bio = RR::Protocol::BufferedIO.new(io)
 
     assert_equal "foobar", bio.read_chomp(6)
     assert_equal "baz", bio.gets_chomp
@@ -198,14 +198,14 @@ class BufferedIOTest < Minitest::Test
 
   def test_read_exact_bytes
     io = FakeIO.new(["ABCDE"])
-    bio = RedisRuby::Protocol::BufferedIO.new(io)
+    bio = RR::Protocol::BufferedIO.new(io)
 
     assert_equal "ABC", bio.read(3)
   end
 
   def test_read_multiple_calls
     io = FakeIO.new(["ABCDEF"])
-    bio = RedisRuby::Protocol::BufferedIO.new(io)
+    bio = RR::Protocol::BufferedIO.new(io)
 
     assert_equal "AB", bio.read(2)
     assert_equal "CD", bio.read(2)
@@ -218,7 +218,7 @@ class BufferedIOTest < Minitest::Test
 
   def test_skip_bytes
     io = FakeIO.new(["ABCDEF"])
-    bio = RedisRuby::Protocol::BufferedIO.new(io)
+    bio = RR::Protocol::BufferedIO.new(io)
     result = bio.skip(3)
 
     assert_nil result
@@ -231,7 +231,7 @@ class BufferedIOTest < Minitest::Test
 
   def test_write_data
     io = FakeIO.new
-    bio = RedisRuby::Protocol::BufferedIO.new(io)
+    bio = RR::Protocol::BufferedIO.new(io)
 
     assert_equal 5, bio.write("hello")
   end
@@ -239,7 +239,7 @@ class BufferedIOTest < Minitest::Test
   def test_write_partial_then_complete
     io = FakeIO.new
     io.write_responses = [3, 2]
-    bio = RedisRuby::Protocol::BufferedIO.new(io)
+    bio = RR::Protocol::BufferedIO.new(io)
 
     assert_equal 5, bio.write("hello")
   end
@@ -251,7 +251,7 @@ class BufferedIOTest < Minitest::Test
     mock_io.expects(:write_nonblock).with("hi", exception: false).returns(:wait_writable).in_sequence(seq)
     mock_io.expects(:wait_writable).with(5.0).returns(true).in_sequence(seq)
     mock_io.expects(:write_nonblock).with("hi", exception: false).returns(2).in_sequence(seq)
-    bio = RedisRuby::Protocol::BufferedIO.new(mock_io)
+    bio = RR::Protocol::BufferedIO.new(mock_io)
 
     assert_equal 2, bio.write("hi")
   end
@@ -263,7 +263,7 @@ class BufferedIOTest < Minitest::Test
     mock_io.expects(:write_nonblock).with("hi", exception: false).returns(:wait_readable).in_sequence(seq)
     mock_io.expects(:wait_readable).with(5.0).returns(true).in_sequence(seq)
     mock_io.expects(:write_nonblock).with("hi", exception: false).returns(2).in_sequence(seq)
-    bio = RedisRuby::Protocol::BufferedIO.new(mock_io)
+    bio = RR::Protocol::BufferedIO.new(mock_io)
 
     assert_equal 2, bio.write("hi")
   end
@@ -273,8 +273,8 @@ class BufferedIOTest < Minitest::Test
     mock_io.stubs(:closed?).returns(false)
     mock_io.expects(:write_nonblock).with("hi", exception: false).returns(:wait_writable)
     mock_io.expects(:wait_writable).with(5.0).returns(nil)
-    bio = RedisRuby::Protocol::BufferedIO.new(mock_io)
-    assert_raises(RedisRuby::TimeoutError) { bio.write("hi") }
+    bio = RR::Protocol::BufferedIO.new(mock_io)
+    assert_raises(RR::TimeoutError) { bio.write("hi") }
   end
 
   def test_write_timeout_on_readable
@@ -282,16 +282,16 @@ class BufferedIOTest < Minitest::Test
     mock_io.stubs(:closed?).returns(false)
     mock_io.expects(:write_nonblock).with("hi", exception: false).returns(:wait_readable)
     mock_io.expects(:wait_readable).with(5.0).returns(nil)
-    bio = RedisRuby::Protocol::BufferedIO.new(mock_io)
-    assert_raises(RedisRuby::TimeoutError) { bio.write("hi") }
+    bio = RR::Protocol::BufferedIO.new(mock_io)
+    assert_raises(RR::TimeoutError) { bio.write("hi") }
   end
 
   def test_write_connection_closed_nil
     mock_io = mock("io")
     mock_io.stubs(:closed?).returns(false)
     mock_io.expects(:write_nonblock).with("hi", exception: false).returns(nil)
-    bio = RedisRuby::Protocol::BufferedIO.new(mock_io)
-    assert_raises(RedisRuby::ConnectionError) { bio.write("hi") }
+    bio = RR::Protocol::BufferedIO.new(mock_io)
+    assert_raises(RR::ConnectionError) { bio.write("hi") }
   end
 
   # ============================================================
@@ -300,13 +300,13 @@ class BufferedIOTest < Minitest::Test
 
   def test_flush
     io = FakeIO.new
-    bio = RedisRuby::Protocol::BufferedIO.new(io)
+    bio = RR::Protocol::BufferedIO.new(io)
     bio.flush
   end
 
   def test_close
     io = FakeIO.new
-    bio = RedisRuby::Protocol::BufferedIO.new(io)
+    bio = RR::Protocol::BufferedIO.new(io)
     bio.close
 
     assert_predicate io, :closed?
@@ -315,14 +315,14 @@ class BufferedIOTest < Minitest::Test
   def test_closed_true
     io = FakeIO.new
     io.closed = true
-    bio = RedisRuby::Protocol::BufferedIO.new(io)
+    bio = RR::Protocol::BufferedIO.new(io)
 
     assert_predicate bio, :closed?
   end
 
   def test_closed_false
     io = FakeIO.new
-    bio = RedisRuby::Protocol::BufferedIO.new(io)
+    bio = RR::Protocol::BufferedIO.new(io)
 
     refute_predicate bio, :closed?
   end
@@ -333,7 +333,7 @@ class BufferedIOTest < Minitest::Test
 
   def test_eof_when_buffer_consumed_and_io_at_eof
     io = FakeIO.new(["A"])
-    bio = RedisRuby::Protocol::BufferedIO.new(io)
+    bio = RR::Protocol::BufferedIO.new(io)
     bio.getbyte  # consume
 
     assert_predicate bio, :eof?
@@ -341,7 +341,7 @@ class BufferedIOTest < Minitest::Test
 
   def test_not_eof_when_buffer_has_data
     io = FakeIO.new(["AB"])
-    bio = RedisRuby::Protocol::BufferedIO.new(io)
+    bio = RR::Protocol::BufferedIO.new(io)
     bio.getbyte  # consume only A
 
     refute_predicate bio, :eof?
@@ -349,7 +349,7 @@ class BufferedIOTest < Minitest::Test
 
   def test_not_eof_when_io_not_at_eof
     io = FakeIO.new(%w[A B])
-    bio = RedisRuby::Protocol::BufferedIO.new(io)
+    bio = RR::Protocol::BufferedIO.new(io)
     bio.getbyte  # consume
     # io still has responses
     refute_predicate bio, :eof?
@@ -361,7 +361,7 @@ class BufferedIOTest < Minitest::Test
 
   def test_with_timeout_sets_and_restores
     io = FakeIO.new
-    bio = RedisRuby::Protocol::BufferedIO.new(io, read_timeout: 5.0)
+    bio = RR::Protocol::BufferedIO.new(io, read_timeout: 5.0)
 
     assert_in_delta(5.0, bio.read_timeout)
 
@@ -374,7 +374,7 @@ class BufferedIOTest < Minitest::Test
 
   def test_with_timeout_restores_on_exception
     io = FakeIO.new
-    bio = RedisRuby::Protocol::BufferedIO.new(io, read_timeout: 5.0)
+    bio = RR::Protocol::BufferedIO.new(io, read_timeout: 5.0)
 
     begin
       bio.with_timeout(1.0) do
@@ -393,20 +393,20 @@ class BufferedIOTest < Minitest::Test
 
   def test_fill_buffer_connection_error_on_io_error
     io = FakeIO.new([IOError.new("stream closed")])
-    bio = RedisRuby::Protocol::BufferedIO.new(io)
-    assert_raises(RedisRuby::ConnectionError) { bio.getbyte }
+    bio = RR::Protocol::BufferedIO.new(io)
+    assert_raises(RR::ConnectionError) { bio.getbyte }
   end
 
   def test_fill_buffer_connection_error_on_econnreset
     io = FakeIO.new([Errno::ECONNRESET.new])
-    bio = RedisRuby::Protocol::BufferedIO.new(io)
-    assert_raises(RedisRuby::ConnectionError) { bio.getbyte }
+    bio = RR::Protocol::BufferedIO.new(io)
+    assert_raises(RR::ConnectionError) { bio.getbyte }
   end
 
   def test_fill_buffer_connection_closed_eof
     io = FakeIO.new([nil])
-    bio = RedisRuby::Protocol::BufferedIO.new(io)
-    assert_raises(RedisRuby::ConnectionError) { bio.getbyte }
+    bio = RR::Protocol::BufferedIO.new(io)
+    assert_raises(RR::ConnectionError) { bio.getbyte }
   end
 
   def test_fill_buffer_wait_readable
@@ -416,7 +416,7 @@ class BufferedIOTest < Minitest::Test
     mock_io.expects(:read_nonblock).returns(:wait_readable).in_sequence(seq)
     mock_io.expects(:wait_readable).with(5.0).returns(true).in_sequence(seq)
     mock_io.expects(:read_nonblock).returns("A").in_sequence(seq)
-    bio = RedisRuby::Protocol::BufferedIO.new(mock_io)
+    bio = RR::Protocol::BufferedIO.new(mock_io)
 
     assert_equal 65, bio.getbyte
   end
@@ -426,8 +426,8 @@ class BufferedIOTest < Minitest::Test
     mock_io.stubs(:closed?).returns(false)
     mock_io.expects(:read_nonblock).returns(:wait_readable)
     mock_io.expects(:wait_readable).with(5.0).returns(nil)
-    bio = RedisRuby::Protocol::BufferedIO.new(mock_io)
-    assert_raises(RedisRuby::TimeoutError) { bio.getbyte }
+    bio = RR::Protocol::BufferedIO.new(mock_io)
+    assert_raises(RR::TimeoutError) { bio.getbyte }
   end
 
   def test_fill_buffer_wait_writable
@@ -437,7 +437,7 @@ class BufferedIOTest < Minitest::Test
     mock_io.expects(:read_nonblock).returns(:wait_writable).in_sequence(seq)
     mock_io.expects(:wait_writable).with(5.0).returns(true).in_sequence(seq)
     mock_io.expects(:read_nonblock).returns("B").in_sequence(seq)
-    bio = RedisRuby::Protocol::BufferedIO.new(mock_io)
+    bio = RR::Protocol::BufferedIO.new(mock_io)
 
     assert_equal 66, bio.getbyte
   end
@@ -447,8 +447,8 @@ class BufferedIOTest < Minitest::Test
     mock_io.stubs(:closed?).returns(false)
     mock_io.expects(:read_nonblock).returns(:wait_writable)
     mock_io.expects(:wait_writable).with(5.0).returns(nil)
-    bio = RedisRuby::Protocol::BufferedIO.new(mock_io)
-    assert_raises(RedisRuby::TimeoutError) { bio.getbyte }
+    bio = RR::Protocol::BufferedIO.new(mock_io)
+    assert_raises(RR::TimeoutError) { bio.getbyte }
   end
 
   # ============================================================
@@ -458,7 +458,7 @@ class BufferedIOTest < Minitest::Test
   def test_fill_buffer_resets_oversized_buffer
     large_data = "x" * 70_000
     io = FakeIO.new([large_data, "A"])
-    bio = RedisRuby::Protocol::BufferedIO.new(io)
+    bio = RR::Protocol::BufferedIO.new(io)
     bio.read(70_000) # consume all
     # Next fill should reallocate buffer (buffer was > BUFFER_CUTOFF)
     assert_equal 65, bio.getbyte
@@ -470,7 +470,7 @@ class BufferedIOTest < Minitest::Test
 
   def test_ensure_remaining_fills_when_needed
     io = FakeIO.new(%w[AB CDEF])
-    bio = RedisRuby::Protocol::BufferedIO.new(io)
+    bio = RR::Protocol::BufferedIO.new(io)
     bio.getbyte # consume A
     result = bio.read(4)
 
@@ -483,7 +483,7 @@ class BufferedIOTest < Minitest::Test
 
   def test_fill_buffer_append_mode
     io = FakeIO.new(["hel", "lo\r\n"])
-    bio = RedisRuby::Protocol::BufferedIO.new(io)
+    bio = RR::Protocol::BufferedIO.new(io)
     result = bio.gets_chomp
 
     assert_equal "hello", result
@@ -495,7 +495,7 @@ class BufferedIOTest < Minitest::Test
 
   def test_read_timeout_accessor
     io = FakeIO.new
-    bio = RedisRuby::Protocol::BufferedIO.new(io)
+    bio = RR::Protocol::BufferedIO.new(io)
     bio.read_timeout = 10.0
 
     assert_in_delta(10.0, bio.read_timeout)
@@ -503,7 +503,7 @@ class BufferedIOTest < Minitest::Test
 
   def test_write_timeout_accessor
     io = FakeIO.new
-    bio = RedisRuby::Protocol::BufferedIO.new(io)
+    bio = RR::Protocol::BufferedIO.new(io)
     bio.write_timeout = 15.0
 
     assert_in_delta(15.0, bio.write_timeout)

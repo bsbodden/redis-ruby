@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module RedisRuby
+module RR
   module DSL
     # DSL builder for Redis Stream consumer group operations
     #
@@ -22,7 +22,7 @@ module RedisRuby
     #     destroy
     #   end
     class ConsumerGroupBuilder
-      # @param redis [RedisRuby::Client] Redis client
+      # @param [RR::Client] Redis client
       # @param stream_key [String] Stream key
       # @param group_name [String] Consumer group name
       def initialize(redis, stream_key, group_name)

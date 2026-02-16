@@ -2,7 +2,7 @@
 
 require_relative "../dsl/hyperloglog_proxy"
 
-module RedisRuby
+module RR
   module Commands
     # HyperLogLog commands for probabilistic cardinality estimation
     #
@@ -31,7 +31,7 @@ module RedisRuby
       # regardless of the set size, with ~0.81% standard error.
       #
       # @param key_parts [Array<String, Symbol, Integer>] Key components (joined with ":")
-      # @return [RedisRuby::DSL::HyperLogLogProxy] Chainable proxy object
+      # @return [RR::DSL::HyperLogLogProxy] Chainable proxy object
       #
       # @example Basic usage
       #   visitors = redis.hyperloglog(:visitors, :today)
@@ -42,7 +42,7 @@ module RedisRuby
       #   weekly = redis.hll(:visitors, :weekly)
       #   weekly.merge("visitors:day1", "visitors:day2", "visitors:day3")
       #
-      # @see RedisRuby::DSL::HyperLogLogProxy
+      # @see RR::DSL::HyperLogLogProxy
       def hll(*key_parts)
         DSL::HyperLogLogProxy.new(self, *key_parts)
       end

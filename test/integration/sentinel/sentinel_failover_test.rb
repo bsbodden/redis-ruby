@@ -231,7 +231,7 @@ class SentinelFailoverIntegrationTest < SentinelTestCase
   # Test: Sentinel manager accessible
   def test_sentinel_manager_accessible
     refute_nil sentinel_client.sentinel_manager
-    assert_kind_of RedisRuby::SentinelManager, sentinel_client.sentinel_manager
+    assert_kind_of RR::SentinelManager, sentinel_client.sentinel_manager
   end
 
   # Test: Current address available after connection

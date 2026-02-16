@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module RedisRuby
+module RR
   # Pipeline for batching multiple commands
   #
   # Pipelines reduce network round-trips by sending multiple commands

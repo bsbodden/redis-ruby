@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module RedisRuby
+module RR
   module Protocol
     # Pipeline encoding methods for RESP3 encoder
     #

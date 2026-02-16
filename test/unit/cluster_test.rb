@@ -79,34 +79,34 @@ class ClusterUnitTest < Minitest::Test
 
   def test_cluster_commands_module_included
     # ClusterClient should have cluster commands
-    assert RedisRuby::ClusterClient.method_defined?(:cluster_info)
-    assert RedisRuby::ClusterClient.method_defined?(:cluster_nodes)
-    assert RedisRuby::ClusterClient.method_defined?(:cluster_slots)
-    assert RedisRuby::ClusterClient.method_defined?(:cluster_keyslot)
-    assert RedisRuby::ClusterClient.method_defined?(:readonly)
-    assert RedisRuby::ClusterClient.method_defined?(:asking)
+    assert RR::ClusterClient.method_defined?(:cluster_info)
+    assert RR::ClusterClient.method_defined?(:cluster_nodes)
+    assert RR::ClusterClient.method_defined?(:cluster_slots)
+    assert RR::ClusterClient.method_defined?(:cluster_keyslot)
+    assert RR::ClusterClient.method_defined?(:readonly)
+    assert RR::ClusterClient.method_defined?(:asking)
   end
 
   def test_cluster_factory_method
-    assert_respond_to RedisRuby, :cluster
+    assert_respond_to RR, :cluster
   end
 
   def test_cluster_error_classes
-    assert_operator RedisRuby::ClusterError, :<, RedisRuby::Error
-    assert_operator RedisRuby::ClusterDownError, :<, RedisRuby::ClusterError
-    assert_operator RedisRuby::MovedError, :<, RedisRuby::ClusterError
-    assert_operator RedisRuby::AskError, :<, RedisRuby::ClusterError
+    assert_operator RR::ClusterError, :<, RR::Error
+    assert_operator RR::ClusterDownError, :<, RR::ClusterError
+    assert_operator RR::MovedError, :<, RR::ClusterError
+    assert_operator RR::AskError, :<, RR::ClusterError
   end
 
   def test_normalize_nodes_urls
     # Can't easily test without mocking, but we can test the error case
     assert_raises(ArgumentError) do
-      RedisRuby::ClusterClient.new(nodes: [123]) # Invalid node type
+      RR::ClusterClient.new(nodes: [123]) # Invalid node type
     end
   end
 
   def test_read_commands_constant
-    read_commands = RedisRuby::ClusterClient::READ_COMMANDS
+    read_commands = RR::ClusterClient::READ_COMMANDS
 
     # Verify some known read commands
     assert_includes read_commands, "GET"
@@ -132,13 +132,13 @@ class ClusterUnitTest < Minitest::Test
     # Create a client that we can use for slot calculations
     # without actually connecting
     client = Object.new
-    client.extend(RedisRuby::ClusterClient::HashSlotMixin)
+    client.extend(RR::ClusterClient::HashSlotMixin)
     client
   end
 end
 
 # Mixin module to test hash slot calculation in isolation
-module RedisRuby
+module RR
   class ClusterClient
     module HashSlotMixin
       HASH_SLOTS = 16_384

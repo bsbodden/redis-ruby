@@ -46,9 +46,9 @@ For more installation options and module-specific builds, see the [official Redi
 Connect with redis-ruby and test these features:
 
 ```ruby
-require "redis_ruby"
+require "redis_ruby"  # Native RR API
 
-redis = RedisRuby.new(url: "redis://localhost:6379")
+redis = RR.new(url: "redis://localhost:6379")
 
 # Test JSON commands
 redis.json_set("test", "$", { hello: "world" })

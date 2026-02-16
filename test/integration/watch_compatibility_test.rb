@@ -47,7 +47,7 @@ class WatchCompatibilityTest < RedisRubyTestCase
 
     result = redis.watch("test:watched") do |_rd|
       # Modify the key with a separate connection (simulates concurrent modification)
-      redis2 = RedisRuby::Client.new(url: @redis_url)
+      redis2 = RR::Client.new(url: @redis_url)
       redis2.set("test:watched", "changed_by_other")
       redis2.close
 

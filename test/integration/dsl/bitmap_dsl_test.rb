@@ -17,7 +17,7 @@ class BitmapDSLTest < RedisRubyTestCase
   def test_bitmap_proxy_creation
     proxy = redis.bitmap(:activity)
     
-    assert_instance_of RedisRuby::DSL::BitmapProxy, proxy
+    assert_instance_of RR::DSL::BitmapProxy, proxy
     assert_equal "activity", proxy.key
   end
 
@@ -396,7 +396,7 @@ class BitmapDSLTest < RedisRubyTestCase
 
     builder = bitmap.bitfield
 
-    assert_instance_of RedisRuby::DSL::BitFieldBuilder, builder
+    assert_instance_of RR::DSL::BitFieldBuilder, builder
   end
 
   def test_bitfield_set_and_get

@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module RedisRuby
+module RR
   module DSL
     # Fluent builder for reading from Redis Streams
     #
@@ -21,7 +21,7 @@ module RedisRuby
     #     puts "#{id}: #{fields}"
     #   end
     class StreamReader
-      # @param redis [RedisRuby::Client] Redis client
+      # @param [RR::Client] Redis client
       # @param key [String] Stream key
       def initialize(redis, key)
         @redis = redis

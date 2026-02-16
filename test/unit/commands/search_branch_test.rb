@@ -2,13 +2,13 @@
 
 require_relative "../unit_test_helper"
 
-# Branch-coverage unit tests for RedisRuby::Commands::Search
+# Branch-coverage unit tests for RR::Commands::Search
 # Uses a lightweight MockClient that includes the module directly
 # and records every command sent through call / call_Nargs.
 class SearchBranchTest < Minitest::Test
   # ------------------------------------------------------------------ mock --
   class MockClient
-    include RedisRuby::Commands::Search
+    include RR::Commands::Search
 
     attr_reader :last_command
 

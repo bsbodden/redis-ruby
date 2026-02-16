@@ -2,7 +2,7 @@
 
 require_relative "schema_builder"
 
-module RedisRuby
+module RR
   module DSL
     # DSL builder for creating search indexes
     #

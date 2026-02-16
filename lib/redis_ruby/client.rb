@@ -3,22 +3,22 @@
 require "uri"
 require_relative "client_url_parsing"
 
-module RedisRuby
+module RR
   # The main synchronous Redis client
   #
   # Pure Ruby implementation using RESP3 protocol.
   # Supports TCP, SSL/TLS, and Unix socket connections.
   #
   # @example Basic TCP usage
-  #   client = RedisRuby::Client.new(url: "redis://localhost:6379")
+  #   client = RR::Client.new(url: "redis://localhost:6379")
   #   client.set("key", "value")
   #   client.get("key") # => "value"
   #
   # @example SSL/TLS connection
-  #   client = RedisRuby::Client.new(url: "rediss://redis.example.com:6379")
+  #   client = RR::Client.new(url: "rediss://redis.example.com:6379")
   #
   # @example Unix socket connection
-  #   client = RedisRuby::Client.new(url: "unix:///var/run/redis/redis.sock")
+  #   client = RR::Client.new(url: "unix:///var/run/redis/redis.sock")
   #
   class Client
     include Commands::Strings
@@ -70,7 +70,7 @@ module RedisRuby
     # @param timeout [Float] Connection timeout in seconds
     # @param ssl [Boolean] Enable SSL/TLS
     # @param ssl_params [Hash] SSL parameters for OpenSSL::SSL::SSLContext
-    # @param retry_policy [RedisRuby::Retry, nil] Retry policy for transient failures
+    # @param [RR::Retry, nil] Retry policy for transient failures
     # @param reconnect_attempts [Integer] Shorthand for retry count (creates default policy)
     # @param decode_responses [Boolean] Auto-decode binary responses to the specified encoding
     # @param encoding [String] Encoding for decoded responses (default: "UTF-8")

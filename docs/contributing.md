@@ -165,7 +165,7 @@ redis.set('key', 'value')
 # ✅ Always include at the top of files
 # frozen_string_literal: true
 
-module RedisRuby
+module RR
   # ...
 end
 ```
@@ -415,7 +415,7 @@ RUBYOPT="--yjit" bundle exec ruby benchmarks/generate_comprehensive_report.rb
 
 ```ruby
 # Enable debug logging
-redis = RedisRuby.new(url: "redis://localhost:6379", logger: Logger.new($stdout))
+redis = RR.new(url: "redis://localhost:6379", logger: Logger.new($stdout))
 
 # Use pry for debugging
 require "pry"

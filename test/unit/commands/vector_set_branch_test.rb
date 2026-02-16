@@ -3,13 +3,13 @@
 require_relative "../unit_test_helper"
 require "json"
 
-# Branch-coverage unit tests for RedisRuby::Commands::VectorSet
+# Branch-coverage unit tests for RR::Commands::VectorSet
 # Uses a lightweight MockClient that includes the module directly
 # and records every command sent through call / call_Nargs.
 class VectorSetBranchTest < Minitest::Test
   # ------------------------------------------------------------------ mock --
   class MockClient
-    include RedisRuby::Commands::VectorSet
+    include RR::Commands::VectorSet
 
     attr_reader :last_command
     attr_accessor :next_return

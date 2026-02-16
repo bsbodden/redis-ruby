@@ -8,7 +8,7 @@ class BitmapBranchTest < Minitest::Test
   # ============================================================
 
   class MockClient
-    include RedisRuby::Commands::Bitmap
+    include RR::Commands::Bitmap
 
     attr_reader :last_command
 

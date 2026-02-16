@@ -4,7 +4,7 @@ require_relative "../unit_test_helper"
 
 class HashesBranchTest < Minitest::Test
   class MockClient
-    include RedisRuby::Commands::Hashes
+    include RR::Commands::Hashes
 
     attr_reader :last_command
 
@@ -106,7 +106,7 @@ class HashesBranchTest < Minitest::Test
   end
 
   class EmptyHgetallMock
-    include RedisRuby::Commands::Hashes
+    include RR::Commands::Hashes
 
     def call(*) = "OK"
     def call_1arg(*, **) = []

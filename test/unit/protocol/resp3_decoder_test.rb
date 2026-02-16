@@ -7,7 +7,7 @@ class RESP3DecoderTest < Minitest::Test
   # Helper to create decoder from string
   def decode(string)
     io = StringIO.new(string.b)
-    decoder = RedisRuby::Protocol::RESP3Decoder.new(io)
+    decoder = RR::Protocol::RESP3Decoder.new(io)
     decoder.decode
   end
 
@@ -28,14 +28,14 @@ class RESP3DecoderTest < Minitest::Test
   def test_decode_simple_error
     error = decode("-ERR unknown command\r\n")
 
-    assert_instance_of RedisRuby::CommandError, error
+    assert_instance_of RR::CommandError, error
     assert_equal "ERR unknown command", error.message
   end
 
   def test_decode_wrongtype_error
     error = decode("-WRONGTYPE Operation against a key holding the wrong kind of value\r\n")
 
-    assert_instance_of RedisRuby::CommandError, error
+    assert_instance_of RR::CommandError, error
     assert_includes error.message, "WRONGTYPE"
   end
 
@@ -165,7 +165,7 @@ class RESP3DecoderTest < Minitest::Test
   def test_decode_bulk_error
     error = decode("!21\r\nSYNTAX invalid syntax\r\n")
 
-    assert_instance_of RedisRuby::CommandError, error
+    assert_instance_of RR::CommandError, error
     assert_equal "SYNTAX invalid syntax", error.message
   end
 
@@ -221,14 +221,14 @@ class RESP3DecoderTest < Minitest::Test
   def test_decode_push
     result = decode(">2\r\n+message\r\n+data\r\n")
 
-    assert_instance_of RedisRuby::Protocol::PushMessage, result
+    assert_instance_of RR::Protocol::PushMessage, result
     assert_equal %w[message data], result.data
   end
 
   # Multiple responses (for pipelining)
   def test_decode_multiple_responses
     io = StringIO.new("+OK\r\n:42\r\n$5\r\nhello\r\n".b)
-    decoder = RedisRuby::Protocol::RESP3Decoder.new(io)
+    decoder = RR::Protocol::RESP3Decoder.new(io)
 
     assert_equal "OK", decoder.decode
     assert_equal 42, decoder.decode
