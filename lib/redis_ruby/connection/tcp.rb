@@ -190,6 +190,9 @@ module RR
         @buffered_io = Protocol::BufferedIO.new(@socket, read_timeout: @timeout, write_timeout: @timeout)
         @decoder = Protocol::RESP3Decoder.new(@buffered_io)
         @pid = Process.pid # Track PID for fork safety
+      rescue Errno::ECONNREFUSED, Errno::EHOSTUNREACH, Errno::ETIMEDOUT, Errno::ENETUNREACH,
+             Socket::ResolutionError, SocketError => e
+        raise ConnectionError, "Failed to connect to #{@host}:#{@port}: #{e.message}"
       end
 
       # Configure socket options for performance

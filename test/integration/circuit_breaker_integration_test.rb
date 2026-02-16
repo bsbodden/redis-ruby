@@ -31,11 +31,32 @@ module RR
     end
 
     def test_circuit_breaker_opens_on_connection_failures
-      skip "Circuit breaker integration requires simulating actual connection failures"
+      # Create a client with no retry policy and circuit breaker
+      circuit_breaker = RR::CircuitBreaker.new(failure_threshold: 3)
+      redis = RR::Client.new(
+        host: "nonexistent.invalid",  # Invalid host to force connection failures
+        timeout: 0.1,                  # Short timeout
+        reconnect_attempts: 0,         # No retries
+        circuit_breaker: circuit_breaker
+      )
 
-      # This test would require a way to simulate connection failures
-      # without the retry policy catching them
-      # For now, we test the circuit breaker directly in unit tests
+      # Try to execute commands - should fail and open circuit
+      3.times do
+        begin
+          redis.get("key")
+          flunk "Expected connection error"
+        rescue RR::ConnectionError, RR::TimeoutError
+          # Expected - connection failures
+        end
+      end
+
+      # Circuit should now be open
+      assert_equal :open, circuit_breaker.state
+
+      # Next attempt should raise CircuitBreakerOpenError
+      assert_raises(RR::CircuitBreakerOpenError) do
+        redis.get("key")
+      end
     end
 
     def test_health_check_returns_true_when_healthy
@@ -55,10 +76,16 @@ module RR
     end
 
     def test_health_check_catches_errors
-      skip "Health check will reconnect automatically - need different test approach"
+      # Create a client pointing to invalid host
+      redis = RR::Client.new(
+        host: "nonexistent.invalid",
+        timeout: 0.1,
+        reconnect_attempts: 0
+      )
 
-      # Health check will trigger reconnection, so this test needs
-      # a different approach (e.g., mock connection)
+      # Health check should return false
+      refute redis.health_check
+      refute redis.healthy?
     end
 
     def test_pooled_client_works_with_circuit_breaker
@@ -88,11 +115,32 @@ module RR
     end
 
     def test_circuit_breaker_prevents_cascading_failures
-      skip "Circuit breaker integration requires simulating actual connection failures"
+      # Create a client with circuit breaker and no retries
+      circuit_breaker = RR::CircuitBreaker.new(failure_threshold: 3)
+      redis = RR::Client.new(
+        host: "nonexistent.invalid",
+        timeout: 0.1,
+        reconnect_attempts: 0,
+        circuit_breaker: circuit_breaker
+      )
 
-      # This test would require a way to simulate connection failures
-      # without the retry policy catching them
-      # The circuit breaker works correctly in unit tests
+      # Try to execute commands
+      errors = 0
+      circuit_open_errors = 0
+
+      10.times do
+        begin
+          redis.get("key")
+        rescue RR::CircuitBreakerOpenError
+          circuit_open_errors += 1
+        rescue RR::ConnectionError, RR::TimeoutError
+          errors += 1
+        end
+      end
+
+      # After 3 failures, circuit should open and prevent further attempts
+      assert_equal 3, errors, "Should have 3 connection errors before circuit opens"
+      assert_equal 7, circuit_open_errors, "Should have 7 circuit breaker errors after circuit opens"
     end
   end
 end
