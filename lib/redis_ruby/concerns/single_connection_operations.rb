@@ -24,7 +24,16 @@ module RR
         ensure_connected
         pipeline = Pipeline.new(@connection)
         yield pipeline
-        results = pipeline.execute
+
+        if @instrumentation
+          start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+          results = pipeline.execute
+          duration = Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time
+          @instrumentation.record_pipeline(duration, pipeline.size)
+        else
+          results = pipeline.execute
+        end
+
         results.map { |r| r.is_a?(CommandError) ? raise(r) : r }
       end
 
@@ -36,7 +45,16 @@ module RR
         ensure_connected
         transaction = Transaction.new(@connection)
         yield transaction
-        results = transaction.execute
+
+        if @instrumentation
+          start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+          results = transaction.execute
+          duration = Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time
+          @instrumentation.record_transaction(duration, transaction.size)
+        else
+          results = transaction.execute
+        end
+
         return nil if results.nil?
 
         # Handle case where transaction itself failed (e.g., MISCONF)
