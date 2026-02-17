@@ -67,6 +67,7 @@ module RR
       #   ])
       def add_many(vectors)
         vectors.each do |vec|
+          vec = vec.dup
           id = vec.delete(:id) || vec.delete("id")
           vector_data = vec.delete(:vector) || vec.delete("vector")
           add(id, vector_data, **vec)
