@@ -577,4 +577,68 @@ class SubscriberUnitTest < Minitest::Test
     assert_equal 3, config[:db]
     assert_in_delta(15.0, config[:timeout])
   end
+
+  def test_extract_client_config_includes_password
+    client = SubscriberMockClient.new
+    client.instance_variable_set(:@password, "secret")
+    subscriber = RR::Subscriber.new(client)
+    config = subscriber.instance_variable_get(:@client_config)
+
+    assert_equal "secret", config[:password]
+  end
+
+  def test_extract_client_config_includes_ssl
+    client = SubscriberMockClient.new
+    client.instance_variable_set(:@ssl, true)
+    client.instance_variable_set(:@ssl_params, { verify_mode: 1 })
+    subscriber = RR::Subscriber.new(client)
+    config = subscriber.instance_variable_get(:@client_config)
+
+    assert_equal true, config[:ssl]
+    assert_equal({ verify_mode: 1 }, config[:ssl_params])
+  end
+
+  def test_create_connection_uses_ssl_when_configured
+    client = SubscriberMockClient.new
+    client.instance_variable_set(:@ssl, true)
+    client.instance_variable_set(:@ssl_params, {})
+    subscriber = RR::Subscriber.new(client)
+
+    mock_ssl_conn = mock("ssl_conn")
+    RR::Connection::SSL.expects(:new).with(
+      host: "localhost",
+      port: 6379,
+      timeout: 5.0,
+      ssl_params: {}
+    ).returns(mock_ssl_conn)
+
+    conn = subscriber.send(:create_connection)
+
+    assert_equal mock_ssl_conn, conn
+  end
+
+  def test_authenticate_called_when_password_set
+    client = SubscriberMockClient.new
+    client.instance_variable_set(:@password, "secret")
+    subscriber = RR::Subscriber.new(client)
+
+    mock_conn = SubscriberMockConnection.new
+    subscriber.instance_variable_set(:@connection, mock_conn)
+
+    subscriber.send(:authenticate_if_needed)
+
+    assert_includes mock_conn.calls, ["AUTH", "secret"]
+  end
+
+  def test_authenticate_not_called_without_password
+    client = SubscriberMockClient.new
+    subscriber = RR::Subscriber.new(client)
+
+    mock_conn = SubscriberMockConnection.new
+    subscriber.instance_variable_set(:@connection, mock_conn)
+
+    subscriber.send(:authenticate_if_needed)
+
+    refute mock_conn.calls.any? { |c| c[0] == "AUTH" }
+  end
 end

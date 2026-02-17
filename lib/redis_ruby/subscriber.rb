@@ -200,32 +200,54 @@ module RR
 
     # Extract configuration from existing client
     def extract_client_config(client)
-      {
+      config = {
         host: client.host,
         port: client.port,
         db: client.db,
         timeout: client.timeout,
       }
+
+      # Extract password, ssl, ssl_params (not publicly exposed on Client)
+      config[:password] = client.instance_variable_get(:@password) if client.instance_variable_defined?(:@password)
+      config[:ssl] = client.instance_variable_get(:@ssl) if client.instance_variable_defined?(:@ssl)
+      config[:ssl_params] = client.instance_variable_get(:@ssl_params) if client.instance_variable_defined?(:@ssl_params)
+
+      config
     end
 
     # Create a dedicated connection for subscriptions
     def create_connection
-      Connection::TCP.new(
-        host: @client_config[:host],
-        port: @client_config[:port],
-        timeout: @client_config[:timeout]
-      )
+      if @client_config[:ssl]
+        Connection::SSL.new(
+          host: @client_config[:host],
+          port: @client_config[:port],
+          timeout: @client_config[:timeout],
+          ssl_params: @client_config[:ssl_params] || {}
+        )
+      else
+        Connection::TCP.new(
+          host: @client_config[:host],
+          port: @client_config[:port],
+          timeout: @client_config[:timeout]
+        )
+      end
     end
 
     # Main subscription loop
     def run_subscription_loop
       @connection = create_connection
+      authenticate_if_needed
       select_database_if_needed
       send_subscriptions
       message_loop
     ensure
       @connection&.close
       @connection = nil
+    end
+
+    def authenticate_if_needed
+      password = @client_config[:password]
+      @connection.call("AUTH", password) if password
     end
 
     def select_database_if_needed
