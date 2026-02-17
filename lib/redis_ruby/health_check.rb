@@ -353,4 +353,8 @@ module RR
   end
 end
 
+# Load additional health check implementations
+require_relative "health_check/lag_aware"
+require_relative "health_check/rest_api"
+
 

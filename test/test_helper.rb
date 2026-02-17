@@ -13,6 +13,21 @@ require "minitest/autorun"
 require "minitest/reporters"
 require "mocha/minitest"
 
+# Configure WebMock to allow Docker API and localhost connections
+begin
+  require "webmock"
+  WebMock.disable_net_connect!(
+    allow_localhost: true,
+    allow: [
+      /unix/,  # Allow Unix socket connections (Docker API)
+      /127\.0\.0\.1/,
+      /localhost/
+    ]
+  )
+rescue LoadError
+  # WebMock not available, skip
+end
+
 Minitest::Reporters.use! [Minitest::Reporters::DefaultReporter.new(color: true)]
 
 # Suppress async-pool warnings about mutex unlocking

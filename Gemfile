@@ -43,6 +43,7 @@ group :test do
   gem "simplecov", "~> 0.22", require: false
   gem "testcontainers-core", "~> 0.2"
   gem "testcontainers-redis", "~> 0.2"
+  gem "webmock", "~> 3.24"
 end
 
 # Async support (optional, for async client)
