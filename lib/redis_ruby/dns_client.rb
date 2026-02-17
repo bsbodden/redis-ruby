@@ -99,50 +99,45 @@ module RR
     # @param args [Array] Command arguments
     # @return [Object] Command result
     def call(command, *args)
-      ensure_connected
-      result = @connection.call(command, *args)
-      raise result if result.is_a?(CommandError)
+      execute_with_retry do
+        result = @connection.call(command, *args)
+        raise result if result.is_a?(CommandError)
 
-      result
-    rescue ConnectionError, Errno::ECONNRESET, Errno::EPIPE, Errno::ECONNREFUSED, IOError => e
-      # Try to reconnect with a different IP
-      retry_with_different_ip(e)
+        result
+      end
     end
 
     # Fast path for single-argument commands (GET, DEL, EXISTS, etc.)
     # @api private
     def call_1arg(command, arg)
-      ensure_connected
-      result = @connection.call_1arg(command, arg)
-      raise result if result.is_a?(CommandError)
+      execute_with_retry do
+        result = @connection.call_1arg(command, arg)
+        raise result if result.is_a?(CommandError)
 
-      result
-    rescue ConnectionError, Errno::ECONNRESET, Errno::EPIPE, Errno::ECONNREFUSED, IOError => e
-      retry_with_different_ip(e)
+        result
+      end
     end
 
     # Fast path for two-argument commands (SET without options, HGET, etc.)
     # @api private
     def call_2args(command, arg1, arg2)
-      ensure_connected
-      result = @connection.call_2args(command, arg1, arg2)
-      raise result if result.is_a?(CommandError)
+      execute_with_retry do
+        result = @connection.call_2args(command, arg1, arg2)
+        raise result if result.is_a?(CommandError)
 
-      result
-    rescue ConnectionError, Errno::ECONNRESET, Errno::EPIPE, Errno::ECONNREFUSED, IOError => e
-      retry_with_different_ip(e)
+        result
+      end
     end
 
     # Fast path for three-argument commands (HSET, LRANGE, etc.)
     # @api private
     def call_3args(command, arg1, arg2, arg3)
-      ensure_connected
-      result = @connection.call_3args(command, arg1, arg2, arg3)
-      raise result if result.is_a?(CommandError)
+      execute_with_retry do
+        result = @connection.call_3args(command, arg1, arg2, arg3)
+        raise result if result.is_a?(CommandError)
 
-      result
-    rescue ConnectionError, Errno::ECONNRESET, Errno::EPIPE, Errno::ECONNREFUSED, IOError => e
-      retry_with_different_ip(e)
+        result
+      end
     end
 
     # Close the connection
@@ -213,9 +208,20 @@ module RR
       @connection.call("SELECT", @db)
     end
 
-    # Retry with a different IP from DNS resolution
+    # Execute a block with retry on connection errors, reconnecting to a
+    # different IP each time.
     # @api private
-    def retry_with_different_ip(original_error)
+    def execute_with_retry
+      ensure_connected
+      yield
+    rescue ConnectionError, Errno::ECONNRESET, Errno::EPIPE, Errno::ECONNREFUSED, IOError => e
+      reconnect_to_different_ip(e)
+      yield
+    end
+
+    # Reconnect to a different IP from DNS resolution
+    # @api private
+    def reconnect_to_different_ip(original_error)
       attempts = 0
 
       while attempts < @reconnect_attempts
