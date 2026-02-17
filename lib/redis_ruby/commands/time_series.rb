@@ -405,6 +405,8 @@ module RR
                  else
                    call_1arg(CMD_TS_INFO, key)
                  end
+        return result if result.is_a?(Hash)
+
         result.each_slice(2).to_h
       end
 

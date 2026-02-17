@@ -546,13 +546,14 @@ module RR
         return [] if entries.nil?
 
         entries.map do |id, fields|
-          [id, Hash[*fields]]
+          [id, fields.is_a?(Hash) ? fields : Hash[*fields]]
         end
       end
 
       # Convert flat array to hash
       def hash_result(array)
         return {} if array.nil?
+        return array if array.is_a?(Hash)
 
         Hash[*array]
       end

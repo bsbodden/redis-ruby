@@ -181,6 +181,8 @@ module RR
       # @return [Hash] Vector set information
       def vinfo(key)
         result = call_1arg(CMD_VINFO, key)
+        return result if result.is_a?(Hash)
+
         result.each_slice(2).to_h
       end
 
@@ -361,12 +363,13 @@ module RR
         return result unless with_scores && result.is_a?(Array)
 
         result.map do |level|
-          level.is_a?(Array) ? Hash[*level].transform_values(&:to_f) : level
+          level.is_a?(Hash) ? level.transform_values(&:to_f) : (level.is_a?(Array) ? Hash[*level].transform_values(&:to_f) : level)
         end
       end
 
       # Parse VSIM response based on options
       def parse_vsim_response(result, with_scores, with_attribs)
+        return result.transform_values(&:to_f) if with_scores && result.is_a?(Hash)
         return result unless result.is_a?(Array)
         return parse_vsim_scores_and_attribs(result) if with_scores && with_attribs
         return Hash[*result].transform_values(&:to_f) if with_scores

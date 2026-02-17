@@ -287,6 +287,8 @@ module RR
       # @return [Hash] Filter information
       def bf_info(key)
         result = call_1arg(CMD_BF_INFO, key)
+        return result if result.is_a?(Hash)
+
         result.each_slice(2).to_h
       end
 
@@ -428,6 +430,8 @@ module RR
       # @return [Hash] Filter information
       def cf_info(key)
         result = call_1arg(CMD_CF_INFO, key)
+        return result if result.is_a?(Hash)
+
         result.each_slice(2).to_h
       end
 
@@ -502,6 +506,8 @@ module RR
       # @return [Hash] Sketch information
       def cms_info(key)
         result = call_1arg(CMD_CMS_INFO, key)
+        return result if result.is_a?(Hash)
+
         result.each_slice(2).to_h
       end
 
@@ -580,6 +586,8 @@ module RR
       # @return [Hash] Top-k information
       def topk_info(key)
         result = call_1arg(CMD_TOPK_INFO, key)
+        return result if result.is_a?(Hash)
+
         result.each_slice(2).to_h
       end
 
@@ -696,6 +704,8 @@ module RR
       # @return [Hash] Sketch information
       def tdigest_info(key)
         result = call_1arg(CMD_TDIGEST_INFO, key)
+        return result if result.is_a?(Hash)
+
         result.each_slice(2).to_h
       end
 

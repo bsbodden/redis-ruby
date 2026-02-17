@@ -222,6 +222,8 @@ module RR
       # @return [Hash] Index metadata
       def ft_info(index_name)
         result = call_1arg(CMD_FT_INFO, index_name)
+        return result if result.is_a?(Hash)
+
         # Convert array to hash (pairs of key, value)
         result.each_slice(2).to_h
       end
@@ -373,6 +375,8 @@ module RR
       # @return [Hash] Synonym groups
       def ft_syndump(index_name)
         result = call_1arg(CMD_FT_SYNDUMP, index_name)
+        return result if result.is_a?(Hash)
+
         Hash[*result]
       end
 

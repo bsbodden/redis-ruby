@@ -111,8 +111,9 @@ module RR
       def hgetall(key)
         result = call_1arg(CMD_HGETALL, key)
         return {} if result.empty?
+        return result if result.is_a?(Hash)
 
-        # Convert array to hash: [f1, v1, f2, v2] -> {f1 => v1, f2 => v2}
+        # Convert flat array to hash: [f1, v1, f2, v2] -> {f1 => v1, f2 => v2}
         result.each_slice(2).to_h
       end
 

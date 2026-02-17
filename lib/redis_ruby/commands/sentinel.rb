@@ -175,7 +175,8 @@ module RR
 
       # Parse Sentinel info reply (flat array to hash)
       def parse_info_reply(array)
-        return {} unless array.is_a?(Array)
+        return {} unless array.is_a?(Array) || array.is_a?(Hash)
+        return array if array.is_a?(Hash)
 
         Hash[*array]
       end

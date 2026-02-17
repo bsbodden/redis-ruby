@@ -234,6 +234,8 @@ module RR
                  else
                    call(CMD_PUBSUB, SUBCMD_NUMSUB, *channels)
                  end
+        return result if result.is_a?(Hash)
+
         Hash[*result]
       end
 
@@ -269,6 +271,8 @@ module RR
                  else
                    call(CMD_PUBSUB, SUBCMD_SHARDNUMSUB, *channels)
                  end
+        return result if result.is_a?(Hash)
+
         Hash[*result]
       end
 
