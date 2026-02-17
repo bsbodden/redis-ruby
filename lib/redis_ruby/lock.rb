@@ -253,13 +253,15 @@ module RR
 
     # Acquire with blocking/polling
     def acquire_with_blocking(token, timeout_ms, blocking_timeout)
-      deadline = blocking_timeout ? Time.now + blocking_timeout : nil
+      deadline = if blocking_timeout
+                   Process.clock_gettime(Process::CLOCK_MONOTONIC) + blocking_timeout
+                 end
 
       loop do
         return true if acquire_once(token, timeout_ms)
 
         # Check if we've exceeded the blocking timeout
-        return false if deadline && Time.now >= deadline
+        return false if deadline && Process.clock_gettime(Process::CLOCK_MONOTONIC) >= deadline
 
         # Sleep before retrying
         sleep(@sleep_interval)

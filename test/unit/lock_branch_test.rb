@@ -86,6 +86,27 @@ class LockBranchTest < Minitest::Test
     refute lock.acquire(blocking: true, blocking_timeout: 0.05)
   end
 
+  def test_acquire_blocking_uses_monotonic_clock
+    lock = RR::Lock.new(@mock_client, "res", sleep: 0.001)
+    @mock_client.stubs(:set).returns(nil)
+
+    # Verify monotonic clock is used (not Time.now)
+    # If Time.now is used and jumps backward, this would hang.
+    # We verify by checking that CLOCK_MONOTONIC is called.
+    clock_called = false
+    original_clock_gettime = Process.method(:clock_gettime)
+    Process.define_singleton_method(:clock_gettime) do |clock_id|
+      clock_called = true if clock_id == Process::CLOCK_MONOTONIC
+      original_clock_gettime.call(clock_id)
+    end
+
+    refute lock.acquire(blocking: true, blocking_timeout: 0.01)
+    assert clock_called, "Expected Process.clock_gettime(CLOCK_MONOTONIC) to be called"
+  ensure
+    # Restore original method
+    Process.define_singleton_method(:clock_gettime, original_clock_gettime) if original_clock_gettime
+  end
+
   # ============================================================
   # release
   # ============================================================
