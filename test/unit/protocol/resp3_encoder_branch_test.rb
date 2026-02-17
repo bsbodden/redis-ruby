@@ -302,6 +302,14 @@ class RESP3EncoderBranchTest < Minitest::Test
     assert_includes result, "$2000\r\n"
   end
 
+  def test_int_to_s_negative_does_not_use_cache
+    # Negative integers must not use Ruby's negative array indexing
+    # on SIZE_CACHE (e.g., SIZE_CACHE[-1] would return "1024")
+    result = @encoder.send(:int_to_s, -1)
+
+    assert_equal "-1", result
+  end
+
   # ============================================================
   # Buffer reset on large payloads (pipeline)
   # ============================================================

@@ -312,7 +312,7 @@ module RR
       # @param int [Integer] Integer to convert
       # @return [String] Frozen string representation
       def int_to_s(int)
-        if int <= SIZE_CACHE_LIMIT
+        if int >= 0 && int <= SIZE_CACHE_LIMIT
           SIZE_CACHE[int]
         else
           int.to_s
