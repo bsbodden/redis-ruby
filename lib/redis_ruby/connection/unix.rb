@@ -34,6 +34,7 @@ module RR
         @socket = nil
         @buffered_io = nil
         @decoder = nil
+        @pid = nil
         @callbacks = Hash.new { |h, k| h[k] = [] }
         @ever_connected = false
         connect
@@ -45,6 +46,7 @@ module RR
       # @param args [Array] Command arguments
       # @return [Object] Command result
       def call(command, *args)
+        ensure_connected
         write_command(command, *args)
         read_response
       end
@@ -88,10 +90,39 @@ module RR
       # @param commands [Array<Array>] Array of command arrays
       # @return [Array] Array of results
       def pipeline(commands)
+        ensure_connected
         write_pipeline(commands)
         # Pre-allocate array to avoid map allocation
         count = commands.size
         Array.new(count) { read_response }
+      end
+
+      # Ensure we have a valid connection, reconnecting if needed
+      #
+      # @return [void]
+      # @raise [ConnectionError] if reconnection fails
+      def ensure_connected
+        return if @socket && !@socket.closed?
+
+        if @pid
+          current_pid = Process.pid
+          if @pid != current_pid
+            @socket = nil # Don't close - parent owns this socket
+          end
+        end
+        reconnect unless connected?
+      end
+
+      # Reconnect to the server
+      #
+      # @return [void]
+      def reconnect
+        begin
+          close
+        rescue StandardError
+          nil
+        end
+        connect
       end
 
       # Close the connection
@@ -156,6 +187,7 @@ module RR
         configure_socket
         @buffered_io = Protocol::BufferedIO.new(@socket, read_timeout: @timeout, write_timeout: @timeout)
         @decoder = Protocol::RESP3Decoder.new(@buffered_io)
+        @pid = Process.pid
 
         # Trigger appropriate callback
         event_type = @ever_connected ? :reconnected : :connected

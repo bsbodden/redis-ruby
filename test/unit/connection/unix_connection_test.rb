@@ -103,6 +103,56 @@ class UnixConnectionTest < Minitest::Test
     RR::Connection::Unix.new
   end
 
+  def test_has_ensure_connected_method
+    UNIXSocket.stubs(:new).returns(@mock_socket)
+    setup_socket_options
+
+    conn = RR::Connection::Unix.new
+
+    assert_respond_to conn, :ensure_connected
+  end
+
+  def test_has_reconnect_method
+    UNIXSocket.stubs(:new).returns(@mock_socket)
+    setup_socket_options
+
+    conn = RR::Connection::Unix.new
+
+    assert_respond_to conn, :reconnect
+  end
+
+  def test_call_calls_ensure_connected
+    UNIXSocket.stubs(:new).returns(@mock_socket)
+    setup_socket_options
+    @mock_socket.stubs(:write)
+    @mock_socket.stubs(:read_nonblock).returns("+PONG\r\n")
+
+    conn = RR::Connection::Unix.new
+    conn.expects(:ensure_connected).once
+
+    conn.call("PING")
+  end
+
+  def test_ensure_connected_reconnects_when_socket_closed
+    UNIXSocket.stubs(:new).returns(@mock_socket)
+    setup_socket_options
+
+    conn = RR::Connection::Unix.new
+    @mock_socket.stubs(:closed?).returns(true)
+
+    new_socket = mock("new_unix_socket")
+    new_socket.stubs(:sync=)
+    new_socket.stubs(:closed?).returns(false)
+    new_socket.stubs(:close)
+
+    UNIXSocket.unstub(:new)
+    UNIXSocket.stubs(:new).returns(new_socket)
+
+    conn.ensure_connected
+
+    assert_predicate conn, :connected?
+  end
+
   private
 
   def setup_socket_options
