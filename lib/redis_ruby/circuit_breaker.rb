@@ -66,7 +66,10 @@ module RR
     #   transitioning to HALF_OPEN (default: 60)
     # @param success_threshold [Integer] Number of consecutive successes in
     #   HALF_OPEN state required to transition to CLOSED (default: 2)
-    def initialize(failure_threshold: 5, reset_timeout: 60, success_threshold: 2)
+    # @param on_state_change [Proc, nil] Callback invoked on state transitions (old_state, new_state, metrics)
+    # @param fallback [Proc, nil] Fallback to execute when circuit is open
+    def initialize(failure_threshold: 5, reset_timeout: 60, success_threshold: 2,
+                   on_state_change: nil, fallback: nil)
       @mutex = Mutex.new
       @failure_threshold = failure_threshold
       @reset_timeout = reset_timeout
@@ -76,24 +79,37 @@ module RR
       @success_count = 0
       @opened_at = nil
       @last_failure_time = nil
+      @on_state_change = on_state_change
+      @fallback = fallback
+
+      # Metrics tracking
+      @total_failures = 0
+      @total_successes = 0
+      @state_durations = { closed: 0.0, open: 0.0, half_open: 0.0 }
+      @state_entered_at = monotonic_time
+      @transition_count = 0
     end
 
     # Execute a block with circuit breaker protection.
     #
     # Checks the circuit state before executing. If the circuit is OPEN, raises
-    # CircuitBreakerOpenError immediately. Otherwise, executes the block and
-    # records the result (success or failure).
+    # CircuitBreakerOpenError immediately (or executes fallback if provided).
+    # Otherwise, executes the block and records the result (success or failure).
     #
     # @yield Block to execute
-    # @return [Object] Result of the block
-    # @raise [CircuitBreakerOpenError] If circuit is open
+    # @return [Object] Result of the block or fallback
+    # @raise [CircuitBreakerOpenError] If circuit is open and no fallback provided
     # @raise [StandardError] Any error raised by the block (after recording failure)
     def call
       @mutex.synchronize do
         check_state_transition
 
         if @state == STATE_OPEN
-          raise CircuitBreakerOpenError, "Circuit breaker is OPEN (failures: #{@failure_count})"
+          if @fallback
+            return @fallback.call
+          else
+            raise CircuitBreakerOpenError, "Circuit breaker is OPEN (failures: #{@failure_count})"
+          end
         end
       end
 
@@ -144,11 +160,39 @@ module RR
     # Useful for manual recovery or testing.
     def reset!
       @mutex.synchronize do
+        old_state = @state
         @state = STATE_CLOSED
         @failure_count = 0
         @success_count = 0
         @opened_at = nil
         @last_failure_time = nil
+
+        update_state_duration(old_state)
+        @state_entered_at = monotonic_time
+        emit_state_change(old_state, STATE_CLOSED) if old_state != STATE_CLOSED
+      end
+    end
+
+    # Get circuit breaker metrics
+    #
+    # @return [Hash] Metrics including state durations, counts, and transitions
+    def metrics
+      @mutex.synchronize do
+        current_duration = monotonic_time - @state_entered_at
+        durations = @state_durations.dup
+        durations[@state] += current_duration
+
+        {
+          state: @state,
+          failure_count: @failure_count,
+          success_count: @success_count,
+          total_failures: @total_failures,
+          total_successes: @total_successes,
+          state_durations: durations,
+          transition_count: @transition_count,
+          opened_at: @opened_at,
+          last_failure_time: @last_failure_time
+        }
       end
     end
 
@@ -160,13 +204,15 @@ module RR
     # if success threshold is reached. In CLOSED state, resets failure count.
     def record_success
       @mutex.synchronize do
-        @success_count += 1
+        @total_successes += 1
 
-        if @state == STATE_HALF_OPEN && @success_count >= @success_threshold
-          close_circuit
+        if @state == STATE_HALF_OPEN
+          @success_count += 1
+          close_circuit if @success_count >= @success_threshold
         elsif @state == STATE_CLOSED
-          # Reset failure count on success in closed state
+          # Reset failure count and success count on success in closed state
           @failure_count = 0
+          @success_count = 0
         end
       end
     end
@@ -178,7 +224,9 @@ module RR
     def record_failure
       @mutex.synchronize do
         @failure_count += 1
+        @total_failures += 1
         @last_failure_time = monotonic_time
+        @success_count = 0  # Reset success count on failure
 
         if @state == STATE_HALF_OPEN
           # Any failure in half-open state reopens the circuit
@@ -211,9 +259,16 @@ module RR
     # Transitions to OPEN state, records the time, and resets success count.
     # Must be called within a mutex synchronize block.
     def open_circuit
+      old_state = @state
+      update_state_duration(old_state)
+
       @state = STATE_OPEN
       @opened_at = monotonic_time
+      @state_entered_at = monotonic_time
       @success_count = 0
+      @transition_count += 1
+
+      emit_state_change(old_state, STATE_OPEN)
     end
 
     # Close the circuit.
@@ -221,10 +276,17 @@ module RR
     # Transitions to CLOSED state and resets all counters.
     # Must be called within a mutex synchronize block.
     def close_circuit
+      old_state = @state
+      update_state_duration(old_state)
+
       @state = STATE_CLOSED
+      @state_entered_at = monotonic_time
       @failure_count = 0
       @success_count = 0
       @opened_at = nil
+      @transition_count += 1
+
+      emit_state_change(old_state, STATE_CLOSED)
     end
 
     # Transition to half-open state.
@@ -232,9 +294,50 @@ module RR
     # Resets counters to allow testing if the service has recovered.
     # Must be called within a mutex synchronize block.
     def transition_to_half_open
+      old_state = @state
+      update_state_duration(old_state)
+
       @state = STATE_HALF_OPEN
+      @state_entered_at = monotonic_time
       @failure_count = 0
       @success_count = 0
+      @transition_count += 1
+
+      emit_state_change(old_state, STATE_HALF_OPEN)
+    end
+
+    # Update state duration tracking
+    #
+    # Must be called within a mutex synchronize block.
+    def update_state_duration(state)
+      duration = monotonic_time - @state_entered_at
+      @state_durations[state] += duration
+    end
+
+    # Emit state change event
+    #
+    # Must be called within a mutex synchronize block.
+    def emit_state_change(old_state, new_state)
+      return unless @on_state_change
+      return if old_state == new_state
+
+      # Get metrics snapshot before releasing mutex
+      metrics_snapshot = {
+        state: new_state,
+        failure_count: @failure_count,
+        success_count: @success_count,
+        total_failures: @total_failures,
+        total_successes: @total_successes
+      }
+
+      # Call callback outside mutex to avoid deadlocks
+      Thread.new do
+        begin
+          @on_state_change.call(old_state, new_state, metrics_snapshot)
+        rescue StandardError => e
+          warn "Error in circuit breaker state change callback: #{e.message}"
+        end
+      end
     end
 
     # Get monotonic time in seconds.
