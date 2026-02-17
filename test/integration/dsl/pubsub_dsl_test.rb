@@ -357,24 +357,26 @@ class PubSubDSLTest < RedisRubyTestCase
       subscriber.stop(wait: false) if received.size >= 1
     end
 
+    # Initially not running
     refute subscriber.running?
 
-    # Publisher thread
-    publisher_thread = Thread.new do
-      sleep 0.1
-      @publisher_redis.publish(@channel, "test")
-      sleep 0.1
-    end
-
+    # Start subscriber in background
     thread = subscriber.run_async
-    sleep 0.1
 
+    # run_async waits until subscriber is running before returning,
+    # so we can assert immediately
     assert subscriber.running?
 
-    publisher_thread.join
-    thread.join(1)
+    # Now publish a message to trigger the stop
+    @publisher_redis.publish(@channel, "test")
 
+    # Wait for the subscriber thread to finish (stop was called with wait: false,
+    # so we need to wait for the thread to actually exit)
+    assert thread.join(2), "Subscriber thread should finish within 2 seconds"
+
+    # Should be stopped now (thread has exited)
     refute subscriber.running?
+    assert_equal ["test"], received
   end
 
   # ============================================================
