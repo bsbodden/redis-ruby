@@ -213,6 +213,14 @@ class TCPConnectionTest < Minitest::Test
     assert_equal conn.instance_variable_get(:@pid), Process.pid
   end
 
+  def test_socket_closed_on_configure_socket_failure
+    TCPSocket.expects(:new).returns(@mock_socket)
+    @mock_socket.expects(:setsockopt).raises(StandardError, "setsockopt failed")
+    @mock_socket.expects(:close)
+
+    assert_raises(RR::ConnectionError) { RR::Connection::TCP.new }
+  end
+
   def test_ensure_connected_reconnects_if_not_connected
     # First connection - will be "closed"
     @mock_socket.stubs(:setsockopt)

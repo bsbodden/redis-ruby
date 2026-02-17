@@ -218,16 +218,24 @@ module RR
       # Establish SSL connection
       def connect
         @tcp_socket = TCPSocket.new(@host, @port)
-        configure_tcp_socket
+        begin
+          configure_tcp_socket
 
-        ssl_context = create_ssl_context
-        @ssl_socket = OpenSSL::SSL::SSLSocket.new(@tcp_socket, ssl_context)
-        @ssl_socket.hostname = @host # SNI support
-        @ssl_socket.connect
-        @ssl_socket.post_connection_check(@host) if verify_peer?
+          ssl_context = create_ssl_context
+          @ssl_socket = OpenSSL::SSL::SSLSocket.new(@tcp_socket, ssl_context)
+          @ssl_socket.hostname = @host # SNI support
+          @ssl_socket.connect
+          @ssl_socket.post_connection_check(@host) if verify_peer?
 
-        @buffered_io = Protocol::BufferedIO.new(@ssl_socket, read_timeout: @timeout, write_timeout: @timeout)
-        @decoder = Protocol::RESP3Decoder.new(@buffered_io)
+          @buffered_io = Protocol::BufferedIO.new(@ssl_socket, read_timeout: @timeout, write_timeout: @timeout)
+          @decoder = Protocol::RESP3Decoder.new(@buffered_io)
+        rescue StandardError
+          @ssl_socket&.close rescue nil
+          @tcp_socket&.close rescue nil
+          @ssl_socket = nil
+          @tcp_socket = nil
+          raise
+        end
         @pid = Process.pid # Track PID for fork safety
 
         # Trigger appropriate callback

@@ -314,9 +314,15 @@ module RR
         })
 
         @socket = TCPSocket.new(@host, @port)
-        configure_socket
-        @buffered_io = Protocol::BufferedIO.new(@socket, read_timeout: @timeout, write_timeout: @timeout)
-        @decoder = Protocol::RESP3Decoder.new(@buffered_io)
+        begin
+          configure_socket
+          @buffered_io = Protocol::BufferedIO.new(@socket, read_timeout: @timeout, write_timeout: @timeout)
+          @decoder = Protocol::RESP3Decoder.new(@buffered_io)
+        rescue StandardError
+          @socket.close rescue nil
+          @socket = nil
+          raise
+        end
         @pid = Process.pid # Track PID for fork safety
 
         # Trigger appropriate callback
@@ -331,8 +337,8 @@ module RR
           timestamp: Time.now
         })
       rescue Errno::ECONNREFUSED, Errno::EHOSTUNREACH, Errno::ETIMEDOUT, Errno::ENETUNREACH,
-             Socket::ResolutionError, SocketError => e
-        error = ConnectionError.new("Failed to connect to #{@host}:#{@port}: #{e.message}")
+             Socket::ResolutionError, SocketError, StandardError => e
+        error = e.is_a?(ConnectionError) ? e : ConnectionError.new("Failed to connect to #{@host}:#{@port}: #{e.message}")
 
         trigger_event(:error, {
           type: :error,
