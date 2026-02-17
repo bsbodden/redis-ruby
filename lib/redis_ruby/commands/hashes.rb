@@ -216,6 +216,8 @@ module RR
       # @param withvalues [Boolean] include values
       # @return [String, Array] random field(s), or [[field, value], ...] if withvalues
       def hrandfield(key, count: nil, withvalues: false)
+        raise ArgumentError, "WITHVALUES requires count" if withvalues && count.nil?
+
         args = ["HRANDFIELD", key]
         args.push(count) if count
         args.push("WITHVALUES") if withvalues

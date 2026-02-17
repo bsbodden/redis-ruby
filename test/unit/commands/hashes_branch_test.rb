@@ -212,6 +212,12 @@ class HashesBranchTest < Minitest::Test
     assert_equal [%w[f1 v1], %w[f2 v2]], result
   end
 
+  def test_hrandfield_withvalues_without_count_raises
+    assert_raises(ArgumentError) do
+      @client.hrandfield("key", withvalues: true)
+    end
+  end
+
   # hexpire and friends
   def test_hexpire_no_flags
     @client.hexpire("key", 60, "f1", "f2")
