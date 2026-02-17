@@ -43,13 +43,13 @@ module RR
       # @example
       #   class MyService
       #     include RR::Broadcaster
-      #     redis_client RedisRuby.new
+      #     redis_client RR.new
       #   end
       def redis_client(client = nil)
         if client
           @redis_client = client
         else
-          @redis_client ||= RedisRuby.new
+          @redis_client ||= RR.new
         end
       end
 
