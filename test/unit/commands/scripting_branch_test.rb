@@ -18,8 +18,8 @@ class ScriptingBranchTest < Minitest::Test
       "OK"
     end
 
-    def call_2args(cmd, a1, a2 = nil)
-      @last_command = a2.nil? ? [cmd, a1] : [cmd, a1, a2]
+    def call_2args(cmd, a1, a2)
+      @last_command = [cmd, a1, a2]
       mock_return(@last_command)
     end
 

@@ -152,7 +152,7 @@ module RR
       #
       # @return [String] "OK"
       def script_kill
-        call_2args(CMD_SCRIPT, SUBCMD_KILL)
+        call_1arg(CMD_SCRIPT, SUBCMD_KILL)
       end
 
       # Get debugging info about a script
