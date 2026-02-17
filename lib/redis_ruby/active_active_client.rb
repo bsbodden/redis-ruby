@@ -290,8 +290,10 @@ module RR
       # Stop health checks
       @health_check_runner&.stop
 
-      # Stop auto-fallback
-      @fallback_thread&.join if @fallback_thread&.alive?
+      # Stop auto-fallback thread with a timeout to avoid hanging
+      if @fallback_thread&.alive?
+        @fallback_thread.join(1) || @fallback_thread.kill
+      end
 
       @mutex.synchronize do
         @connection&.close

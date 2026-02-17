@@ -118,6 +118,20 @@ class ActiveActiveTest < Minitest::Test
     assert_instance_of RR::ActiveActiveClient, client
   end
 
+  def test_close_does_not_hang_with_auto_fallback_thread
+    client = RR::ActiveActiveClient.new(
+      regions: @regions,
+      auto_fallback_interval: 999 # Very long sleep interval
+    )
+
+    # close should complete quickly with a timeout, not block for 999s
+    start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    client.close
+    elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time
+
+    assert elapsed < 5, "close took #{elapsed}s, expected < 5s"
+  end
+
   def test_select_db_passes_string_not_integer
     client = RR::ActiveActiveClient.new(regions: @regions, db: 3)
     mock_conn = mock("connection")
