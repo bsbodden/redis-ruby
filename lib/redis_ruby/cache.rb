@@ -198,10 +198,9 @@ module RR
       return false unless message[0] == "invalidate"
 
       keys = message[1]
-      return false unless keys
 
       if keys.nil?
-        # Full flush requested
+        # Full flush requested by Redis (CLIENT TRACKING invalidation)
         clear
       else
         invalidate_all(keys)

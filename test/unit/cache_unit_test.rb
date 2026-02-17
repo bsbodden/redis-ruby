@@ -529,11 +529,23 @@ class CacheUnitTest < Minitest::Test
     refute result
   end
 
-  def test_process_invalidation_nil_keys
+  def test_process_invalidation_nil_keys_triggers_full_flush
+    @mock_client.set_get_return("value1")
     cache = RR::Cache.new(@mock_client)
+    cache.enable!
+    cache.get("key1")
+    @mock_client.set_get_return("value2")
+    cache.get("key2")
+
+    assert cache.cached?("key1")
+    assert cache.cached?("key2")
+
+    # Redis sends ["invalidate", nil] to signal a full cache flush
     result = cache.process_invalidation(["invalidate", nil])
 
-    refute result
+    assert result
+    refute cache.cached?("key1")
+    refute cache.cached?("key2")
   end
 
   def test_process_invalidation_with_multiple_keys
