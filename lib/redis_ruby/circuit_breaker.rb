@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "monitor"
+
 module RR
   # Production-ready circuit breaker implementation for Redis connections.
   #
@@ -70,7 +72,7 @@ module RR
     # @param fallback [Proc, nil] Fallback to execute when circuit is open
     def initialize(failure_threshold: 5, reset_timeout: 60, success_threshold: 2,
                    on_state_change: nil, fallback: nil)
-      @mutex = Mutex.new
+      @mutex = Monitor.new
       @failure_threshold = failure_threshold
       @reset_timeout = reset_timeout
       @success_threshold = success_threshold
@@ -316,12 +318,13 @@ module RR
 
     # Emit state change event
     #
-    # Must be called within a mutex synchronize block.
+    # Called within a Monitor synchronize block. Monitor is reentrant,
+    # so the callback can safely call state-checking methods on this
+    # circuit breaker without deadlocking.
     def emit_state_change(old_state, new_state)
       return unless @on_state_change
       return if old_state == new_state
 
-      # Get metrics snapshot before releasing mutex
       metrics_snapshot = {
         state: new_state,
         failure_count: @failure_count,
@@ -330,13 +333,10 @@ module RR
         total_successes: @total_successes
       }
 
-      # Call callback outside mutex to avoid deadlocks
-      Thread.new do
-        begin
-          @on_state_change.call(old_state, new_state, metrics_snapshot)
-        rescue StandardError => e
-          warn "Error in circuit breaker state change callback: #{e.message}"
-        end
+      begin
+        @on_state_change.call(old_state, new_state, metrics_snapshot)
+      rescue StandardError => e
+        warn "Error in circuit breaker state change callback: #{e.message}"
       end
     end
 

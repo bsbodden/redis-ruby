@@ -172,6 +172,37 @@ module RR
       refute @circuit_breaker.open?
       assert @circuit_breaker.half_open?
     end
+
+    def test_state_change_callback_runs_synchronously
+      results = []
+      breaker = RR::CircuitBreaker.new(
+        failure_threshold: 3,
+        on_state_change: ->(_old_state, new_state, _metrics) {
+          results << new_state
+        }
+      )
+
+      breaker.trip!
+      # Callback must have completed by the time trip! returns
+      assert_equal [:open], results, "on_state_change callback should run synchronously"
+
+      breaker.reset!
+      assert_equal [:open, :closed], results, "on_state_change callback should run synchronously"
+    end
+
+    def test_state_change_callback_can_query_circuit_state
+      # Callback should be able to call state methods without deadlock
+      observed_state = nil
+      breaker = RR::CircuitBreaker.new(
+        failure_threshold: 3,
+        on_state_change: ->(_old_state, _new_state, _metrics) {
+          observed_state = breaker.open?
+        }
+      )
+
+      breaker.trip!
+      assert observed_state, "Callback should observe open? == true without deadlock"
+    end
   end
 end
 
