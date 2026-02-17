@@ -87,6 +87,135 @@ complex_check = RR::HealthCheck::Custom.new do |conn|
 end
 ```
 
+
+### REST API Health Check
+
+For Redis Enterprise deployments, check database availability via the REST API:
+
+```ruby
+# Basic REST API health check
+rest_check = RR::HealthCheck::RestApi.new(
+  rest_api_host: 'redis-enterprise.example.com',
+  rest_api_port: 9443,  # Default Redis Enterprise REST API port
+  database_id: 1,       # Your database ID
+  username: 'admin',
+  password: 'secret',
+  use_ssl: true,
+  verify_ssl: true
+)
+
+# Check database availability
+if rest_check.check(client.connection)
+  puts "Database is available"
+else
+  puts "Database is unavailable"
+end
+```
+
+**Configuration Options:**
+
+- `rest_api_host`: Redis Enterprise cluster hostname
+- `rest_api_port`: REST API port (default: 9443)
+- `database_id`: Database ID from Redis Enterprise
+- `username`: REST API username (optional)
+- `password`: REST API password (optional)
+- `timeout`: Request timeout in seconds (default: 3.0)
+- `use_ssl`: Use HTTPS (default: true)
+- `verify_ssl`: Verify SSL certificates (default: true)
+
+**Use Cases:**
+
+- Verify database availability before connecting
+- Monitor database status in multi-database deployments
+- Integrate with external monitoring systems
+- Pre-flight checks in deployment scripts
+
+### Lag-Aware Health Check
+
+For Redis Enterprise Active-Active databases, monitor replication lag to ensure data consistency:
+
+```ruby
+# Lag-aware health check for Active-Active databases
+lag_check = RR::HealthCheck::LagAware.new(
+  rest_api_host: 'redis-enterprise.example.com',
+  rest_api_port: 9443,
+  database_id: 1,
+  lag_tolerance_ms: 100,  # Maximum acceptable lag in milliseconds
+  username: 'admin',
+  password: 'secret',
+  use_ssl: true,
+  verify_ssl: true
+)
+
+# Check if lag is within tolerance
+if lag_check.check(client.connection)
+  puts "Database is available and lag is acceptable"
+else
+  puts "Database unavailable or lag exceeds tolerance"
+end
+```
+
+**Configuration Options:**
+
+- `rest_api_host`: Redis Enterprise cluster hostname
+- `rest_api_port`: REST API port (default: 9443)
+- `database_id`: Database ID from Redis Enterprise
+- `lag_tolerance_ms`: Maximum acceptable lag in milliseconds (default: 100)
+- `username`: REST API username (optional)
+- `password`: REST API password (optional)
+- `timeout`: Request timeout in seconds (default: 3.0)
+- `use_ssl`: Use HTTPS (default: true)
+- `verify_ssl`: Verify SSL certificates (default: true)
+
+**How It Works:**
+
+The lag-aware health check queries the Redis Enterprise REST API endpoint:
+```
+GET /v1/bdbs/{database_id}/availability?extend_check=lag&availability_lag_tolerance_ms={threshold}
+```
+
+This endpoint returns the database availability status and checks if replication lag is within the specified tolerance.
+
+**Requirements:**
+
+- Redis Enterprise 8.0.2-17 or later
+- Active-Active database configuration
+- REST API access credentials
+
+**Use Cases:**
+
+- Ensure read consistency in multi-region Active-Active deployments
+- Route traffic to regions with acceptable lag
+- Prevent stale reads in latency-sensitive applications
+- Monitor cross-region replication health
+
+**Example with Circuit Breaker:**
+
+```ruby
+# Combine lag-aware health check with circuit breaker
+lag_check = RR::HealthCheck::LagAware.new(
+  rest_api_host: 'redis-enterprise.example.com',
+  database_id: 1,
+  lag_tolerance_ms: 50,  # Strict 50ms tolerance
+  username: ENV['REDIS_API_USER'],
+  password: ENV['REDIS_API_PASSWORD']
+)
+
+circuit_breaker = RR::CircuitBreaker.new(
+  failure_threshold: 3,
+  success_threshold: 2,
+  timeout: 30.0,
+  half_open_max_calls: 1
+)
+
+client = RR.new(
+  url: 'redis://redis-enterprise.example.com:12000',
+  circuit_breaker: circuit_breaker,
+  health_check: lag_check
+)
+```
+
+
 ## Background Health Monitoring
 
 Use the health check runner for continuous monitoring:
@@ -156,7 +285,7 @@ client = RR::PooledClient.new(
 class ApplicationHealthCheck < RR::HealthCheck::Base
   def check(connection)
     return false unless connection.connected?
-    
+
     # Check application-specific requirements
     result = connection.call("GET", "app:status")
     result == "ready"

@@ -154,6 +154,101 @@ status.each do |region_id, info|
 end
 ```
 
+
+#### Lag-Aware Health Checks
+
+For Active-Active databases, monitor replication lag to ensure data consistency across regions:
+
+```ruby
+# Create lag-aware health check for each region
+lag_check = RR::HealthCheck::LagAware.new(
+  rest_api_host: 'redis-enterprise.example.com',
+  rest_api_port: 9443,
+  database_id: 1,
+  lag_tolerance_ms: 100,  # Maximum acceptable lag
+  username: ENV['REDIS_API_USER'],
+  password: ENV['REDIS_API_PASSWORD']
+)
+
+# Use with Active-Active client
+client = RR.active_active(
+  regions: [
+    { host: "redis-us.example.com", port: 6380, weight: 1.0 },
+    { host: "redis-eu.example.com", port: 6380, weight: 0.8 },
+    { host: "redis-ap.example.com", port: 6380, weight: 0.5 }
+  ],
+  health_check: lag_check,
+  health_check_interval: 5.0,
+  health_check_policy: :majority
+)
+```
+
+**Benefits:**
+
+- **Prevent stale reads**: Ensure lag is within acceptable bounds before routing traffic
+- **Region selection**: Route to regions with lowest lag for latency-sensitive operations
+- **Consistency guarantees**: Maintain data freshness across geo-distributed deployments
+- **Automatic failover**: Switch regions when lag exceeds tolerance
+
+**Example: Strict Lag Tolerance**
+
+For applications requiring strong consistency:
+
+```ruby
+# Strict 50ms lag tolerance
+strict_lag_check = RR::HealthCheck::LagAware.new(
+  rest_api_host: 'redis-enterprise.example.com',
+  database_id: 1,
+  lag_tolerance_ms: 50,  # Very strict tolerance
+  username: ENV['REDIS_API_USER'],
+  password: ENV['REDIS_API_PASSWORD']
+)
+
+client = RR.active_active(
+  regions: regions,
+  health_check: strict_lag_check,
+  health_check_interval: 2.0,  # Check frequently
+  health_check_policy: :all,   # All probes must pass
+  circuit_breaker_threshold: 3 # Fail fast
+)
+```
+
+**Example: Lenient Lag Tolerance**
+
+For applications prioritizing availability over consistency:
+
+```ruby
+# Lenient 500ms lag tolerance
+lenient_lag_check = RR::HealthCheck::LagAware.new(
+  rest_api_host: 'redis-enterprise.example.com',
+  database_id: 1,
+  lag_tolerance_ms: 500,  # Lenient tolerance
+  username: ENV['REDIS_API_USER'],
+  password: ENV['REDIS_API_PASSWORD']
+)
+
+client = RR.active_active(
+  regions: regions,
+  health_check: lenient_lag_check,
+  health_check_interval: 10.0,  # Check less frequently
+  health_check_policy: :any,    # Any probe passing is OK
+  circuit_breaker_threshold: 10 # More tolerant
+)
+```
+
+**Monitoring Lag:**
+
+```ruby
+# Monitor lag status across regions
+client.health_status.each do |region_id, info|
+  puts "Region #{info[:region][:host]}:"
+  puts "  Healthy: #{info[:healthy]}"
+  puts "  Circuit: #{info[:circuit_state]}"
+  puts "  Last check: #{info[:last_check_time]}"
+end
+```
+
+
 ### Circuit Breaker
 
 Circuit breaker pattern prevents cascading failures:

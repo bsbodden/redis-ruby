@@ -298,6 +298,95 @@ metrics = exporter.export
 # }
 ```
 
+### Built-in StatsD Exporter
+
+Export metrics to StatsD/DogStatsD for monitoring with Datadog, Grafana, or other StatsD-compatible systems:
+
+```ruby
+require 'redis_ruby/instrumentation/statsd_exporter'
+
+# Create exporter
+exporter = RR::Instrumentation::StatsDExporter.new(
+  instrumentation,
+  host: 'localhost',      # StatsD server host
+  port: 8125,             # StatsD server port (default: 8125)
+  prefix: 'myapp.redis',  # Metric prefix
+  tags: {                 # Global tags (DogStatsD format)
+    environment: 'production',
+    service: 'api'
+  }
+)
+
+# Export metrics (sends UDP packets to StatsD server)
+metrics_sent = exporter.export
+# => 42 (number of metrics sent)
+```
+
+**Metrics Exported:**
+
+The StatsD exporter sends the following metrics:
+
+```
+# Total commands counter
+myapp.redis.commands.total:150|c|#environment:production,service:api
+
+# Per-command metrics with command tag
+myapp.redis.command.count:50|c|#command:GET,environment:production,service:api
+myapp.redis.command.duration:1.23|ms|#command:GET,environment:production,service:api
+myapp.redis.command.errors:0|c|#command:GET,environment:production,service:api
+
+# Connection pool metrics
+myapp.redis.pool.size:10|g|#environment:production,service:api
+myapp.redis.pool.available:8|g|#environment:production,service:api
+myapp.redis.pool.creates:12|c|#environment:production,service:api
+
+# Pipeline and transaction metrics
+myapp.redis.pipeline.count:5|c|#environment:production,service:api
+myapp.redis.pipeline.duration:2.45|ms|#environment:production,service:api
+myapp.redis.transaction.count:3|c|#environment:production,service:api
+
+# Error metrics by type
+myapp.redis.errors:2|c|#error_type:ConnectionError,environment:production,service:api
+```
+
+**Periodic Export:**
+
+Export metrics periodically in a background thread:
+
+```ruby
+require 'redis_ruby/instrumentation/statsd_exporter'
+
+exporter = RR::Instrumentation::StatsDExporter.new(
+  instrumentation,
+  host: 'statsd.example.com',
+  prefix: 'myapp.redis',
+  tags: { environment: ENV['RACK_ENV'] }
+)
+
+# Export every 10 seconds
+Thread.new do
+  loop do
+    sleep 10
+    begin
+      exporter.export
+    rescue => e
+      warn "StatsD export failed: #{e.message}"
+    end
+  end
+end
+```
+
+**DogStatsD Tags:**
+
+The exporter uses DogStatsD tag format (`|#tag1:value1,tag2:value2`), which is compatible with:
+- Datadog Agent
+- Telegraf (with DogStatsD input plugin)
+- VictoriaMetrics
+- Most modern StatsD implementations
+
+For standard StatsD (without tag support), tags will be ignored gracefully.
+
+
 ### Custom Prometheus Integration
 
 Use callbacks for custom Prometheus integration:
