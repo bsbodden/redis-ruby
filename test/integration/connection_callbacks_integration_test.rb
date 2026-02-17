@@ -125,9 +125,18 @@ class RR::ConnectionCallbacksIntegrationTest < Minitest::Test
     end
 
     # Disconnect should not raise, and second callback should be called
-    # (warnings will be printed to stderr but that's expected)
+    # Suppress stderr output to avoid cluttering test output
     conn = @client.instance_variable_get(:@connection)
-    conn.disconnect
+
+    # Capture stderr to suppress the expected warning
+    original_stderr = $stderr
+    $stderr = StringIO.new
+
+    begin
+      conn.disconnect
+    ensure
+      $stderr = original_stderr
+    end
 
     assert second_callback_called, "Second callback should be called despite first callback error"
   end
