@@ -348,4 +348,10 @@ class LockTest < Minitest::Test
 
     refute lock.instance_variable_get(:@thread_local)
   end
+
+  def test_extend_and_reacquire_scripts_are_same_object
+    # EXTEND_SCRIPT and REACQUIRE_SCRIPT should reference the same constant
+    # to avoid duplication
+    assert_same RR::Lock::EXTEND_SCRIPT, RR::Lock::REACQUIRE_SCRIPT
+  end
 end

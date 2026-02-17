@@ -66,14 +66,8 @@ module RR
       end
     LUA
 
-    # Lua script to reacquire (reset TTL) only if we own it
-    REACQUIRE_SCRIPT = <<~LUA
-      if redis.call("GET", KEYS[1]) == ARGV[1] then
-        return redis.call("PEXPIRE", KEYS[1], ARGV[2])
-      else
-        return 0
-      end
-    LUA
+    # Lua script to reacquire (reset TTL) only if we own it (same as extend)
+    REACQUIRE_SCRIPT = EXTEND_SCRIPT
 
     attr_reader :name, :timeout, :sleep_interval, :token
 
