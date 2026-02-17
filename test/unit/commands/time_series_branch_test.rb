@@ -110,20 +110,20 @@ class TimeSeriesBranchTest < Minitest::Test
   # ts_create - with ignore_max_time_diff only
   # ============================================================
 
-  def test_ts_create_with_ignore_max_time_diff_only
-    @client.ts_create("temp:sensor1", ignore_max_time_diff: 1000)
-
-    assert_equal ["TS.CREATE", "temp:sensor1", "IGNORE", 1000], @client.last_command
+  def test_ts_create_with_ignore_max_time_diff_only_raises
+    assert_raises(ArgumentError) do
+      @client.ts_create("temp:sensor1", ignore_max_time_diff: 1000)
+    end
   end
 
   # ============================================================
   # ts_create - with ignore_max_val_diff only
   # ============================================================
 
-  def test_ts_create_with_ignore_max_val_diff_only
-    @client.ts_create("temp:sensor1", ignore_max_val_diff: 0.5)
-
-    assert_equal ["TS.CREATE", "temp:sensor1", "IGNORE", 0.5], @client.last_command
+  def test_ts_create_with_ignore_max_val_diff_only_raises
+    assert_raises(ArgumentError) do
+      @client.ts_create("temp:sensor1", ignore_max_val_diff: 0.5)
+    end
   end
 
   # ============================================================
@@ -216,20 +216,20 @@ class TimeSeriesBranchTest < Minitest::Test
   # ts_alter - with ignore_max_time_diff only
   # ============================================================
 
-  def test_ts_alter_with_ignore_max_time_diff_only
-    @client.ts_alter("temp:sensor1", ignore_max_time_diff: 2000)
-
-    assert_equal ["TS.ALTER", "temp:sensor1", "IGNORE", 2000], @client.last_command
+  def test_ts_alter_with_ignore_max_time_diff_only_raises
+    assert_raises(ArgumentError) do
+      @client.ts_alter("temp:sensor1", ignore_max_time_diff: 2000)
+    end
   end
 
   # ============================================================
   # ts_alter - with ignore_max_val_diff only
   # ============================================================
 
-  def test_ts_alter_with_ignore_max_val_diff_only
-    @client.ts_alter("temp:sensor1", ignore_max_val_diff: 1.0)
-
-    assert_equal ["TS.ALTER", "temp:sensor1", "IGNORE", 1.0], @client.last_command
+  def test_ts_alter_with_ignore_max_val_diff_only_raises
+    assert_raises(ArgumentError) do
+      @client.ts_alter("temp:sensor1", ignore_max_val_diff: 1.0)
+    end
   end
 
   # ============================================================
@@ -360,20 +360,16 @@ class TimeSeriesBranchTest < Minitest::Test
   # ts_add - with ignore options
   # ============================================================
 
-  def test_ts_add_with_ignore_max_time_diff
-    @client.ts_add("temp:sensor1", "*", 23.5, ignore_max_time_diff: 500)
-
-    assert_equal [
-      "TS.ADD", "temp:sensor1", "*", 23.5, "IGNORE", 500,
-    ], @client.last_command
+  def test_ts_add_with_ignore_max_time_diff_only_raises
+    assert_raises(ArgumentError) do
+      @client.ts_add("temp:sensor1", "*", 23.5, ignore_max_time_diff: 500)
+    end
   end
 
-  def test_ts_add_with_ignore_max_val_diff
-    @client.ts_add("temp:sensor1", "*", 23.5, ignore_max_val_diff: 0.1)
-
-    assert_equal [
-      "TS.ADD", "temp:sensor1", "*", 23.5, "IGNORE", 0.1,
-    ], @client.last_command
+  def test_ts_add_with_ignore_max_val_diff_only_raises
+    assert_raises(ArgumentError) do
+      @client.ts_add("temp:sensor1", "*", 23.5, ignore_max_val_diff: 0.1)
+    end
   end
 
   def test_ts_add_with_both_ignore_options
@@ -490,20 +486,16 @@ class TimeSeriesBranchTest < Minitest::Test
   # ts_incrby - with ignore options
   # ============================================================
 
-  def test_ts_incrby_with_ignore_max_time_diff
-    @client.ts_incrby("temp:sensor1", 1.5, ignore_max_time_diff: 500)
-
-    assert_equal [
-      "TS.INCRBY", "temp:sensor1", 1.5, "IGNORE", 500,
-    ], @client.last_command
+  def test_ts_incrby_with_ignore_max_time_diff_only_raises
+    assert_raises(ArgumentError) do
+      @client.ts_incrby("temp:sensor1", 1.5, ignore_max_time_diff: 500)
+    end
   end
 
-  def test_ts_incrby_with_ignore_max_val_diff
-    @client.ts_incrby("temp:sensor1", 1.5, ignore_max_val_diff: 0.1)
-
-    assert_equal [
-      "TS.INCRBY", "temp:sensor1", 1.5, "IGNORE", 0.1,
-    ], @client.last_command
+  def test_ts_incrby_with_ignore_max_val_diff_only_raises
+    assert_raises(ArgumentError) do
+      @client.ts_incrby("temp:sensor1", 1.5, ignore_max_val_diff: 0.1)
+    end
   end
 
   def test_ts_incrby_with_both_ignore_options
@@ -600,20 +592,16 @@ class TimeSeriesBranchTest < Minitest::Test
   # ts_decrby - with ignore options
   # ============================================================
 
-  def test_ts_decrby_with_ignore_max_time_diff
-    @client.ts_decrby("temp:sensor1", 1.5, ignore_max_time_diff: 500)
-
-    assert_equal [
-      "TS.DECRBY", "temp:sensor1", 1.5, "IGNORE", 500,
-    ], @client.last_command
+  def test_ts_decrby_with_ignore_max_time_diff_only_raises
+    assert_raises(ArgumentError) do
+      @client.ts_decrby("temp:sensor1", 1.5, ignore_max_time_diff: 500)
+    end
   end
 
-  def test_ts_decrby_with_ignore_max_val_diff
-    @client.ts_decrby("temp:sensor1", 1.5, ignore_max_val_diff: 0.1)
-
-    assert_equal [
-      "TS.DECRBY", "temp:sensor1", 1.5, "IGNORE", 0.1,
-    ], @client.last_command
+  def test_ts_decrby_with_ignore_max_val_diff_only_raises
+    assert_raises(ArgumentError) do
+      @client.ts_decrby("temp:sensor1", 1.5, ignore_max_val_diff: 0.1)
+    end
   end
 
   def test_ts_decrby_with_both_ignore_options

@@ -580,9 +580,11 @@ module RR
       # @private
       def build_ts_ignore_and_labels(args, ignore_max_time_diff:, ignore_max_val_diff:, labels:)
         if ignore_max_time_diff || ignore_max_val_diff
-          args << OPT_IGNORE
-          args << ignore_max_time_diff if ignore_max_time_diff
-          args << ignore_max_val_diff if ignore_max_val_diff
+          unless ignore_max_time_diff && ignore_max_val_diff
+            raise ArgumentError, "ignore_max_time_diff and ignore_max_val_diff must both be provided"
+          end
+
+          args << OPT_IGNORE << ignore_max_time_diff << ignore_max_val_diff
         end
 
         return unless labels
