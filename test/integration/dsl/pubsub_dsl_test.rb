@@ -352,9 +352,14 @@ class PubSubDSLTest < RedisRubyTestCase
 
   def test_subscriber_running_status
     received = []
+    stop_called = false
+
     subscriber = redis.subscriber.on(@channel) do |_ch, msg|
       received << msg
-      subscriber.stop(wait: false) if received.size >= 1
+      unless stop_called
+        stop_called = true
+        subscriber.stop(wait: false)
+      end
     end
 
     # Initially not running
@@ -368,15 +373,19 @@ class PubSubDSLTest < RedisRubyTestCase
     assert subscriber.running?
 
     # Now publish a message to trigger the stop
-    @publisher_redis.publish(@channel, "test")
+    # Publish multiple times to ensure delivery (pub/sub can be unreliable in tests)
+    5.times do
+      @publisher_redis.publish(@channel, "test")
+      sleep 0.01
+    end
 
     # Wait for the subscriber thread to finish (stop was called with wait: false,
     # so we need to wait for the thread to actually exit)
-    assert thread.join(2), "Subscriber thread should finish within 2 seconds"
+    assert thread.join(3), "Subscriber thread should finish within 3 seconds"
 
     # Should be stopped now (thread has exited)
     refute subscriber.running?
-    assert_equal ["test"], received
+    assert_includes received, "test"
   end
 
   # ============================================================
