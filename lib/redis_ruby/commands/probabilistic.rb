@@ -525,11 +525,12 @@ module RR
         # Fast path: no options
         return call_2args(CMD_TOPK_RESERVE, key, k) if width.nil? && depth.nil? && decay.nil?
 
-        args = [key, k]
-        args << width if width
-        args << depth if depth
-        args << decay if decay
-        call(CMD_TOPK_RESERVE, *args)
+        # TOPK.RESERVE requires all three optional params together
+        unless width && depth && decay
+          raise ArgumentError, "width, depth, and decay must all be provided together"
+        end
+
+        call(CMD_TOPK_RESERVE, key, k, width, depth, decay)
       end
 
       # Add items to top-k

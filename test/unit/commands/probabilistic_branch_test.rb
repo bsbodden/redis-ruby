@@ -545,14 +545,19 @@ class ProbabilisticBranchTest < Minitest::Test
     assert_in_delta 0.9, cmd[5]
   end
 
-  def test_topk_reserve_with_partial_options
-    @client.topk_reserve("tk", 10, width: 50)
-    cmd = @client.last_command
+  def test_topk_reserve_with_partial_options_raises
+    # TOPK.RESERVE requires all three optional params (width, depth, decay) or none
+    assert_raises(ArgumentError) do
+      @client.topk_reserve("tk", 10, width: 50)
+    end
 
-    assert_equal "TOPK.RESERVE", cmd[0]
-    assert_equal 50, cmd[3]
-    # depth and decay are nil, so not appended
-    assert_equal 4, cmd.length
+    assert_raises(ArgumentError) do
+      @client.topk_reserve("tk", 10, width: 50, depth: 5)
+    end
+
+    assert_raises(ArgumentError) do
+      @client.topk_reserve("tk", 10, decay: 0.9)
+    end
   end
 
   # --- topk_add ---
