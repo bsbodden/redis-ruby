@@ -160,7 +160,7 @@ module RR
       # Close the connection
       def close
         @ssl_socket&.close
-        @tcp_socket&.close
+        @tcp_socket&.close unless @tcp_socket&.closed?
       end
 
       # Check if connected

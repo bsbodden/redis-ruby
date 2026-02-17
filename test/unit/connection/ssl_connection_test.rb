@@ -31,4 +31,21 @@ class SSLConnectionTest < Minitest::Test
     assert_includes methods, :ensure_connected
     assert_includes methods, :reconnect
   end
+
+  def test_close_does_not_raise_when_tcp_socket_already_closed
+    # When SSL socket is closed, it also closes the underlying TCP socket.
+    # Closing the TCP socket again should not raise IOError.
+    ssl_conn = RR::Connection::SSL.allocate
+    ssl_socket = mock("ssl_socket")
+    tcp_socket = mock("tcp_socket")
+
+    ssl_socket.expects(:close).once
+    tcp_socket.stubs(:closed?).returns(true) # already closed by SSL close
+    tcp_socket.expects(:close).never # should not attempt to close again
+
+    ssl_conn.instance_variable_set(:@ssl_socket, ssl_socket)
+    ssl_conn.instance_variable_set(:@tcp_socket, tcp_socket)
+
+    ssl_conn.close # should not raise
+  end
 end

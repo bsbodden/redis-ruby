@@ -357,6 +357,7 @@ class SSLConnectionBranchTest < Minitest::Test
     @mock_ssl_socket.stubs(:flush)
     @mock_ssl_socket.stubs(:sync=)
     @mock_tcp_socket.stubs(:close)
+    @mock_tcp_socket.stubs(:closed?).returns(false)
 
     TCPSocket.stubs(:new).returns(@mock_tcp_socket)
     OpenSSL::SSL::SSLSocket.stubs(:new).returns(@mock_ssl_socket)
