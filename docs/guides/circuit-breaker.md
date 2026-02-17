@@ -293,8 +293,76 @@ Circuit breakers are especially important for Redis Enterprise deployments:
 - **Active-Active**: Handle temporary inconsistencies gracefully
 - **Cloud deployments**: Protect against network issues
 
+## Advanced Features (New in v2.0)
+
+### Metrics and Observability
+
+Track comprehensive circuit breaker metrics:
+
+```ruby
+# Get detailed metrics
+metrics = circuit_breaker.metrics
+
+puts "State: #{metrics[:state]}"
+puts "Total failures: #{metrics[:total_failures]}"
+puts "Total successes: #{metrics[:total_successes]}"
+puts "Current failure count: #{metrics[:failure_count]}"
+puts "Transition count: #{metrics[:transition_count]}"
+puts "Time in closed state: #{metrics[:state_durations][:closed]}s"
+puts "Time in open state: #{metrics[:state_durations][:open]}s"
+```
+
+### State Change Callbacks
+
+Monitor state transitions in real-time:
+
+```ruby
+circuit_breaker = RR::CircuitBreaker.new(
+  failure_threshold: 5,
+  on_state_change: ->(old_state, new_state, metrics) {
+    puts "Circuit breaker: #{old_state} -> #{new_state}"
+
+    # Send alert when circuit opens
+    if new_state == :open
+      AlertService.notify("Redis circuit breaker opened!")
+    end
+  }
+)
+```
+
+### Graceful Degradation with Fallbacks
+
+Provide fallback values when circuit is open:
+
+```ruby
+circuit_breaker = RR::CircuitBreaker.new(
+  failure_threshold: 3,
+  fallback: -> { "default_value" }
+)
+
+# Returns fallback value when circuit is open
+result = circuit_breaker.call { client.get("mykey") }
+```
+
+### Connection Pool Integration
+
+Use circuit breakers at the pool level:
+
+```ruby
+pool = RR::Connection::Pool.new(
+  host: 'localhost',
+  port: 6379,
+  size: 10,
+  circuit_breaker: RR::CircuitBreaker.new(
+    failure_threshold: 10,
+    reset_timeout: 60.0
+  )
+)
+```
+
 ## See Also
 
+- [Health Checks](health-checks.md) - Health check strategies
 - [Observability Guide](observability.md) - Metrics and monitoring
 - [Retry Policies](../README.md#retry-policies) - Automatic retry configuration
 - [Connection Pooling](../README.md#connection-pooling) - Thread-safe connection management
