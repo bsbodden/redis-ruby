@@ -154,10 +154,11 @@ module RR
     def sentinel_reachable?(sentinel)
       conn = create_sentinel_connection(sentinel)
       result = conn.call("PING")
-      conn.close
       result == "PONG"
     rescue StandardError
       false
+    ensure
+      conn&.close rescue nil
     end
 
     # Get all Sentinel addresses for the service
@@ -167,20 +168,24 @@ module RR
       result = []
 
       @sentinels.each do |sentinel|
-        conn = create_sentinel_connection(sentinel)
-        response = conn.call("SENTINEL", "SENTINELS", @service_name)
-        conn.close
+        conn = nil
+        begin
+          conn = create_sentinel_connection(sentinel)
+          response = conn.call("SENTINEL", "SENTINELS", @service_name)
 
-        response.each do |info|
-          info_hash = parse_info_array(info)
-          result << {
-            host: info_hash["ip"],
-            port: info_hash["port"].to_i,
-          }
+          response.each do |info|
+            info_hash = parse_info_array(info)
+            result << {
+              host: info_hash["ip"],
+              port: info_hash["port"].to_i,
+            }
+          end
+          break unless result.empty?
+        rescue StandardError
+          next
+        ensure
+          conn&.close rescue nil
         end
-        break unless result.empty?
-      rescue StandardError
-        next
       end
 
       result.uniq { |s| "#{s[:host]}:#{s[:port]}" }

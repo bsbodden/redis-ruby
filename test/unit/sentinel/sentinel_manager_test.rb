@@ -210,4 +210,39 @@ class SentinelManagerTest < Minitest::Test
 
     assert_nil result
   end
+
+  # ============================================================
+  # Connection leak tests
+  # ============================================================
+
+  def test_sentinel_reachable_closes_connection_on_ping_failure
+    manager = RR::SentinelManager.new(
+      sentinels: [{ host: "sentinel1", port: 26_379 }],
+      service_name: "mymaster"
+    )
+
+    mock_conn = mock("conn")
+    mock_conn.expects(:call).with("PING").raises(StandardError, "connection lost")
+    mock_conn.expects(:close)
+
+    manager.stubs(:create_sentinel_connection).returns(mock_conn)
+
+    refute manager.sentinel_reachable?(manager.sentinels.first)
+  end
+
+  def test_discover_sentinels_closes_connection_on_call_failure
+    manager = RR::SentinelManager.new(
+      sentinels: [{ host: "sentinel1", port: 26_379 }],
+      service_name: "mymaster"
+    )
+
+    mock_conn = mock("conn")
+    mock_conn.expects(:call).with("SENTINEL", "SENTINELS", "mymaster").raises(StandardError, "connection lost")
+    mock_conn.expects(:close)
+
+    manager.stubs(:create_sentinel_connection).returns(mock_conn)
+
+    result = manager.discover_sentinels
+    assert_equal [], result
+  end
 end
