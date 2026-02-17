@@ -111,7 +111,10 @@ module RR
 
       begin
         ensure_connected
-        handle_call_result(@connection.call(command, *args))
+        conn = @connection
+        raise ConnectionError, "Connection lost" unless conn
+
+        handle_call_result(conn.call(command, *args))
       rescue ConnectionError, ReadOnlyError, FailoverError
         attempts += 1
         retry if retry_with_backoff?(attempts)

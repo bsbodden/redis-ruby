@@ -1364,6 +1364,20 @@ class SentinelClientBranchTest < Minitest::Test
   end
 
   # ============================================================
+  # call -- thread safety (connection nil race condition)
+  # ============================================================
+
+  def test_call_raises_connection_error_when_connection_becomes_nil
+    # Simulates a race condition where another thread nils @connection
+    # between ensure_connected and the actual call. Should raise
+    # ConnectionError (retriable) rather than NoMethodError.
+    client = build_client(reconnect_attempts: 0)
+    client.stubs(:ensure_connected) # stub to no-op; @connection stays nil
+
+    assert_raises(RR::ConnectionError) { client.call("PING") }
+  end
+
+  # ============================================================
   # call -- success path
   # ============================================================
 
