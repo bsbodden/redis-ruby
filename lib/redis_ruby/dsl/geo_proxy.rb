@@ -171,7 +171,7 @@ module RR
           count: count,
           sort: sort,
           any: any)
-      rescue Redis::CommandError => e
+      rescue RR::CommandError => e
         # Fall back to georadius for older Redis versions
         if e.message.include?("unknown command") || e.message.include?("GEOSEARCH")
           radius(longitude, latitude, radius, unit: unit, withcoord: withcoord, withdist: withdist, withhash: withhash, count: count, sort: sort)
@@ -207,7 +207,7 @@ module RR
           count: count,
           sort: sort,
           any: any)
-      rescue Redis::CommandError => e
+      rescue RR::CommandError => e
         # Fall back to georadiusbymember for older Redis versions
         if e.message.include?("unknown command") || e.message.include?("GEOSEARCH")
           radius_by_member(member, radius, unit: unit, withcoord: withcoord, withdist: withdist, withhash: withhash, count: count, sort: sort)
