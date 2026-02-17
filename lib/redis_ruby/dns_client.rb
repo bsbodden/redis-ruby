@@ -205,7 +205,7 @@ module RR
     # Select the database
     # @api private
     def select_db
-      @connection.call("SELECT", @db)
+      @connection.call("SELECT", @db.to_s)
     end
 
     # Execute a block with retry on connection errors, reconnecting to a

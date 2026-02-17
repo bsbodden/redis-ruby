@@ -406,7 +406,7 @@ module RR
     # Select the database
     # @api private
     def select_db
-      @connection.call("SELECT", @db)
+      @connection.call("SELECT", @db.to_s)
     end
 
     # Handle failure - record in detector and check if should failover

@@ -117,5 +117,14 @@ class ActiveActiveTest < Minitest::Test
     )
     assert_instance_of RR::ActiveActiveClient, client
   end
+
+  def test_select_db_passes_string_not_integer
+    client = RR::ActiveActiveClient.new(regions: @regions, db: 3)
+    mock_conn = mock("connection")
+    mock_conn.expects(:call).with("SELECT", "3")
+    client.instance_variable_set(:@connection, mock_conn)
+
+    client.send(:select_db)
+  end
 end
 
