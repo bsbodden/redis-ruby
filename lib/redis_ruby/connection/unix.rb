@@ -208,8 +208,8 @@ module RR
 
       # Configure socket options
       def configure_socket
-        # Disable sync for buffered writes
-        @socket.sync = false
+        # Enable sync for unbuffered writes
+        @socket.sync = true
       end
 
       # Write a single command to the socket

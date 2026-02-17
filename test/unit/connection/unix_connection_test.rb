@@ -95,6 +95,14 @@ class UnixConnectionTest < Minitest::Test
     end
   end
 
+  def test_sets_sync_true_for_unbuffered_writes
+    UNIXSocket.expects(:new).returns(@mock_socket)
+    setup_socket_options
+    @mock_socket.expects(:sync=).with(true)
+
+    RR::Connection::Unix.new
+  end
+
   private
 
   def setup_socket_options

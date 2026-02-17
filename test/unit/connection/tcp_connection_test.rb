@@ -50,10 +50,10 @@ class TCPConnectionTest < Minitest::Test
     RR::Connection::TCP.new
   end
 
-  def test_sets_sync_false_for_buffering
+  def test_sets_sync_true_for_unbuffered_writes
     TCPSocket.expects(:new).returns(@mock_socket)
     @mock_socket.stubs(:setsockopt)
-    @mock_socket.expects(:sync=).with(false)
+    @mock_socket.expects(:sync=).with(true)
 
     RR::Connection::TCP.new
   end

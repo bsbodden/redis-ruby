@@ -459,8 +459,8 @@ module RR
         # Enable keepalive for connection health
         @socket.setsockopt(Socket::SOL_SOCKET, Socket::SO_KEEPALIVE, 1)
 
-        # Disable sync for buffered writes (flush manually)
-        @socket.sync = false
+        # Enable sync for unbuffered writes (consistent with TCP_NODELAY)
+        @socket.sync = true
       end
 
       # Write multiple commands to the socket
