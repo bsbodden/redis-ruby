@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "expirable"
+
 module RR
   module DSL
     # Chainable proxy for Redis Bloom Filter operations
@@ -25,6 +27,8 @@ module RR
     #   seen.add(url) unless seen.exists?(url)
     #
     class BloomFilterProxy
+      include Expirable
+
       attr_reader :key
 
       # @private
@@ -133,51 +137,6 @@ module RR
       # Alias for delete
       alias clear delete
 
-      # Set expiration time in seconds
-      #
-      # @param seconds [Integer] Seconds until expiration
-      # @return [self] For method chaining
-      #
-      # @example
-      #   filter.expire(3600)  # Expire in 1 hour
-      def expire(seconds)
-        @redis.expire(@key, seconds)
-        self
-      end
-
-      # Set expiration time at a specific timestamp
-      #
-      # @param timestamp [Integer, Time] Unix timestamp or Time object
-      # @return [self] For method chaining
-      #
-      # @example
-      #   filter.expire_at(Time.now + 3600)
-      def expire_at(timestamp)
-        timestamp = timestamp.to_i if timestamp.is_a?(Time)
-        @redis.expireat(@key, timestamp)
-        self
-      end
-
-      # Get time-to-live in seconds
-      #
-      # @return [Integer] Seconds until expiration (-1 if no expiration, -2 if key doesn't exist)
-      #
-      # @example
-      #   filter.ttl  # => 3599
-      def ttl
-        @redis.ttl(@key)
-      end
-
-      # Remove expiration from the Bloom Filter
-      #
-      # @return [self] For method chaining
-      #
-      # @example
-      #   filter.persist
-      def persist
-        @redis.persist(@key)
-        self
-      end
     end
   end
 end

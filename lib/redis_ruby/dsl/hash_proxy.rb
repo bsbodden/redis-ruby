@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "expirable"
+
 module RR
   module DSL
     # Chainable proxy for Redis Hash operations
@@ -26,6 +28,8 @@ module RR
     #   user.to_h  # => {name: "John", email: "...", age: "30", city: "SF"}
     #
     class HashProxy
+      include Expirable
+
       attr_reader :key
 
       # @private
@@ -311,51 +315,6 @@ module RR
         self
       end
 
-      # Set expiration time for the hash
-      #
-      # @param seconds [Integer] Seconds until expiration
-      # @return [self] For method chaining
-      #
-      # @example
-      #   user.expire(3600)  # Expire in 1 hour
-      def expire(seconds)
-        @redis.expire(@key, seconds)
-        self
-      end
-
-      # Set expiration time at a specific timestamp
-      #
-      # @param time [Time, Integer] Unix timestamp or Time object
-      # @return [self] For method chaining
-      #
-      # @example
-      #   user.expire_at(Time.now + 3600)
-      def expire_at(time)
-        timestamp = time.is_a?(Time) ? time.to_i : time
-        @redis.expireat(@key, timestamp)
-        self
-      end
-
-      # Get time-to-live in seconds
-      #
-      # @return [Integer] Seconds until expiration, -1 if no expiration, -2 if key doesn't exist
-      #
-      # @example
-      #   user.ttl  # => 3599
-      def ttl
-        @redis.ttl(@key)
-      end
-
-      # Remove expiration from the hash
-      #
-      # @return [self] For method chaining
-      #
-      # @example
-      #   user.persist
-      def persist
-        @redis.persist(@key)
-        self
-      end
     end
   end
 end

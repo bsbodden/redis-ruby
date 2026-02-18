@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "expirable"
+
 module RR
   module DSL
     # Idiomatic Ruby interface for Redis Lists
@@ -25,6 +27,8 @@ module RR
     #   list[0] = "new_value"
     #
     class ListProxy
+      include Expirable
+
       # @param [RR::Client] Redis client instance
       # @param key_parts [Array<String, Symbol, Integer>] Key components to join with ':'
       def initialize(redis, *key_parts)
@@ -369,56 +373,6 @@ module RR
       #   list.clear
       def clear
         @redis.del(@key)
-        self
-      end
-
-      # ============================================================
-      # Expiration
-      # ============================================================
-
-      # Set expiration in seconds (EXPIRE)
-      #
-      # @param seconds [Integer] Seconds until expiration
-      # @return [self] For method chaining
-      #
-      # @example
-      #   list.expire(3600)  # Expire in 1 hour
-      def expire(seconds)
-        @redis.expire(@key, seconds)
-        self
-      end
-
-      # Set expiration at timestamp (EXPIREAT)
-      #
-      # @param timestamp [Integer, Time] Unix timestamp or Time object
-      # @return [self] For method chaining
-      #
-      # @example
-      #   list.expire_at(Time.now + 3600)
-      def expire_at(timestamp)
-        timestamp = timestamp.to_i if timestamp.is_a?(Time)
-        @redis.expireat(@key, timestamp)
-        self
-      end
-
-      # Get time-to-live in seconds (TTL)
-      #
-      # @return [Integer] Seconds until expiration (-1 = no expiry, -2 = doesn't exist)
-      #
-      # @example
-      #   list.ttl  # => 3600
-      def ttl
-        @redis.ttl(@key)
-      end
-
-      # Remove expiration (PERSIST)
-      #
-      # @return [self] For method chaining
-      #
-      # @example
-      #   list.persist
-      def persist
-        @redis.persist(@key)
         self
       end
 

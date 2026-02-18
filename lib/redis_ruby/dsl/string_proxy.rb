@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "expirable"
+
 module RR
   module DSL
     # Chainable proxy for Redis String operations
@@ -22,6 +24,8 @@ module RR
     #   log.set("Starting...").append(" initialized").append(" ready")
     #
     class StringProxy
+      include Expirable
+
       attr_reader :key
 
       # @private
@@ -133,52 +137,6 @@ module RR
       def empty?
         val = get
         val.nil? || val.empty?
-      end
-
-      # Set expiration time in seconds
-      #
-      # @param seconds [Integer] Seconds until expiration
-      # @return [self] For method chaining
-      #
-      # @example
-      #   str.expire(3600)  # Expire in 1 hour
-      def expire(seconds)
-        @redis.expire(@key, seconds)
-        self
-      end
-
-      # Set expiration time at a specific timestamp
-      #
-      # @param time [Time, Integer] Unix timestamp or Time object
-      # @return [self] For method chaining
-      #
-      # @example
-      #   str.expire_at(Time.now + 3600)
-      def expire_at(time)
-        timestamp = time.is_a?(Time) ? time.to_i : time
-        @redis.expireat(@key, timestamp)
-        self
-      end
-
-      # Get time-to-live in seconds
-      #
-      # @return [Integer] Seconds until expiration, -1 if no expiration, -2 if key doesn't exist
-      #
-      # @example
-      #   str.ttl()  # => 3599
-      def ttl
-        @redis.ttl(@key)
-      end
-
-      # Remove expiration from the string
-      #
-      # @return [self] For method chaining
-      #
-      # @example
-      #   str.persist()
-      def persist
-        @redis.persist(@key)
-        self
       end
 
       # Set the value only if the key does not exist

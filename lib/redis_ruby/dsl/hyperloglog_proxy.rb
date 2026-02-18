@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "expirable"
+
 module RR
   module DSL
     # Chainable proxy for Redis HyperLogLog operations
@@ -26,6 +28,8 @@ module RR
     #   puts "Variant A users: #{variant_a.count}"
     #
     class HyperLogLogProxy
+      include Expirable
+
       attr_reader :key
 
       # @private
@@ -129,51 +133,6 @@ module RR
         !exists? || count == 0
       end
 
-      # Set expiration time in seconds
-      #
-      # @param seconds [Integer] Seconds until expiration
-      # @return [self] For method chaining
-      #
-      # @example
-      #   hll.expire(3600)  # Expire in 1 hour
-      def expire(seconds)
-        @redis.expire(@key, seconds)
-        self
-      end
-
-      # Set expiration time at a specific timestamp
-      #
-      # @param timestamp [Integer, Time] Unix timestamp or Time object
-      # @return [self] For method chaining
-      #
-      # @example
-      #   hll.expire_at(Time.now + 3600)
-      def expire_at(timestamp)
-        timestamp = timestamp.to_i if timestamp.is_a?(Time)
-        @redis.expireat(@key, timestamp)
-        self
-      end
-
-      # Get time-to-live in seconds
-      #
-      # @return [Integer] Seconds until expiration (-1 if no expiration, -2 if key doesn't exist)
-      #
-      # @example
-      #   hll.ttl  # => 3599
-      def ttl
-        @redis.ttl(@key)
-      end
-
-      # Remove expiration from the HyperLogLog
-      #
-      # @return [self] For method chaining
-      #
-      # @example
-      #   hll.persist
-      def persist
-        @redis.persist(@key)
-        self
-      end
     end
   end
 end

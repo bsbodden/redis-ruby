@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "expirable"
+
 module RR
   module DSL
     # Chainable proxy for Redis Sorted Set operations
@@ -18,6 +20,8 @@ module RR
     #   next_task = queue.bottom(1).execute.first
     #
     class SortedSetProxy
+      include Expirable
+
       attr_reader :key
 
       # @private
@@ -401,52 +405,6 @@ module RR
         return {} if result.nil? || result.empty?
 
         Hash[result.map { |member, score| [member.to_sym, score] }]
-      end
-
-      # Set expiration time in seconds
-      #
-      # @param seconds [Integer] Seconds until expiration
-      # @return [self] For method chaining
-      #
-      # @example
-      #   sorted_set.expire(3600)  # Expire in 1 hour
-      def expire(seconds)
-        @redis.expire(@key, seconds)
-        self
-      end
-
-      # Set expiration time at a specific timestamp
-      #
-      # @param timestamp [Integer, Time] Unix timestamp or Time object
-      # @return [self] For method chaining
-      #
-      # @example
-      #   sorted_set.expire_at(Time.now + 3600)
-      def expire_at(timestamp)
-        timestamp = timestamp.to_i if timestamp.is_a?(Time)
-        @redis.expireat(@key, timestamp)
-        self
-      end
-
-      # Get time-to-live in seconds
-      #
-      # @return [Integer] Seconds until expiration (-1 if no expiration, -2 if key doesn't exist)
-      #
-      # @example
-      #   sorted_set.ttl  # => 3600
-      def ttl
-        @redis.ttl(@key)
-      end
-
-      # Remove expiration
-      #
-      # @return [self] For method chaining
-      #
-      # @example
-      #   sorted_set.persist
-      def persist
-        @redis.persist(@key)
-        self
       end
 
       # Get random member(s)

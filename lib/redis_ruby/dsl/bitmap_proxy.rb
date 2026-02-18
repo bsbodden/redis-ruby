@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "expirable"
+
 module RR
   module DSL
     # Chainable proxy for Redis Bitmap operations
@@ -28,6 +30,8 @@ module RR
     #   counters.bitfield.set(:u8, 0, 100).incrby(:u8, 0, 10).execute
     #
     class BitmapProxy
+      include Expirable
+
       attr_reader :key
 
       # @private
@@ -268,51 +272,6 @@ module RR
       end
       alias clear delete
 
-      # Set expiration time in seconds
-      #
-      # @param seconds [Integer] Seconds until expiration
-      # @return [self] For method chaining
-      #
-      # @example
-      #   bitmap.expire(3600)  # Expire in 1 hour
-      def expire(seconds)
-        @redis.expire(@key, seconds)
-        self
-      end
-
-      # Set expiration time at a specific timestamp
-      #
-      # @param time [Time, Integer] Unix timestamp or Time object
-      # @return [self] For method chaining
-      #
-      # @example
-      #   bitmap.expire_at(Time.now + 3600)
-      def expire_at(time)
-        timestamp = time.is_a?(Time) ? time.to_i : time
-        @redis.expireat(@key, timestamp)
-        self
-      end
-
-      # Get time-to-live in seconds
-      #
-      # @return [Integer] Seconds until expiration, -1 if no expiration, -2 if key doesn't exist
-      #
-      # @example
-      #   bitmap.ttl  # => 3599
-      def ttl
-        @redis.ttl(@key)
-      end
-
-      # Remove expiration from the bitmap
-      #
-      # @return [self] For method chaining
-      #
-      # @example
-      #   bitmap.persist
-      def persist
-        @redis.persist(@key)
-        self
-      end
     end
   end
 end

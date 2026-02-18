@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "expirable"
+
 module RR
   module DSL
     # Chainable proxy for Redis Counter operations
@@ -22,6 +24,8 @@ module RR
     #   daily_visits.increment().expire(86400 * 7)
     #
     class CounterProxy
+      include Expirable
+
       attr_reader :key
 
       # @private
@@ -158,52 +162,6 @@ module RR
       def zero?
         val = get
         val.nil? || val == 0
-      end
-
-      # Set expiration time in seconds
-      #
-      # @param seconds [Integer] Seconds until expiration
-      # @return [self] For method chaining
-      #
-      # @example
-      #   counter.expire(60)  # Expire in 60 seconds
-      def expire(seconds)
-        @redis.expire(@key, seconds)
-        self
-      end
-
-      # Set expiration time at a specific timestamp
-      #
-      # @param time [Time, Integer] Unix timestamp or Time object
-      # @return [self] For method chaining
-      #
-      # @example
-      #   counter.expire_at(Time.now + 60)
-      def expire_at(time)
-        timestamp = time.is_a?(Time) ? time.to_i : time
-        @redis.expireat(@key, timestamp)
-        self
-      end
-
-      # Get time-to-live in seconds
-      #
-      # @return [Integer] Seconds until expiration, -1 if no expiration, -2 if key doesn't exist
-      #
-      # @example
-      #   counter.ttl()  # => 59
-      def ttl
-        @redis.ttl(@key)
-      end
-
-      # Remove expiration from the counter
-      #
-      # @return [self] For method chaining
-      #
-      # @example
-      #   counter.persist()
-      def persist
-        @redis.persist(@key)
-        self
       end
 
       # Delete the key
