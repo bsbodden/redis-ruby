@@ -312,18 +312,19 @@ module RR
     end
 
     # Verify we're connected to the correct role (redis-client pattern)
+    # Note: No sleep here — the caller's retry_with_backoff handles delays.
+    # This method is called inside @mutex.synchronize, so sleeping would
+    # block all other threads.
     def verify_role!
       result = @connection.call("ROLE")
       actual_role = result[0]
 
       if @role == :master
         unless actual_role == "master"
-          sleep SentinelManager::SENTINEL_DELAY
           raise FailoverError, "Expected to connect to a master, but the server is a #{actual_role}"
         end
       else
         unless actual_role == "slave"
-          sleep SentinelManager::SENTINEL_DELAY
           raise FailoverError, "Expected to connect to a replica, but the server is a #{actual_role}"
         end
       end

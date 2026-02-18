@@ -1197,7 +1197,6 @@ class SentinelClientBranchTest < Minitest::Test
     conn = mock_conn
     conn.expects(:call).with("ROLE").returns(["slave", "master", 6379, "connected", 100])
     client.instance_variable_set(:@connection, conn)
-    client.stubs(:sleep) # skip SENTINEL_DELAY
 
     error = assert_raises(RR::FailoverError) { client.send(:verify_role!) }
     assert_includes error.message, "master"
@@ -1219,7 +1218,6 @@ class SentinelClientBranchTest < Minitest::Test
     conn = mock_conn
     conn.expects(:call).with("ROLE").returns(["master", 0, []])
     client.instance_variable_set(:@connection, conn)
-    client.stubs(:sleep) # skip SENTINEL_DELAY
 
     error = assert_raises(RR::FailoverError) { client.send(:verify_role!) }
     assert_includes error.message, "replica"
