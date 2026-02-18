@@ -81,7 +81,9 @@ module RR
 
       # Fast path dispatch tables: command -> prefix constant
       FAST_PATH_1ARG = {
-        "GET" => GET_PREFIX, "LPOP" => LPOP_PREFIX,
+        "GET" => GET_PREFIX, "DEL" => DEL_PREFIX,
+        "INCR" => INCR_PREFIX, "DECR" => DECR_PREFIX,
+        "EXISTS" => EXISTS_PREFIX, "LPOP" => LPOP_PREFIX,
         "RPOP" => RPOP_PREFIX, "TTL" => TTL_PREFIX,
       }.freeze
 
