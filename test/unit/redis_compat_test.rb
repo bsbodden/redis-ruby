@@ -2565,7 +2565,7 @@ class RedisCompatTest < Minitest::Test
   def test_pipelined_returns_results
     mock_connection = mock("connection")
     @mock_client.stubs(:send).with(:ensure_connected)
-    @mock_client.stubs(:instance_variable_get).with(:@connection).returns(mock_connection)
+    @mock_client.stubs(:send).with(:connection).returns(mock_connection)
 
     mock_pipeline = mock("pipeline")
     mock_pipeline.expects(:call_2args).with("SET", "k", "v")
@@ -2586,7 +2586,7 @@ class RedisCompatTest < Minitest::Test
   def test_pipelined_with_error_and_exception_true
     mock_connection = mock("connection")
     @mock_client.stubs(:send).with(:ensure_connected)
-    @mock_client.stubs(:instance_variable_get).with(:@connection).returns(mock_connection)
+    @mock_client.stubs(:send).with(:connection).returns(mock_connection)
 
     cmd_error = RR::CommandError.new("ERR something")
 
@@ -2607,7 +2607,7 @@ class RedisCompatTest < Minitest::Test
   def test_pipelined_with_error_and_exception_false
     mock_connection = mock("connection")
     @mock_client.stubs(:send).with(:ensure_connected)
-    @mock_client.stubs(:instance_variable_get).with(:@connection).returns(mock_connection)
+    @mock_client.stubs(:send).with(:connection).returns(mock_connection)
 
     cmd_error = RR::CommandError.new("ERR something")
 
@@ -2634,7 +2634,7 @@ class RedisCompatTest < Minitest::Test
   def test_multi_returns_results
     mock_connection = mock("connection")
     @mock_client.stubs(:send).with(:ensure_connected)
-    @mock_client.stubs(:instance_variable_get).with(:@connection).returns(mock_connection)
+    @mock_client.stubs(:send).with(:connection).returns(mock_connection)
 
     mock_transaction = mock("transaction")
     mock_transaction.expects(:call_2args).with("SET", "k", "v")
@@ -2655,7 +2655,7 @@ class RedisCompatTest < Minitest::Test
   def test_multi_aborted_returns_nil
     mock_connection = mock("connection")
     @mock_client.stubs(:send).with(:ensure_connected)
-    @mock_client.stubs(:instance_variable_get).with(:@connection).returns(mock_connection)
+    @mock_client.stubs(:send).with(:connection).returns(mock_connection)
 
     mock_transaction = mock("transaction")
     mock_transaction.expects(:execute).returns(nil)
@@ -2671,7 +2671,7 @@ class RedisCompatTest < Minitest::Test
   def test_multi_transaction_level_error
     mock_connection = mock("connection")
     @mock_client.stubs(:send).with(:ensure_connected)
-    @mock_client.stubs(:instance_variable_get).with(:@connection).returns(mock_connection)
+    @mock_client.stubs(:send).with(:connection).returns(mock_connection)
 
     cmd_error = RR::CommandError.new("ERR transaction failed")
     mock_transaction = mock("transaction")
@@ -2686,7 +2686,7 @@ class RedisCompatTest < Minitest::Test
   def test_multi_command_error_in_results
     mock_connection = mock("connection")
     @mock_client.stubs(:send).with(:ensure_connected)
-    @mock_client.stubs(:instance_variable_get).with(:@connection).returns(mock_connection)
+    @mock_client.stubs(:send).with(:connection).returns(mock_connection)
 
     cmd_error = RR::CommandError.new("WRONGTYPE")
     mock_transaction = mock("transaction")
@@ -2706,7 +2706,7 @@ class RedisCompatTest < Minitest::Test
   def test_multi_with_mixed_results_error_and_success
     mock_connection = mock("connection")
     @mock_client.stubs(:send).with(:ensure_connected)
-    @mock_client.stubs(:instance_variable_get).with(:@connection).returns(mock_connection)
+    @mock_client.stubs(:send).with(:connection).returns(mock_connection)
 
     cmd_error = RR::CommandError.new("ERR command error")
     mock_transaction = mock("transaction")

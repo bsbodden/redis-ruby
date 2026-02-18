@@ -945,8 +945,8 @@ class Redis # rubocop:disable Metrics/ClassLength
   # Build a Transaction object from the current connection
   def build_transaction
     @client.send(:ensure_connected)
-    connection = @client.instance_variable_get(:@connection)
-    ::RR::Transaction.new(connection)
+    conn = @client.send(:connection)
+    ::RR::Transaction.new(conn)
   end
 
   # Resolve futures from a multi/transaction, raising on first command error
@@ -1355,7 +1355,7 @@ class Redis # rubocop:disable Metrics/ClassLength
   # Get the underlying connection (for pipeline)
   def get_connection # rubocop:disable Naming/AccessorMethodName
     @client.send(:ensure_connected)
-    @client.instance_variable_get(:@connection)
+    @client.send(:connection)
   end
 
   # Translate errors from RedisRuby to Redis

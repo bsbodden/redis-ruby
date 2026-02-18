@@ -8,6 +8,12 @@ module RR
   #
   # @api private
   module ClientUrlParsing
+    protected
+
+    # Access the underlying connection object
+    # @api private
+    attr_reader :connection
+
     private
 
     # Parse Redis URL
