@@ -181,19 +181,33 @@ module RR
     # Prune entries outside the sliding window.
     #
     # Removes timestamps that are older than window_size seconds from the
-    # current time. This keeps memory usage bounded and ensures we only
-    # consider recent operations.
+    # current time. Since timestamps are appended in monotonic order, the
+    # arrays are sorted — we use binary search to find the cutoff index
+    # in O(log n) instead of scanning the entire array with delete_if O(n).
     #
     # Must be called within a mutex synchronize block.
     #
     # @param now [Float] Current monotonic time
     def prune_old_entries(now)
       cutoff_time = now - @window_size
+      prune_sorted!(@failure_timestamps, cutoff_time)
+      prune_sorted!(@success_timestamps, cutoff_time)
+    end
 
-      # Remove entries older than the cutoff time
-      # Using delete_if is efficient as it modifies arrays in place
-      @failure_timestamps.delete_if { |timestamp| timestamp < cutoff_time }
-      @success_timestamps.delete_if { |timestamp| timestamp < cutoff_time }
+    # Remove all entries before cutoff_time from a sorted array.
+    #
+    # @param timestamps [Array<Float>] Sorted timestamps (monotonic order)
+    # @param cutoff_time [Float] Entries before this time are removed
+    def prune_sorted!(timestamps, cutoff_time)
+      return if timestamps.empty? || timestamps.first >= cutoff_time
+
+      if timestamps.last < cutoff_time
+        timestamps.clear
+        return
+      end
+
+      idx = timestamps.bsearch_index { |t| t >= cutoff_time }
+      timestamps.shift(idx) if idx
     end
 
     # Get monotonic time in seconds.
