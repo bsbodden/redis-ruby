@@ -399,18 +399,6 @@ module RR
       end
     end
 
-    # Authenticate with the Redis server
-    # @api private
-    def authenticate
-      @connection.call("AUTH", @password)
-    end
-
-    # Select the database
-    # @api private
-    def select_db
-      @connection.call("SELECT", @db.to_s)
-    end
-
     # Handle failure - record in detector and check if should failover
     # @api private
     def handle_failure(region_id, error)

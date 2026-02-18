@@ -329,16 +329,6 @@ module RR
       end
     end
 
-    # Authenticate with password
-    def authenticate
-      @connection.call("AUTH", @password)
-    end
-
-    # Select database
-    def select_db
-      @connection.call("SELECT", @db.to_s)
-    end
-
     # Check if error is a READONLY error (indicates master demotion)
     def readonly_error?(error)
       error.message.include?("READONLY") ||

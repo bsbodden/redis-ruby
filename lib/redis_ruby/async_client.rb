@@ -178,14 +178,5 @@ module RR
       select_db if @db.positive?
     end
 
-    # Authenticate with password
-    def authenticate
-      @connection.call("AUTH", @password)
-    end
-
-    # Select database
-    def select_db
-      @connection.call("SELECT", @db.to_s)
-    end
   end
 end

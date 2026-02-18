@@ -86,6 +86,20 @@ module RR
       def unwatch
         call("UNWATCH")
       end
+
+      private
+
+      # Authenticate with the Redis server
+      # @api private
+      def authenticate
+        @connection.call("AUTH", @password)
+      end
+
+      # Select the Redis database
+      # @api private
+      def select_db
+        @connection.call("SELECT", @db.to_s)
+      end
     end
   end
 end

@@ -196,18 +196,6 @@ module RR
       end
     end
 
-    # Authenticate with the Redis server
-    # @api private
-    def authenticate
-      @connection.call("AUTH", @password)
-    end
-
-    # Select the database
-    # @api private
-    def select_db
-      @connection.call("SELECT", @db.to_s)
-    end
-
     # Execute a block with retry on connection errors, reconnecting to a
     # different IP each time.
     # @api private
