@@ -53,6 +53,9 @@ module RR
     include Commands::VectorSet
     include Commands::Streams
     include Commands::PubSub
+    include Commands::Functions
+    include Commands::ACL
+    include Commands::Server
 
     attr_reader :database_name, :timeout
 

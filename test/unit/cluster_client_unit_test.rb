@@ -857,6 +857,34 @@ class ClusterClientUnitTest < Minitest::Test
     assert RR::ClusterClient.method_defined?(:cluster_slots)
   end
 
+  # ==========================================================================
+  # Command module inclusion consistency
+  # ==========================================================================
+
+  def test_cluster_client_includes_json_commands
+    assert_includes RR::ClusterClient.ancestors, RR::Commands::JSON
+  end
+
+  def test_cluster_client_includes_search_commands
+    assert_includes RR::ClusterClient.ancestors, RR::Commands::Search
+  end
+
+  def test_cluster_client_includes_probabilistic_commands
+    assert_includes RR::ClusterClient.ancestors, RR::Commands::Probabilistic
+  end
+
+  def test_cluster_client_includes_time_series_commands
+    assert_includes RR::ClusterClient.ancestors, RR::Commands::TimeSeries
+  end
+
+  def test_cluster_client_includes_vector_set_commands
+    assert_includes RR::ClusterClient.ancestors, RR::Commands::VectorSet
+  end
+
+  def test_cluster_client_includes_pubsub_commands
+    assert_includes RR::ClusterClient.ancestors, RR::Commands::PubSub
+  end
+
   private
 
   # Build a cluster client with pre-populated mock topology

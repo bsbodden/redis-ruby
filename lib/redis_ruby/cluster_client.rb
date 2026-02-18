@@ -33,7 +33,13 @@ module RR
     include Commands::HyperLogLog
     include Commands::Bitmap
     include Commands::Scripting
+    include Commands::JSON
+    include Commands::Search
+    include Commands::Probabilistic
+    include Commands::TimeSeries
+    include Commands::VectorSet
     include Commands::Streams
+    include Commands::PubSub
     include Commands::Cluster
     include ClusterTopology
 
