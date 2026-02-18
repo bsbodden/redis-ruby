@@ -1177,6 +1177,89 @@ class PipelinedConnectionBranchTest < Minitest::Test
 
     assert_instance_of Redis::Future, future
   end
+
+  # ---------- Boolean transformation consistency ----------
+  # Pipeline commands should return booleans matching direct command behavior
+
+  def test_hexists_returns_boolean_via_transformation
+    pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
+    future = pc.hexists("h", "f")
+    future._set_value(1)
+
+    assert_equal true, future.value
+  end
+
+  def test_hexists_returns_false_via_transformation
+    pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
+    future = pc.hexists("h", "f")
+    future._set_value(0)
+
+    assert_equal false, future.value
+  end
+
+  def test_sismember_returns_boolean_via_transformation
+    pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
+    future = pc.sismember("s", "m")
+    future._set_value(1)
+
+    assert_equal true, future.value
+  end
+
+  def test_sismember_returns_false_via_transformation
+    pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
+    future = pc.sismember("s", "m")
+    future._set_value(0)
+
+    assert_equal false, future.value
+  end
+
+  def test_hsetnx_returns_boolean_via_transformation
+    pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
+    future = pc.hsetnx("h", "f", "v")
+    future._set_value(1)
+
+    assert_equal true, future.value
+  end
+
+  def test_hsetnx_returns_false_via_transformation
+    pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
+    future = pc.hsetnx("h", "f", "v")
+    future._set_value(0)
+
+    assert_equal false, future.value
+  end
+
+  def test_smove_returns_boolean_via_transformation
+    pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
+    future = pc.smove("src", "dst", "m")
+    future._set_value(1)
+
+    assert_equal true, future.value
+  end
+
+  def test_smove_returns_false_via_transformation
+    pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
+    future = pc.smove("src", "dst", "m")
+    future._set_value(0)
+
+    assert_equal false, future.value
+  end
+
+  def test_msetnx_returns_boolean_via_transformation
+    pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
+    future = pc.msetnx("k1", "v1")
+    future._set_value(1)
+
+    assert_equal true, future.value
+  end
+
+  def test_msetnx_returns_false_via_transformation
+    pc = Redis::PipelinedConnection.new(@mock_client, @mock_pipeline)
+    future = pc.msetnx("k1", "v1")
+    future._set_value(0)
+
+    assert_equal false, future.value
+  end
 end
 
 # ============================================================================

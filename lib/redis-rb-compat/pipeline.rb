@@ -220,7 +220,8 @@ class Redis
     end
 
     def msetnx(*)
-      call("MSETNX", *)
+      future = call("MSETNX", *)
+      future.then { |v| v == 1 }
     end
 
     def setnx(key, value)
@@ -309,7 +310,8 @@ class Redis
     end
 
     def hsetnx(key, field, value)
-      call_3args("HSETNX", key, field, value)
+      future = call_3args("HSETNX", key, field, value)
+      future.then { |v| v == 1 }
     end
 
     def hmget(key, *fields)
@@ -326,7 +328,8 @@ class Redis
     end
 
     def hexists(key, field)
-      call_2args("HEXISTS", key, field)
+      future = call_2args("HEXISTS", key, field)
+      future.then { |v| v == 1 }
     end
 
     def hkeys(key)
@@ -421,7 +424,8 @@ class Redis
     end
 
     def sismember(key, member)
-      call_2args("SISMEMBER", key, member)
+      future = call_2args("SISMEMBER", key, member)
+      future.then { |v| v == 1 }
     end
 
     def smembers(key)
@@ -441,7 +445,8 @@ class Redis
     end
 
     def smove(source, destination, member)
-      call_3args("SMOVE", source, destination, member)
+      future = call_3args("SMOVE", source, destination, member)
+      future.then { |v| v == 1 }
     end
 
     def sinter(*keys)
