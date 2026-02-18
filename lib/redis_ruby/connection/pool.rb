@@ -90,86 +90,10 @@ module RR
         # Perform health check if needed
         check_health_if_needed
 
-        execute_block = lambda do
-          if @instrumentation
-            checkout_start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-            begin
-              @pool.with do |conn|
-                checkout_duration = Process.clock_gettime(Process::CLOCK_MONOTONIC) - checkout_start
-                @instrumentation.record_connection_checkout(checkout_duration)
-                update_connection_counts
-
-                # Trigger connection acquired event
-                trigger_pool_event(:connection_acquired, {
-                  pool_name: @pool_name,
-                  wait_time: checkout_duration,
-                  active_connections: @size - @pool.available,
-                  idle_connections: @pool.available,
-                  timestamp: Time.now
-                })
-
-                result = block.call(conn)
-
-                # Trigger connection released event
-                trigger_pool_event(:connection_released, {
-                  pool_name: @pool_name,
-                  active_connections: @size - @pool.available,
-                  idle_connections: @pool.available,
-                  timestamp: Time.now
-                })
-
-                result
-              end
-            rescue ConnectionPool::TimeoutError
-              @instrumentation.record_pool_exhaustion
-
-              # Trigger pool exhausted event
-              trigger_pool_event(:pool_exhausted, {
-                pool_name: @pool_name,
-                size: @size,
-                timeout: @timeout,
-                timestamp: Time.now
-              })
-
-              raise
-            end
-          else
-            begin
-              @pool.with do |conn|
-                # Trigger connection acquired event (without metrics)
-                trigger_pool_event(:connection_acquired, {
-                  pool_name: @pool_name,
-                  timestamp: Time.now
-                })
-
-                result = block.call(conn)
-
-                # Trigger connection released event (without metrics)
-                trigger_pool_event(:connection_released, {
-                  pool_name: @pool_name,
-                  timestamp: Time.now
-                })
-
-                result
-              end
-            rescue ConnectionPool::TimeoutError
-              # Trigger pool exhausted event
-              trigger_pool_event(:pool_exhausted, {
-                pool_name: @pool_name,
-                size: @size,
-                timeout: @timeout,
-                timestamp: Time.now
-              })
-
-              raise
-            end
-          end
-        end
-
         if @circuit_breaker
-          @circuit_breaker.call(&execute_block)
+          @circuit_breaker.call { execute_pool_operation(block) }
         else
-          execute_block.call
+          execute_pool_operation(block)
         end
       end
 
@@ -193,6 +117,72 @@ module RR
       end
 
       private
+
+      # Execute pool operation with optional instrumentation
+      def execute_pool_operation(block)
+        if @instrumentation
+          execute_pool_with_instrumentation(block)
+        else
+          execute_pool_without_instrumentation(block)
+        end
+      end
+
+      # Execute pool operation with instrumentation metrics
+      def execute_pool_with_instrumentation(block)
+        checkout_start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+        @pool.with do |conn|
+          checkout_duration = Process.clock_gettime(Process::CLOCK_MONOTONIC) - checkout_start
+          @instrumentation.record_connection_checkout(checkout_duration)
+          update_connection_counts
+
+          trigger_pool_event(:connection_acquired, {
+            pool_name: @pool_name,
+            wait_time: checkout_duration,
+            active_connections: @size - @pool.available,
+            idle_connections: @pool.available,
+            timestamp: Time.now
+          })
+
+          result = block.call(conn)
+
+          trigger_pool_event(:connection_released, {
+            pool_name: @pool_name,
+            active_connections: @size - @pool.available,
+            idle_connections: @pool.available,
+            timestamp: Time.now
+          })
+
+          result
+        end
+      rescue ConnectionPool::TimeoutError
+        @instrumentation.record_pool_exhaustion
+        trigger_pool_event(:pool_exhausted, {
+          pool_name: @pool_name, size: @size, timeout: @timeout, timestamp: Time.now
+        })
+        raise
+      end
+
+      # Execute pool operation without instrumentation
+      def execute_pool_without_instrumentation(block)
+        @pool.with do |conn|
+          trigger_pool_event(:connection_acquired, {
+            pool_name: @pool_name, timestamp: Time.now
+          })
+
+          result = block.call(conn)
+
+          trigger_pool_event(:connection_released, {
+            pool_name: @pool_name, timestamp: Time.now
+          })
+
+          result
+        end
+      rescue ConnectionPool::TimeoutError
+        trigger_pool_event(:pool_exhausted, {
+          pool_name: @pool_name, size: @size, timeout: @timeout, timestamp: Time.now
+        })
+        raise
+      end
 
       # Create a new connection with metrics tracking
       def create_connection_with_metrics

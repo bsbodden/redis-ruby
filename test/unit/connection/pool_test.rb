@@ -112,6 +112,27 @@ class ConnectionPoolTest < Minitest::Test
     assert_equal 3, pool.available
   end
 
+  def test_pool_with_circuit_breaker_delegates_execution
+    Socket.stubs(:tcp).returns(@mock_socket)
+    setup_ping_response
+
+    cb_called = false
+    cb = Object.new
+    cb.define_singleton_method(:call) do |&blk|
+      cb_called = true
+      blk.call
+    end
+
+    pool = RR::Connection::Pool.new(host: "localhost", port: 6379, circuit_breaker: cb)
+
+    result = pool.with do |conn|
+      conn.call("PING")
+    end
+
+    assert cb_called, "Circuit breaker should have been called"
+    assert_equal "PONG", result
+  end
+
   private
 
   def setup_mock_socket_options
