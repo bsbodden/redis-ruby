@@ -42,7 +42,7 @@ module RR
     # Cache entry with value and expiration
     CacheEntry = Struct.new(:value, :expires_at) do
       def expired?
-        expires_at && Time.now > expires_at
+        expires_at && Process.clock_gettime(Process::CLOCK_MONOTONIC) > expires_at
       end
     end
 
@@ -260,7 +260,7 @@ module RR
       # Remove oldest entry if at capacity
       evict_lru if @cache.size >= @max_entries && !@cache.key?(key)
 
-      expires_at = @ttl ? Time.now + @ttl : nil
+      expires_at = @ttl ? Process.clock_gettime(Process::CLOCK_MONOTONIC) + @ttl : nil
       @cache[key] = CacheEntry.new(value, expires_at)
       touch_lru(key)
     end

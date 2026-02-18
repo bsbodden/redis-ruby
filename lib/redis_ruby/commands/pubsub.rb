@@ -352,7 +352,7 @@ module RR
 
         setup_subscription_connection(command, targets)
 
-        deadline = timeout ? Time.now + timeout : nil
+        deadline = timeout ? Process.clock_gettime(Process::CLOCK_MONOTONIC) + timeout : nil
         unsubscribe_cmd = UNSUBSCRIBE_COMMANDS[command]
 
         process_subscription_messages(handler, unsubscribe_cmd, timeout, deadline)
@@ -388,7 +388,7 @@ module RR
 
       # Check if the subscription has timed out and send unsubscribe if so
       def check_subscription_timeout(unsubscribe_cmd, deadline)
-        return unless deadline && Time.now >= deadline
+        return unless deadline && Process.clock_gettime(Process::CLOCK_MONOTONIC) >= deadline
 
         @subscription_connection.write_command([unsubscribe_cmd])
       end
@@ -400,7 +400,7 @@ module RR
         read_timeout = if timeout
                          [1.0, timeout].min
                        elsif deadline
-                         [1.0, deadline - Time.now].min
+                         [1.0, deadline - Process.clock_gettime(Process::CLOCK_MONOTONIC)].min
                        else
                          3600.0 # 1 hour - effectively infinite for subscription mode
                        end
@@ -410,7 +410,7 @@ module RR
 
         message
       rescue TimeoutError
-        deadline && Time.now < deadline ? :next : :break
+        deadline && Process.clock_gettime(Process::CLOCK_MONOTONIC) < deadline ? :next : :break
       rescue ConnectionError
         # Connection was closed - exit subscription loop gracefully
         :break

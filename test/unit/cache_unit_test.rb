@@ -361,13 +361,13 @@ class CacheUnitTest < Minitest::Test
   end
 
   def test_cache_entry_not_expired_when_future
-    entry = RR::Cache::CacheEntry.new("val", Time.now + 3600)
+    entry = RR::Cache::CacheEntry.new("val", Process.clock_gettime(Process::CLOCK_MONOTONIC) + 3600)
 
     refute_predicate entry, :expired?
   end
 
   def test_cache_entry_expired_when_past
-    entry = RR::Cache::CacheEntry.new("val", Time.now - 1)
+    entry = RR::Cache::CacheEntry.new("val", Process.clock_gettime(Process::CLOCK_MONOTONIC) - 1)
 
     assert_predicate entry, :expired?
   end
