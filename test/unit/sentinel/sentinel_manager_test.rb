@@ -245,4 +245,91 @@ class SentinelManagerTest < Minitest::Test
     result = manager.discover_sentinels
     assert_equal [], result
   end
+
+  # ============================================================
+  # Mutex not held during sleep/I/O (Bug #12)
+  # ============================================================
+
+  def test_discover_master_does_not_hold_mutex_during_sleep
+    manager = RR::SentinelManager.new(
+      sentinels: [
+        { host: "sentinel1", port: 26_379 },
+        { host: "sentinel2", port: 26_380 },
+      ],
+      service_name: "mymaster"
+    )
+
+    # First sentinel fails, second succeeds
+    call_count = 0
+    manager.define_singleton_method(:query_master_from_sentinel) do |sentinel|
+      call_count += 1
+      if sentinel[:host] == "sentinel1"
+        raise StandardError, "connection refused"
+      else
+        { host: "master1", port: 6379 }
+      end
+    end
+
+    # Stub sleep to avoid actual delays
+    manager.stubs(:sleep)
+
+    # The mutex should NOT be held during the sleep between retries,
+    # allowing other threads to proceed. Verify discover_master still works.
+    result = manager.discover_master
+
+    assert_equal "master1", result[:host]
+    assert_equal 6379, result[:port]
+    assert_equal 2, call_count
+  end
+
+  def test_discover_master_promotes_successful_sentinel
+    manager = RR::SentinelManager.new(
+      sentinels: [
+        { host: "sentinel1", port: 26_379 },
+        { host: "sentinel2", port: 26_380 },
+      ],
+      service_name: "mymaster"
+    )
+
+    manager.define_singleton_method(:query_master_from_sentinel) do |sentinel|
+      if sentinel[:host] == "sentinel1"
+        raise StandardError, "connection refused"
+      else
+        { host: "master1", port: 6379 }
+      end
+    end
+    manager.stubs(:sleep)
+
+    manager.discover_master
+
+    # sentinel2 should now be first (promoted)
+    assert_equal "sentinel2", manager.sentinels[0][:host]
+  end
+
+  def test_discover_replicas_does_not_hold_mutex_during_sleep
+    manager = RR::SentinelManager.new(
+      sentinels: [
+        { host: "sentinel1", port: 26_379 },
+        { host: "sentinel2", port: 26_380 },
+      ],
+      service_name: "mymaster"
+    )
+
+    call_count = 0
+    manager.define_singleton_method(:query_replicas_from_sentinel) do |sentinel|
+      call_count += 1
+      if sentinel[:host] == "sentinel1"
+        raise StandardError, "connection refused"
+      else
+        [{ host: "replica1", port: 6380 }]
+      end
+    end
+    manager.stubs(:sleep)
+
+    result = manager.discover_replicas
+
+    assert_equal 1, result.length
+    assert_equal "replica1", result[0][:host]
+    assert_equal 2, call_count
+  end
 end

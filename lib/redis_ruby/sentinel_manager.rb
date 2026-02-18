@@ -50,28 +50,30 @@ module RR
     # Queries each Sentinel in order until a valid master is found.
     # Implements the pattern from redis-py's discover_master.
     #
+    # Network I/O and sleep are performed outside the mutex to avoid
+    # blocking other threads during sentinel failover retries.
+    #
     # @return [Hash] { host: String, port: Integer }
     # @raise [MasterNotFoundError] if no master can be found
     def discover_master
-      @mutex.synchronize do
-        errors = []
+      sentinels_snapshot = @mutex.synchronize { @sentinels.dup }
+      errors = []
 
-        @sentinels.each_with_index do |sentinel, index|
-          address = query_master_from_sentinel(sentinel)
-          if address
-            # Move successful sentinel to front (redis-py pattern)
-            promote_sentinel(index) if index.positive?
-            return address
-          end
-        rescue StandardError => e
-          errors << "#{sentinel[:host]}:#{sentinel[:port]} - #{e.message}"
-          sleep SENTINEL_DELAY
-          next
+      sentinels_snapshot.each_with_index do |sentinel, index|
+        address = query_master_from_sentinel(sentinel)
+        if address
+          # Move successful sentinel to front (redis-py pattern)
+          @mutex.synchronize { promote_sentinel_by_value(sentinel) } if index.positive?
+          return address
         end
-
-        raise MasterNotFoundError,
-              "No master found for '#{@service_name}'. Errors: #{errors.join("; ")}"
+      rescue StandardError => e
+        errors << "#{sentinel[:host]}:#{sentinel[:port]} - #{e.message}"
+        sleep SENTINEL_DELAY
+        next
       end
+
+      raise MasterNotFoundError,
+            "No master found for '#{@service_name}'. Errors: #{errors.join("; ")}"
     end
 
     # Discover available replica addresses
@@ -79,21 +81,20 @@ module RR
     # @return [Array<Hash>] List of { host: String, port: Integer }
     # @raise [ReplicaNotFoundError] if no replicas can be found
     def discover_replicas
-      @mutex.synchronize do
-        errors = []
+      sentinels_snapshot = @mutex.synchronize { @sentinels.dup }
+      errors = []
 
-        @sentinels.each do |sentinel|
-          replicas = query_replicas_from_sentinel(sentinel)
-          return replicas if replicas && !replicas.empty?
-        rescue StandardError => e
-          errors << "#{sentinel[:host]}:#{sentinel[:port]} - #{e.message}"
-          sleep SENTINEL_DELAY
-          next
-        end
-
-        raise ReplicaNotFoundError,
-              "No replicas found for '#{@service_name}'. Errors: #{errors.join("; ")}"
+      sentinels_snapshot.each do |sentinel|
+        replicas = query_replicas_from_sentinel(sentinel)
+        return replicas if replicas && !replicas.empty?
+      rescue StandardError => e
+        errors << "#{sentinel[:host]}:#{sentinel[:port]} - #{e.message}"
+        sleep SENTINEL_DELAY
+        next
       end
+
+      raise ReplicaNotFoundError,
+            "No replicas found for '#{@service_name}'. Errors: #{errors.join("; ")}"
     end
 
     # Get a random replica address (for load balancing)
@@ -266,26 +267,32 @@ module RR
     end
 
     # Refresh sentinels list from discovered sentinels (redis-client pattern)
+    # Network I/O is done outside the mutex; only the list mutation is synchronized.
     def refresh_sentinels(conn)
       response = conn.call("SENTINEL", "SENTINELS", @service_name)
       return unless response.is_a?(Array)
 
-      response.each do |sentinel_array|
+      new_sentinels = response.filter_map do |sentinel_array|
         info = parse_info_array(sentinel_array)
-        new_sentinel = { host: info["ip"], port: info["port"].to_i }
+        { host: info["ip"], port: info["port"].to_i }
+      end
 
-        # Add if not already in list
-        unless @sentinels.any? { |s| s[:host] == new_sentinel[:host] && s[:port] == new_sentinel[:port] }
-          @sentinels << new_sentinel
+      @mutex.synchronize do
+        new_sentinels.each do |new_sentinel|
+          unless @sentinels.any? { |s| s[:host] == new_sentinel[:host] && s[:port] == new_sentinel[:port] }
+            @sentinels << new_sentinel
+          end
         end
       end
     rescue StandardError
       # Ignore errors refreshing sentinels
     end
 
-    # Promote a sentinel to the front of the list (redis-py pattern)
-    def promote_sentinel(index)
-      @sentinels[0], @sentinels[index] = @sentinels[index], @sentinels[0]
+    # Promote a sentinel to the front of the list by value (redis-py pattern)
+    # Must be called within a mutex synchronize block.
+    def promote_sentinel_by_value(sentinel)
+      idx = @sentinels.index { |s| s[:host] == sentinel[:host] && s[:port] == sentinel[:port] }
+      @sentinels[0], @sentinels[idx] = @sentinels[idx], @sentinels[0] if idx && idx.positive?
     end
 
     # Query replica addresses from a specific Sentinel
