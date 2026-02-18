@@ -10,7 +10,7 @@ class TCPConnectionTest < Minitest::Test
 
   # Connection initialization
   def test_default_host_and_port
-    TCPSocket.expects(:new).with("localhost", 6379).returns(@mock_socket)
+    Socket.expects(:tcp).with("localhost", 6379, connect_timeout: 5.0).returns(@mock_socket)
     setup_mock_socket_options
 
     conn = RR::Connection::TCP.new
@@ -20,7 +20,7 @@ class TCPConnectionTest < Minitest::Test
   end
 
   def test_custom_host_and_port
-    TCPSocket.expects(:new).with("redis.example.com", 6380).returns(@mock_socket)
+    Socket.expects(:tcp).with("redis.example.com", 6380, connect_timeout: 5.0).returns(@mock_socket)
     setup_mock_socket_options
 
     conn = RR::Connection::TCP.new(host: "redis.example.com", port: 6380)
@@ -31,7 +31,7 @@ class TCPConnectionTest < Minitest::Test
 
   # Socket options
   def test_sets_tcp_nodelay
-    TCPSocket.expects(:new).returns(@mock_socket)
+    Socket.expects(:tcp).returns(@mock_socket)
     # Verify TCP_NODELAY is set (both options will be set)
     @mock_socket.expects(:setsockopt).with(Socket::IPPROTO_TCP, Socket::TCP_NODELAY, 1).once
     @mock_socket.expects(:setsockopt).with(Socket::SOL_SOCKET, Socket::SO_KEEPALIVE, 1).once
@@ -41,7 +41,7 @@ class TCPConnectionTest < Minitest::Test
   end
 
   def test_sets_keepalive
-    TCPSocket.expects(:new).returns(@mock_socket)
+    Socket.expects(:tcp).returns(@mock_socket)
     # Verify SO_KEEPALIVE is set (both options will be set)
     @mock_socket.expects(:setsockopt).with(Socket::IPPROTO_TCP, Socket::TCP_NODELAY, 1).once
     @mock_socket.expects(:setsockopt).with(Socket::SOL_SOCKET, Socket::SO_KEEPALIVE, 1).once
@@ -51,7 +51,7 @@ class TCPConnectionTest < Minitest::Test
   end
 
   def test_sets_sync_true_for_unbuffered_writes
-    TCPSocket.expects(:new).returns(@mock_socket)
+    Socket.expects(:tcp).returns(@mock_socket)
     @mock_socket.stubs(:setsockopt)
     @mock_socket.expects(:sync=).with(true)
 
@@ -193,7 +193,7 @@ class TCPConnectionTest < Minitest::Test
     @mock_socket.stubs(:sync=)
     @mock_socket.stubs(:closed?).returns(false)
     @mock_socket.stubs(:close)
-    TCPSocket.stubs(:new).returns(@mock_socket)
+    Socket.stubs(:tcp).returns(@mock_socket)
 
     conn = RR::Connection::TCP.new
 
@@ -204,8 +204,8 @@ class TCPConnectionTest < Minitest::Test
     @mock_socket2.stubs(:closed?).returns(false)
 
     # Reset TCPSocket to return new mock
-    TCPSocket.unstub(:new)
-    TCPSocket.stubs(:new).returns(@mock_socket2)
+    Socket.unstub(:tcp)
+    Socket.stubs(:tcp).returns(@mock_socket2)
 
     conn.reconnect
 
@@ -213,8 +213,27 @@ class TCPConnectionTest < Minitest::Test
     assert_equal conn.instance_variable_get(:@pid), Process.pid
   end
 
+  def test_connect_enforces_timeout
+    # Socket.tcp should be called with connect_timeout matching @timeout
+    Socket.expects(:tcp).with("localhost", 6379, connect_timeout: 5.0).returns(@mock_socket)
+    setup_mock_socket_options
+
+    conn = RR::Connection::TCP.new
+
+    assert_equal 5.0, conn.timeout
+  end
+
+  def test_connect_enforces_custom_timeout
+    Socket.expects(:tcp).with("redis.example.com", 6380, connect_timeout: 2.0).returns(@mock_socket)
+    setup_mock_socket_options
+
+    conn = RR::Connection::TCP.new(host: "redis.example.com", port: 6380, timeout: 2.0)
+
+    assert_equal 2.0, conn.timeout
+  end
+
   def test_socket_closed_on_configure_socket_failure
-    TCPSocket.expects(:new).returns(@mock_socket)
+    Socket.expects(:tcp).returns(@mock_socket)
     @mock_socket.expects(:setsockopt).raises(StandardError, "setsockopt failed")
     @mock_socket.expects(:close)
 
@@ -226,7 +245,7 @@ class TCPConnectionTest < Minitest::Test
     @mock_socket.stubs(:setsockopt)
     @mock_socket.stubs(:sync=)
     @mock_socket.stubs(:close)
-    TCPSocket.stubs(:new).returns(@mock_socket)
+    Socket.stubs(:tcp).returns(@mock_socket)
 
     conn = RR::Connection::TCP.new
 
@@ -239,8 +258,8 @@ class TCPConnectionTest < Minitest::Test
     @mock_socket2.stubs(:sync=)
     @mock_socket2.stubs(:closed?).returns(false)
 
-    TCPSocket.unstub(:new)
-    TCPSocket.stubs(:new).returns(@mock_socket2)
+    Socket.unstub(:tcp)
+    Socket.stubs(:tcp).returns(@mock_socket2)
 
     conn.ensure_connected
 
@@ -256,7 +275,7 @@ class TCPConnectionTest < Minitest::Test
   end
 
   def setup_connected_socket
-    TCPSocket.expects(:new).returns(@mock_socket)
+    Socket.expects(:tcp).returns(@mock_socket)
     setup_mock_socket_options
     # Stub closed? for ensure_connected checks
     @mock_socket.stubs(:closed?).returns(false)

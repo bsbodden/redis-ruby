@@ -14,7 +14,7 @@ class PooledClientBranchTest < Minitest::Test
   # ============================================================
 
   def test_pooled_client_initialization
-    TCPSocket.stubs(:new).returns(@mock_socket)
+    Socket.stubs(:tcp).returns(@mock_socket)
     client = RR::PooledClient.new(host: "localhost", port: 6379)
 
     assert_kind_of RR::PooledClient, client
@@ -26,7 +26,7 @@ class PooledClientBranchTest < Minitest::Test
   end
 
   def test_pooled_client_with_url
-    TCPSocket.stubs(:new).returns(@mock_socket)
+    Socket.stubs(:tcp).returns(@mock_socket)
     @mock_socket.stubs(:write)
     @mock_socket.stubs(:flush)
     @mock_socket.stubs(:read_nonblock).returns("+OK\r\n")
@@ -40,7 +40,7 @@ class PooledClientBranchTest < Minitest::Test
   end
 
   def test_pooled_client_with_url_and_password
-    TCPSocket.stubs(:new).returns(@mock_socket)
+    Socket.stubs(:tcp).returns(@mock_socket)
     @mock_socket.stubs(:write)
     @mock_socket.stubs(:flush)
     @mock_socket.stubs(:read_nonblock).returns("+OK\r\n")
@@ -52,7 +52,7 @@ class PooledClientBranchTest < Minitest::Test
   end
 
   def test_pooled_client_custom_pool_size
-    TCPSocket.stubs(:new).returns(@mock_socket)
+    Socket.stubs(:tcp).returns(@mock_socket)
     client = RR::PooledClient.new(host: "localhost", pool: { size: 10 })
 
     assert_equal 10, client.pool_size
@@ -60,7 +60,7 @@ class PooledClientBranchTest < Minitest::Test
   end
 
   def test_pooled_client_custom_pool_timeout
-    TCPSocket.stubs(:new).returns(@mock_socket)
+    Socket.stubs(:tcp).returns(@mock_socket)
     client = RR::PooledClient.new(host: "localhost", pool: { size: 5, timeout: 15.0 })
 
     assert_equal 5, client.pool_size
@@ -68,7 +68,7 @@ class PooledClientBranchTest < Minitest::Test
   end
 
   def test_pooled_client_default_pool_size
-    TCPSocket.stubs(:new).returns(@mock_socket)
+    Socket.stubs(:tcp).returns(@mock_socket)
     client = RR::PooledClient.new(host: "localhost")
 
     assert_equal 5, client.pool_size
@@ -80,7 +80,7 @@ class PooledClientBranchTest < Minitest::Test
   # ============================================================
 
   def test_pooled_client_call
-    TCPSocket.stubs(:new).returns(@mock_socket)
+    Socket.stubs(:tcp).returns(@mock_socket)
     @mock_socket.expects(:write).with("*1\r\n$4\r\nPING\r\n")
     @mock_socket.expects(:read_nonblock).returns("+PONG\r\n")
 
@@ -92,7 +92,7 @@ class PooledClientBranchTest < Minitest::Test
   end
 
   def test_pooled_client_call_raises_on_error
-    TCPSocket.stubs(:new).returns(@mock_socket)
+    Socket.stubs(:tcp).returns(@mock_socket)
     @mock_socket.expects(:write)
     @mock_socket.expects(:read_nonblock).returns("-ERR bad\r\n")
 
@@ -102,7 +102,7 @@ class PooledClientBranchTest < Minitest::Test
   end
 
   def test_pooled_client_call_1arg
-    TCPSocket.stubs(:new).returns(@mock_socket)
+    Socket.stubs(:tcp).returns(@mock_socket)
     @mock_socket.expects(:write)
     @mock_socket.expects(:read_nonblock).returns("$5\r\nhello\r\n")
 
@@ -114,7 +114,7 @@ class PooledClientBranchTest < Minitest::Test
   end
 
   def test_pooled_client_call_1arg_raises_on_error
-    TCPSocket.stubs(:new).returns(@mock_socket)
+    Socket.stubs(:tcp).returns(@mock_socket)
     @mock_socket.expects(:write)
     @mock_socket.expects(:read_nonblock).returns("-ERR fail\r\n")
 
@@ -124,7 +124,7 @@ class PooledClientBranchTest < Minitest::Test
   end
 
   def test_pooled_client_call_2args
-    TCPSocket.stubs(:new).returns(@mock_socket)
+    Socket.stubs(:tcp).returns(@mock_socket)
     @mock_socket.expects(:write)
     @mock_socket.expects(:read_nonblock).returns("+OK\r\n")
 
@@ -136,7 +136,7 @@ class PooledClientBranchTest < Minitest::Test
   end
 
   def test_pooled_client_call_2args_raises_on_error
-    TCPSocket.stubs(:new).returns(@mock_socket)
+    Socket.stubs(:tcp).returns(@mock_socket)
     @mock_socket.expects(:write)
     @mock_socket.expects(:read_nonblock).returns("-ERR fail\r\n")
 
@@ -146,7 +146,7 @@ class PooledClientBranchTest < Minitest::Test
   end
 
   def test_pooled_client_call_3args
-    TCPSocket.stubs(:new).returns(@mock_socket)
+    Socket.stubs(:tcp).returns(@mock_socket)
     @mock_socket.expects(:write)
     @mock_socket.expects(:read_nonblock).returns(":1\r\n")
 
@@ -158,7 +158,7 @@ class PooledClientBranchTest < Minitest::Test
   end
 
   def test_pooled_client_call_3args_raises_on_error
-    TCPSocket.stubs(:new).returns(@mock_socket)
+    Socket.stubs(:tcp).returns(@mock_socket)
     @mock_socket.expects(:write)
     @mock_socket.expects(:read_nonblock).returns("-ERR fail\r\n")
 
@@ -172,7 +172,7 @@ class PooledClientBranchTest < Minitest::Test
   # ============================================================
 
   def test_pooled_client_ping
-    TCPSocket.stubs(:new).returns(@mock_socket)
+    Socket.stubs(:tcp).returns(@mock_socket)
     @mock_socket.expects(:write)
     @mock_socket.expects(:read_nonblock).returns("+PONG\r\n")
 
@@ -183,7 +183,7 @@ class PooledClientBranchTest < Minitest::Test
   end
 
   def test_pooled_client_with_connection
-    TCPSocket.stubs(:new).returns(@mock_socket)
+    Socket.stubs(:tcp).returns(@mock_socket)
     @mock_socket.stubs(:write)
     @mock_socket.stubs(:flush)
     @mock_socket.stubs(:read_nonblock).returns("+PONG\r\n")
@@ -196,7 +196,7 @@ class PooledClientBranchTest < Minitest::Test
   end
 
   def test_pooled_client_pool_available
-    TCPSocket.stubs(:new).returns(@mock_socket)
+    Socket.stubs(:tcp).returns(@mock_socket)
     client = RR::PooledClient.new(host: "localhost", port: 6379, pool: { size: 5 })
 
     assert_equal 5, client.pool_available
@@ -208,7 +208,7 @@ class PooledClientBranchTest < Minitest::Test
   # ============================================================
 
   def test_pooled_client_watch_without_block
-    TCPSocket.stubs(:new).returns(@mock_socket)
+    Socket.stubs(:tcp).returns(@mock_socket)
     @mock_socket.stubs(:write)
     @mock_socket.stubs(:flush)
     @mock_socket.stubs(:read_nonblock).returns("+OK\r\n")
@@ -221,7 +221,7 @@ class PooledClientBranchTest < Minitest::Test
   end
 
   def test_pooled_client_watch_with_block
-    TCPSocket.stubs(:new).returns(@mock_socket)
+    Socket.stubs(:tcp).returns(@mock_socket)
     @mock_socket.stubs(:write)
     @mock_socket.stubs(:flush)
     @mock_socket.stubs(:read_nonblock).returns("+OK\r\n")
@@ -239,7 +239,7 @@ class PooledClientBranchTest < Minitest::Test
   # ============================================================
 
   def test_pooled_client_unwatch
-    TCPSocket.stubs(:new).returns(@mock_socket)
+    Socket.stubs(:tcp).returns(@mock_socket)
     @mock_socket.stubs(:write)
     @mock_socket.stubs(:flush)
     @mock_socket.stubs(:read_nonblock).returns("+OK\r\n")
@@ -256,14 +256,14 @@ class PooledClientBranchTest < Minitest::Test
   # ============================================================
 
   def test_pooled_client_disconnect_alias
-    TCPSocket.stubs(:new).returns(@mock_socket)
+    Socket.stubs(:tcp).returns(@mock_socket)
     client = RR::PooledClient.new(host: "localhost", port: 6379)
     client.disconnect
     # Should not raise
   end
 
   def test_pooled_client_quit_alias
-    TCPSocket.stubs(:new).returns(@mock_socket)
+    Socket.stubs(:tcp).returns(@mock_socket)
     client = RR::PooledClient.new(host: "localhost", port: 6379)
     client.quit
     # Should not raise
@@ -274,7 +274,7 @@ class PooledClientBranchTest < Minitest::Test
   # ============================================================
 
   def test_pooled_client_includes_command_modules
-    TCPSocket.stubs(:new).returns(@mock_socket)
+    Socket.stubs(:tcp).returns(@mock_socket)
     client = RR::PooledClient.new(host: "localhost", port: 6379)
 
     assert_respond_to client, :get

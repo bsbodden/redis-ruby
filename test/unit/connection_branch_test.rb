@@ -14,7 +14,7 @@ class TCPConnectionBranchTest < Minitest::Test
     @mock_socket.stubs(:sync=)
     @mock_socket.stubs(:closed?).returns(false)
     @mock_socket.stubs(:close)
-    TCPSocket.stubs(:new).returns(@mock_socket)
+    Socket.stubs(:tcp).returns(@mock_socket)
   end
 
   # ---------- Initialization branches ----------
@@ -70,7 +70,7 @@ class TCPConnectionBranchTest < Minitest::Test
     conn = RR::Connection::TCP.new
     @mock_socket.stubs(:closed?).returns(false)
     # Should not try to reconnect
-    TCPSocket.expects(:new).never # Already stubbed, but we check no extra calls
+    Socket.expects(:tcp).never # Already stubbed, but we check no extra calls
     conn.ensure_connected
 
     assert_predicate conn, :connected?
@@ -85,8 +85,8 @@ class TCPConnectionBranchTest < Minitest::Test
     new_socket.stubs(:setsockopt)
     new_socket.stubs(:sync=)
     new_socket.stubs(:closed?).returns(false)
-    TCPSocket.unstub(:new)
-    TCPSocket.stubs(:new).returns(new_socket)
+    Socket.unstub(:tcp)
+    Socket.stubs(:tcp).returns(new_socket)
 
     conn.ensure_connected
 
@@ -101,8 +101,8 @@ class TCPConnectionBranchTest < Minitest::Test
     new_socket.stubs(:setsockopt)
     new_socket.stubs(:sync=)
     new_socket.stubs(:closed?).returns(false)
-    TCPSocket.unstub(:new)
-    TCPSocket.stubs(:new).returns(new_socket)
+    Socket.unstub(:tcp)
+    Socket.stubs(:tcp).returns(new_socket)
 
     conn.ensure_connected
 
@@ -120,8 +120,8 @@ class TCPConnectionBranchTest < Minitest::Test
     new_socket.stubs(:setsockopt)
     new_socket.stubs(:sync=)
     new_socket.stubs(:closed?).returns(false)
-    TCPSocket.unstub(:new)
-    TCPSocket.stubs(:new).returns(new_socket)
+    Socket.unstub(:tcp)
+    Socket.stubs(:tcp).returns(new_socket)
 
     conn.ensure_connected
 
@@ -139,8 +139,8 @@ class TCPConnectionBranchTest < Minitest::Test
     new_socket.stubs(:setsockopt)
     new_socket.stubs(:sync=)
     new_socket.stubs(:closed?).returns(false)
-    TCPSocket.unstub(:new)
-    TCPSocket.stubs(:new).returns(new_socket)
+    Socket.unstub(:tcp)
+    Socket.stubs(:tcp).returns(new_socket)
 
     conn.ensure_connected
     # After reconnect, socket should be the new one
@@ -156,8 +156,8 @@ class TCPConnectionBranchTest < Minitest::Test
     new_socket.stubs(:setsockopt)
     new_socket.stubs(:sync=)
     new_socket.stubs(:closed?).returns(false)
-    TCPSocket.unstub(:new)
-    TCPSocket.stubs(:new).returns(new_socket)
+    Socket.unstub(:tcp)
+    Socket.stubs(:tcp).returns(new_socket)
 
     conn.ensure_connected
 
@@ -174,8 +174,8 @@ class TCPConnectionBranchTest < Minitest::Test
     new_socket.stubs(:setsockopt)
     new_socket.stubs(:sync=)
     new_socket.stubs(:closed?).returns(false)
-    TCPSocket.unstub(:new)
-    TCPSocket.stubs(:new).returns(new_socket)
+    Socket.unstub(:tcp)
+    Socket.stubs(:tcp).returns(new_socket)
 
     conn.reconnect
 
@@ -190,8 +190,8 @@ class TCPConnectionBranchTest < Minitest::Test
     new_socket.stubs(:setsockopt)
     new_socket.stubs(:sync=)
     new_socket.stubs(:closed?).returns(false)
-    TCPSocket.unstub(:new)
-    TCPSocket.stubs(:new).returns(new_socket)
+    Socket.unstub(:tcp)
+    Socket.stubs(:tcp).returns(new_socket)
 
     # Should not raise despite close error
     conn.reconnect
@@ -359,7 +359,7 @@ class SSLConnectionBranchTest < Minitest::Test
     @mock_tcp_socket.stubs(:close)
     @mock_tcp_socket.stubs(:closed?).returns(false)
 
-    TCPSocket.stubs(:new).returns(@mock_tcp_socket)
+    Socket.stubs(:tcp).returns(@mock_tcp_socket)
     OpenSSL::SSL::SSLSocket.stubs(:new).returns(@mock_ssl_socket)
     OpenSSL::SSL::SSLContext.any_instance.stubs(:set_params)
   end
@@ -535,8 +535,8 @@ class SSLConnectionBranchTest < Minitest::Test
     new_ssl.stubs(:closed?).returns(false)
     new_ssl.stubs(:sync=)
 
-    TCPSocket.unstub(:new)
-    TCPSocket.stubs(:new).returns(new_tcp)
+    Socket.unstub(:tcp)
+    Socket.stubs(:tcp).returns(new_tcp)
     OpenSSL::SSL::SSLSocket.unstub(:new)
     OpenSSL::SSL::SSLSocket.stubs(:new).returns(new_ssl)
 
@@ -562,8 +562,8 @@ class SSLConnectionBranchTest < Minitest::Test
     new_ssl.stubs(:closed?).returns(false)
     new_ssl.stubs(:sync=)
 
-    TCPSocket.unstub(:new)
-    TCPSocket.stubs(:new).returns(new_tcp)
+    Socket.unstub(:tcp)
+    Socket.stubs(:tcp).returns(new_tcp)
     OpenSSL::SSL::SSLSocket.unstub(:new)
     OpenSSL::SSL::SSLSocket.stubs(:new).returns(new_ssl)
 
@@ -591,8 +591,8 @@ class SSLConnectionBranchTest < Minitest::Test
     new_ssl.stubs(:closed?).returns(false)
     new_ssl.stubs(:sync=)
 
-    TCPSocket.unstub(:new)
-    TCPSocket.stubs(:new).returns(new_tcp)
+    Socket.unstub(:tcp)
+    Socket.stubs(:tcp).returns(new_tcp)
     OpenSSL::SSL::SSLSocket.unstub(:new)
     OpenSSL::SSL::SSLSocket.stubs(:new).returns(new_ssl)
 
@@ -799,7 +799,7 @@ class ConnectionPoolBranchTest < Minitest::Test
     @mock_socket.stubs(:close)
     @mock_socket.stubs(:write)
     @mock_socket.stubs(:flush)
-    TCPSocket.stubs(:new).returns(@mock_socket)
+    Socket.stubs(:tcp).returns(@mock_socket)
   end
 
   def test_default_pool_size

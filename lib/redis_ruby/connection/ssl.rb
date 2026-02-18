@@ -217,7 +217,7 @@ module RR
 
       # Establish SSL connection
       def connect
-        @tcp_socket = TCPSocket.new(@host, @port)
+        @tcp_socket = Socket.tcp(@host, @port, connect_timeout: @timeout)
         begin
           configure_tcp_socket
 

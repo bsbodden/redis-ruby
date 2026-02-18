@@ -324,7 +324,7 @@ class AsyncClientBranchTest < Minitest::Test
     new_socket.stubs(:close)
     new_socket.expects(:write)
     new_socket.expects(:read_nonblock).returns("+PONG\r\n")
-    TCPSocket.stubs(:new).returns(new_socket)
+    Socket.stubs(:tcp).returns(new_socket)
 
     result = client.ping
 
@@ -342,6 +342,6 @@ class AsyncClientBranchTest < Minitest::Test
   end
 
   def setup_connected_socket
-    TCPSocket.stubs(:new).returns(@mock_socket)
+    Socket.stubs(:tcp).returns(@mock_socket)
   end
 end

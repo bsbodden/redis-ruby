@@ -10,7 +10,7 @@ class ConnectionPoolTest < Minitest::Test
   end
 
   def test_pool_initialization_with_defaults
-    TCPSocket.stubs(:new).returns(@mock_socket)
+    Socket.stubs(:tcp).returns(@mock_socket)
 
     pool = RR::Connection::Pool.new(host: "localhost", port: 6379)
 
@@ -19,7 +19,7 @@ class ConnectionPoolTest < Minitest::Test
   end
 
   def test_pool_initialization_with_custom_size
-    TCPSocket.stubs(:new).returns(@mock_socket)
+    Socket.stubs(:tcp).returns(@mock_socket)
 
     pool = RR::Connection::Pool.new(host: "localhost", port: 6379, size: 10)
 
@@ -27,7 +27,7 @@ class ConnectionPoolTest < Minitest::Test
   end
 
   def test_pool_initialization_with_custom_timeout
-    TCPSocket.stubs(:new).returns(@mock_socket)
+    Socket.stubs(:tcp).returns(@mock_socket)
 
     pool = RR::Connection::Pool.new(host: "localhost", port: 6379, pool_timeout: 10)
 
@@ -35,7 +35,7 @@ class ConnectionPoolTest < Minitest::Test
   end
 
   def test_pool_with_block_returns_result
-    TCPSocket.stubs(:new).returns(@mock_socket)
+    Socket.stubs(:tcp).returns(@mock_socket)
     setup_ping_response
 
     pool = RR::Connection::Pool.new(host: "localhost", port: 6379)
@@ -48,7 +48,7 @@ class ConnectionPoolTest < Minitest::Test
   end
 
   def test_pool_reuses_connections
-    TCPSocket.stubs(:new).returns(@mock_socket)
+    Socket.stubs(:tcp).returns(@mock_socket)
     @mock_socket.stubs(:closed?).returns(false)
 
     pool = RR::Connection::Pool.new(host: "localhost", port: 6379, size: 1)
@@ -66,21 +66,21 @@ class ConnectionPoolTest < Minitest::Test
 
   def test_pool_creates_connections_lazily
     # TCPSocket.new should not be called until we checkout
-    TCPSocket.expects(:new).never
+    Socket.expects(:tcp).never
 
     _pool = RR::Connection::Pool.new(host: "localhost", port: 6379, size: 5)
     # No assertions needed - just verifying TCPSocket.new wasn't called
   end
 
   def test_pool_creates_connection_on_first_checkout
-    TCPSocket.expects(:new).once.returns(@mock_socket)
+    Socket.expects(:tcp).once.returns(@mock_socket)
 
     pool = RR::Connection::Pool.new(host: "localhost", port: 6379, size: 5)
     pool.with { |_conn| }
   end
 
   def test_pool_checkout_returns_connection
-    TCPSocket.stubs(:new).returns(@mock_socket)
+    Socket.stubs(:tcp).returns(@mock_socket)
 
     pool = RR::Connection::Pool.new(host: "localhost", port: 6379)
 
@@ -90,7 +90,7 @@ class ConnectionPoolTest < Minitest::Test
   end
 
   def test_pool_close_closes_all_connections
-    TCPSocket.stubs(:new).returns(@mock_socket)
+    Socket.stubs(:tcp).returns(@mock_socket)
     @mock_socket.stubs(:closed?).returns(false)
 
     pool = RR::Connection::Pool.new(host: "localhost", port: 6379, size: 2)
@@ -104,7 +104,7 @@ class ConnectionPoolTest < Minitest::Test
   end
 
   def test_pool_available_returns_count
-    TCPSocket.stubs(:new).returns(@mock_socket)
+    Socket.stubs(:tcp).returns(@mock_socket)
     @mock_socket.stubs(:closed?).returns(false)
 
     pool = RR::Connection::Pool.new(host: "localhost", port: 6379, size: 3)

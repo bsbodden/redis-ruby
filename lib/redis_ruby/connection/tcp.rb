@@ -313,7 +313,7 @@ module RR
           timestamp: Time.now
         })
 
-        @socket = TCPSocket.new(@host, @port)
+        @socket = Socket.tcp(@host, @port, connect_timeout: @timeout)
         begin
           configure_socket
           @buffered_io = Protocol::BufferedIO.new(@socket, read_timeout: @timeout, write_timeout: @timeout)
