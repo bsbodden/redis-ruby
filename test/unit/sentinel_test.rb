@@ -1797,4 +1797,44 @@ class SentinelClientBranchTest < Minitest::Test
 
     assert_equal 42, result
   end
+
+  # ============================================================
+  # call_1arg / call_2args / call_3args fast-path methods
+  # ============================================================
+
+  def test_call_1arg_delegates_to_connection
+    client = build_client
+    conn = mock_conn
+    conn.stubs(:connected?).returns(true)
+    conn.expects(:call_1arg).with("GET", "key1").returns("value1")
+    client.instance_variable_set(:@connection, conn)
+
+    result = client.call_1arg("GET", "key1")
+
+    assert_equal "value1", result
+  end
+
+  def test_call_2args_delegates_to_connection
+    client = build_client
+    conn = mock_conn
+    conn.stubs(:connected?).returns(true)
+    conn.expects(:call_2args).with("SET", "key1", "value1").returns("OK")
+    client.instance_variable_set(:@connection, conn)
+
+    result = client.call_2args("SET", "key1", "value1")
+
+    assert_equal "OK", result
+  end
+
+  def test_call_3args_delegates_to_connection
+    client = build_client
+    conn = mock_conn
+    conn.stubs(:connected?).returns(true)
+    conn.expects(:call_3args).with("HSET", "hash", "field", "value").returns(1)
+    client.instance_variable_set(:@connection, conn)
+
+    result = client.call_3args("HSET", "hash", "field", "value")
+
+    assert_equal 1, result
+  end
 end

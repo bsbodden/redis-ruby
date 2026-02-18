@@ -122,6 +122,57 @@ module RR
       end
     end
 
+    # Fast path for single-argument commands (GET, DEL, EXISTS, etc.)
+    # @api private
+    def call_1arg(command, arg)
+      attempts = 0
+      begin
+        ensure_connected
+        conn = @connection
+        raise ConnectionError, "Connection lost" unless conn
+
+        handle_call_result(conn.call_1arg(command, arg))
+      rescue ConnectionError, ReadOnlyError, FailoverError
+        attempts += 1
+        retry if retry_with_backoff?(attempts)
+        raise
+      end
+    end
+
+    # Fast path for two-argument commands (SET without options, HGET, etc.)
+    # @api private
+    def call_2args(command, arg1, arg2)
+      attempts = 0
+      begin
+        ensure_connected
+        conn = @connection
+        raise ConnectionError, "Connection lost" unless conn
+
+        handle_call_result(conn.call_2args(command, arg1, arg2))
+      rescue ConnectionError, ReadOnlyError, FailoverError
+        attempts += 1
+        retry if retry_with_backoff?(attempts)
+        raise
+      end
+    end
+
+    # Fast path for three-argument commands (HSET, LRANGE, etc.)
+    # @api private
+    def call_3args(command, arg1, arg2, arg3)
+      attempts = 0
+      begin
+        ensure_connected
+        conn = @connection
+        raise ConnectionError, "Connection lost" unless conn
+
+        handle_call_result(conn.call_3args(command, arg1, arg2, arg3))
+      rescue ConnectionError, ReadOnlyError, FailoverError
+        attempts += 1
+        retry if retry_with_backoff?(attempts)
+        raise
+      end
+    end
+
     # Close the connection
     def close
       @mutex.synchronize do

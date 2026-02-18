@@ -92,6 +92,49 @@ module RR
       @mutex = Mutex.new
     end
 
+    # Execute a Redis command
+    #
+    # @param command [String] Command name
+    # @param args [Array] Command arguments
+    # @return [Object] Command result
+    def call(command, *args)
+      ensure_connected
+      result = @connection.call(command, *args)
+      raise result if result.is_a?(CommandError)
+
+      result
+    end
+
+    # Fast path for single-argument commands (GET, DEL, EXISTS, etc.)
+    # @api private
+    def call_1arg(command, arg)
+      ensure_connected
+      result = @connection.call_1arg(command, arg)
+      raise result if result.is_a?(CommandError)
+
+      result
+    end
+
+    # Fast path for two-argument commands (SET without options, HGET, etc.)
+    # @api private
+    def call_2args(command, arg1, arg2)
+      ensure_connected
+      result = @connection.call_2args(command, arg1, arg2)
+      raise result if result.is_a?(CommandError)
+
+      result
+    end
+
+    # Fast path for three-argument commands (HSET, LRANGE, etc.)
+    # @api private
+    def call_3args(command, arg1, arg2, arg3)
+      ensure_connected
+      result = @connection.call_3args(command, arg1, arg2, arg3)
+      raise result if result.is_a?(CommandError)
+
+      result
+    end
+
     # Close the connection
     def close
       @mutex.synchronize do
