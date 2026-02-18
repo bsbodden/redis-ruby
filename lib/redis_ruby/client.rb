@@ -43,7 +43,7 @@ module RR
     include Commands::Server
     include ClientUrlParsing
 
-    attr_reader :host, :port, :path, :db, :timeout
+    attr_reader :host, :port, :path, :db, :timeout, :password, :ssl, :ssl_params
 
     DEFAULT_HOST = "localhost"
     DEFAULT_PORT = 6379

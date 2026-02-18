@@ -553,14 +553,15 @@ class SubscriberUnitTest < Minitest::Test
   # read_message (private)
   # ============================================================
 
-  def test_read_message_returns_nil_when_no_decoder
+  def test_read_message_delegates_to_connection_read_response
     subscriber = RR::Subscriber.new(@mock_client)
-    mock_conn = SubscriberMockConnection.new
+    mock_conn = mock("connection")
+    mock_conn.expects(:read_response).returns(%w[message ch1 hello])
     subscriber.instance_variable_set(:@connection, mock_conn)
 
     result = subscriber.send(:read_message)
 
-    assert_nil result
+    assert_equal %w[message ch1 hello], result
   end
 
   # ============================================================
@@ -580,7 +581,7 @@ class SubscriberUnitTest < Minitest::Test
 
   def test_extract_client_config_includes_password
     client = SubscriberMockClient.new
-    client.instance_variable_set(:@password, "secret")
+    client.define_singleton_method(:password) { "secret" }
     subscriber = RR::Subscriber.new(client)
     config = subscriber.instance_variable_get(:@client_config)
 
@@ -589,8 +590,8 @@ class SubscriberUnitTest < Minitest::Test
 
   def test_extract_client_config_includes_ssl
     client = SubscriberMockClient.new
-    client.instance_variable_set(:@ssl, true)
-    client.instance_variable_set(:@ssl_params, { verify_mode: 1 })
+    client.define_singleton_method(:ssl) { true }
+    client.define_singleton_method(:ssl_params) { { verify_mode: 1 } }
     subscriber = RR::Subscriber.new(client)
     config = subscriber.instance_variable_get(:@client_config)
 
@@ -600,8 +601,8 @@ class SubscriberUnitTest < Minitest::Test
 
   def test_create_connection_uses_ssl_when_configured
     client = SubscriberMockClient.new
-    client.instance_variable_set(:@ssl, true)
-    client.instance_variable_set(:@ssl_params, {})
+    client.define_singleton_method(:ssl) { true }
+    client.define_singleton_method(:ssl_params) { {} }
     subscriber = RR::Subscriber.new(client)
 
     mock_ssl_conn = mock("ssl_conn")
@@ -619,7 +620,7 @@ class SubscriberUnitTest < Minitest::Test
 
   def test_authenticate_called_when_password_set
     client = SubscriberMockClient.new
-    client.instance_variable_set(:@password, "secret")
+    client.define_singleton_method(:password) { "secret" }
     subscriber = RR::Subscriber.new(client)
 
     mock_conn = SubscriberMockConnection.new

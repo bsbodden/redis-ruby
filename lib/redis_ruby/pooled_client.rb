@@ -40,7 +40,7 @@ module RR
     include Commands::Streams
     include Commands::PubSub
 
-    attr_reader :host, :port, :db, :timeout
+    attr_reader :host, :port, :db, :timeout, :password
 
     DEFAULT_HOST = "localhost"
     DEFAULT_PORT = 6379

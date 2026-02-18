@@ -207,10 +207,9 @@ module RR
         timeout: client.timeout,
       }
 
-      # Extract password, ssl, ssl_params (not publicly exposed on Client)
-      config[:password] = client.instance_variable_get(:@password) if client.instance_variable_defined?(:@password)
-      config[:ssl] = client.instance_variable_get(:@ssl) if client.instance_variable_defined?(:@ssl)
-      config[:ssl_params] = client.instance_variable_get(:@ssl_params) if client.instance_variable_defined?(:@ssl_params)
+      config[:password] = client.password if client.respond_to?(:password)
+      config[:ssl] = client.ssl if client.respond_to?(:ssl)
+      config[:ssl_params] = client.ssl_params if client.respond_to?(:ssl_params)
 
       config
     end
@@ -291,7 +290,7 @@ module RR
 
     # Read a message from the connection
     def read_message
-      @connection.instance_variable_get(:@decoder)&.decode
+      @connection.read_response
     end
 
     # Process a received message
