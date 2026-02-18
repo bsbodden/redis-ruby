@@ -987,4 +987,27 @@ class ClientBranchTest < Minitest::Test
 
     assert_in_delta 3.14, result
   end
+
+  # ============================================================
+  # health_check
+  # ============================================================
+
+  def test_health_check_returns_false_on_connection_error
+    client = RR::Client.new
+    mock_conn = MockConnection.new
+    def mock_conn.call_direct(_command, *_args)
+      raise RR::ConnectionError, "connection refused"
+    end
+    client.instance_variable_set(:@connection, mock_conn)
+
+    refute client.health_check
+  end
+
+  def test_health_check_returns_true_when_healthy
+    client = RR::Client.new
+    mock_conn = MockConnection.new
+    client.instance_variable_set(:@connection, mock_conn)
+
+    assert client.health_check
+  end
 end

@@ -278,7 +278,7 @@ module RR
       begin
         call(command)
         true
-      rescue
+      rescue StandardError
         false
       end
     end
