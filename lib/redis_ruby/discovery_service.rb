@@ -94,6 +94,7 @@ module RR
       last_error = nil
 
       @nodes.each do |node|
+        connection = nil
         begin
           connection = create_connection(
             host: node[:host],
@@ -102,8 +103,6 @@ module RR
           )
 
           result = connection.call("SENTINEL", "get-master-addr-by-name", @database_name)
-
-          connection.close
 
           if result.nil?
             raise DiscoveryServiceError, "Database '#{@database_name}' not found in discovery service"
@@ -115,8 +114,9 @@ module RR
           }
         rescue StandardError => e
           last_error = e
-          connection&.close rescue nil
           next
+        ensure
+          connection&.close rescue nil
         end
       end
 
