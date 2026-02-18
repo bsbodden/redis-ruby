@@ -60,7 +60,7 @@ module RR
       @ttl = ttl
       @mode = mode
       @cache = {}
-      @access_order = [] # LRU tracking
+      @access_order = {} # LRU tracking (Hash preserves insertion order, O(1) delete)
       @monitor = Monitor.new
       @enabled = false
       @tracking_redirect_id = nil
@@ -265,17 +265,18 @@ module RR
       touch_lru(key)
     end
 
-    # Update LRU order for a key
+    # Update LRU order for a key (O(1) via Hash with insertion order)
     def touch_lru(key)
       @access_order.delete(key)
-      @access_order.push(key)
+      @access_order[key] = true
     end
 
     # Evict the least recently used entry
     def evict_lru
       return if @access_order.empty?
 
-      oldest_key = @access_order.shift
+      oldest_key, = @access_order.first
+      @access_order.delete(oldest_key)
       @cache.delete(oldest_key)
     end
   end

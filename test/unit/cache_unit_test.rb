@@ -659,6 +659,61 @@ class CacheUnitTest < Minitest::Test
     assert cache.cached?("key2")
   end
 
+  def test_lru_eviction_order_after_invalidate_and_reinsert
+    cache = RR::Cache.new(@mock_client, max_entries: 3)
+    cache.enable!
+
+    # Fill cache: key1, key2, key3
+    %w[key1 key2 key3].each_with_index do |k, i|
+      @mock_client.set_get_return("v#{i + 1}")
+      cache.get(k)
+    end
+
+    # Invalidate key2, then re-add it (should be most recent)
+    cache.invalidate("key2")
+    @mock_client.set_get_return("v2_new")
+    cache.get("key2")
+
+    # Now add key4 — should evict key1 (oldest untouched), NOT key2
+    @mock_client.set_get_return("v4")
+    cache.get("key4")
+
+    refute cache.cached?("key1") # evicted as LRU
+    assert cache.cached?("key2") # reinserted, so recent
+    assert cache.cached?("key3")
+    assert cache.cached?("key4")
+  end
+
+  def test_lru_correct_with_many_entries
+    n = 50
+    cache = RR::Cache.new(@mock_client, max_entries: n)
+    cache.enable!
+
+    # Fill cache completely
+    (1..n).each do |i|
+      @mock_client.set_get_return("v#{i}")
+      cache.get("key#{i}")
+    end
+
+    # Touch the first 10 keys to make them most recent
+    (1..10).each { |i| cache.get("key#{i}") }
+
+    # Add 10 new keys — should evict keys 11-20 (the LRU ones)
+    (1..10).each do |i|
+      @mock_client.set_get_return("new#{i}")
+      cache.get("new#{i}")
+    end
+
+    # Keys 1-10 should still be cached (they were touched)
+    (1..10).each { |i| assert cache.cached?("key#{i}"), "key#{i} should be cached" }
+
+    # Keys 11-20 should be evicted
+    (11..20).each { |i| refute cache.cached?("key#{i}"), "key#{i} should be evicted" }
+
+    # Keys 21-50 should still be cached
+    (21..n).each { |i| assert cache.cached?("key#{i}"), "key#{i} should be cached" }
+  end
+
   # ============================================================
   # should_cache? (private, tested via get)
   # ============================================================
