@@ -3639,7 +3639,7 @@ class RedisCompatTestPart20 < Minitest::Test
     expected_opts = { url: nil, path: nil, **input_opts }
 
     RR::Client.unstub(:new)
-    RR::Client.expects(:new).with(expected_opts).returns(@mock_client)
+    RR::Client.expects(:new).with(**expected_opts).returns(@mock_client)
 
     build_redis(input_opts)
   end
