@@ -108,6 +108,8 @@ module RR
     # These tests are for future enhancement - pool-level metrics
     # Current instrumentation tracks command-level metrics only
     def test_pool_metrics_track_active_connections
+      skip "Redis server required" unless redis_available?
+
       # Future enhancement: Add pool.pool_metrics method to PooledClient
       # that returns active/idle/total connection counts from the underlying
       # ConnectionPool object
@@ -121,6 +123,8 @@ module RR
     end
 
     def test_pool_metrics_track_wait_time
+      skip "Redis server required" unless redis_available?
+
       # Future enhancement: Track time spent waiting for connections
       # from the pool (when all connections are busy)
       pool = RR.pooled(pool: { size: 1, timeout: 5 })
@@ -169,6 +173,16 @@ module RR
       assert called
       assert_equal "SET", command_name
       assert_in_delta(0.005, duration_recorded)
+    end
+
+    private
+
+    def redis_available?
+      socket = TCPSocket.new("localhost", 6379)
+      socket.close
+      true
+    rescue StandardError
+      false
     end
   end
 end

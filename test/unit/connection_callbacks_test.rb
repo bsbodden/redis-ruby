@@ -5,12 +5,12 @@ require_relative "../test_helper"
 module RR
   class ConnectionCallbacksTest < Minitest::Test
     def setup
-      @connection = RR::Connection::TCP.new(host: "localhost", port: 6379)
+      @connection = build_unconnected_tcp("localhost", 6379)
       @events = []
     end
 
     def teardown
-      @connection.disconnect if @connection.connected?
+      @connection.close if @connection.connected?
     end
 
     # Test callback registration
@@ -88,17 +88,20 @@ module RR
 
     # Test callback invocation
     def test_connected_callback_invoked_on_connect
-      @connection.disconnect if @connection.connected?
-      conn = build_unconnected_tcp("localhost", 6379, timeout: 5.0)
+      skip "Redis server not available" unless redis_available?
 
+      conn = build_unconnected_tcp("localhost", 6379, timeout: 5.0)
       conn.register_callback(:connected) { |event| @events << event }
       conn.send(:connect)
 
       assert_callback_event(:connected, host: "localhost", port: 6379)
-      conn.disconnect if conn.connected?
+      conn.close if conn.connected?
     end
 
     def test_disconnected_callback_invoked_on_disconnect
+      # Use a mock socket so the connection appears connected
+      @connection.instance_variable_set(:@socket, build_mock_socket)
+
       @connection.register_callback(:disconnected) do |event|
         @events << event
       end
@@ -115,13 +118,16 @@ module RR
     end
 
     def test_reconnected_callback_invoked_on_reconnect
-      @connection.disconnect
+      skip "Redis server not available" unless redis_available?
 
-      @connection.register_callback(:reconnected) do |event|
+      conn = RR::Connection::TCP.new(host: "localhost", port: 6379)
+      conn.disconnect
+
+      conn.register_callback(:reconnected) do |event|
         @events << event
       end
 
-      @connection.reconnect
+      conn.reconnect
 
       assert_equal 1, @events.size
       event = @events.first
@@ -130,6 +136,7 @@ module RR
       assert_equal "localhost", event[:host]
       assert_equal 6379, event[:port]
       assert_instance_of Time, event[:timestamp]
+      conn.close if conn.connected?
     end
 
     def test_error_callback_invoked_on_connection_error
@@ -144,6 +151,14 @@ module RR
 
     private
 
+    def redis_available?
+      socket = TCPSocket.new("localhost", 6379)
+      socket.close
+      true
+    rescue StandardError
+      false
+    end
+
     def build_unconnected_tcp(host, port, timeout: 5.0)
       conn = RR::Connection::TCP.allocate
       { host: host, port: port, timeout: timeout,
@@ -152,6 +167,14 @@ module RR
         ever_connected: false, }.each { |k, v| conn.instance_variable_set(:"@#{k}", v) }
       conn.instance_variable_set(:@callbacks, Hash.new { |h, k| h[k] = [] })
       conn
+    end
+
+    def build_mock_socket
+      socket = Object.new
+      state = { closed: false }
+      socket.define_singleton_method(:closed?) { state[:closed] }
+      socket.define_singleton_method(:close) { state[:closed] = true }
+      socket
     end
 
     def assert_callback_event(type, host: nil, port: nil)
