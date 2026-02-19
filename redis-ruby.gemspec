@@ -14,13 +14,13 @@ Gem::Specification.new do |spec|
     for performance, developer experience, and full Redis 8+ feature support including
     JSON, Search, TimeSeries, and probabilistic data structures.
   DESC
-  spec.homepage = "https://github.com/redis/redis-ruby"
+  spec.homepage = "https://github.com/redis-developer/redis-ruby"
   spec.license = "MIT"
   spec.required_ruby_version = ">= 3.2.0"
 
   spec.metadata["homepage_uri"] = spec.homepage
-  spec.metadata["source_code_uri"] = "https://github.com/redis/redis-ruby"
-  spec.metadata["changelog_uri"] = "https://github.com/redis/redis-ruby/blob/main/CHANGELOG.md"
+  spec.metadata["source_code_uri"] = "https://github.com/redis-developer/redis-ruby"
+  spec.metadata["changelog_uri"] = "https://github.com/redis-developer/redis-ruby/blob/main/CHANGELOG.md"
   spec.metadata["documentation_uri"] = "https://rubydoc.info/gems/redis-ruby"
   spec.metadata["rubygems_mfa_required"] = "true"
 

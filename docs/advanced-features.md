@@ -191,5 +191,5 @@ results = redis.ts_mrange("-", "+", ["type=temperature"])
 
 - [Redis Commands Documentation](https://redis.io/docs/latest/commands/)
 - [Redis University](https://university.redis.com/)
-- [GitHub Repository](https://github.com/redis/redis-ruby)
+- [GitHub Repository](https://github.com/redis-developer/redis-ruby)
 

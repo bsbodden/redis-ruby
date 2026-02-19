@@ -206,7 +206,7 @@ redis.sdiff("set1", "set2")  # => ["a"] (difference)
 
 ## Getting Help
 
-- [GitHub Issues](https://github.com/redis/redis-ruby/issues) - Report bugs or request features
+- [GitHub Issues](https://github.com/redis-developer/redis-ruby/issues) - Report bugs or request features
 - [Redis Documentation](https://redis.io/docs/) - Official Redis documentation
 - [Redis University](https://university.redis.com/) - Free Redis courses
 - [Redis Community](https://redis.io/community/) - Join the Redis community

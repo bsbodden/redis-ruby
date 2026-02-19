@@ -677,5 +677,5 @@ end
 
 - [RedisJSON Documentation](https://redis.io/docs/stack/json/)
 - [JSONPath Specification](https://goessner.net/articles/JsonPath/)
-- [GitHub Examples](https://github.com/redis/redis-ruby/tree/main/examples)
+- [GitHub Examples](https://github.com/redis-developer/redis-ruby/tree/main/examples)
 

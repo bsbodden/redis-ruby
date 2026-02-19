@@ -107,7 +107,7 @@ def user_exists?(user_id)
   if redis.bf_exists("existing_users", user_id) == 0
     return false  # Definitely doesn't exist
   end
-  
+
   # Might exist, check database
   User.exists?(id: user_id)
 end
@@ -189,11 +189,11 @@ end
 # Rate limiting with cleanup
 def check_rate_limit(ip_address)
   key = "ratelimit:#{ip_address}:#{Time.now.to_i / 60}"
-  
+
   if redis.cf_exists("rate_limited_ips", key) == 1
     return false  # Rate limited
   end
-  
+
   count = redis.cf_count("rate_limited_ips", key)
   if count >= 100
     true  # Rate limited
@@ -638,5 +638,5 @@ end
 - [RedisBloom Documentation](https://redis.io/docs/data-types/probabilistic/)
 - [Bloom Filter Theory](https://en.wikipedia.org/wiki/Bloom_filter)
 - [Count-Min Sketch Paper](https://en.wikipedia.org/wiki/Count%E2%80%93min_sketch)
-- [GitHub Examples](https://github.com/redis/redis-ruby/tree/main/examples)
+- [GitHub Examples](https://github.com/redis-developer/redis-ruby/tree/main/examples)
 

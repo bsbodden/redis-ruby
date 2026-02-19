@@ -546,5 +546,5 @@ end
 
 - [RediSearch Documentation](https://redis.io/docs/interact/search-and-query/)
 - [Query Dialect Guide](https://redis.io/docs/latest/develop/interact/search-and-query/advanced-concepts/dialects/)
-- [GitHub Examples](https://github.com/redis/redis-ruby/tree/main/examples)
+- [GitHub Examples](https://github.com/redis-developer/redis-ruby/tree/main/examples)
 

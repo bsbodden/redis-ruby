@@ -409,7 +409,7 @@ puts "Throughput: #{(1000 / time).round(0)} ops/sec"
 - [Getting Started](/getting-started/) - Installation and basic usage
 - [Pipelines Guide](/guides/pipelines/) - Batch commands for better performance
 - [Connection Pools Guide](/guides/connection-pools/) - Thread-safe connection pooling
-- [Benchmarks Documentation](https://github.com/redis/redis-ruby/blob/main/docs/BENCHMARKS.md) - Detailed benchmark results
+- [Benchmarks Documentation](https://github.com/redis-developer/redis-ruby/blob/main/docs/BENCHMARKS.md) - Detailed benchmark results
 
 ## Additional Resources
 

@@ -709,5 +709,5 @@ end
 
 - [RedisTimeSeries Documentation](https://redis.io/docs/data-types/timeseries/)
 - [Time Series Best Practices](https://redis.io/docs/stack/timeseries/quickstart/)
-- [GitHub Examples](https://github.com/redis/redis-ruby/tree/main/examples)
+- [GitHub Examples](https://github.com/redis-developer/redis-ruby/tree/main/examples)
 

@@ -42,7 +42,7 @@ We welcome contributions of all kinds:
 ### Clone the Repository
 
 ```bash
-git clone https://github.com/redis/redis-ruby.git
+git clone https://github.com/redis-developer/redis-ruby.git
 cd redis-ruby
 ```
 
@@ -306,7 +306,7 @@ git push origin my-new-feature
 
 ### 7. Create a Pull Request
 
-1. Go to the [redis-ruby repository](https://github.com/redis/redis-ruby)
+1. Go to the [redis-ruby repository](https://github.com/redis-developer/redis-ruby)
 2. Click "New Pull Request"
 3. Select your fork and branch
 4. Fill out the PR template with:
@@ -389,8 +389,8 @@ Any other relevant information
 ### Getting Help
 
 - 📖 **Documentation** - [https://redis.github.io/redis-ruby](https://redis.github.io/redis-ruby)
-- 💬 **GitHub Discussions** - [Ask questions and share ideas](https://github.com/redis/redis-ruby/discussions)
-- 🐛 **GitHub Issues** - [Report bugs and request features](https://github.com/redis/redis-ruby/issues)
+- 💬 **GitHub Discussions** - [Ask questions and share ideas](https://github.com/redis-developer/redis-ruby/discussions)
+- 🐛 **GitHub Issues** - [Report bugs and request features](https://github.com/redis-developer/redis-ruby/issues)
 - 🌐 **Redis Community** - [Join the Redis community](https://redis.io/community/)
 
 ### Code of Conduct
@@ -461,7 +461,7 @@ We're especially interested in contributions for:
 
 ## License
 
-By contributing to redis-ruby, you agree that your contributions will be licensed under the [MIT License](https://github.com/redis/redis-ruby/blob/main/LICENSE).
+By contributing to redis-ruby, you agree that your contributions will be licensed under the [MIT License](https://github.com/redis-developer/redis-ruby/blob/main/LICENSE).
 
 ## Thank You!
 
@@ -469,10 +469,10 @@ Thank you for contributing to redis-ruby! Your contributions help make Redis bet
 
 ## Links
 
-- [GitHub Repository](https://github.com/redis/redis-ruby)
-- [Issue Tracker](https://github.com/redis/redis-ruby/issues)
-- [Pull Requests](https://github.com/redis/redis-ruby/pulls)
-- [Discussions](https://github.com/redis/redis-ruby/discussions)
+- [GitHub Repository](https://github.com/redis-developer/redis-ruby)
+- [Issue Tracker](https://github.com/redis-developer/redis-ruby/issues)
+- [Pull Requests](https://github.com/redis-developer/redis-ruby/pulls)
+- [Discussions](https://github.com/redis-developer/redis-ruby/discussions)
 - [Documentation](https://redis.github.io/redis-ruby)
 - [Redis Documentation](https://redis.io/docs/)
 

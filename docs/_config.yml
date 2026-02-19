@@ -19,7 +19,7 @@ favicon_ico: "/favicon.ico"
 # Aux links
 aux_links:
   GitHub:
-    - "https://github.com/redis/redis-ruby"
+    - "https://github.com/redis-developer/redis-ruby"
   RubyGems:
     - "https://rubygems.org/gems/redis-ruby"
   API Reference:

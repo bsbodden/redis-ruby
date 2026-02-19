@@ -13,7 +13,7 @@ A high-performance, modern Redis client for Ruby with full RESP3 support, connec
 {: .fs-6 .fw-300 }
 
 [Get Started](/redis-ruby/getting-started/){: .btn .btn-primary .fs-5 .mb-4 .mb-md-0 .mr-2 }
-[View on GitHub](https://github.com/redis/redis-ruby){: .btn .fs-5 .mb-4 .mb-md-0 }
+[View on GitHub](https://github.com/redis-developer/redis-ruby){: .btn .fs-5 .mb-4 .mb-md-0 }
 
 ---
 
@@ -98,7 +98,7 @@ require 'async'
 
 Async do
   client = RR.async(url: "redis://localhost:6379")
-  
+
   # Non-blocking operations
   client.set("key", "value")
   value = client.get("key")
@@ -166,13 +166,13 @@ See the [Performance Guide](/redis-ruby/performance/) for detailed benchmarks.
 
 ## Community
 
-- [GitHub Issues](https://github.com/redis/redis-ruby/issues) - Bug reports and feature requests
-- [GitHub Discussions](https://github.com/redis/redis-ruby/discussions) - Questions and discussions
+- [GitHub Issues](https://github.com/redis-developer/redis-ruby/issues) - Bug reports and feature requests
+- [GitHub Discussions](https://github.com/redis-developer/redis-ruby/discussions) - Questions and discussions
 - [Contributing Guide](/redis-ruby/contributing/) - How to contribute
 
 ---
 
 ## License
 
-redis-ruby is released under the [MIT License](https://github.com/redis/redis-ruby/blob/main/LICENSE).
+redis-ruby is released under the [MIT License](https://github.com/redis-developer/redis-ruby/blob/main/LICENSE).
 

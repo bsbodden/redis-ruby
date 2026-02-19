@@ -8,9 +8,9 @@
 
 *Pure Ruby RESP3 &bull; 500+ Commands &bull; Full Redis Stack &bull; Production Ready*
 
-[![CI](https://github.com/redis/redis-ruby/actions/workflows/ci.yml/badge.svg)](https://github.com/redis/redis-ruby/actions)
+[![CI](https://github.com/redis-developer/redis-ruby/actions/workflows/ci.yml/badge.svg)](https://github.com/redis-developer/redis-ruby/actions)
 [![codecov](https://codecov.io/gh/redis/redis-ruby/graph/badge.svg)](https://codecov.io/gh/redis/redis-ruby)
-[![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/redis/redis-ruby/blob/main/LICENSE)
+[![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/redis-developer/redis-ruby/blob/main/LICENSE)
 
 [![Gem Version](https://badge.fury.io/rb/redis-ruby.svg)](https://rubygems.org/gems/redis-ruby)
 ![Gem Downloads](https://img.shields.io/gem/dt/redis-ruby)
@@ -803,7 +803,7 @@ See [docs/BENCHMARKS.md](docs/BENCHMARKS.md) for comprehensive benchmark reports
 
 ## Contributing
 
-Bug reports and pull requests are welcome on [GitHub](https://github.com/redis/redis-ruby).
+Bug reports and pull requests are welcome on [GitHub](https://github.com/redis-developer/redis-ruby).
 
 1. Fork the repository
 2. Create your feature branch (`git checkout -b my-new-feature`)
@@ -817,7 +817,7 @@ Bug reports and pull requests are welcome on [GitHub](https://github.com/redis/r
 ### Development Setup
 
 ```bash
-git clone https://github.com/redis/redis-ruby.git
+git clone https://github.com/redis-developer/redis-ruby.git
 cd redis-ruby
 bundle install
 
@@ -836,6 +836,6 @@ Distributed under the [MIT License](LICENSE).
 
 ## Author
 
-redis-ruby is developed and maintained by [Redis Inc](https://redis.io). It can be found [here](https://github.com/redis/redis-ruby), or downloaded from [RubyGems](https://rubygems.org/gems/redis-ruby).
+redis-ruby is developed and maintained by [Redis Inc](https://redis.io). It can be found [here](https://github.com/redis-developer/redis-ruby), or downloaded from [RubyGems](https://rubygems.org/gems/redis-ruby).
 
 [![Redis](https://redis.io/wp-content/uploads/2024/04/Logotype.svg?auto=webp&quality=85,75&width=120)](https://redis.io)
