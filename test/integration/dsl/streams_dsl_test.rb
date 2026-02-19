@@ -160,8 +160,7 @@ class StreamsDSLTest < RedisRubyTestCase
     redis.xadd(@stream_key, { a: 1 }, id: "1-0")
     redis.xadd(@stream_key, { b: 2 }, id: "2-0")
 
-    entries = stream.read.range("-", "+")
-    ids = entries.map { |entry| entry[0] }
+    ids = stream.read.range("-", "+").enum_for(:each).map(&:first)
 
     assert_equal %w[1-0 2-0], ids
   end
