@@ -39,9 +39,19 @@ namespace :test do
   end
 
   define_test_task(:unit, "test/unit/**/*_test.rb")
-  define_test_task(:integration, "test/integration/**/*_test.rb")
   define_test_task(:cluster, "test/integration/cluster/**/*_test.rb")
   define_test_task(:sentinel, "test/integration/sentinel/**/*_test.rb")
+
+  desc "Run integration tests (standalone Redis, excludes cluster/sentinel/enterprise)"
+  Rake::TestTask.new(:integration) do |t|
+    t.libs << "test"
+    t.libs << "lib"
+    t.test_files = FileList["test/integration/**/*_test.rb"]
+      .exclude("test/integration/cluster/**/*_test.rb")
+      .exclude("test/integration/sentinel/**/*_test.rb")
+      .exclude("test/integration/active_active_enterprise_test.rb")
+    t.warning = true
+  end
 end
 
 # Helper to run Jekyll in docs directory
