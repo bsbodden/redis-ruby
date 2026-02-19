@@ -59,7 +59,7 @@ module RR
         assert_equal "10.0.0.1", ip1
         assert_equal "10.0.0.2", ip2
         assert_equal "10.0.0.3", ip3
-        assert_equal "10.0.0.1", ip4  # Wraps around
+        assert_equal "10.0.0.1", ip4 # Wraps around
       end
     end
 
@@ -67,12 +67,14 @@ module RR
       resolver = DNSResolver.new(hostname: "redis.example.com", strategy: :random)
 
       resolver.stub(:resolve_all, ["10.0.0.1", "10.0.0.2", "10.0.0.3"]) do
-        ips = 10.times.map { resolver.resolve }
+        ips = Array.new(10) { resolver.resolve }
 
         # Should have at least 2 different IPs (very unlikely to get same IP 10 times)
-        assert ips.uniq.size >= 2
+        assert_operator ips.uniq.size, :>=, 2
         # All IPs should be from the resolved list
-        assert ips.all? { |ip| ["10.0.0.1", "10.0.0.2", "10.0.0.3"].include?(ip) }
+        expected_ips = ["10.0.0.1", "10.0.0.2", "10.0.0.3"]
+
+        assert(ips.all? { |ip| expected_ips.include?(ip) })
       end
     end
 
@@ -97,12 +99,13 @@ module RR
 
       # Create a stub DNS object
       stub_dns = Object.new
-      def stub_dns.getaddresses(hostname)
+      def stub_dns.getaddresses(_hostname)
         [
           Resolv::IPv4.create("10.0.0.1"),
-          Resolv::IPv4.create("10.0.0.2")
+          Resolv::IPv4.create("10.0.0.2"),
         ]
       end
+
       def stub_dns.close; end
 
       Resolv::DNS.stub(:new, stub_dns) do
@@ -117,15 +120,16 @@ module RR
 
       # Create a stub DNS object that raises an error
       stub_dns = Object.new
-      def stub_dns.getaddresses(hostname)
+      def stub_dns.getaddresses(_hostname)
         raise Resolv::ResolvError, "DNS resolution failed"
       end
+
       def stub_dns.close; end
 
       Resolv::DNS.stub(:new, stub_dns) do
         ips = resolver.resolve_all
 
-        assert_equal [], ips
+        assert_empty ips
       end
     end
 
@@ -139,6 +143,7 @@ module RR
       # First resolution
       resolver.stub(:resolve_all, ["10.0.0.1", "10.0.0.2"]) do
         ip1 = resolver.resolve
+
         assert_equal "10.0.0.1", ip1
       end
 
@@ -160,7 +165,7 @@ module RR
 
       resolver.stub(:resolve_all, ["10.0.0.1", "10.0.0.2", "10.0.0.3"]) do
         ips = []
-        threads = 10.times.map do
+        threads = Array.new(10) do
           Thread.new do
             10.times { ips << resolver.resolve }
           end
@@ -176,4 +181,3 @@ module RR
     end
   end
 end
-

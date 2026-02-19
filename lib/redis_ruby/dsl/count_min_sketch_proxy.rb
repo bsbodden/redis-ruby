@@ -74,7 +74,7 @@ module RR
       #   sketch.increment("/about", "/contact")
       def increment(*items)
         return self if items.empty?
-        
+
         # Build pairs of [item, 1] for each item
         pairs = items.flat_map { |item| [item.to_s, 1] }
         @redis.cms_incrby(@key, *pairs)
@@ -105,7 +105,7 @@ module RR
       #   sketch.query("/home", "/about")  # => [15, 8]
       def query(*items)
         return 0 if items.empty?
-        
+
         result = @redis.cms_query(@key, *items.map(&:to_s))
         items.size == 1 ? result.first : result
       end
@@ -121,7 +121,7 @@ module RR
       #   sketch.merge("pageviews:server1", "pageviews:server2")
       def merge(*other_keys)
         return self if other_keys.empty?
-        
+
         @redis.cms_merge(@key, @key, *other_keys.map(&:to_s))
         self
       end
@@ -159,7 +159,7 @@ module RR
       # @example
       #   sketch.key_exists?  # => true
       def key_exists?
-        @redis.exists(@key) > 0
+        @redis.exists(@key).positive?
       end
 
       # Delete the Count-Min Sketch
@@ -174,8 +174,6 @@ module RR
 
       # Alias for delete
       alias clear delete
-
     end
   end
 end
-

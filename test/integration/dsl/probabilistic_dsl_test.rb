@@ -19,38 +19,38 @@ class ProbabilisticDSLTest < RedisRubyTestCase
 
   def test_bloom_filter_proxy_creation
     proxy = redis.bloom_filter(:spam, :emails)
-    
+
     assert_instance_of RR::DSL::BloomFilterProxy, proxy
     assert_equal "spam:emails", proxy.key
   end
 
   def test_bloom_alias
     proxy = redis.bloom(:spam, :emails)
-    
+
     assert_instance_of RR::DSL::BloomFilterProxy, proxy
     assert_equal "spam:emails", proxy.key
   end
 
   def test_bloom_filter_with_composite_key
     proxy = redis.bloom_filter(:spam, :detector, 123)
-    
+
     assert_equal "spam:detector:123", proxy.key
   end
 
   def test_bloom_filter_reserve
     filter = redis.bloom_filter(@bf_key)
     result = filter.reserve(error_rate: 0.01, capacity: 1000)
-    
-    assert_same filter, result  # Returns self for chaining
-    assert filter.key_exists?
+
+    assert_same filter, result # Returns self for chaining
+    assert_predicate filter, :key_exists?
   end
 
   def test_bloom_filter_add_single_item
     filter = redis.bloom_filter(@bf_key)
     filter.reserve(error_rate: 0.01, capacity: 1000)
-    
+
     result = filter.add("item1")
-    
+
     assert_same filter, result
     assert filter.exists?("item1")
   end
@@ -58,9 +58,9 @@ class ProbabilisticDSLTest < RedisRubyTestCase
   def test_bloom_filter_add_multiple_items
     filter = redis.bloom_filter(@bf_key)
     filter.reserve(error_rate: 0.01, capacity: 1000)
-    
+
     filter.add("item1", "item2", "item3")
-    
+
     assert filter.exists?("item1")
     assert filter.exists?("item2")
     assert filter.exists?("item3")
@@ -70,27 +70,27 @@ class ProbabilisticDSLTest < RedisRubyTestCase
     filter = redis.bloom_filter(@bf_key)
     filter.reserve(error_rate: 0.01, capacity: 1000)
     filter.add("item1")
-    
-    assert_equal true, filter.exists?("item1")
-    assert_equal false, filter.exists?("unknown")
+
+    assert filter.exists?("item1")
+    refute filter.exists?("unknown")
   end
 
   def test_bloom_filter_exists_multiple_items
     filter = redis.bloom_filter(@bf_key)
     filter.reserve(error_rate: 0.01, capacity: 1000)
     filter.add("item1", "item2")
-    
+
     result = filter.exists?("item1", "item2", "unknown")
-    
+
     assert_equal [true, true, false], result
   end
 
   def test_bloom_filter_info
     filter = redis.bloom_filter(@bf_key)
     filter.reserve(error_rate: 0.01, capacity: 1000)
-    
+
     info = filter.info
-    
+
     assert_kind_of Hash, info
     assert info.key?("Capacity")
     assert_equal 1000, info["Capacity"]
@@ -100,10 +100,10 @@ class ProbabilisticDSLTest < RedisRubyTestCase
     filter = redis.bloom_filter(@bf_key)
     filter.reserve(error_rate: 0.01, capacity: 1000)
     filter.add("item1", "item2", "item3")
-    
+
     card = filter.cardinality
-    
-    assert card >= 3  # Approximate count
+
+    assert_operator card, :>=, 3 # Approximate count
   end
 
   def test_bloom_filter_chaining
@@ -111,20 +111,22 @@ class ProbabilisticDSLTest < RedisRubyTestCase
       .reserve(error_rate: 0.01, capacity: 1000)
       .add("item1", "item2")
       .expire(3600)
-    
+
     assert filter.exists?("item1")
-    assert filter.ttl > 0
+    assert_predicate filter.ttl, :positive?
   end
 
   def test_bloom_filter_expiration
     filter = redis.bloom_filter(@bf_key)
     filter.reserve(error_rate: 0.01, capacity: 1000)
     filter.add("item1")
-    
+
     filter.expire(3600)
-    assert filter.ttl > 0
-    
+
+    assert_predicate filter.ttl, :positive?
+
     filter.persist
+
     assert_equal(-1, filter.ttl)
   end
 
@@ -132,10 +134,11 @@ class ProbabilisticDSLTest < RedisRubyTestCase
     filter = redis.bloom_filter(@bf_key)
     filter.reserve(error_rate: 0.01, capacity: 1000)
     filter.add("item1")
-    
-    assert filter.key_exists?
+
+    assert_predicate filter, :key_exists?
     filter.delete
-    refute filter.key_exists?
+
+    refute_predicate filter, :key_exists?
   end
 
   def test_bloom_filter_clear_alias
@@ -143,8 +146,25 @@ class ProbabilisticDSLTest < RedisRubyTestCase
     filter.reserve(error_rate: 0.01, capacity: 1000)
 
     filter.clear
-    refute filter.key_exists?
+
+    refute_predicate filter, :key_exists?
   end
+end
+
+class ProbabilisticDSLTestPart2 < RedisRubyTestCase
+  use_testcontainers!
+
+  def setup
+    super
+    @bf_key = "test:bf:#{SecureRandom.hex(8)}"
+    @cf_key = "test:cf:#{SecureRandom.hex(8)}"
+    @cms_key = "test:cms:#{SecureRandom.hex(8)}"
+    @topk_key = "test:topk:#{SecureRandom.hex(8)}"
+  end
+
+  # ============================================================
+  # Bloom Filter Tests
+  # ============================================================
 
   # ============================================================
   # Cuckoo Filter Tests
@@ -175,7 +195,7 @@ class ProbabilisticDSLTest < RedisRubyTestCase
     result = filter.reserve(capacity: 1000)
 
     assert_same filter, result
-    assert filter.key_exists?
+    assert_predicate filter, :key_exists?
   end
 
   def test_cuckoo_filter_add_single_item
@@ -203,8 +223,8 @@ class ProbabilisticDSLTest < RedisRubyTestCase
     filter = redis.cuckoo_filter(@cf_key)
     filter.reserve(capacity: 1000)
 
-    assert_equal true, filter.add_nx("item1")
-    assert_equal false, filter.add_nx("item1")  # Already exists
+    assert filter.add_nx("item1")
+    refute filter.add_nx("item1") # Already exists
   end
 
   def test_cuckoo_filter_exists_single_item
@@ -212,8 +232,8 @@ class ProbabilisticDSLTest < RedisRubyTestCase
     filter.reserve(capacity: 1000)
     filter.add("item1")
 
-    assert_equal true, filter.exists?("item1")
-    assert_equal false, filter.exists?("unknown")
+    assert filter.exists?("item1")
+    refute filter.exists?("unknown")
   end
 
   def test_cuckoo_filter_exists_multiple_items
@@ -267,7 +287,7 @@ class ProbabilisticDSLTest < RedisRubyTestCase
 
     refute filter.exists?("item1")
     assert filter.exists?("item2")
-    assert filter.ttl > 0
+    assert_predicate filter.ttl, :positive?
   end
 
   def test_cuckoo_filter_expiration
@@ -276,9 +296,11 @@ class ProbabilisticDSLTest < RedisRubyTestCase
     filter.add("item1")
 
     filter.expire(3600)
-    assert filter.ttl > 0
+
+    assert_predicate filter.ttl, :positive?
 
     filter.persist
+
     assert_equal(-1, filter.ttl)
   end
 
@@ -287,10 +309,27 @@ class ProbabilisticDSLTest < RedisRubyTestCase
     filter.reserve(capacity: 1000)
     filter.add("item1")
 
-    assert filter.key_exists?
+    assert_predicate filter, :key_exists?
     filter.delete
-    refute filter.key_exists?
+
+    refute_predicate filter, :key_exists?
   end
+end
+
+class ProbabilisticDSLTestPart3 < RedisRubyTestCase
+  use_testcontainers!
+
+  def setup
+    super
+    @bf_key = "test:bf:#{SecureRandom.hex(8)}"
+    @cf_key = "test:cf:#{SecureRandom.hex(8)}"
+    @cms_key = "test:cms:#{SecureRandom.hex(8)}"
+    @topk_key = "test:topk:#{SecureRandom.hex(8)}"
+  end
+
+  # ============================================================
+  # Bloom Filter Tests
+  # ============================================================
 
   # ============================================================
   # Count-Min Sketch Tests
@@ -321,7 +360,7 @@ class ProbabilisticDSLTest < RedisRubyTestCase
     result = sketch.init_by_dim(width: 2000, depth: 5)
 
     assert_same sketch, result
-    assert sketch.key_exists?
+    assert_predicate sketch, :key_exists?
   end
 
   def test_count_min_sketch_init_by_prob
@@ -329,7 +368,7 @@ class ProbabilisticDSLTest < RedisRubyTestCase
     result = sketch.init_by_prob(error_rate: 0.001, probability: 0.01)
 
     assert_same sketch, result
-    assert sketch.key_exists?
+    assert_predicate sketch, :key_exists?
   end
 
   def test_count_min_sketch_increment_single_item
@@ -360,7 +399,7 @@ class ProbabilisticDSLTest < RedisRubyTestCase
     result = sketch.increment_by("/home", 5)
 
     assert_same sketch, result
-    assert sketch.query("/home") >= 5  # May over-estimate
+    assert_operator sketch.query("/home"), :>=, 5 # May over-estimate
   end
 
   def test_count_min_sketch_query_single_item
@@ -371,7 +410,7 @@ class ProbabilisticDSLTest < RedisRubyTestCase
 
     count = sketch.query("/home")
 
-    assert count >= 2  # May over-estimate, never under-estimates
+    assert_operator count, :>=, 2 # May over-estimate, never under-estimates
   end
 
   def test_count_min_sketch_query_multiple_items
@@ -383,8 +422,8 @@ class ProbabilisticDSLTest < RedisRubyTestCase
 
     assert_kind_of Array, counts
     assert_equal 3, counts.size
-    assert counts[0] >= 1
-    assert counts[1] >= 1
+    assert_operator counts[0], :>=, 1
+    assert_operator counts[1], :>=, 1
     assert_equal 0, counts[2]
   end
 
@@ -399,7 +438,7 @@ class ProbabilisticDSLTest < RedisRubyTestCase
 
     sketch1.merge("#{@cms_key}:2")
 
-    assert sketch1.query("/home") >= 2
+    assert_operator sketch1.query("/home"), :>=, 2
   end
 
   def test_count_min_sketch_info
@@ -420,8 +459,8 @@ class ProbabilisticDSLTest < RedisRubyTestCase
       .increment_by("/home", 5)
       .expire(3600)
 
-    assert sketch.query("/home") >= 6
-    assert sketch.ttl > 0
+    assert_operator sketch.query("/home"), :>=, 6
+    assert_predicate sketch.ttl, :positive?
   end
 
   def test_count_min_sketch_expiration
@@ -429,9 +468,11 @@ class ProbabilisticDSLTest < RedisRubyTestCase
     sketch.init_by_dim(width: 2000, depth: 5)
 
     sketch.expire(3600)
-    assert sketch.ttl > 0
+
+    assert_predicate sketch.ttl, :positive?
 
     sketch.persist
+
     assert_equal(-1, sketch.ttl)
   end
 
@@ -439,10 +480,27 @@ class ProbabilisticDSLTest < RedisRubyTestCase
     sketch = redis.count_min_sketch(@cms_key)
     sketch.init_by_dim(width: 2000, depth: 5)
 
-    assert sketch.key_exists?
+    assert_predicate sketch, :key_exists?
     sketch.delete
-    refute sketch.key_exists?
+
+    refute_predicate sketch, :key_exists?
   end
+end
+
+class ProbabilisticDSLTestPart4 < RedisRubyTestCase
+  use_testcontainers!
+
+  def setup
+    super
+    @bf_key = "test:bf:#{SecureRandom.hex(8)}"
+    @cf_key = "test:cf:#{SecureRandom.hex(8)}"
+    @cms_key = "test:cms:#{SecureRandom.hex(8)}"
+    @topk_key = "test:topk:#{SecureRandom.hex(8)}"
+  end
+
+  # ============================================================
+  # Bloom Filter Tests
+  # ============================================================
 
   # ============================================================
   # Top-K Tests
@@ -466,7 +524,7 @@ class ProbabilisticDSLTest < RedisRubyTestCase
     result = topk.reserve(k: 5)
 
     assert_same topk, result
-    assert topk.key_exists?
+    assert_predicate topk, :key_exists?
   end
 
   def test_top_k_add_single_item
@@ -498,7 +556,7 @@ class ProbabilisticDSLTest < RedisRubyTestCase
     result = topk.increment_by("item1", 10)
 
     assert_same topk, result
-    assert topk.count("item1") >= 10
+    assert_operator topk.count("item1"), :>=, 10
   end
 
   def test_top_k_query_single_item
@@ -506,8 +564,8 @@ class ProbabilisticDSLTest < RedisRubyTestCase
     topk.reserve(k: 5)
     topk.add("item1")
 
-    assert_equal true, topk.query("item1")
-    assert_equal false, topk.query("unknown")
+    assert topk.query("item1")
+    refute topk.query("unknown")
   end
 
   def test_top_k_query_multiple_items
@@ -528,7 +586,7 @@ class ProbabilisticDSLTest < RedisRubyTestCase
 
     count = topk.count("item1")
 
-    assert count >= 2
+    assert_operator count, :>=, 2
   end
 
   def test_top_k_count_multiple_items
@@ -562,7 +620,7 @@ class ProbabilisticDSLTest < RedisRubyTestCase
 
     assert_kind_of Array, list
     assert_kind_of Array, list.first
-    assert_equal 2, list.first.size  # [item, count]
+    assert_equal 2, list.first.size # [item, count]
   end
 
   def test_top_k_info
@@ -582,7 +640,7 @@ class ProbabilisticDSLTest < RedisRubyTestCase
       .expire(3600)
 
     assert topk.query("item1")
-    assert topk.ttl > 0
+    assert_predicate topk.ttl, :positive?
   end
 
   def test_top_k_expiration
@@ -590,9 +648,11 @@ class ProbabilisticDSLTest < RedisRubyTestCase
     topk.reserve(k: 5)
 
     topk.expire(3600)
-    assert topk.ttl > 0
+
+    assert_predicate topk.ttl, :positive?
 
     topk.persist
+
     assert_equal(-1, topk.ttl)
   end
 
@@ -600,10 +660,27 @@ class ProbabilisticDSLTest < RedisRubyTestCase
     topk = redis.top_k(@topk_key)
     topk.reserve(k: 5)
 
-    assert topk.key_exists?
+    assert_predicate topk, :key_exists?
     topk.delete
-    refute topk.key_exists?
+
+    refute_predicate topk, :key_exists?
   end
+end
+
+class ProbabilisticDSLTestPart5 < RedisRubyTestCase
+  use_testcontainers!
+
+  def setup
+    super
+    @bf_key = "test:bf:#{SecureRandom.hex(8)}"
+    @cf_key = "test:cf:#{SecureRandom.hex(8)}"
+    @cms_key = "test:cms:#{SecureRandom.hex(8)}"
+    @topk_key = "test:topk:#{SecureRandom.hex(8)}"
+  end
+
+  # ============================================================
+  # Bloom Filter Tests
+  # ============================================================
 
   # ============================================================
   # Integration Tests - Real-World Scenarios
@@ -638,6 +715,7 @@ class ProbabilisticDSLTest < RedisRubyTestCase
 
     # Remove expired session
     sessions.remove("session:abc123")
+
     refute sessions.exists?("session:abc123")
     assert sessions.exists?("session:def456")
 
@@ -660,9 +738,9 @@ class ProbabilisticDSLTest < RedisRubyTestCase
     about_count = pageviews.query("/about")
     contact_count = pageviews.query("/contact")
 
-    assert home_count >= 3
-    assert about_count >= 2
-    assert contact_count >= 1
+    assert_operator home_count, :>=, 3
+    assert_operator about_count, :>=, 2
+    assert_operator contact_count, :>=, 1
 
     # Cleanup
     pageviews.delete
@@ -674,8 +752,8 @@ class ProbabilisticDSLTest < RedisRubyTestCase
     trending.reserve(k: 3)
 
     # Simulate product views
-    trending.add("product:1", "product:1", "product:1")  # 3 views
-    trending.add("product:2", "product:2")  # 2 views
+    trending.add("product:1", "product:1", "product:1") # 3 views
+    trending.add("product:2", "product:2") # 2 views
     trending.add("product:3")  # 1 view
     trending.add("product:4")  # 1 view (may drop product:3 or product:4)
 
@@ -683,8 +761,8 @@ class ProbabilisticDSLTest < RedisRubyTestCase
     top_products = trending.list
 
     assert_kind_of Array, top_products
-    assert top_products.size <= 3
-    assert_includes top_products, "product:1"  # Most viewed
+    assert_operator top_products.size, :<=, 3
+    assert_includes top_products, "product:1" # Most viewed
 
     # Cleanup
     trending.delete
@@ -708,8 +786,9 @@ class ProbabilisticDSLTest < RedisRubyTestCase
 
     # Only Cuckoo can delete
     cuckoo.remove("item1")
+
     refute cuckoo.exists?("item1")
-    assert bloom.exists?("item1")  # Bloom still has it
+    assert bloom.exists?("item1") # Bloom still has it
 
     # Cleanup
     bloom.delete
@@ -732,7 +811,7 @@ class ProbabilisticDSLTest < RedisRubyTestCase
     total.merge("pageviews:server1:test", "pageviews:server2:test")
 
     # Total should have combined counts
-    assert total.query("/home") >= 5
+    assert_operator total.query("/home"), :>=, 5
 
     # Cleanup
     server1.delete
@@ -740,7 +819,3 @@ class ProbabilisticDSLTest < RedisRubyTestCase
     total.delete
   end
 end
-
-
-
-

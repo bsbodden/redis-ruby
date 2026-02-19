@@ -27,8 +27,8 @@ stream = redis.stream(:sensor_data)
 
 # Add entries with chainable syntax
 stream.add(sensor: "temperature", value: 23.5, unit: "celsius")
-      .add(sensor: "humidity", value: 65, unit: "percent")
-      .add(sensor: "pressure", value: 1013, unit: "hPa")
+  .add(sensor: "humidity", value: 65, unit: "percent")
+  .add(sensor: "pressure", value: 1013, unit: "hPa")
 
 puts "Added 3 entries to stream"
 puts "Stream length: #{stream.length}"
@@ -105,7 +105,7 @@ if entries && !entries.empty?
   entries.each do |id, fields|
     puts "  Processing: #{id} - #{fields}"
   end
-  
+
   # Acknowledge entries
   ids = entries.map(&:first)
   acked = consumer.ack(*ids)
@@ -157,8 +157,8 @@ events = redis.stream(:user_events)
 
 # Add events
 events.add(event: "signup", user_id: 123, email: "alice@example.com")
-      .add(event: "login", user_id: 123, ip: "192.168.1.1")
-      .add(event: "purchase", user_id: 123, amount: 99.99)
+  .add(event: "login", user_id: 123, ip: "192.168.1.1")
+  .add(event: "purchase", user_id: 123, amount: 99.99)
 
 puts "Added 3 user events"
 puts
@@ -173,8 +173,8 @@ processor = events.consumer(:event_processors, :processor1)
 event_entries = processor.read.count(100).execute
 
 puts "Processing #{event_entries.length} events:"
-event_entries.each do |id, fields|
-  puts "  Event: #{fields['event']} for user #{fields['user_id']}"
+event_entries.each_value do |fields|
+  puts "  Event: #{fields["event"]} for user #{fields["user_id"]}"
 end
 
 # Acknowledge processed events
@@ -191,4 +191,3 @@ redis.del(:sensor_data, :events, :metrics, :logs, :user_events)
 puts "Done!"
 
 redis.close
-

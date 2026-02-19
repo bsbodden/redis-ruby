@@ -207,6 +207,27 @@ class RedisCompatTest < Minitest::Test
       name: "mymaster"
     )
   end
+end
+
+class RedisCompatTestPart2 < Minitest::Test
+  # =================================================================
+  # Setup / Helpers
+  # =================================================================
+
+  def setup
+    @mock_client = mock("redis_ruby_client")
+    @mock_client.stubs(:connected?).returns(true)
+    @mock_client.stubs(:close)
+    RR::Client.stubs(:new).returns(@mock_client)
+  end
+
+  def build_redis(options = {})
+    Redis.new(options)
+  end
+
+  # =================================================================
+  # Initialization & Options Normalization
+  # =================================================================
 
   # =================================================================
   # VERSION constant
@@ -215,7 +236,6 @@ class RedisCompatTest < Minitest::Test
   def test_version
     assert_equal RR::VERSION, Redis::VERSION
   end
-
   # =================================================================
   # Connection info and state
   # =================================================================
@@ -251,7 +271,6 @@ class RedisCompatTest < Minitest::Test
 
     refute_predicate redis, :connected?
   end
-
   # =================================================================
   # quit / close / disconnect!
   # =================================================================
@@ -274,7 +293,6 @@ class RedisCompatTest < Minitest::Test
     redis = build_redis
     redis.disconnect!
   end
-
   # =================================================================
   # _client accessor
   # =================================================================
@@ -284,7 +302,6 @@ class RedisCompatTest < Minitest::Test
 
     assert_equal @mock_client, redis._client
   end
-
   # =================================================================
   # ping
   # =================================================================
@@ -302,7 +319,6 @@ class RedisCompatTest < Minitest::Test
 
     assert_equal "hello", redis.ping("hello")
   end
-
   # =================================================================
   # echo
   # =================================================================
@@ -313,7 +329,6 @@ class RedisCompatTest < Minitest::Test
 
     assert_equal "hello", redis.echo("hello")
   end
-
   # =================================================================
   # select
   # =================================================================
@@ -324,7 +339,6 @@ class RedisCompatTest < Minitest::Test
 
     assert_equal "OK", redis.select(3)
   end
-
   # =================================================================
   # call (raw)
   # =================================================================
@@ -335,6 +349,27 @@ class RedisCompatTest < Minitest::Test
 
     assert_equal "OK", redis.call("SET", "k", "v")
   end
+end
+
+class RedisCompatTestPart3 < Minitest::Test
+  # =================================================================
+  # Setup / Helpers
+  # =================================================================
+
+  def setup
+    @mock_client = mock("redis_ruby_client")
+    @mock_client.stubs(:connected?).returns(true)
+    @mock_client.stubs(:close)
+    RR::Client.stubs(:new).returns(@mock_client)
+  end
+
+  def build_redis(options = {})
+    Redis.new(options)
+  end
+
+  # =================================================================
+  # Initialization & Options Normalization
+  # =================================================================
 
   # =================================================================
   # Error Translation
@@ -418,7 +453,6 @@ class RedisCompatTest < Minitest::Test
 
     assert_instance_of RuntimeError, translated
   end
-
   # =================================================================
   # MovedError / AskError parsing
   # =================================================================
@@ -438,7 +472,6 @@ class RedisCompatTest < Minitest::Test
     assert_nil err.host
     assert_nil err.port
   end
-
   # =================================================================
   # FutureNotReady
   # =================================================================
@@ -448,6 +481,27 @@ class RedisCompatTest < Minitest::Test
 
     assert_match(/pipeline executes/, err.message)
   end
+end
+
+class RedisCompatTestPart4 < Minitest::Test
+  # =================================================================
+  # Setup / Helpers
+  # =================================================================
+
+  def setup
+    @mock_client = mock("redis_ruby_client")
+    @mock_client.stubs(:connected?).returns(true)
+    @mock_client.stubs(:close)
+    RR::Client.stubs(:new).returns(@mock_client)
+  end
+
+  def build_redis(options = {})
+    Redis.new(options)
+  end
+
+  # =================================================================
+  # Initialization & Options Normalization
+  # =================================================================
 
   # =================================================================
   # String commands delegation
@@ -617,6 +671,27 @@ class RedisCompatTest < Minitest::Test
 
     assert_equal "v", redis.getex("k", ex: 60)
   end
+end
+
+class RedisCompatTestPart5 < Minitest::Test
+  # =================================================================
+  # Setup / Helpers
+  # =================================================================
+
+  def setup
+    @mock_client = mock("redis_ruby_client")
+    @mock_client.stubs(:connected?).returns(true)
+    @mock_client.stubs(:close)
+    RR::Client.stubs(:new).returns(@mock_client)
+  end
+
+  def build_redis(options = {})
+    Redis.new(options)
+  end
+
+  # =================================================================
+  # Initialization & Options Normalization
+  # =================================================================
 
   # =================================================================
   # Key commands delegation
@@ -811,6 +886,31 @@ class RedisCompatTest < Minitest::Test
 
     assert_equal 1, redis.copy("src", "dst")
   end
+end
+
+class RedisCompatTestPart5Part2 < Minitest::Test
+  # =================================================================
+  # Setup / Helpers
+  # =================================================================
+
+  def setup
+    @mock_client = mock("redis_ruby_client")
+    @mock_client.stubs(:connected?).returns(true)
+    @mock_client.stubs(:close)
+    RR::Client.stubs(:new).returns(@mock_client)
+  end
+
+  def build_redis(options = {})
+    Redis.new(options)
+  end
+
+  # =================================================================
+  # Initialization & Options Normalization
+  # =================================================================
+
+  # =================================================================
+  # Key commands delegation
+  # =================================================================
 
   def test_copy_with_replace
     @mock_client.expects(:copy).with("src", "dst", db: 2, replace: true).returns(1)
@@ -818,6 +918,27 @@ class RedisCompatTest < Minitest::Test
 
     assert_equal 1, redis.copy("src", "dst", db: 2, replace: true)
   end
+end
+
+class RedisCompatTestPart6 < Minitest::Test
+  # =================================================================
+  # Setup / Helpers
+  # =================================================================
+
+  def setup
+    @mock_client = mock("redis_ruby_client")
+    @mock_client.stubs(:connected?).returns(true)
+    @mock_client.stubs(:close)
+    RR::Client.stubs(:new).returns(@mock_client)
+  end
+
+  def build_redis(options = {})
+    Redis.new(options)
+  end
+
+  # =================================================================
+  # Initialization & Options Normalization
+  # =================================================================
 
   # =================================================================
   # Hash commands
@@ -982,6 +1103,27 @@ class RedisCompatTest < Minitest::Test
 
     assert_equal [%w[f1 v1]], redis.hrandfield("h", 2, with_values: true)
   end
+end
+
+class RedisCompatTestPart7 < Minitest::Test
+  # =================================================================
+  # Setup / Helpers
+  # =================================================================
+
+  def setup
+    @mock_client = mock("redis_ruby_client")
+    @mock_client.stubs(:connected?).returns(true)
+    @mock_client.stubs(:close)
+    RR::Client.stubs(:new).returns(@mock_client)
+  end
+
+  def build_redis(options = {})
+    Redis.new(options)
+  end
+
+  # =================================================================
+  # Initialization & Options Normalization
+  # =================================================================
 
   # =================================================================
   # Hash field expiration commands
@@ -1072,6 +1214,27 @@ class RedisCompatTest < Minitest::Test
 
     assert_equal [1, 1], redis.hpersist("h", %w[f1 f2])
   end
+end
+
+class RedisCompatTestPart8 < Minitest::Test
+  # =================================================================
+  # Setup / Helpers
+  # =================================================================
+
+  def setup
+    @mock_client = mock("redis_ruby_client")
+    @mock_client.stubs(:connected?).returns(true)
+    @mock_client.stubs(:close)
+    RR::Client.stubs(:new).returns(@mock_client)
+  end
+
+  def build_redis(options = {})
+    Redis.new(options)
+  end
+
+  # =================================================================
+  # Initialization & Options Normalization
+  # =================================================================
 
   # =================================================================
   # List commands
@@ -1268,6 +1431,27 @@ class RedisCompatTest < Minitest::Test
 
     assert_equal ["l", ["v"]], redis.blmpop(5, "l", modifier: "RIGHT", count: 1)
   end
+end
+
+class RedisCompatTestPart9 < Minitest::Test
+  # =================================================================
+  # Setup / Helpers
+  # =================================================================
+
+  def setup
+    @mock_client = mock("redis_ruby_client")
+    @mock_client.stubs(:connected?).returns(true)
+    @mock_client.stubs(:close)
+    RR::Client.stubs(:new).returns(@mock_client)
+  end
+
+  def build_redis(options = {})
+    Redis.new(options)
+  end
+
+  # =================================================================
+  # Initialization & Options Normalization
+  # =================================================================
 
   # =================================================================
   # Set commands
@@ -1434,6 +1618,27 @@ class RedisCompatTest < Minitest::Test
 
     assert_equal enumerator, redis.sscan_iter("s")
   end
+end
+
+class RedisCompatTestPart10 < Minitest::Test
+  # =================================================================
+  # Setup / Helpers
+  # =================================================================
+
+  def setup
+    @mock_client = mock("redis_ruby_client")
+    @mock_client.stubs(:connected?).returns(true)
+    @mock_client.stubs(:close)
+    RR::Client.stubs(:new).returns(@mock_client)
+  end
+
+  def build_redis(options = {})
+    Redis.new(options)
+  end
+
+  # =================================================================
+  # Initialization & Options Normalization
+  # =================================================================
 
   # =================================================================
   # Sorted set commands
@@ -1625,6 +1830,31 @@ class RedisCompatTest < Minitest::Test
 
     assert_equal [["m1", 1.0], ["m2", 2.0]], result
   end
+end
+
+class RedisCompatTestPart10Part2 < Minitest::Test
+  # =================================================================
+  # Setup / Helpers
+  # =================================================================
+
+  def setup
+    @mock_client = mock("redis_ruby_client")
+    @mock_client.stubs(:connected?).returns(true)
+    @mock_client.stubs(:close)
+    RR::Client.stubs(:new).returns(@mock_client)
+  end
+
+  def build_redis(options = {})
+    Redis.new(options)
+  end
+
+  # =================================================================
+  # Initialization & Options Normalization
+  # =================================================================
+
+  # =================================================================
+  # Sorted set commands
+  # =================================================================
 
   def test_zrangestore
     @mock_client.expects(:zrangestore).with("dst", "z", 0, -1, byscore: false, bylex: false, rev: false,
@@ -1812,6 +2042,31 @@ class RedisCompatTest < Minitest::Test
 
     assert_equal [["m1", 2.0]], result
   end
+end
+
+class RedisCompatTestPart10Part3 < Minitest::Test
+  # =================================================================
+  # Setup / Helpers
+  # =================================================================
+
+  def setup
+    @mock_client = mock("redis_ruby_client")
+    @mock_client.stubs(:connected?).returns(true)
+    @mock_client.stubs(:close)
+    RR::Client.stubs(:new).returns(@mock_client)
+  end
+
+  def build_redis(options = {})
+    Redis.new(options)
+  end
+
+  # =================================================================
+  # Initialization & Options Normalization
+  # =================================================================
+
+  # =================================================================
+  # Sorted set commands
+  # =================================================================
 
   def test_zdiff_without_scores
     @mock_client.expects(:zdiff).with(%w[z1 z2], withscores: false).returns(["m1"])
@@ -1931,6 +2186,27 @@ class RedisCompatTest < Minitest::Test
 
     assert_nil redis.bzmpop(5, "z")
   end
+end
+
+class RedisCompatTestPart11 < Minitest::Test
+  # =================================================================
+  # Setup / Helpers
+  # =================================================================
+
+  def setup
+    @mock_client = mock("redis_ruby_client")
+    @mock_client.stubs(:connected?).returns(true)
+    @mock_client.stubs(:close)
+    RR::Client.stubs(:new).returns(@mock_client)
+  end
+
+  def build_redis(options = {})
+    Redis.new(options)
+  end
+
+  # =================================================================
+  # Initialization & Options Normalization
+  # =================================================================
 
   # =================================================================
   # parse_float (tested indirectly via zscore/zincrby)
@@ -1970,7 +2246,6 @@ class RedisCompatTest < Minitest::Test
 
     assert_in_delta(42.0, redis.zscore("z", "m"))
   end
-
   # =================================================================
   # transform_scores (tested indirectly via zrange withscores)
   # =================================================================
@@ -1982,7 +2257,6 @@ class RedisCompatTest < Minitest::Test
 
     assert_empty redis.zrange("z", 0, -1, withscores: true)
   end
-
   # =================================================================
   # Scripting commands
   # =================================================================
@@ -2052,6 +2326,27 @@ class RedisCompatTest < Minitest::Test
     redis = build_redis
     assert_raises(ArgumentError) { redis.evalsha("a", "b", "c", "d") }
   end
+end
+
+class RedisCompatTestPart12 < Minitest::Test
+  # =================================================================
+  # Setup / Helpers
+  # =================================================================
+
+  def setup
+    @mock_client = mock("redis_ruby_client")
+    @mock_client.stubs(:connected?).returns(true)
+    @mock_client.stubs(:close)
+    RR::Client.stubs(:new).returns(@mock_client)
+  end
+
+  def build_redis(options = {})
+    Redis.new(options)
+  end
+
+  # =================================================================
+  # Initialization & Options Normalization
+  # =================================================================
 
   # =================================================================
   # Script subcommands
@@ -2148,7 +2443,6 @@ class RedisCompatTest < Minitest::Test
 
     assert_equal "OK", redis.script_kill
   end
-
   # =================================================================
   # HyperLogLog commands
   # =================================================================
@@ -2180,6 +2474,27 @@ class RedisCompatTest < Minitest::Test
 
     assert_equal "OK", redis.pfmerge("dst", "src1", "src2")
   end
+end
+
+class RedisCompatTestPart13 < Minitest::Test
+  # =================================================================
+  # Setup / Helpers
+  # =================================================================
+
+  def setup
+    @mock_client = mock("redis_ruby_client")
+    @mock_client.stubs(:connected?).returns(true)
+    @mock_client.stubs(:close)
+    RR::Client.stubs(:new).returns(@mock_client)
+  end
+
+  def build_redis(options = {})
+    Redis.new(options)
+  end
+
+  # =================================================================
+  # Initialization & Options Normalization
+  # =================================================================
 
   # =================================================================
   # Geo commands
@@ -2226,7 +2541,6 @@ class RedisCompatTest < Minitest::Test
 
     assert_equal 1, redis.geosearchstore("dst", "geo", fromlonlat: [15.0, 37.0], byradius: [200, "km"])
   end
-
   # =================================================================
   # Bitmap commands
   # =================================================================
@@ -2307,6 +2621,27 @@ class RedisCompatTest < Minitest::Test
 
     assert_equal [42], redis.bitfield_ro("bf", "GET", "u8", 0)
   end
+end
+
+class RedisCompatTestPart14 < Minitest::Test
+  # =================================================================
+  # Setup / Helpers
+  # =================================================================
+
+  def setup
+    @mock_client = mock("redis_ruby_client")
+    @mock_client.stubs(:connected?).returns(true)
+    @mock_client.stubs(:close)
+    RR::Client.stubs(:new).returns(@mock_client)
+  end
+
+  def build_redis(options = {})
+    Redis.new(options)
+  end
+
+  # =================================================================
+  # Initialization & Options Normalization
+  # =================================================================
 
   # =================================================================
   # Server commands
@@ -2399,7 +2734,6 @@ class RedisCompatTest < Minitest::Test
 
     assert_equal [1_700_000_000, 123_456], redis.time
   end
-
   # =================================================================
   # Config commands
   # =================================================================
@@ -2473,6 +2807,27 @@ class RedisCompatTest < Minitest::Test
 
     assert_equal "OK", redis.config_resetstat
   end
+end
+
+class RedisCompatTestPart15 < Minitest::Test
+  # =================================================================
+  # Setup / Helpers
+  # =================================================================
+
+  def setup
+    @mock_client = mock("redis_ruby_client")
+    @mock_client.stubs(:connected?).returns(true)
+    @mock_client.stubs(:close)
+    RR::Client.stubs(:new).returns(@mock_client)
+  end
+
+  def build_redis(options = {})
+    Redis.new(options)
+  end
+
+  # =================================================================
+  # Initialization & Options Normalization
+  # =================================================================
 
   # =================================================================
   # Client commands
@@ -2505,7 +2860,6 @@ class RedisCompatTest < Minitest::Test
 
     assert_equal 1, redis.client_kill(addr: "127.0.0.1:6379")
   end
-
   # =================================================================
   # Debug / Slowlog
   # =================================================================
@@ -2523,7 +2877,6 @@ class RedisCompatTest < Minitest::Test
 
     assert_empty redis.slowlog("get", 10)
   end
-
   # =================================================================
   # Watch / Unwatch
   # =================================================================
@@ -2557,7 +2910,6 @@ class RedisCompatTest < Minitest::Test
 
     assert_equal "OK", redis.unwatch
   end
-
   # =================================================================
   # Pipeline
   # =================================================================
@@ -2626,6 +2978,27 @@ class RedisCompatTest < Minitest::Test
     # The error is resolved as the value
     assert_instance_of RR::CommandError, results[0]
   end
+end
+
+class RedisCompatTestPart16 < Minitest::Test
+  # =================================================================
+  # Setup / Helpers
+  # =================================================================
+
+  def setup
+    @mock_client = mock("redis_ruby_client")
+    @mock_client.stubs(:connected?).returns(true)
+    @mock_client.stubs(:close)
+    RR::Client.stubs(:new).returns(@mock_client)
+  end
+
+  def build_redis(options = {})
+    Redis.new(options)
+  end
+
+  # =================================================================
+  # Initialization & Options Normalization
+  # =================================================================
 
   # =================================================================
   # Multi (Transaction)
@@ -2663,7 +3036,9 @@ class RedisCompatTest < Minitest::Test
     RR::Transaction.stubs(:new).with(mock_connection).returns(mock_transaction)
 
     redis = build_redis
-    result = redis.multi { |_tx| }
+    result = redis.multi do |_tx|
+      # Intentionally empty; transaction is mocked
+    end
 
     assert_nil result
   end
@@ -2680,7 +3055,11 @@ class RedisCompatTest < Minitest::Test
     RR::Transaction.stubs(:new).with(mock_connection).returns(mock_transaction)
 
     redis = build_redis
-    assert_raises(Redis::CommandError) { redis.multi { |_tx| } }
+    assert_raises(Redis::CommandError) do
+      redis.multi do |_tx|
+        # Intentionally empty; transaction is mocked
+      end
+    end
   end
 
   def test_multi_command_error_in_results
@@ -2725,7 +3104,6 @@ class RedisCompatTest < Minitest::Test
       end
     end
   end
-
   # =================================================================
   # Commands module - mapped_mget, mapped_mset, mapped_msetnx
   # =================================================================
@@ -2750,7 +3128,6 @@ class RedisCompatTest < Minitest::Test
 
     assert redis.mapped_msetnx("k1" => "v1")
   end
-
   # =================================================================
   # Commands module - mapped_hmget, mapped_hmset
   # =================================================================
@@ -2768,7 +3145,6 @@ class RedisCompatTest < Minitest::Test
 
     assert_equal "OK", redis.mapped_hmset("h", "f1" => "v1", "f2" => "v2")
   end
-
   # =================================================================
   # Commands module - exists?
   # =================================================================
@@ -2793,6 +3169,27 @@ class RedisCompatTest < Minitest::Test
 
     assert_equal 2, redis.exists?("k1", "k2")
   end
+end
+
+class RedisCompatTestPart17 < Minitest::Test
+  # =================================================================
+  # Setup / Helpers
+  # =================================================================
+
+  def setup
+    @mock_client = mock("redis_ruby_client")
+    @mock_client.stubs(:connected?).returns(true)
+    @mock_client.stubs(:close)
+    RR::Client.stubs(:new).returns(@mock_client)
+  end
+
+  def build_redis(options = {})
+    Redis.new(options)
+  end
+
+  # =================================================================
+  # Initialization & Options Normalization
+  # =================================================================
 
   # =================================================================
   # Commands module - sadd?, srem?, sismember?, smove?
@@ -2843,7 +3240,6 @@ class RedisCompatTest < Minitest::Test
     # smove returns true (from result == 1), smove? does true == 1 => false
     refute redis.smove?("src", "dst", "m")
   end
-
   # =================================================================
   # Commands module - scan_each, hscan_each, sscan_each, zscan_each
   # =================================================================
@@ -2923,7 +3319,6 @@ class RedisCompatTest < Minitest::Test
 
     assert_respond_to result, :each
   end
-
   # =================================================================
   # Commands module - expire?, expireat?, persist?, renamenx?
   # =================================================================
@@ -2955,6 +3350,27 @@ class RedisCompatTest < Minitest::Test
 
     assert redis.renamenx?("old", "new")
   end
+end
+
+class RedisCompatTestPart18 < Minitest::Test
+  # =================================================================
+  # Setup / Helpers
+  # =================================================================
+
+  def setup
+    @mock_client = mock("redis_ruby_client")
+    @mock_client.stubs(:connected?).returns(true)
+    @mock_client.stubs(:close)
+    RR::Client.stubs(:new).returns(@mock_client)
+  end
+
+  def build_redis(options = {})
+    Redis.new(options)
+  end
+
+  # =================================================================
+  # Initialization & Options Normalization
+  # =================================================================
 
   # =================================================================
   # Commands module - hsetnx?, hincrbyfloat_compat
@@ -2982,7 +3398,6 @@ class RedisCompatTest < Minitest::Test
 
     assert_in_delta(3.5, redis.hincrbyfloat_compat("h", "f", 1.5))
   end
-
   # =================================================================
   # Commands module - zincrby_compat, zmscore_compat
   # =================================================================
@@ -3009,6 +3424,27 @@ class RedisCompatTest < Minitest::Test
     assert_in_delta(1.5, result[0])
     assert_nil result[1]
   end
+end
+
+class RedisCompatTestPart19 < Minitest::Test
+  # =================================================================
+  # Setup / Helpers
+  # =================================================================
+
+  def setup
+    @mock_client = mock("redis_ruby_client")
+    @mock_client.stubs(:connected?).returns(true)
+    @mock_client.stubs(:close)
+    RR::Client.stubs(:new).returns(@mock_client)
+  end
+
+  def build_redis(options = {})
+    Redis.new(options)
+  end
+
+  # =================================================================
+  # Initialization & Options Normalization
+  # =================================================================
 
   # =================================================================
   # Future object
@@ -3137,7 +3573,6 @@ class RedisCompatTest < Minitest::Test
 
     assert_equal ["inner"], future.instance_variable_get(:@inner_futures)
   end
-
   # =================================================================
   # Error hierarchy
   # =================================================================
@@ -3157,7 +3592,6 @@ class RedisCompatTest < Minitest::Test
     assert_operator Redis::ProtocolError, :<, Redis::BaseError
     assert_operator Redis::FutureNotReady, :<, RuntimeError
   end
-
   # =================================================================
   # DEFAULT_OPTIONS
   # =================================================================
@@ -3172,38 +3606,42 @@ class RedisCompatTest < Minitest::Test
     assert_equal 0, Redis::DEFAULT_OPTIONS[:db]
     assert_in_delta(5.0, Redis::DEFAULT_OPTIONS[:timeout])
   end
+end
+
+class RedisCompatTestPart20 < Minitest::Test
+  # =================================================================
+  # Setup / Helpers
+  # =================================================================
+
+  def setup
+    @mock_client = mock("redis_ruby_client")
+    @mock_client.stubs(:connected?).returns(true)
+    @mock_client.stubs(:close)
+    RR::Client.stubs(:new).returns(@mock_client)
+  end
+
+  def build_redis(options = {})
+    Redis.new(options)
+  end
+
+  # =================================================================
+  # Initialization & Options Normalization
+  # =================================================================
 
   # =================================================================
   # create_client - standard path
   # =================================================================
 
   def test_create_client_passes_options
-    RR::Client.unstub(:new)
-    RR::Client.expects(:new).with(
-      url: nil,
-      host: "myhost",
-      port: 7000,
-      path: nil,
-      db: 2,
-      password: "secret",
-      username: "admin",
-      timeout: 10.0,
-      ssl: true,
-      ssl_params: { verify_mode: 1 },
-      reconnect_attempts: 3
-    ).returns(@mock_client)
+    input_opts = { host: "myhost", port: 7000, db: 2, password: "secret",
+                   username: "admin", timeout: 10.0, ssl: true,
+                   ssl_params: { verify_mode: 1 }, reconnect_attempts: 3, }
+    expected_opts = { url: nil, path: nil, **input_opts }
 
-    build_redis(
-      host: "myhost",
-      port: 7000,
-      db: 2,
-      password: "secret",
-      username: "admin",
-      timeout: 10.0,
-      ssl: true,
-      ssl_params: { verify_mode: 1 },
-      reconnect_attempts: 3
-    )
+    RR::Client.unstub(:new)
+    RR::Client.expects(:new).with(expected_opts).returns(@mock_client)
+
+    build_redis(input_opts)
   end
 
   def test_create_client_default_ssl_params

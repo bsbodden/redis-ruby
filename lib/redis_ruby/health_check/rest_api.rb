@@ -20,7 +20,7 @@ module RR
     #     username: 'admin@example.com',
     #     password: 'secret'
     #   )
-    #   
+    #
     #   healthy = health_check.check(connection)  # => true/false
     #
     # @example With custom timeout
@@ -50,10 +50,11 @@ module RR
       # @param timeout [Float] HTTP request timeout in seconds (default: 3.0)
       # @param use_ssl [Boolean] Use HTTPS (default: true)
       # @param verify_ssl [Boolean] Verify SSL certificates (default: true)
-      def initialize(rest_api_host:, rest_api_port: DEFAULT_PORT, database_id:,
+      def initialize(rest_api_host:, database_id:, rest_api_port: DEFAULT_PORT,
                      username: nil, password: nil,
                      timeout: DEFAULT_TIMEOUT,
                      use_ssl: true, verify_ssl: true)
+        super()
         @rest_api_host = rest_api_host
         @rest_api_port = rest_api_port
         @database_id = database_id
@@ -71,10 +72,10 @@ module RR
       #
       # @param connection [Object] Redis connection (not used, but required by interface)
       # @return [Boolean] true if database is available, false otherwise
-      def check(connection)
+      def check(_connection)
         uri = build_uri
         request = build_request(uri)
-        
+
         response = execute_request(uri, request)
         parse_response(response)
       rescue StandardError => e
@@ -85,20 +86,18 @@ module RR
       private
 
       def build_uri
-        scheme = @use_ssl ? 'https' : 'http'
+        scheme = @use_ssl ? "https" : "http"
         path = "/v1/bdbs/#{@database_id}/availability"
-        
+
         URI("#{scheme}://#{@rest_api_host}:#{@rest_api_port}#{path}")
       end
 
       def build_request(uri)
         request = Net::HTTP::Get.new(uri)
-        request['Accept'] = 'application/json'
-        
-        if @username && @password
-          request.basic_auth(@username, @password)
-        end
-        
+        request["Accept"] = "application/json"
+
+        request.basic_auth(@username, @password) if @username && @password
+
         request
       end
 
@@ -117,11 +116,10 @@ module RR
 
       def parse_response(response)
         return false unless response.is_a?(Net::HTTPSuccess)
-        
+
         # The API returns 200 OK if available, non-200 if not available
-        response.code == '200'
+        response.code == "200"
       end
     end
   end
 end
-

@@ -13,37 +13,36 @@ class KeysBranchTest < Minitest::Test
       mock_return(args)
     end
 
-    def call_1arg(cmd, a1)
-      @last_command = [cmd, a1]
-      mock_return([cmd, a1])
+    def call_1arg(cmd, arg_one)
+      @last_command = [cmd, arg_one]
+      mock_return([cmd, arg_one])
     end
 
-    def call_2args(cmd, a1, a2)
-      @last_command = [cmd, a1, a2]
-      mock_return([cmd, a1, a2])
+    def call_2args(cmd, arg_one, arg_two)
+      @last_command = [cmd, arg_one, arg_two]
+      mock_return([cmd, arg_one, arg_two])
     end
 
-    def call_3args(cmd, a1, a2, a3)
-      @last_command = [cmd, a1, a2, a3]
-      mock_return([cmd, a1, a2, a3])
+    def call_3args(cmd, arg_one, arg_two, arg_three)
+      @last_command = [cmd, arg_one, arg_two, arg_three]
+      mock_return([cmd, arg_one, arg_two, arg_three])
     end
+
+    MOCK_RETURNS = {
+      "TYPE" => "string", "KEYS" => %w[key1 key2],
+      "SCAN" => ["0", %w[key1 key2]], "RANDOMKEY" => "somekey",
+      "DUMP" => "\x00\x05value\t\x00", "MEMORY" => 128,
+    }.freeze
+
+    NUMERIC_CMDS = %w[DEL EXISTS EXPIRE PEXPIRE EXPIREAT PEXPIREAT TTL PTTL
+                      PERSIST EXPIRETIME PEXPIRETIME UNLINK TOUCH COPY RENAMENX].freeze
 
     private
 
     def mock_return(args)
-      case args[0]
-      when "DEL", "EXISTS", "EXPIRE", "PEXPIRE", "EXPIREAT", "PEXPIREAT",
-           "TTL", "PTTL", "PERSIST", "EXPIRETIME", "PEXPIRETIME",
-           "UNLINK", "TOUCH", "COPY", "RENAMENX"
-        1
-      when "TYPE" then "string"
-      when "KEYS" then %w[key1 key2]
-      when "SCAN" then ["0", %w[key1 key2]]
-      when "RANDOMKEY" then "somekey"
-      when "DUMP" then "\x00\x05value\t\x00"
-      when "MEMORY" then 128
-      else "OK"
-      end
+      return 1 if NUMERIC_CMDS.include?(args[0])
+
+      MOCK_RETURNS.fetch(args[0], "OK")
     end
   end
 
@@ -67,7 +66,6 @@ class KeysBranchTest < Minitest::Test
 
     assert_equal %w[DEL key1 key2 key3], @client.last_command
   end
-
   # ============================================================
   # EXISTS - single key fast path and multi-key path
   # ============================================================
@@ -84,7 +82,6 @@ class KeysBranchTest < Minitest::Test
 
     assert_equal %w[EXISTS key1 key2], @client.last_command
   end
-
   # ============================================================
   # EXPIRE - with all flag combinations
   # ============================================================
@@ -136,7 +133,6 @@ class KeysBranchTest < Minitest::Test
 
     assert_equal ["EXPIRE", "mykey", 60], @client.last_command
   end
-
   # ============================================================
   # PEXPIRE - with all flag combinations
   # ============================================================
@@ -170,6 +166,59 @@ class KeysBranchTest < Minitest::Test
 
     assert_equal ["PEXPIRE", "mykey", 60_000, "LT"], @client.last_command
   end
+end
+
+class KeysBranchTestPart2 < Minitest::Test
+  class MockClient
+    include RR::Commands::Keys
+
+    attr_reader :last_command
+
+    def call(*args)
+      @last_command = args
+      mock_return(args)
+    end
+
+    def call_1arg(cmd, arg_one)
+      @last_command = [cmd, arg_one]
+      mock_return([cmd, arg_one])
+    end
+
+    def call_2args(cmd, arg_one, arg_two)
+      @last_command = [cmd, arg_one, arg_two]
+      mock_return([cmd, arg_one, arg_two])
+    end
+
+    def call_3args(cmd, arg_one, arg_two, arg_three)
+      @last_command = [cmd, arg_one, arg_two, arg_three]
+      mock_return([cmd, arg_one, arg_two, arg_three])
+    end
+
+    MOCK_RETURNS = {
+      "TYPE" => "string", "KEYS" => %w[key1 key2],
+      "SCAN" => ["0", %w[key1 key2]], "RANDOMKEY" => "somekey",
+      "DUMP" => "\x00\x05value\t\x00", "MEMORY" => 128,
+    }.freeze
+
+    NUMERIC_CMDS = %w[DEL EXISTS EXPIRE PEXPIRE EXPIREAT PEXPIREAT TTL PTTL
+                      PERSIST EXPIRETIME PEXPIRETIME UNLINK TOUCH COPY RENAMENX].freeze
+
+    private
+
+    def mock_return(args)
+      return 1 if NUMERIC_CMDS.include?(args[0])
+
+      MOCK_RETURNS.fetch(args[0], "OK")
+    end
+  end
+
+  def setup
+    @client = MockClient.new
+  end
+
+  # ============================================================
+  # DEL - single key fast path and multi-key path
+  # ============================================================
 
   # ============================================================
   # EXPIREAT - with all flag combinations
@@ -204,7 +253,6 @@ class KeysBranchTest < Minitest::Test
 
     assert_equal ["EXPIREAT", "mykey", 1_700_000_000, "LT"], @client.last_command
   end
-
   # ============================================================
   # PEXPIREAT - with all flag combinations
   # ============================================================
@@ -238,7 +286,6 @@ class KeysBranchTest < Minitest::Test
 
     assert_equal ["PEXPIREAT", "mykey", 1_700_000_000_000, "LT"], @client.last_command
   end
-
   # ============================================================
   # TTL / PTTL
   # ============================================================
@@ -256,7 +303,6 @@ class KeysBranchTest < Minitest::Test
     assert_equal %w[PTTL mykey], @client.last_command
     assert_equal 1, result
   end
-
   # ============================================================
   # PERSIST
   # ============================================================
@@ -267,7 +313,6 @@ class KeysBranchTest < Minitest::Test
     assert_equal %w[PERSIST mykey], @client.last_command
     assert_equal 1, result
   end
-
   # ============================================================
   # EXPIRETIME / PEXPIRETIME
   # ============================================================
@@ -285,7 +330,6 @@ class KeysBranchTest < Minitest::Test
     assert_equal %w[PEXPIRETIME mykey], @client.last_command
     assert_equal 1, result
   end
-
   # ============================================================
   # KEYS
   # ============================================================
@@ -302,6 +346,59 @@ class KeysBranchTest < Minitest::Test
 
     assert_equal ["KEYS", "user:*"], @client.last_command
   end
+end
+
+class KeysBranchTestPart3 < Minitest::Test
+  class MockClient
+    include RR::Commands::Keys
+
+    attr_reader :last_command
+
+    def call(*args)
+      @last_command = args
+      mock_return(args)
+    end
+
+    def call_1arg(cmd, arg_one)
+      @last_command = [cmd, arg_one]
+      mock_return([cmd, arg_one])
+    end
+
+    def call_2args(cmd, arg_one, arg_two)
+      @last_command = [cmd, arg_one, arg_two]
+      mock_return([cmd, arg_one, arg_two])
+    end
+
+    def call_3args(cmd, arg_one, arg_two, arg_three)
+      @last_command = [cmd, arg_one, arg_two, arg_three]
+      mock_return([cmd, arg_one, arg_two, arg_three])
+    end
+
+    MOCK_RETURNS = {
+      "TYPE" => "string", "KEYS" => %w[key1 key2],
+      "SCAN" => ["0", %w[key1 key2]], "RANDOMKEY" => "somekey",
+      "DUMP" => "\x00\x05value\t\x00", "MEMORY" => 128,
+    }.freeze
+
+    NUMERIC_CMDS = %w[DEL EXISTS EXPIRE PEXPIRE EXPIREAT PEXPIREAT TTL PTTL
+                      PERSIST EXPIRETIME PEXPIRETIME UNLINK TOUCH COPY RENAMENX].freeze
+
+    private
+
+    def mock_return(args)
+      return 1 if NUMERIC_CMDS.include?(args[0])
+
+      MOCK_RETURNS.fetch(args[0], "OK")
+    end
+  end
+
+  def setup
+    @client = MockClient.new
+  end
+
+  # ============================================================
+  # DEL - single key fast path and multi-key path
+  # ============================================================
 
   # ============================================================
   # SCAN - all option combinations
@@ -356,7 +453,6 @@ class KeysBranchTest < Minitest::Test
 
     assert_equal %w[SCAN 0], @client.last_command
   end
-
   # ============================================================
   # TYPE
   # ============================================================
@@ -367,7 +463,6 @@ class KeysBranchTest < Minitest::Test
     assert_equal %w[TYPE mykey], @client.last_command
     assert_equal "string", result
   end
-
   # ============================================================
   # RENAME / RENAMENX
   # ============================================================
@@ -385,7 +480,6 @@ class KeysBranchTest < Minitest::Test
     assert_equal %w[RENAMENX old new], @client.last_command
     assert_equal 1, result
   end
-
   # ============================================================
   # RANDOMKEY
   # ============================================================
@@ -396,7 +490,6 @@ class KeysBranchTest < Minitest::Test
     assert_equal ["RANDOMKEY"], @client.last_command
     assert_equal "somekey", result
   end
-
   # ============================================================
   # UNLINK
   # ============================================================
@@ -413,7 +506,6 @@ class KeysBranchTest < Minitest::Test
 
     assert_equal %w[UNLINK key1], @client.last_command
   end
-
   # ============================================================
   # RESTORE - with and without replace
   # ============================================================
@@ -435,7 +527,6 @@ class KeysBranchTest < Minitest::Test
 
     assert_equal ["RESTORE", "mykey", 1000, "\x00\x05data"], @client.last_command
   end
-
   # ============================================================
   # DUMP
   # ============================================================
@@ -446,6 +537,59 @@ class KeysBranchTest < Minitest::Test
     assert_equal %w[DUMP mykey], @client.last_command
     assert_equal "\x00\x05value\t\x00", result
   end
+end
+
+class KeysBranchTestPart4 < Minitest::Test
+  class MockClient
+    include RR::Commands::Keys
+
+    attr_reader :last_command
+
+    def call(*args)
+      @last_command = args
+      mock_return(args)
+    end
+
+    def call_1arg(cmd, arg_one)
+      @last_command = [cmd, arg_one]
+      mock_return([cmd, arg_one])
+    end
+
+    def call_2args(cmd, arg_one, arg_two)
+      @last_command = [cmd, arg_one, arg_two]
+      mock_return([cmd, arg_one, arg_two])
+    end
+
+    def call_3args(cmd, arg_one, arg_two, arg_three)
+      @last_command = [cmd, arg_one, arg_two, arg_three]
+      mock_return([cmd, arg_one, arg_two, arg_three])
+    end
+
+    MOCK_RETURNS = {
+      "TYPE" => "string", "KEYS" => %w[key1 key2],
+      "SCAN" => ["0", %w[key1 key2]], "RANDOMKEY" => "somekey",
+      "DUMP" => "\x00\x05value\t\x00", "MEMORY" => 128,
+    }.freeze
+
+    NUMERIC_CMDS = %w[DEL EXISTS EXPIRE PEXPIRE EXPIREAT PEXPIREAT TTL PTTL
+                      PERSIST EXPIRETIME PEXPIRETIME UNLINK TOUCH COPY RENAMENX].freeze
+
+    private
+
+    def mock_return(args)
+      return 1 if NUMERIC_CMDS.include?(args[0])
+
+      MOCK_RETURNS.fetch(args[0], "OK")
+    end
+  end
+
+  def setup
+    @client = MockClient.new
+  end
+
+  # ============================================================
+  # DEL - single key fast path and multi-key path
+  # ============================================================
 
   # ============================================================
   # TOUCH
@@ -463,7 +607,6 @@ class KeysBranchTest < Minitest::Test
 
     assert_equal %w[TOUCH key1], @client.last_command
   end
-
   # ============================================================
   # MEMORY USAGE
   # ============================================================
@@ -474,7 +617,6 @@ class KeysBranchTest < Minitest::Test
     assert_equal %w[MEMORY USAGE mykey], @client.last_command
     assert_equal 128, result
   end
-
   # ============================================================
   # COPY - all option combinations
   # ============================================================
@@ -515,7 +657,6 @@ class KeysBranchTest < Minitest::Test
 
     assert_equal %w[COPY src dst], @client.last_command
   end
-
   # ============================================================
   # SCAN_ITER - enumerator with cursor management
   # ============================================================
@@ -568,9 +709,9 @@ class KeysBranchTest < Minitest::Test
       end
     end
 
-    def call_1arg(cmd, a1) = call(cmd, a1)
-    def call_2args(cmd, a1, a2) = call(cmd, a1, a2)
-    def call_3args(cmd, a1, a2, a3) = call(cmd, a1, a2, a3)
+    def call_1arg(cmd, arg_one) = call(cmd, arg_one)
+    def call_2args(cmd, arg_one, arg_two) = call(cmd, arg_one, arg_two)
+    def call_3args(cmd, arg_one, arg_two, arg_three) = call(cmd, arg_one, arg_two, arg_three)
   end
 
   def test_scan_iter_multiple_cursors

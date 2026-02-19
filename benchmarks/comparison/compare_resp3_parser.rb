@@ -43,7 +43,7 @@ ENCODED_BULK = "$11\r\nHello World\r\n"
 ENCODED_LARGE_BULK = "$2048\r\n#{"x" * 2048}\r\n".freeze
 ENCODED_INTEGER = ":12345\r\n"
 ENCODED_ARRAY_SMALL = "*3\r\n$3\r\nfoo\r\n$3\r\nbar\r\n$3\r\nbaz\r\n"
-ENCODED_ARRAY_100 = "*100\r\n" + (1..100).map { |i| "$#{"item#{i}".length}\r\nitem#{i}\r\n" }.join
+ENCODED_ARRAY_100 = "*100\r\n#{(1..100).map { |i| "$#{"item#{i}".length}\r\nitem#{i}\r\n" }.join}".freeze
 
 # redis-ruby encoder/decoder
 encoder = RedisRuby::Protocol::RESP3Encoder.new

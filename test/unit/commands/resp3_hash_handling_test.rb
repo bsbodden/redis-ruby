@@ -36,7 +36,7 @@ class RESP3HashHandlingTest < Minitest::Test
 
     result = @client.hgetall("mykey")
 
-    assert_equal({}, result)
+    assert_empty(result)
   end
 
   def test_hgetall_handles_empty_array_response
@@ -44,6 +44,6 @@ class RESP3HashHandlingTest < Minitest::Test
 
     result = @client.hgetall("mykey")
 
-    assert_equal({}, result)
+    assert_empty(result)
   end
 end

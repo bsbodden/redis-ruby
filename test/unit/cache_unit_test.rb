@@ -23,11 +23,11 @@ class CacheMockClient
     @get_return_value
   end
 
-  def set_get_return(value)
+  def mock_get_return(value)
     @get_return_value = value
   end
 
-  def set_call_return(value)
+  def mock_call_return(value)
     @call_return_value = value
   end
 end
@@ -79,7 +79,6 @@ class CacheUnitTest < Minitest::Test
 
     assert_equal :broadcast, cache.mode
   end
-
   # ============================================================
   # enable! / disable!
   # ============================================================
@@ -127,7 +126,7 @@ class CacheUnitTest < Minitest::Test
   end
 
   def test_enable_returns_false_when_server_does_not_return_ok
-    @mock_client.set_call_return("ERR something")
+    @mock_client.mock_call_return("ERR something")
     cache = RR::Cache.new(@mock_client)
     result = cache.enable!
 
@@ -154,7 +153,7 @@ class CacheUnitTest < Minitest::Test
   def test_disable_clears_cache
     cache = RR::Cache.new(@mock_client)
     cache.enable!
-    @mock_client.set_get_return("value1")
+    @mock_client.mock_get_return("value1")
     cache.get("key1")
 
     assert cache.cached?("key1")
@@ -163,7 +162,6 @@ class CacheUnitTest < Minitest::Test
 
     refute cache.cached?("key1")
   end
-
   # ============================================================
   # enabled?
   # ============================================================
@@ -180,13 +178,23 @@ class CacheUnitTest < Minitest::Test
 
     assert_predicate cache, :enabled?
   end
+end
+
+class CacheUnitTestPart2 < Minitest::Test
+  def setup
+    @mock_client = CacheMockClient.new
+  end
+
+  # ============================================================
+  # Initialization
+  # ============================================================
 
   # ============================================================
   # get - default mode
   # ============================================================
 
   def test_get_fetches_from_redis_when_not_enabled
-    @mock_client.set_get_return("value1")
+    @mock_client.mock_get_return("value1")
     cache = RR::Cache.new(@mock_client)
     result = cache.get("key1")
 
@@ -195,7 +203,7 @@ class CacheUnitTest < Minitest::Test
   end
 
   def test_get_fetches_and_caches_when_enabled
-    @mock_client.set_get_return("value1")
+    @mock_client.mock_get_return("value1")
     cache = RR::Cache.new(@mock_client)
     cache.enable!
     result = cache.get("key1")
@@ -205,7 +213,7 @@ class CacheUnitTest < Minitest::Test
   end
 
   def test_get_returns_cached_value_on_second_call
-    @mock_client.set_get_return("value1")
+    @mock_client.mock_get_return("value1")
     cache = RR::Cache.new(@mock_client)
     cache.enable!
 
@@ -220,20 +228,19 @@ class CacheUnitTest < Minitest::Test
   end
 
   def test_get_does_not_cache_nil_value
-    @mock_client.set_get_return(nil)
+    @mock_client.mock_get_return(nil)
     cache = RR::Cache.new(@mock_client)
     cache.enable!
     cache.get("missing_key")
 
     refute cache.cached?("missing_key")
   end
-
   # ============================================================
   # get - optin mode
   # ============================================================
 
   def test_get_optin_does_not_cache_without_cache_flag
-    @mock_client.set_get_return("value1")
+    @mock_client.mock_get_return("value1")
     cache = RR::Cache.new(@mock_client, mode: :optin)
     cache.enable!
     cache.get("key1")
@@ -242,7 +249,7 @@ class CacheUnitTest < Minitest::Test
   end
 
   def test_get_optin_caches_with_cache_true
-    @mock_client.set_get_return("value1")
+    @mock_client.mock_get_return("value1")
     cache = RR::Cache.new(@mock_client, mode: :optin)
     cache.enable!
     cache.get("key1", cache: true)
@@ -251,7 +258,7 @@ class CacheUnitTest < Minitest::Test
   end
 
   def test_get_optin_sends_caching_yes_command
-    @mock_client.set_get_return("value1")
+    @mock_client.mock_get_return("value1")
     cache = RR::Cache.new(@mock_client, mode: :optin)
     cache.enable!
     cache.get("key1", cache: true)
@@ -262,7 +269,7 @@ class CacheUnitTest < Minitest::Test
   end
 
   def test_get_optin_does_not_send_caching_yes_without_cache_flag
-    @mock_client.set_get_return("value1")
+    @mock_client.mock_get_return("value1")
     cache = RR::Cache.new(@mock_client, mode: :optin)
     cache.enable!
     cache.get("key1")
@@ -270,13 +277,12 @@ class CacheUnitTest < Minitest::Test
 
     assert_equal 0, caching_calls.size
   end
-
   # ============================================================
   # get - optout mode
   # ============================================================
 
   def test_get_optout_caches_by_default
-    @mock_client.set_get_return("value1")
+    @mock_client.mock_get_return("value1")
     cache = RR::Cache.new(@mock_client, mode: :optout)
     cache.enable!
     cache.get("key1")
@@ -285,7 +291,7 @@ class CacheUnitTest < Minitest::Test
   end
 
   def test_get_optout_does_not_cache_with_cache_false
-    @mock_client.set_get_return("value1")
+    @mock_client.mock_get_return("value1")
     cache = RR::Cache.new(@mock_client, mode: :optout)
     cache.enable!
     cache.get("key1", cache: false)
@@ -294,20 +300,19 @@ class CacheUnitTest < Minitest::Test
   end
 
   def test_get_optout_caches_with_cache_true
-    @mock_client.set_get_return("value1")
+    @mock_client.mock_get_return("value1")
     cache = RR::Cache.new(@mock_client, mode: :optout)
     cache.enable!
     cache.get("key1", cache: true)
 
     assert cache.cached?("key1")
   end
-
   # ============================================================
   # TTL handling
   # ============================================================
 
   def test_get_with_ttl_caches_value
-    @mock_client.set_get_return("value1")
+    @mock_client.mock_get_return("value1")
     cache = RR::Cache.new(@mock_client, ttl: 3600)
     cache.enable!
     cache.get("key1")
@@ -316,7 +321,7 @@ class CacheUnitTest < Minitest::Test
   end
 
   def test_expired_entry_not_returned_from_cache
-    @mock_client.set_get_return("value1")
+    @mock_client.mock_get_return("value1")
     cache = RR::Cache.new(@mock_client, ttl: 0.001)
     cache.enable!
     cache.get("key1")
@@ -328,27 +333,37 @@ class CacheUnitTest < Minitest::Test
   end
 
   def test_expired_entry_refetches_from_redis
-    @mock_client.set_get_return("value1")
+    @mock_client.mock_get_return("value1")
     cache = RR::Cache.new(@mock_client, ttl: 0.001)
     cache.enable!
     cache.get("key1")
 
     sleep 0.01
 
-    @mock_client.set_get_return("value2")
+    @mock_client.mock_get_return("value2")
     result = cache.get("key1")
 
     assert_equal "value2", result
   end
 
   def test_no_ttl_entries_do_not_expire
-    @mock_client.set_get_return("value1")
+    @mock_client.mock_get_return("value1")
     cache = RR::Cache.new(@mock_client, ttl: nil)
     cache.enable!
     cache.get("key1")
 
     assert cache.cached?("key1")
   end
+end
+
+class CacheUnitTestPart3 < Minitest::Test
+  def setup
+    @mock_client = CacheMockClient.new
+  end
+
+  # ============================================================
+  # Initialization
+  # ============================================================
 
   # ============================================================
   # CacheEntry
@@ -371,13 +386,12 @@ class CacheUnitTest < Minitest::Test
 
     assert_predicate entry, :expired?
   end
-
   # ============================================================
   # invalidate
   # ============================================================
 
   def test_invalidate_cached_key
-    @mock_client.set_get_return("value1")
+    @mock_client.mock_get_return("value1")
     cache = RR::Cache.new(@mock_client)
     cache.enable!
     cache.get("key1")
@@ -396,18 +410,17 @@ class CacheUnitTest < Minitest::Test
 
     refute result
   end
-
   # ============================================================
   # invalidate_all
   # ============================================================
 
   def test_invalidate_all_multiple_keys
-    @mock_client.set_get_return("value1")
+    @mock_client.mock_get_return("value1")
     cache = RR::Cache.new(@mock_client)
     cache.enable!
     cache.get("key1")
 
-    @mock_client.set_get_return("value2")
+    @mock_client.mock_get_return("value2")
     cache.get("key2")
 
     count = cache.invalidate_all(%w[key1 key2])
@@ -418,7 +431,7 @@ class CacheUnitTest < Minitest::Test
   end
 
   def test_invalidate_all_mixed_existing_and_missing
-    @mock_client.set_get_return("value1")
+    @mock_client.mock_get_return("value1")
     cache = RR::Cache.new(@mock_client)
     cache.enable!
     cache.get("key1")
@@ -434,17 +447,16 @@ class CacheUnitTest < Minitest::Test
 
     assert_equal 0, count
   end
-
   # ============================================================
   # clear
   # ============================================================
 
   def test_clear_returns_count
-    @mock_client.set_get_return("value1")
+    @mock_client.mock_get_return("value1")
     cache = RR::Cache.new(@mock_client)
     cache.enable!
     cache.get("key1")
-    @mock_client.set_get_return("value2")
+    @mock_client.mock_get_return("value2")
     cache.get("key2")
 
     count = cache.clear
@@ -460,7 +472,7 @@ class CacheUnitTest < Minitest::Test
   end
 
   def test_clear_removes_all_entries
-    @mock_client.set_get_return("value1")
+    @mock_client.mock_get_return("value1")
     cache = RR::Cache.new(@mock_client)
     cache.enable!
     cache.get("key1")
@@ -470,7 +482,6 @@ class CacheUnitTest < Minitest::Test
     refute cache.cached?("key1")
     refute cache.cached?("key2")
   end
-
   # ============================================================
   # stats
   # ============================================================
@@ -487,7 +498,7 @@ class CacheUnitTest < Minitest::Test
   end
 
   def test_stats_with_entries
-    @mock_client.set_get_return("value1")
+    @mock_client.mock_get_return("value1")
     cache = RR::Cache.new(@mock_client)
     cache.enable!
     cache.get("key1")
@@ -498,13 +509,23 @@ class CacheUnitTest < Minitest::Test
     assert_equal 2, stats[:size]
     assert stats[:enabled]
   end
+end
+
+class CacheUnitTestPart4 < Minitest::Test
+  def setup
+    @mock_client = CacheMockClient.new
+  end
+
+  # ============================================================
+  # Initialization
+  # ============================================================
 
   # ============================================================
   # process_invalidation
   # ============================================================
 
   def test_process_invalidation_with_valid_message
-    @mock_client.set_get_return("value1")
+    @mock_client.mock_get_return("value1")
     cache = RR::Cache.new(@mock_client)
     cache.enable!
     cache.get("key1")
@@ -530,11 +551,11 @@ class CacheUnitTest < Minitest::Test
   end
 
   def test_process_invalidation_nil_keys_triggers_full_flush
-    @mock_client.set_get_return("value1")
+    @mock_client.mock_get_return("value1")
     cache = RR::Cache.new(@mock_client)
     cache.enable!
     cache.get("key1")
-    @mock_client.set_get_return("value2")
+    @mock_client.mock_get_return("value2")
     cache.get("key2")
 
     assert cache.cached?("key1")
@@ -549,11 +570,11 @@ class CacheUnitTest < Minitest::Test
   end
 
   def test_process_invalidation_with_multiple_keys
-    @mock_client.set_get_return("v1")
+    @mock_client.mock_get_return("v1")
     cache = RR::Cache.new(@mock_client)
     cache.enable!
     cache.get("key1")
-    @mock_client.set_get_return("v2")
+    @mock_client.mock_get_return("v2")
     cache.get("key2")
 
     result = cache.process_invalidation(["invalidate", %w[key1 key2]])
@@ -562,7 +583,6 @@ class CacheUnitTest < Minitest::Test
     refute cache.cached?("key1")
     refute cache.cached?("key2")
   end
-
   # ============================================================
   # cached?
   # ============================================================
@@ -574,7 +594,7 @@ class CacheUnitTest < Minitest::Test
   end
 
   def test_cached_returns_true_for_cached_key
-    @mock_client.set_get_return("value1")
+    @mock_client.mock_get_return("value1")
     cache = RR::Cache.new(@mock_client)
     cache.enable!
     cache.get("key1")
@@ -583,7 +603,7 @@ class CacheUnitTest < Minitest::Test
   end
 
   def test_cached_returns_false_for_expired_key
-    @mock_client.set_get_return("value1")
+    @mock_client.mock_get_return("value1")
     cache = RR::Cache.new(@mock_client, ttl: 0.001)
     cache.enable!
     cache.get("key1")
@@ -591,7 +611,6 @@ class CacheUnitTest < Minitest::Test
 
     refute cache.cached?("key1")
   end
-
   # ============================================================
   # LRU eviction
   # ============================================================
@@ -600,15 +619,15 @@ class CacheUnitTest < Minitest::Test
     cache = RR::Cache.new(@mock_client, max_entries: 3)
     cache.enable!
 
-    @mock_client.set_get_return("v1")
+    @mock_client.mock_get_return("v1")
     cache.get("key1")
-    @mock_client.set_get_return("v2")
+    @mock_client.mock_get_return("v2")
     cache.get("key2")
-    @mock_client.set_get_return("v3")
+    @mock_client.mock_get_return("v3")
     cache.get("key3")
 
     # At capacity now; adding another should evict key1 (LRU)
-    @mock_client.set_get_return("v4")
+    @mock_client.mock_get_return("v4")
     cache.get("key4")
 
     refute cache.cached?("key1") # evicted
@@ -621,18 +640,18 @@ class CacheUnitTest < Minitest::Test
     cache = RR::Cache.new(@mock_client, max_entries: 3)
     cache.enable!
 
-    @mock_client.set_get_return("v1")
+    @mock_client.mock_get_return("v1")
     cache.get("key1")
-    @mock_client.set_get_return("v2")
+    @mock_client.mock_get_return("v2")
     cache.get("key2")
-    @mock_client.set_get_return("v3")
+    @mock_client.mock_get_return("v3")
     cache.get("key3")
 
     # Access key1 again to move it to the end of LRU
     cache.get("key1")
 
     # Adding key4 should now evict key2 (the real LRU)
-    @mock_client.set_get_return("v4")
+    @mock_client.mock_get_return("v4")
     cache.get("key4")
 
     assert cache.cached?("key1") # touched, so not evicted
@@ -645,14 +664,14 @@ class CacheUnitTest < Minitest::Test
     cache = RR::Cache.new(@mock_client, max_entries: 2)
     cache.enable!
 
-    @mock_client.set_get_return("v1")
+    @mock_client.mock_get_return("v1")
     cache.get("key1")
-    @mock_client.set_get_return("v2")
+    @mock_client.mock_get_return("v2")
     cache.get("key2")
 
     # Invalidate key1, then re-fetch it (same slot, should not evict key2)
     cache.invalidate("key1")
-    @mock_client.set_get_return("v1_updated")
+    @mock_client.mock_get_return("v1_updated")
     cache.get("key1")
 
     assert cache.cached?("key1")
@@ -665,17 +684,17 @@ class CacheUnitTest < Minitest::Test
 
     # Fill cache: key1, key2, key3
     %w[key1 key2 key3].each_with_index do |k, i|
-      @mock_client.set_get_return("v#{i + 1}")
+      @mock_client.mock_get_return("v#{i + 1}")
       cache.get(k)
     end
 
     # Invalidate key2, then re-add it (should be most recent)
     cache.invalidate("key2")
-    @mock_client.set_get_return("v2_new")
+    @mock_client.mock_get_return("v2_new")
     cache.get("key2")
 
     # Now add key4 — should evict key1 (oldest untouched), NOT key2
-    @mock_client.set_get_return("v4")
+    @mock_client.mock_get_return("v4")
     cache.get("key4")
 
     refute cache.cached?("key1") # evicted as LRU
@@ -691,21 +710,20 @@ class CacheUnitTest < Minitest::Test
 
     # Fill cache completely
     (1..n).each do |i|
-      @mock_client.set_get_return("v#{i}")
+      @mock_client.mock_get_return("v#{i}")
       cache.get("key#{i}")
     end
 
     # Touch the first 10 keys to make them most recent
-    (1..10).each { |i| cache.get("key#{i}") }
-
-    # Add 10 new keys — should evict keys 11-20 (the LRU ones)
     (1..10).each do |i|
-      @mock_client.set_get_return("new#{i}")
+      cache.get("key#{i}")
+      # Add 10 new keys — should evict keys 11-20 (the LRU ones)
+      @mock_client.mock_get_return("new#{i}")
       cache.get("new#{i}")
-    end
 
-    # Keys 1-10 should still be cached (they were touched)
-    (1..10).each { |i| assert cache.cached?("key#{i}"), "key#{i} should be cached" }
+      # Keys 1-10 should still be cached (they were touched)
+      assert cache.cached?("key#{i}"), "key#{i} should be cached"
+    end
 
     # Keys 11-20 should be evicted
     (11..20).each { |i| refute cache.cached?("key#{i}"), "key#{i} should be evicted" }
@@ -719,7 +737,7 @@ class CacheUnitTest < Minitest::Test
   # ============================================================
 
   def test_default_mode_always_caches
-    @mock_client.set_get_return("value1")
+    @mock_client.mock_get_return("value1")
     cache = RR::Cache.new(@mock_client, mode: :default)
     cache.enable!
     cache.get("key1")
@@ -728,7 +746,7 @@ class CacheUnitTest < Minitest::Test
   end
 
   def test_optin_mode_requires_cache_true
-    @mock_client.set_get_return("value1")
+    @mock_client.mock_get_return("value1")
     cache = RR::Cache.new(@mock_client, mode: :optin)
     cache.enable!
 
@@ -742,7 +760,7 @@ class CacheUnitTest < Minitest::Test
   end
 
   def test_optout_mode_caches_unless_false
-    @mock_client.set_get_return("value1")
+    @mock_client.mock_get_return("value1")
     cache = RR::Cache.new(@mock_client, mode: :optout)
     cache.enable!
 

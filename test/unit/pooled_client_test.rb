@@ -3,7 +3,21 @@
 require_relative "unit_test_helper"
 require "socket"
 
+# Shared socket mock setup for pooled client tests
+module PooledClientTestHelper
+  private
+
+  def setup_mock_socket_options
+    @mock_socket.stubs(:setsockopt)
+    @mock_socket.stubs(:sync=)
+    @mock_socket.stubs(:closed?).returns(false)
+    @mock_socket.stubs(:close)
+  end
+end
+
 class PooledClientBranchTest < Minitest::Test
+  include PooledClientTestHelper
+
   def setup
     @mock_socket = mock("socket")
     setup_mock_socket_options
@@ -74,7 +88,6 @@ class PooledClientBranchTest < Minitest::Test
     assert_equal 5, client.pool_size
     client.close
   end
-
   # ============================================================
   # PooledClient - call variants
   # ============================================================
@@ -166,6 +179,19 @@ class PooledClientBranchTest < Minitest::Test
     assert_raises(RR::CommandError) { client.call_3args("CMD", "a", "b", "c") }
     client.close
   end
+end
+
+class PooledClientBranchTestPart2 < Minitest::Test
+  include PooledClientTestHelper
+
+  def setup
+    @mock_socket = mock("socket")
+    setup_mock_socket_options
+  end
+
+  # ============================================================
+  # PooledClient - Initialization
+  # ============================================================
 
   # ============================================================
   # PooledClient - ping, with_connection, pool_available
@@ -202,7 +228,6 @@ class PooledClientBranchTest < Minitest::Test
     assert_equal 5, client.pool_available
     client.close
   end
-
   # ============================================================
   # PooledClient - watch with and without block
   # ============================================================
@@ -233,7 +258,6 @@ class PooledClientBranchTest < Minitest::Test
     assert executed
     client.close
   end
-
   # ============================================================
   # PooledClient - unwatch
   # ============================================================
@@ -250,7 +274,6 @@ class PooledClientBranchTest < Minitest::Test
     assert_equal "OK", result
     client.close
   end
-
   # ============================================================
   # PooledClient - close / disconnect / quit aliases
   # ============================================================
@@ -268,7 +291,6 @@ class PooledClientBranchTest < Minitest::Test
     client.quit
     # Should not raise
   end
-
   # ============================================================
   # PooledClient - includes command modules
   # ============================================================
@@ -287,6 +309,19 @@ class PooledClientBranchTest < Minitest::Test
     assert_respond_to client, :publish
     client.close
   end
+end
+
+class PooledClientBranchTestPart3 < Minitest::Test
+  include PooledClientTestHelper
+
+  def setup
+    @mock_socket = mock("socket")
+    setup_mock_socket_options
+  end
+
+  # ============================================================
+  # PooledClient - Initialization
+  # ============================================================
 
   # ============================================================
   # AsyncPooledClient - basic tests (mocking the async pool)
@@ -409,7 +444,7 @@ class PooledClientBranchTest < Minitest::Test
     mock_pool.define_singleton_method(:acquire) { |&block| block.call(mock_conn) }
     mock_pool.define_singleton_method(:limit) { 5 }
     mock_pool.define_singleton_method(:available?) { true }
-    mock_pool.define_singleton_method(:close) {}
+    mock_pool.define_singleton_method(:close) { nil }
     RR::Connection::AsyncPool.stubs(:new).returns(mock_pool)
 
     client = RR::AsyncPooledClient.new(host: "localhost", port: 6379)
@@ -514,13 +549,6 @@ class PooledClientBranchTest < Minitest::Test
   end
 
   private
-
-  def setup_mock_socket_options
-    @mock_socket.stubs(:setsockopt)
-    @mock_socket.stubs(:sync=)
-    @mock_socket.stubs(:closed?).returns(false)
-    @mock_socket.stubs(:close)
-  end
 
   # Helper: creates a mock async pool whose acquire method yields a mock connection
   # and returns the block's return value (unlike mocha's .yields which returns nil).

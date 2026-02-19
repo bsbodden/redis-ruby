@@ -16,55 +16,53 @@ class HashDSLTest < RedisRubyTestCase
 
   def test_hash_proxy_creation
     proxy = redis.hash(:user, 123)
-    
+
     assert_instance_of RR::DSL::HashProxy, proxy
     assert_equal "user:123", proxy.key
   end
 
   def test_hash_proxy_with_single_key_part
     proxy = redis.hash(:config)
-    
+
     assert_equal "config", proxy.key
   end
-
   # ============================================================
   # Hash-like Access Tests
   # ============================================================
 
   def test_bracket_get_and_set
     hash = redis.hash(@key)
-    
+
     hash[:name] = "John"
     hash[:email] = "john@example.com"
-    
+
     assert_equal "John", hash[:name]
     assert_equal "john@example.com", hash[:email]
   end
 
   def test_bracket_get_nonexistent_field
     hash = redis.hash(@key)
-    
+
     assert_nil hash[:nonexistent]
   end
 
   def test_bracket_set_returns_value
     hash = redis.hash(@key)
-    
+
     result = (hash[:name] = "John")
-    
+
     assert_equal "John", result
   end
-
   # ============================================================
   # Bulk Operations Tests
   # ============================================================
 
   def test_set_with_multiple_fields
     hash = redis.hash(@key)
-    
+
     result = hash.set(name: "John", email: "john@example.com", age: 30)
-    
-    assert_same hash, result  # Returns self for chaining
+
+    assert_same hash, result # Returns self for chaining
     assert_equal "John", hash[:name]
     assert_equal "john@example.com", hash[:email]
     assert_equal "30", hash[:age]
@@ -72,42 +70,41 @@ class HashDSLTest < RedisRubyTestCase
 
   def test_set_with_empty_hash
     hash = redis.hash(@key)
-    
+
     result = hash.set
-    
+
     assert_same hash, result
   end
 
   def test_merge_alias
     hash = redis.hash(@key)
-    
+
     hash.merge(name: "John", age: 30)
-    
+
     assert_equal "John", hash[:name]
     assert_equal "30", hash[:age]
   end
 
   def test_update_alias
     hash = redis.hash(@key)
-    
+
     hash.update(name: "John", age: 30)
-    
+
     assert_equal "John", hash[:name]
     assert_equal "30", hash[:age]
   end
 
   def test_chainable_set
     hash = redis.hash(@key)
-    
+
     hash.set(name: "John")
-        .set(email: "john@example.com")
-        .set(age: 30)
-    
+      .set(email: "john@example.com")
+      .set(age: 30)
+
     assert_equal "John", hash[:name]
     assert_equal "john@example.com", hash[:email]
     assert_equal "30", hash[:age]
   end
-
   # ============================================================
   # Fetch Tests
   # ============================================================
@@ -115,28 +112,27 @@ class HashDSLTest < RedisRubyTestCase
   def test_fetch_existing_field
     hash = redis.hash(@key)
     hash[:name] = "John"
-    
+
     result = hash.fetch(:name, "default")
-    
+
     assert_equal "John", result
   end
 
   def test_fetch_nonexistent_field_with_default
     hash = redis.hash(@key)
-    
+
     result = hash.fetch(:age, 0)
-    
+
     assert_equal 0, result
   end
 
   def test_fetch_nonexistent_field_without_default
     hash = redis.hash(@key)
-    
+
     result = hash.fetch(:age)
-    
+
     assert_nil result
   end
-
   # ============================================================
   # to_h Tests
   # ============================================================
@@ -144,9 +140,9 @@ class HashDSLTest < RedisRubyTestCase
   def test_to_h_returns_hash_with_symbol_keys
     hash = redis.hash(@key)
     hash.set(name: "John", email: "john@example.com", age: 30)
-    
+
     result = hash.to_h
-    
+
     assert_instance_of Hash, result
     assert_equal "John", result[:name]
     assert_equal "john@example.com", result[:email]
@@ -158,8 +154,21 @@ class HashDSLTest < RedisRubyTestCase
 
     result = hash.to_h
 
-    assert_equal({}, result)
+    assert_empty(result)
   end
+end
+
+class HashDSLTestPart2 < RedisRubyTestCase
+  use_testcontainers!
+
+  def setup
+    super
+    @key = "test:hash:#{SecureRandom.hex(8)}"
+  end
+
+  # ============================================================
+  # Entry Point Tests
+  # ============================================================
 
   # ============================================================
   # Existence Tests
@@ -169,13 +178,13 @@ class HashDSLTest < RedisRubyTestCase
     hash = redis.hash(@key)
     hash[:name] = "John"
 
-    assert hash.exists?
+    assert_predicate hash, :exists?
   end
 
   def test_exists_returns_false_when_hash_does_not_exist
     hash = redis.hash(@key)
 
-    refute hash.exists?
+    refute_predicate hash, :exists?
   end
 
   def test_key_returns_true_when_field_exists
@@ -196,14 +205,14 @@ class HashDSLTest < RedisRubyTestCase
     hash = redis.hash(@key)
     hash[:name] = "John"
 
-    assert hash.has_key?(:name)
+    assert hash.key?(:name)
   end
 
   def test_include_alias
     hash = redis.hash(@key)
     hash[:name] = "John"
 
-    assert hash.include?(:name)
+    assert_includes hash, :name
   end
 
   def test_member_alias
@@ -212,7 +221,6 @@ class HashDSLTest < RedisRubyTestCase
 
     assert hash.member?(:name)
   end
-
   # ============================================================
   # Inspection Tests
   # ============================================================
@@ -235,7 +243,7 @@ class HashDSLTest < RedisRubyTestCase
 
     result = hash.keys
 
-    assert_equal [], result
+    assert_empty result
   end
 
   def test_values_returns_array
@@ -267,16 +275,15 @@ class HashDSLTest < RedisRubyTestCase
   def test_empty_returns_true_for_empty_hash
     hash = redis.hash(@key)
 
-    assert hash.empty?
+    assert_empty hash
   end
 
   def test_empty_returns_false_for_non_empty_hash
     hash = redis.hash(@key)
     hash[:name] = "John"
 
-    refute hash.empty?
+    refute_empty hash
   end
-
   # ============================================================
   # Deletion Tests
   # ============================================================
@@ -321,7 +328,7 @@ class HashDSLTest < RedisRubyTestCase
     result = hash.clear
 
     assert_equal 1, result
-    refute hash.exists?
+    refute_predicate hash, :exists?
   end
 
   def test_clear_nonexistent_hash
@@ -331,6 +338,19 @@ class HashDSLTest < RedisRubyTestCase
 
     assert_equal 0, result
   end
+end
+
+class HashDSLTestPart3 < RedisRubyTestCase
+  use_testcontainers!
+
+  def setup
+    super
+    @key = "test:hash:#{SecureRandom.hex(8)}"
+  end
+
+  # ============================================================
+  # Entry Point Tests
+  # ============================================================
 
   # ============================================================
   # Slice and Except Tests
@@ -342,7 +362,7 @@ class HashDSLTest < RedisRubyTestCase
 
     result = hash.slice(:name, :email)
 
-    assert_equal({name: "John", email: "john@example.com"}, result)
+    assert_equal({ name: "John", email: "john@example.com" }, result)
   end
 
   def test_slice_with_nonexistent_fields
@@ -351,7 +371,7 @@ class HashDSLTest < RedisRubyTestCase
 
     result = hash.slice(:name, :nonexistent)
 
-    assert_equal({name: "John"}, result)
+    assert_equal({ name: "John" }, result)
   end
 
   def test_slice_empty_fields
@@ -360,7 +380,7 @@ class HashDSLTest < RedisRubyTestCase
 
     result = hash.slice
 
-    assert_equal({}, result)
+    assert_empty(result)
   end
 
   def test_except_excludes_specified_fields
@@ -369,7 +389,7 @@ class HashDSLTest < RedisRubyTestCase
 
     result = hash.except(:age, :city)
 
-    assert_equal({name: "John", email: "john@example.com"}, result)
+    assert_equal({ name: "John", email: "john@example.com" }, result)
   end
 
   def test_except_with_nonexistent_fields
@@ -378,9 +398,8 @@ class HashDSLTest < RedisRubyTestCase
 
     result = hash.except(:nonexistent)
 
-    assert_equal({name: "John", email: "john@example.com"}, result)
+    assert_equal({ name: "John", email: "john@example.com" }, result)
   end
-
   # ============================================================
   # Numeric Operations Tests
   # ============================================================
@@ -391,7 +410,7 @@ class HashDSLTest < RedisRubyTestCase
 
     result = hash.increment(:count)
 
-    assert_same hash, result  # Returns self for chaining
+    assert_same hash, result # Returns self for chaining
     assert_equal "11", hash[:count]
   end
 
@@ -453,7 +472,6 @@ class HashDSLTest < RedisRubyTestCase
     assert_same hash, result
     assert_in_delta 1.5, hash[:score].to_f, 0.01
   end
-
   # ============================================================
   # Iteration Tests
   # ============================================================
@@ -503,6 +521,19 @@ class HashDSLTest < RedisRubyTestCase
     assert_includes values, "John"
     assert_includes values, "john@example.com"
   end
+end
+
+class HashDSLTestPart4 < RedisRubyTestCase
+  use_testcontainers!
+
+  def setup
+    super
+    @key = "test:hash:#{SecureRandom.hex(8)}"
+  end
+
+  # ============================================================
+  # Entry Point Tests
+  # ============================================================
 
   # ============================================================
   # Expiration Tests
@@ -516,6 +547,7 @@ class HashDSLTest < RedisRubyTestCase
 
     assert_same hash, result
     ttl = hash.ttl
+
     assert_operator ttl, :>, 0
     assert_operator ttl, :<=, 60
   end
@@ -529,6 +561,7 @@ class HashDSLTest < RedisRubyTestCase
 
     assert_same hash, result
     ttl = hash.ttl
+
     assert_operator ttl, :>, 0
     assert_operator ttl, :<=, 60
   end
@@ -542,6 +575,7 @@ class HashDSLTest < RedisRubyTestCase
 
     assert_same hash, result
     ttl = hash.ttl
+
     assert_operator ttl, :>, 0
     assert_operator ttl, :<=, 60
   end
@@ -584,7 +618,6 @@ class HashDSLTest < RedisRubyTestCase
     assert_same hash, result
     assert_equal(-1, hash.ttl)
   end
-
   # ============================================================
   # Integration Tests
   # ============================================================
@@ -608,7 +641,7 @@ class HashDSLTest < RedisRubyTestCase
     session[:ip] = "192.168.1.1"
     session.expire(1800)
 
-    assert session.exists?
+    assert_predicate session, :exists?
     assert_equal "456", session[:user_id]
     assert_operator session.ttl, :>, 0
   end
@@ -621,9 +654,7 @@ class HashDSLTest < RedisRubyTestCase
     assert_equal "false", flags[:beta_api]
 
     flags[:beta_api] = "true"
+
     assert_equal "true", flags[:beta_api]
   end
 end
-
-
-

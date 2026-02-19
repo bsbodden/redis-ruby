@@ -147,9 +147,9 @@ module RR
       # Define schema using DSL
       #
       # @yield Block for schema definition
-      def schema(&block)
+      def schema(&)
         @schema_builder = SchemaBuilder.new
-        @schema_builder.instance_eval(&block)
+        @schema_builder.instance_eval(&)
       end
 
       # Create the index
@@ -166,44 +166,46 @@ module RR
 
       def build_args
         args = []
-
-        # ON clause
         args.push("ON", @on.to_s.upcase)
+        args.push("PREFIX", @prefixes.size, *@prefixes) if @prefixes.any?
+        append_optional_clauses(args)
+        append_flag_clauses(args)
+        append_schema(args)
+        args
+      end
 
-        # PREFIX clause
-        if @prefixes.any?
-          args.push("PREFIX", @prefixes.size, *@prefixes)
-        end
-
-        # Optional clauses
+      def append_optional_clauses(args)
+        append_language_clauses(args)
+        append_score_clauses(args)
         args.push("FILTER", @filter) if @filter
-        args.push("LANGUAGE", @language) if @language
-        args.push("LANGUAGE_FIELD", @language_field) if @language_field
-        args.push("SCORE", @score) if @score
-        args.push("SCORE_FIELD", @score_field) if @score_field
         args.push("PAYLOAD_FIELD", @payload_field) if @payload_field
         args.push("MAXTEXTFIELDS", @maxtextfields) if @maxtextfields
         args.push("TEMPORARY", @temporary) if @temporary
+      end
+
+      def append_language_clauses(args)
+        args.push("LANGUAGE", @language) if @language
+        args.push("LANGUAGE_FIELD", @language_field) if @language_field
+      end
+
+      def append_score_clauses(args)
+        args.push("SCORE", @score) if @score
+        args.push("SCORE_FIELD", @score_field) if @score_field
+      end
+
+      def append_flag_clauses(args)
         args << "NOOFFSETS" if @nooffsets
         args << "NOHL" if @nohl
         args << "NOFIELDS" if @nofields
         args << "NOFREQS" if @nofreqs
-
-        if @stopwords
-          args.push("STOPWORDS", @stopwords.size, *@stopwords)
-        end
-
+        args.push("STOPWORDS", @stopwords.size, *@stopwords) if @stopwords
         args << "SKIPINITIALSCAN" if @skipinitialscan
+      end
 
-        # SCHEMA clause
+      def append_schema(args)
         args << "SCHEMA"
-        @schema_builder.fields.each do |field|
-          args.concat(field.to_args)
-        end
-
-        args
+        @schema_builder.fields.each { |field| args.concat(field.to_args) }
       end
     end
   end
 end
-

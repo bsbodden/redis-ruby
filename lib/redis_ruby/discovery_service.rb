@@ -65,16 +65,8 @@ module RR
     #     database_name: "my-database"
     #   )
     def initialize(nodes:, database_name:, internal: false, timeout: DEFAULT_TIMEOUT)
-      raise ArgumentError, "nodes is required" if nodes.nil? || nodes.empty?
-      raise ArgumentError, "database_name is required" if database_name.nil? || database_name.empty?
-
-      @nodes = nodes.map do |node|
-        {
-          host: node[:host],
-          port: node[:port] || DEFAULT_PORT
-        }
-      end
-
+      validate_params!(nodes, database_name)
+      @nodes = normalize_nodes(nodes)
       @database_name = internal ? "#{database_name}@internal" : database_name
       @timeout = timeout
     end
@@ -94,36 +86,45 @@ module RR
       last_error = nil
 
       @nodes.each do |node|
-        connection = nil
-        begin
-          connection = create_connection(
-            host: node[:host],
-            port: node[:port],
-            timeout: @timeout
-          )
-
-          result = connection.call("SENTINEL", "get-master-addr-by-name", @database_name)
-
-          if result.nil?
-            raise DiscoveryServiceError, "Database '#{@database_name}' not found in discovery service"
-          end
-
-          return {
-            host: result[0],
-            port: result[1].to_i
-          }
-        rescue StandardError => e
-          last_error = e
-          next
-        ensure
-          connection&.close rescue nil
-        end
+        result = query_node(node)
+        return result if result
+      rescue StandardError => e
+        last_error = e
+        next
       end
 
       raise DiscoveryServiceError, "Failed to discover endpoint for '#{@database_name}': #{last_error&.message}"
     end
 
     private
+
+    # Query a single node for the endpoint
+    def query_node(node)
+      connection = create_connection(host: node[:host], port: node[:port], timeout: @timeout)
+      result = connection.call("SENTINEL", "get-master-addr-by-name", @database_name)
+      raise DiscoveryServiceError, "Database '#{@database_name}' not found" if result.nil?
+
+      { host: result[0], port: result[1].to_i }
+    ensure
+      begin
+        connection&.close
+      rescue StandardError
+        nil
+      end
+    end
+
+    # Validate required parameters
+    def validate_params!(nodes, database_name)
+      raise ArgumentError, "nodes is required" if nodes.nil? || nodes.empty?
+      raise ArgumentError, "database_name is required" if database_name.nil? || database_name.empty?
+    end
+
+    # Normalize node configurations
+    def normalize_nodes(nodes)
+      nodes.map do |node|
+        { host: node[:host], port: node[:port] || DEFAULT_PORT }
+      end
+    end
 
     # Create a connection to a discovery service node
     # @api private
@@ -136,4 +137,3 @@ module RR
   class DiscoveryServiceError < Error
   end
 end
-

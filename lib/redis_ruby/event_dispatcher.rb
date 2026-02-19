@@ -169,7 +169,7 @@ module RR
     # @param path [String, nil] Unix socket path
     # @param error [Exception] The error that occurred
     # @param timestamp [Time] When the event occurred (defaults to current time)
-    def initialize(host: nil, port: nil, path: nil, error:, timestamp: Time.now)
+    def initialize(error:, host: nil, port: nil, path: nil, timestamp: Time.now)
       @host = host
       @port = port
       @path = path
@@ -211,7 +211,7 @@ module RR
     # @param healthy [Boolean] Whether the health check passed
     # @param latency [Float, nil] Health check latency in seconds
     # @param timestamp [Time] When the event occurred (defaults to current time)
-    def initialize(host: nil, port: nil, path: nil, healthy:, latency: nil, timestamp: Time.now)
+    def initialize(healthy:, host: nil, port: nil, path: nil, latency: nil, timestamp: Time.now)
       @host = host
       @port = port
       @path = path
@@ -249,7 +249,7 @@ module RR
     # @param path [String, nil] Unix socket path
     # @param reason [String] Reason for marking reconnection
     # @param timestamp [Time] When the event occurred (defaults to current time)
-    def initialize(host: nil, port: nil, path: nil, reason:, timestamp: Time.now)
+    def initialize(reason:, host: nil, port: nil, path: nil, timestamp: Time.now)
       @host = host
       @port = port
       @path = path
@@ -743,14 +743,13 @@ module RR
         if event_class.nil?
           count = @listeners.values.sum(&:size)
           @listeners.clear
-          count
         else
           raise ArgumentError, "event_class must be a subclass of Event" unless event_class < Event
 
           count = @listeners[event_class].size
           @listeners.delete(event_class)
-          count
         end
+        count
       end
     end
 
@@ -782,7 +781,7 @@ module RR
     #     puts "Someone is listening for database failures"
     #   end
     def listeners?(event_class)
-      listener_count(event_class) > 0
+      listener_count(event_class).positive?
     end
 
     private
@@ -814,5 +813,3 @@ module RR
     end
   end
 end
-
-

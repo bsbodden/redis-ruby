@@ -94,7 +94,6 @@ class BloomFilterCommandsTest < RedisRubyTestCase
   end
 
   # CUCKOO FILTER TESTS
-
   def test_cf_reserve
     result = redis.cf_reserve(@cf_key, 1000)
 
@@ -176,7 +175,6 @@ class BloomFilterCommandsTest < RedisRubyTestCase
   end
 
   # COUNT-MIN SKETCH TESTS
-
   def test_cms_initbydim
     result = redis.cms_initbydim(@cms_key, 1000, 5)
 
@@ -204,6 +202,26 @@ class BloomFilterCommandsTest < RedisRubyTestCase
     assert_operator counts[1], :>=, 10
     assert_predicate counts[2], :zero?
   end
+end
+
+class BloomFilterCommandsTestPart2 < RedisRubyTestCase
+  use_testcontainers!
+
+  def setup
+    super
+    @bf_key = "bf:test:#{SecureRandom.hex(4)}"
+    @cf_key = "cf:test:#{SecureRandom.hex(4)}"
+    @cms_key = "cms:test:#{SecureRandom.hex(4)}"
+    @topk_key = "topk:test:#{SecureRandom.hex(4)}"
+    @td_key = "td:test:#{SecureRandom.hex(4)}"
+  end
+
+  def teardown
+    redis.del(@bf_key, @cf_key, @cms_key, @topk_key, @td_key)
+    super
+  end
+
+  # BLOOM FILTER TESTS
 
   def test_cms_info
     redis.cms_initbydim(@cms_key, 1000, 5)
@@ -215,7 +233,6 @@ class BloomFilterCommandsTest < RedisRubyTestCase
   end
 
   # TOP-K TESTS
-
   def test_topk_reserve
     result = redis.topk_reserve(@topk_key, 5)
 
@@ -283,7 +300,6 @@ class BloomFilterCommandsTest < RedisRubyTestCase
   end
 
   # T-DIGEST TESTS
-
   def test_tdigest_create
     result = redis.tdigest_create(@td_key)
 

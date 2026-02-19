@@ -20,7 +20,7 @@ class VectorSetsDSLTest < RedisRubyTestCase
   end
 
   def teardown
-    redis.del(@vset_key) if redis
+    redis&.del(@vset_key)
     super
   end
 
@@ -75,9 +75,10 @@ class VectorSetsDSLTest < RedisRubyTestCase
                 in_stock: true)
 
     attrs = redis.vgetattr(@vset_key, "product1")
+
     assert_equal "electronics", attrs["category"]
     assert_in_delta 99.99, attrs["price"]
-    assert_equal true, attrs["in_stock"]
+    assert attrs["in_stock"]
   end
 
   def test_vectors_add_chaining
@@ -190,6 +191,7 @@ class VectorSetsDSLTest < RedisRubyTestCase
     redis.vadd(@vset_key, [1.0, 2.0, 3.0], "item1")
 
     vectors = redis.vectors(@vset_key)
+
     assert_equal 3, vectors.dim
   end
 
@@ -199,6 +201,7 @@ class VectorSetsDSLTest < RedisRubyTestCase
     redis.vadd(@vset_key, [5.0, 6.0], "c")
 
     vectors = redis.vectors(@vset_key)
+
     assert_equal 3, vectors.count
   end
 
@@ -207,6 +210,7 @@ class VectorSetsDSLTest < RedisRubyTestCase
     redis.vadd(@vset_key, [3.0, 4.0], "b")
 
     vectors = redis.vectors(@vset_key)
+
     assert_equal 2, vectors.size
   end
 
@@ -214,6 +218,7 @@ class VectorSetsDSLTest < RedisRubyTestCase
     redis.vadd(@vset_key, [1.0, 2.0], "a")
 
     vectors = redis.vectors(@vset_key)
+
     assert_equal 1, vectors.cardinality
   end
 
@@ -275,6 +280,33 @@ class VectorSetsDSLTest < RedisRubyTestCase
     assert_kind_of Hash, results
     assert results["item1"]["type"] == "a" || results["item1"] == { "type" => "a" }
   end
+end
+
+class VectorSetsDSLTestPart2 < RedisRubyTestCase
+  use_testcontainers!
+
+  def setup
+    super
+    @vset_key = "test:vectors:#{SecureRandom.hex(8)}"
+
+    # Check if Vector Set commands are available (Redis 8.0+)
+    begin
+      redis.vcard("__test_vset__")
+    rescue RR::CommandError => e
+      if e.message.include?("unknown command") || e.message.include?("ERR unknown")
+        skip "Vector Set commands not available (requires Redis 8.0+)"
+      end
+    end
+  end
+
+  def teardown
+    redis&.del(@vset_key)
+    super
+  end
+
+  # ============================================================
+  # vector_set DSL
+  # ============================================================
 
   def test_search_with_scores_and_metadata
     redis.vadd(@vset_key, [1.0, 0.0], "item1", attributes: { category: "tech" })

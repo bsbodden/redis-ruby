@@ -72,6 +72,24 @@ def measure_memory(_name, iterations, &block)
   }
 end
 
+def calculate_improvement(rb_stats, ruby_stats)
+  obj_improvement = ((rb_stats[:per_iteration][:objects] - ruby_stats[:per_iteration][:objects]) /
+                     rb_stats[:per_iteration][:objects] * 100).round(1)
+  bytes_improvement = ((rb_stats[:per_iteration][:bytes] - ruby_stats[:per_iteration][:bytes]) /
+                       rb_stats[:per_iteration][:bytes].to_f * 100).round(1)
+  [obj_improvement, bytes_improvement]
+end
+
+def print_memory_stats(rb_stats, ruby_stats, obj_improvement, bytes_improvement)
+  puts format("  redis-rb:   %<objs>.1f objects/op, %<bytes>d bytes/op",
+              objs: rb_stats[:per_iteration][:objects], bytes: rb_stats[:per_iteration][:bytes])
+  puts format("  redis-ruby: %<objs>.1f objects/op, %<bytes>d bytes/op",
+              objs: ruby_stats[:per_iteration][:objects], bytes: ruby_stats[:per_iteration][:bytes])
+  puts format("  Improvement: %<obj>+.1f%% objects, %<mem>+.1f%% bytes",
+              obj: obj_improvement, mem: bytes_improvement)
+  puts
+end
+
 def compare_memory(name, results, iterations, redis_rb_block:, redis_ruby_block:)
   puts "Measuring: #{name}"
   puts "-" * 50
@@ -79,19 +97,8 @@ def compare_memory(name, results, iterations, redis_rb_block:, redis_ruby_block:
   rb_stats = measure_memory("redis-rb", iterations, &redis_rb_block)
   ruby_stats = measure_memory("redis-ruby", iterations, &redis_ruby_block)
 
-  # Calculate improvement
-  obj_improvement = ((rb_stats[:per_iteration][:objects] - ruby_stats[:per_iteration][:objects]) /
-                     rb_stats[:per_iteration][:objects] * 100).round(1)
-  bytes_improvement = ((rb_stats[:per_iteration][:bytes] - ruby_stats[:per_iteration][:bytes]) /
-                       rb_stats[:per_iteration][:bytes].to_f * 100).round(1)
-
-  puts format("  redis-rb:   %.1f objects/op, %d bytes/op",
-              rb_stats[:per_iteration][:objects], rb_stats[:per_iteration][:bytes])
-  puts format("  redis-ruby: %.1f objects/op, %d bytes/op",
-              ruby_stats[:per_iteration][:objects], ruby_stats[:per_iteration][:bytes])
-  puts format("  Improvement: %+.1f%% objects, %+.1f%% bytes",
-              obj_improvement, bytes_improvement)
-  puts
+  obj_improvement, bytes_improvement = calculate_improvement(rb_stats, ruby_stats)
+  print_memory_stats(rb_stats, ruby_stats, obj_improvement, bytes_improvement)
 
   results[name] = {
     redis_rb: rb_stats,
@@ -166,8 +173,8 @@ results.each do |name, data|
   improvement = data[:improvement][:objects_percent]
   status = improvement >= 0 ? "BETTER" : "WORSE"
 
-  puts format("%-25s %15.1f %15.1f %+10.1f%% (%s)",
-              name, rb_objs, ruby_objs, improvement, status)
+  puts format("%<name>-25s %<rb>15.1f %<ruby>15.1f %<imp>+10.1f%% (%<status>s)",
+              name: name, rb: rb_objs, ruby: ruby_objs, imp: improvement, status: status)
 end
 
 puts "=" * 70
@@ -176,8 +183,8 @@ puts "=" * 70
 avg_obj_improvement = results.values.sum { |r| r[:improvement][:objects_percent] } / results.size
 avg_bytes_improvement = results.values.sum { |r| r[:improvement][:bytes_percent] } / results.size
 
-puts format("Average object allocation improvement: %+.1f%%", avg_obj_improvement)
-puts format("Average memory allocation improvement: %+.1f%%", avg_bytes_improvement)
+puts format("Average object allocation improvement: %<val>+.1f%%", val: avg_obj_improvement)
+puts format("Average memory allocation improvement: %<val>+.1f%%", val: avg_bytes_improvement)
 puts "=" * 70
 
 # Save JSON report

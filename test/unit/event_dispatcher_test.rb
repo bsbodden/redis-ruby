@@ -59,7 +59,7 @@ class EventDispatcherTest < Minitest::Test
       error: "Test"
     )
 
-    assert event.frozen?
+    assert_predicate event, :frozen?
   end
 
   def test_event_to_s
@@ -70,11 +70,11 @@ class EventDispatcherTest < Minitest::Test
     )
 
     str = event.to_s
+
     assert_includes str, "DatabaseFailedEvent"
     assert_includes str, "db-1"
     assert_includes str, "us-east-1"
   end
-
   # ============================================================
   # EventDispatcher - Listener Registration
   # ============================================================
@@ -94,7 +94,7 @@ class EventDispatcherTest < Minitest::Test
   end
 
   def test_on_returns_listener_block
-    block = proc { |_event| }
+    block = proc { |event| event }
     result = @dispatcher.on(RR::DatabaseFailedEvent, &block)
 
     assert_same block, result
@@ -108,7 +108,7 @@ class EventDispatcherTest < Minitest::Test
 
   def test_on_raises_with_non_event_class
     assert_raises(ArgumentError) do
-      @dispatcher.on(String) { |_event| }
+      @dispatcher.on(String) { |_event| nil }
     end
   end
 
@@ -127,6 +127,16 @@ class EventDispatcherTest < Minitest::Test
 
     assert_equal 3, call_count
   end
+end
+
+class EventDispatcherTestPart2 < Minitest::Test
+  def setup
+    @dispatcher = RR::EventDispatcher.new
+  end
+
+  # ============================================================
+  # Event Classes
+  # ============================================================
 
   # ============================================================
   # EventDispatcher - Event Dispatching
@@ -147,8 +157,8 @@ class EventDispatcherTest < Minitest::Test
   end
 
   def test_dispatch_returns_listener_count
-    @dispatcher.on(RR::DatabaseFailedEvent) { |_event| }
-    @dispatcher.on(RR::DatabaseFailedEvent) { |_event| }
+    @dispatcher.on(RR::DatabaseFailedEvent) { |_event| nil }
+    @dispatcher.on(RR::DatabaseFailedEvent) { |_event| nil }
 
     event = RR::DatabaseFailedEvent.new(
       database_id: "db-1",
@@ -205,14 +215,13 @@ class EventDispatcherTest < Minitest::Test
     # Second listener should have been called
     assert_equal 1, call_count
   end
-
   # ============================================================
   # EventDispatcher - Listener Management
   # ============================================================
 
   def test_listener_count
-    @dispatcher.on(RR::DatabaseFailedEvent) { |_event| }
-    @dispatcher.on(RR::DatabaseFailedEvent) { |_event| }
+    @dispatcher.on(RR::DatabaseFailedEvent) { |_event| nil }
+    @dispatcher.on(RR::DatabaseFailedEvent) { |_event| nil }
 
     assert_equal 2, @dispatcher.listener_count(RR::DatabaseFailedEvent)
   end
@@ -230,15 +239,15 @@ class EventDispatcherTest < Minitest::Test
   def test_listeners_predicate
     refute @dispatcher.listeners?(RR::DatabaseFailedEvent)
 
-    @dispatcher.on(RR::DatabaseFailedEvent) { |_event| }
+    @dispatcher.on(RR::DatabaseFailedEvent) { |_event| nil }
 
     assert @dispatcher.listeners?(RR::DatabaseFailedEvent)
   end
 
   def test_clear_listeners_for_specific_event
-    @dispatcher.on(RR::DatabaseFailedEvent) { |_event| }
-    @dispatcher.on(RR::DatabaseFailedEvent) { |_event| }
-    @dispatcher.on(RR::DatabaseRecoveredEvent) { |_event| }
+    @dispatcher.on(RR::DatabaseFailedEvent) { |_event| nil }
+    @dispatcher.on(RR::DatabaseFailedEvent) { |_event| nil }
+    @dispatcher.on(RR::DatabaseRecoveredEvent) { |_event| nil }
 
     count = @dispatcher.clear_listeners(RR::DatabaseFailedEvent)
 
@@ -248,9 +257,9 @@ class EventDispatcherTest < Minitest::Test
   end
 
   def test_clear_all_listeners
-    @dispatcher.on(RR::DatabaseFailedEvent) { |_event| }
-    @dispatcher.on(RR::DatabaseRecoveredEvent) { |_event| }
-    @dispatcher.on(RR::FailoverEvent) { |_event| }
+    @dispatcher.on(RR::DatabaseFailedEvent) { |_event| nil }
+    @dispatcher.on(RR::DatabaseRecoveredEvent) { |_event| nil }
+    @dispatcher.on(RR::FailoverEvent) { |_event| nil }
 
     count = @dispatcher.clear_listeners
 
@@ -265,16 +274,15 @@ class EventDispatcherTest < Minitest::Test
       @dispatcher.clear_listeners(String)
     end
   end
-
   # ============================================================
   # EventDispatcher - Thread Safety
   # ============================================================
 
   def test_thread_safe_listener_registration
-    threads = 10.times.map do
+    threads = Array.new(10) do
       Thread.new do
         10.times do
-          @dispatcher.on(RR::DatabaseFailedEvent) { |_event| }
+          @dispatcher.on(RR::DatabaseFailedEvent) { |_event| nil }
         end
       end
     end
@@ -292,7 +300,7 @@ class EventDispatcherTest < Minitest::Test
       mutex.synchronize { counter += 1 }
     end
 
-    threads = 10.times.map do
+    threads = Array.new(10) do
       Thread.new do
         10.times do
           event = RR::DatabaseFailedEvent.new(
@@ -309,6 +317,16 @@ class EventDispatcherTest < Minitest::Test
 
     assert_equal 100, counter
   end
+end
+
+class EventDispatcherTestPart3 < Minitest::Test
+  def setup
+    @dispatcher = RR::EventDispatcher.new
+  end
+
+  # ============================================================
+  # Event Classes
+  # ============================================================
 
   # ============================================================
   # EventDispatcher - Logger Integration
@@ -330,8 +348,8 @@ class EventDispatcherTest < Minitest::Test
     dispatcher.dispatch(event)
 
     log_content = log_output.string
+
     assert_includes log_content, "Error in event listener"
     assert_includes log_content, "Test error"
   end
 end
-

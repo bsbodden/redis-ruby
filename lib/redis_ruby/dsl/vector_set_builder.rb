@@ -47,9 +47,9 @@ module RR
       #
       # @yield Block for defining metadata fields
       # @return [self]
-      def metadata_schema(&block)
+      def metadata_schema(&)
         schema = MetadataSchema.new
-        schema.instance_eval(&block) if block_given?
+        schema.instance_eval(&) if block_given?
         @config[:metadata_fields] = schema.fields
         self
       end
@@ -74,4 +74,3 @@ module RR
     end
   end
 end
-

@@ -50,6 +50,7 @@ module RR
       #   list << "item3"
       def push(*values)
         return self if values.empty?
+
         @redis.rpush(@key, *values.map(&:to_s))
         self
       end
@@ -93,6 +94,7 @@ module RR
       #   list.unshift("urgent")
       def unshift(*values)
         return self if values.empty?
+
         @redis.lpush(@key, *values.map(&:to_s))
         self
       end
@@ -213,8 +215,8 @@ module RR
       #
       # @example
       #   list.keep(100)  # Keep only first 100 elements
-      def keep(n)
-        @redis.ltrim(@key, 0, n - 1)
+      def keep(num)
+        @redis.ltrim(@key, 0, num - 1)
         self
       end
 
@@ -231,7 +233,7 @@ module RR
       #   item = list.blocking_shift(timeout: 5)
       def blocking_shift(timeout: 0)
         result = @redis.blpop(@key, timeout)
-        result&.last  # BLPOP returns [key, value]
+        result&.last # BLPOP returns [key, value]
       end
       alias blocking_pop blocking_shift
 
@@ -244,7 +246,7 @@ module RR
       #   item = list.blocking_pop_right(timeout: 5)
       def blocking_pop_right(timeout: 0)
         result = @redis.brpop(@key, timeout)
-        result&.last  # BRPOP returns [key, value]
+        result&.last # BRPOP returns [key, value]
       end
 
       # ============================================================
@@ -270,7 +272,7 @@ module RR
       # @example
       #   list.empty?  # => false
       def empty?
-        length == 0
+        length.zero?
       end
 
       # Check if list key exists
@@ -280,7 +282,7 @@ module RR
       # @example
       #   list.exists?  # => true
       def exists?
-        @redis.exists(@key) > 0
+        @redis.exists(@key).positive?
       end
 
       # ============================================================
@@ -305,11 +307,11 @@ module RR
       # @example
       #   list.first     # => "item1"
       #   list.first(3)  # => ["item1", "item2", "item3"]
-      def first(n = nil)
-        if n.nil?
+      def first(num = nil)
+        if num.nil?
           @redis.lindex(@key, 0)
         else
-          @redis.lrange(@key, 0, n - 1)
+          @redis.lrange(@key, 0, num - 1)
         end
       end
 
@@ -321,11 +323,11 @@ module RR
       # @example
       #   list.last     # => "item3"
       #   list.last(2)  # => ["item2", "item3"]
-      def last(n = nil)
-        if n.nil?
+      def last(num = nil)
+        if num.nil?
           @redis.lindex(@key, -1)
         else
-          @redis.lrange(@key, -n, -1)
+          @redis.lrange(@key, -num, -1)
         end
       end
 
@@ -340,10 +342,10 @@ module RR
       #
       # @example
       #   list.each { |item| puts item }
-      def each(&block)
+      def each(&)
         return enum_for(:each) unless block_given?
 
-        to_a.each(&block)
+        to_a.each(&)
         self
       end
 
@@ -354,10 +356,10 @@ module RR
       #
       # @example
       #   list.each_with_index { |item, i| puts "#{i}: #{item}" }
-      def each_with_index(&block)
+      def each_with_index(&)
         return enum_for(:each_with_index) unless block_given?
 
-        to_a.each_with_index(&block)
+        to_a.each_with_index(&)
         self
       end
 
@@ -388,4 +390,3 @@ module RR
     end
   end
 end
-

@@ -337,13 +337,13 @@ module RR
         end
       end
 
-      private
-
       UNSUBSCRIBE_COMMANDS = {
         "SUBSCRIBE" => "UNSUBSCRIBE",
         "PSUBSCRIBE" => "PUNSUBSCRIBE",
         "SSUBSCRIBE" => "SUNSUBSCRIBE",
       }.freeze
+
+      private
 
       # Main subscription loop
       def subscription_loop(command, targets, timeout: nil, sharded: false) # rubocop:disable Lint/UnusedMethodArgument
@@ -370,7 +370,7 @@ module RR
       # Clean up subscription connection after subscription ends
       def cleanup_subscription_connection
         @subscription_connection = nil
-        # Note: We don't close the connection here because it may be reused
+        # NOTE: We don't close the connection here because it may be reused
         # The connection exits subscription mode when all channels are unsubscribed
       end
 
@@ -395,16 +395,7 @@ module RR
 
       # Read the next subscription message, handling timeouts
       def read_subscription_message(timeout, deadline)
-        # When no timeout/deadline is set, use a very long timeout to block indefinitely
-        # This prevents the connection's default timeout from causing premature exits
-        read_timeout = if timeout
-                         [1.0, timeout].min
-                       elsif deadline
-                         [1.0, deadline - Process.clock_gettime(Process::CLOCK_MONOTONIC)].min
-                       else
-                         3600.0 # 1 hour - effectively infinite for subscription mode
-                       end
-
+        read_timeout = compute_read_timeout(timeout, deadline)
         message = @subscription_connection.read_response(timeout: read_timeout)
         return :break unless message.is_a?(Array) && !message.empty?
 
@@ -412,8 +403,17 @@ module RR
       rescue TimeoutError
         deadline && Process.clock_gettime(Process::CLOCK_MONOTONIC) < deadline ? :next : :break
       rescue ConnectionError
-        # Connection was closed - exit subscription loop gracefully
         :break
+      end
+
+      def compute_read_timeout(timeout, deadline)
+        if timeout
+          [1.0, timeout].min
+        elsif deadline
+          [1.0, deadline - Process.clock_gettime(Process::CLOCK_MONOTONIC)].min
+        else
+          3600.0
+        end
       end
 
       # Dispatch a subscription message to the appropriate handler callback

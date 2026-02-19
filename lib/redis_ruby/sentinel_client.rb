@@ -102,78 +102,30 @@ module RR
       @mutex = Mutex.new
     end
 
-    # Execute a Redis command
-    #
-    # Automatically handles failover by reconnecting on READONLY errors.
-    #
+    # Execute a Redis command with automatic failover handling
     # @param command [String] Command name
     # @param args [Array] Command arguments
     # @return [Object] Command result
     def call(command, *args)
-      attempts = 0
-
-      begin
-        ensure_connected
-        conn = @connection
-        raise ConnectionError, "Connection lost" unless conn
-
-        handle_call_result(conn.call(command, *args))
-      rescue ConnectionError, ReadOnlyError, FailoverError
-        attempts += 1
-        retry if retry_with_backoff?(attempts)
-        raise
-      end
+      call_with_retry { |conn| conn.call(command, *args) }
     end
 
     # Fast path for single-argument commands (GET, DEL, EXISTS, etc.)
     # @api private
     def call_1arg(command, arg)
-      attempts = 0
-      begin
-        ensure_connected
-        conn = @connection
-        raise ConnectionError, "Connection lost" unless conn
-
-        handle_call_result(conn.call_1arg(command, arg))
-      rescue ConnectionError, ReadOnlyError, FailoverError
-        attempts += 1
-        retry if retry_with_backoff?(attempts)
-        raise
-      end
+      call_with_retry { |conn| conn.call_1arg(command, arg) }
     end
 
     # Fast path for two-argument commands (SET without options, HGET, etc.)
     # @api private
     def call_2args(command, arg1, arg2)
-      attempts = 0
-      begin
-        ensure_connected
-        conn = @connection
-        raise ConnectionError, "Connection lost" unless conn
-
-        handle_call_result(conn.call_2args(command, arg1, arg2))
-      rescue ConnectionError, ReadOnlyError, FailoverError
-        attempts += 1
-        retry if retry_with_backoff?(attempts)
-        raise
-      end
+      call_with_retry { |conn| conn.call_2args(command, arg1, arg2) }
     end
 
     # Fast path for three-argument commands (HSET, LRANGE, etc.)
     # @api private
     def call_3args(command, arg1, arg2, arg3)
-      attempts = 0
-      begin
-        ensure_connected
-        conn = @connection
-        raise ConnectionError, "Connection lost" unless conn
-
-        handle_call_result(conn.call_3args(command, arg1, arg2, arg3))
-      rescue ConnectionError, ReadOnlyError, FailoverError
-        attempts += 1
-        retry if retry_with_backoff?(attempts)
-        raise
-      end
+      call_with_retry { |conn| conn.call_3args(command, arg1, arg2, arg3) }
     end
 
     # Close the connection
@@ -230,6 +182,22 @@ module RR
     attr_reader :sentinel_manager
 
     private
+
+    # Execute a block with connection retry on failover errors
+    def call_with_retry
+      attempts = 0
+      begin
+        ensure_connected
+        conn = @connection
+        raise ConnectionError, "Connection lost" unless conn
+
+        handle_call_result(yield(conn))
+      rescue ConnectionError, ReadOnlyError, FailoverError
+        attempts += 1
+        retry if retry_with_backoff?(attempts)
+        raise
+      end
+    end
 
     def handle_call_result(result)
       case result

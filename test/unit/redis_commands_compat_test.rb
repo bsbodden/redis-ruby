@@ -25,7 +25,7 @@ class RedisCompatMockClient
     @call_results[:zmscore]
   end
 
-  def zscan_iter(_key, match: "*", count: 10)
+  def zscan_iter(_key, **_kwargs)
     @call_results[:zscan_iter] || Enumerator.new { |y| y << ["member", 1.0] }
   end
 
@@ -33,7 +33,7 @@ class RedisCompatMockClient
     @call_results[:exists]
   end
 
-  def scan_iter(match: "*", count: 10, type: nil)
+  def scan_iter(**_kwargs)
     @call_results[:scan_iter] || Enumerator.new { |y| y << "key1" }
   end
 
@@ -69,11 +69,11 @@ class RedisCompatMockClient
     @call_results[:hincrbyfloat]
   end
 
-  def hscan_iter(_key, match: "*", count: 10)
+  def hscan_iter(_key, **_kwargs)
     @call_results[:hscan_iter] || Enumerator.new { |y| y << %w[field val] }
   end
 
-  def sscan_iter(_key, match: "*", count: 10)
+  def sscan_iter(_key, **_kwargs)
     @call_results[:sscan_iter] || Enumerator.new { |y| y << "member1" }
   end
 

@@ -139,9 +139,9 @@ module RR
       #     create_consumer :worker1
       #     create_consumer :worker2
       #   end
-      def consumer_group(stream_key, group_name, &block)
+      def consumer_group(stream_key, group_name, &)
         builder = DSL::ConsumerGroupBuilder.new(self, stream_key.to_s, group_name.to_s)
-        builder.instance_eval(&block)
+        builder.instance_eval(&)
       end
 
       # Read from multiple streams simultaneously

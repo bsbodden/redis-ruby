@@ -31,13 +31,13 @@ module RR
       #
       # @param n [Integer] Number of results
       # @return [self]
-      def limit(n)
-        @options[:count] = n
+      def limit(num)
+        @options[:count] = num
         self
       end
 
       # Alias for limit
-      alias_method :top_k, :limit
+      alias top_k limit
 
       # Include similarity scores in results
       #
@@ -56,7 +56,7 @@ module RR
       end
 
       # Alias for with_metadata
-      alias_method :with_attributes, :with_metadata
+      alias with_attributes with_metadata
 
       # Add a filter expression
       #
@@ -68,7 +68,7 @@ module RR
       end
 
       # Alias for filter
-      alias_method :where, :filter
+      alias where filter
 
       # Set exploration factor (ef parameter)
       #
@@ -80,7 +80,7 @@ module RR
       end
 
       # Alias for exploration_factor
-      alias_method :ef, :exploration_factor
+      alias ef exploration_factor
 
       # Set distance threshold (epsilon)
       #
@@ -92,7 +92,7 @@ module RR
       end
 
       # Alias for threshold
-      alias_method :epsilon, :threshold
+      alias epsilon threshold
 
       # Set filter exploration factor
       #
@@ -127,9 +127,8 @@ module RR
       end
 
       # Alias for execute
-      alias_method :run, :execute
-      alias_method :results, :execute
+      alias run execute
+      alias results execute
     end
   end
 end
-

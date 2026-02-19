@@ -13,7 +13,7 @@ class FakeIO
     @written = []
   end
 
-  def read_nonblock(_size, *_args, exception: true)
+  def read_nonblock(_size, *_args, **_kwargs)
     raise IOError, "stream closed" if @responses.empty? && @closed
 
     r = @responses.shift
@@ -23,7 +23,7 @@ class FakeIO
     r
   end
 
-  def write_nonblock(data, exception: true)
+  def write_nonblock(data, **_kwargs)
     r = @write_responses.shift
     return r if r
 
@@ -74,7 +74,6 @@ class BufferedIOTest < Minitest::Test
 
     assert_instance_of RR::Protocol::BufferedIO, bio
   end
-
   # ============================================================
   # getbyte
   # ============================================================
@@ -100,7 +99,6 @@ class BufferedIOTest < Minitest::Test
     bio.getbyte # consumes 'A'
     assert_raises(RR::ConnectionError) { bio.getbyte }
   end
-
   # ============================================================
   # gets_chomp
   # ============================================================
@@ -133,7 +131,6 @@ class BufferedIOTest < Minitest::Test
 
     assert_equal "", bio.gets_chomp
   end
-
   # ============================================================
   # gets_integer
   # ============================================================
@@ -172,7 +169,6 @@ class BufferedIOTest < Minitest::Test
 
     assert_equal 123, bio.gets_integer
   end
-
   # ============================================================
   # read_chomp
   # ============================================================
@@ -191,7 +187,6 @@ class BufferedIOTest < Minitest::Test
     assert_equal "foobar", bio.read_chomp(6)
     assert_equal "baz", bio.gets_chomp
   end
-
   # ============================================================
   # read
   # ============================================================
@@ -211,7 +206,6 @@ class BufferedIOTest < Minitest::Test
     assert_equal "CD", bio.read(2)
     assert_equal "EF", bio.read(2)
   end
-
   # ============================================================
   # skip
   # ============================================================
@@ -224,6 +218,12 @@ class BufferedIOTest < Minitest::Test
     assert_nil result
     assert_equal "DEF", bio.read(3)
   end
+end
+
+class BufferedIOTestPart2 < Minitest::Test
+  # ============================================================
+  # Constructor
+  # ============================================================
 
   # ============================================================
   # write
@@ -293,7 +293,6 @@ class BufferedIOTest < Minitest::Test
     bio = RR::Protocol::BufferedIO.new(mock_io)
     assert_raises(RR::ConnectionError) { bio.write("hi") }
   end
-
   # ============================================================
   # flush, close, closed?
   # ============================================================
@@ -326,7 +325,6 @@ class BufferedIOTest < Minitest::Test
 
     refute_predicate bio, :closed?
   end
-
   # ============================================================
   # eof?
   # ============================================================
@@ -354,7 +352,6 @@ class BufferedIOTest < Minitest::Test
     # io still has responses
     refute_predicate bio, :eof?
   end
-
   # ============================================================
   # with_timeout
   # ============================================================
@@ -386,6 +383,12 @@ class BufferedIOTest < Minitest::Test
 
     assert_in_delta(5.0, bio.read_timeout)
   end
+end
+
+class BufferedIOTestPart3 < Minitest::Test
+  # ============================================================
+  # Constructor
+  # ============================================================
 
   # ============================================================
   # fill_buffer - error handling
@@ -450,7 +453,6 @@ class BufferedIOTest < Minitest::Test
     bio = RR::Protocol::BufferedIO.new(mock_io)
     assert_raises(RR::TimeoutError) { bio.getbyte }
   end
-
   # ============================================================
   # Buffer cutoff / large buffer reallocation
   # ============================================================
@@ -463,7 +465,6 @@ class BufferedIOTest < Minitest::Test
     # Next fill should reallocate buffer (buffer was > BUFFER_CUTOFF)
     assert_equal 65, bio.getbyte
   end
-
   # ============================================================
   # ensure_remaining
   # ============================================================
@@ -476,7 +477,6 @@ class BufferedIOTest < Minitest::Test
 
     assert_equal "BCDE", result
   end
-
   # ============================================================
   # Append mode in fill_buffer (non-empty buffer)
   # ============================================================
@@ -488,7 +488,6 @@ class BufferedIOTest < Minitest::Test
 
     assert_equal "hello", result
   end
-
   # ============================================================
   # read_timeout / write_timeout accessors
   # ============================================================

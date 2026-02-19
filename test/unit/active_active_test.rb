@@ -7,12 +7,13 @@ class ActiveActiveTest < Minitest::Test
     @regions = [
       { host: "redis-us-east.example.com", port: 6379 },
       { host: "redis-eu-west.example.com", port: 6379 },
-      { host: "redis-ap-south.example.com", port: 6379 }
+      { host: "redis-ap-south.example.com", port: 6379 },
     ]
   end
 
   def test_initialize_with_regions
     client = RR::ActiveActiveClient.new(regions: @regions)
+
     assert_instance_of RR::ActiveActiveClient, client
   end
 
@@ -25,6 +26,7 @@ class ActiveActiveTest < Minitest::Test
 
   def test_initialize_with_single_region
     client = RR::ActiveActiveClient.new(regions: [@regions.first])
+
     assert_instance_of RR::ActiveActiveClient, client
   end
 
@@ -37,6 +39,7 @@ class ActiveActiveTest < Minitest::Test
       ssl: true,
       ssl_params: { verify_mode: OpenSSL::SSL::VERIFY_PEER }
     )
+
     assert_instance_of RR::ActiveActiveClient, client
   end
 
@@ -45,16 +48,19 @@ class ActiveActiveTest < Minitest::Test
       regions: @regions,
       preferred_region: 1
     )
+
     assert_instance_of RR::ActiveActiveClient, client
   end
 
   def test_call_method_exists
     client = RR::ActiveActiveClient.new(regions: @regions)
+
     assert_respond_to client, :call
   end
 
   def test_fast_path_methods_exist
     client = RR::ActiveActiveClient.new(regions: @regions)
+
     assert_respond_to client, :call_1arg
     assert_respond_to client, :call_2args
     assert_respond_to client, :call_3args
@@ -62,7 +68,7 @@ class ActiveActiveTest < Minitest::Test
 
   def test_includes_command_modules
     client = RR::ActiveActiveClient.new(regions: @regions)
-    
+
     # Test a few key command modules
     assert_respond_to client, :get
     assert_respond_to client, :set
@@ -74,27 +80,31 @@ class ActiveActiveTest < Minitest::Test
 
   def test_close_method_exists
     client = RR::ActiveActiveClient.new(regions: @regions)
+
     assert_respond_to client, :close
   end
 
   def test_connected_method_exists
     client = RR::ActiveActiveClient.new(regions: @regions)
+
     assert_respond_to client, :connected?
   end
 
   def test_current_region_method_exists
     client = RR::ActiveActiveClient.new(regions: @regions)
+
     assert_respond_to client, :current_region
   end
 
   def test_failover_to_next_region_method_exists
     client = RR::ActiveActiveClient.new(regions: @regions)
+
     assert_respond_to client, :failover_to_next_region
   end
 
   def test_thread_safety
     client = RR::ActiveActiveClient.new(regions: @regions)
-    
+
     # Verify mutex exists for thread safety
     assert client.instance_variable_defined?(:@mutex)
     assert_instance_of Mutex, client.instance_variable_get(:@mutex)
@@ -106,6 +116,7 @@ class ActiveActiveTest < Minitest::Test
 
   def test_factory_method_creates_client
     client = RR.active_active(regions: @regions)
+
     assert_instance_of RR::ActiveActiveClient, client
   end
 
@@ -115,6 +126,7 @@ class ActiveActiveTest < Minitest::Test
       db: 2,
       password: "test123"
     )
+
     assert_instance_of RR::ActiveActiveClient, client
   end
 
@@ -129,7 +141,7 @@ class ActiveActiveTest < Minitest::Test
     client.close
     elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time
 
-    assert elapsed < 5, "close took #{elapsed}s, expected < 5s"
+    assert_operator elapsed, :<, 5, "close took #{elapsed}s, expected < 5s"
   end
 
   def test_select_db_passes_string_not_integer
@@ -141,4 +153,3 @@ class ActiveActiveTest < Minitest::Test
     client.send(:select_db)
   end
 end
-

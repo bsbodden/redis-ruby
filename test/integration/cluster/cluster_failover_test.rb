@@ -92,29 +92,13 @@ class ClusterFailoverIntegrationTest < ClusterTestCase
   # Test: Operations work after client reconnection
   def test_operations_after_reconnection
     key = "failover:reconnect:key"
-    values = []
 
-    # Perform operations
-    10.times do |i|
-      cluster.call("SET", key, "value#{i}")
-      values << cluster.call("GET", key)
-    end
+    values = perform_set_get_cycle(key, 10, "value")
 
     assert_equal "value9", values.last
 
-    # Close and reopen with host translation
-    cluster.close
-    host_translation = ClusterTestContainerSupport.host_translation
-    @cluster = RR::ClusterClient.new(
-      nodes: @cluster_nodes,
-      host_translation: host_translation
-    )
-
-    # Continue operations
-    10.times do |i|
-      cluster.call("SET", key, "newvalue#{i}")
-      values << cluster.call("GET", key)
-    end
+    reconnect_cluster
+    perform_set_get_cycle(key, 10, "newvalue")
 
     assert_equal "newvalue9", cluster.call("GET", key)
   ensure
@@ -243,23 +227,52 @@ class ClusterFailoverIntegrationTest < ClusterTestCase
   def test_serial_operations_consistency
     prefix = "failover:serial"
 
-    # Many serial operations
-    50.times do |i|
+    perform_serial_operations(prefix, 50)
+    verify_counters(prefix, 50)
+  ensure
+    cleanup_serial_keys(prefix, 50)
+  end
+
+  private
+
+  def perform_set_get_cycle(key, count, prefix)
+    values = []
+    count.times do |i|
+      cluster.call("SET", key, "#{prefix}#{i}")
+      values << cluster.call("GET", key)
+    end
+    values
+  end
+
+  def reconnect_cluster
+    cluster.close
+    host_translation = ClusterTestContainerSupport.host_translation
+    @cluster = RR::ClusterClient.new(
+      nodes: @cluster_nodes,
+      host_translation: host_translation
+    )
+  end
+
+  def perform_serial_operations(prefix, count)
+    count.times do |i|
       key = "#{prefix}:#{i}"
       cluster.call("SET", key, "value")
       cluster.call("INCR", "#{key}:counter")
       cluster.call("GET", key)
       cluster.call("DEL", key)
     end
+  end
 
-    # Verify counters
-    50.times do |i|
-      count = cluster.call("GET", "#{prefix}:#{i}:counter")
+  def verify_counters(prefix, count)
+    count.times do |i|
+      count_val = cluster.call("GET", "#{prefix}:#{i}:counter")
 
-      assert_equal "1", count
+      assert_equal "1", count_val
     end
-  ensure
-    50.times do |i|
+  end
+
+  def cleanup_serial_keys(prefix, count)
+    count.times do |i|
       begin
         cluster.call("DEL", "#{prefix}:#{i}")
       rescue StandardError

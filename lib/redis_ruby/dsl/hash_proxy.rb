@@ -59,7 +59,6 @@ module RR
       #   user[:name] = "John"
       def []=(field, value)
         @redis.hset(@key, field.to_s, value)
-        value
       end
 
       # Set multiple fields at once
@@ -71,7 +70,7 @@ module RR
       #   user.set(name: "John", email: "john@example.com")
       def set(**fields)
         return self if fields.empty?
-        
+
         # Convert symbol keys to strings and flatten for HSET
         flat_args = fields.flat_map { |k, v| [k.to_s, v] }
         @redis.hset(@key, *flat_args)
@@ -79,8 +78,8 @@ module RR
       end
 
       # Alias for set (Ruby Hash compatibility)
-      alias_method :merge, :set
-      alias_method :update, :set
+      alias merge set
+      alias update set
 
       # Get the value of a field with a default
       #
@@ -104,7 +103,7 @@ module RR
       def to_h
         result = @redis.hgetall(@key)
         return {} if result.nil? || result.empty?
-        
+
         # Convert string keys to symbols
         result.transform_keys(&:to_sym)
       end
@@ -116,7 +115,7 @@ module RR
       # @example
       #   user.exists?  # => true
       def exists?
-        @redis.exists(@key) > 0
+        @redis.exists(@key).positive?
       end
 
       # Check if a field exists in the hash
@@ -131,9 +130,9 @@ module RR
       end
 
       # Alias for key? (Ruby Hash compatibility)
-      alias_method :has_key?, :key?
-      alias_method :include?, :key?
-      alias_method :member?, :key?
+      alias has_key? key?
+      alias include? key?
+      alias member? key?
 
       # Get all field names
       #
@@ -166,7 +165,7 @@ module RR
       end
 
       # Alias for length (Ruby Hash compatibility)
-      alias_method :size, :length
+      alias size length
 
       # Check if the hash is empty
       #
@@ -175,7 +174,7 @@ module RR
       # @example
       #   user.empty?  # => false
       def empty?
-        length == 0
+        length.zero?
       end
 
       # Delete one or more fields from the hash
@@ -188,6 +187,7 @@ module RR
       #   user.delete(:field1, :field2, :field3)
       def delete(*fields)
         return 0 if fields.empty?
+
         @redis.hdel(@key, *fields.map(&:to_s))
       end
 
@@ -280,10 +280,10 @@ module RR
       #
       # @example
       #   user.each { |field, value| puts "#{field}: #{value}" }
-      def each(&block)
+      def each(&)
         return to_enum(:each) unless block_given?
 
-        to_h.each(&block)
+        to_h.each(&)
         self
       end
 
@@ -294,10 +294,10 @@ module RR
       #
       # @example
       #   user.each_key { |field| puts field }
-      def each_key(&block)
+      def each_key(&)
         return to_enum(:each_key) unless block_given?
 
-        keys.each(&block)
+        keys.each(&)
         self
       end
 
@@ -308,15 +308,12 @@ module RR
       #
       # @example
       #   user.each_value { |value| puts value }
-      def each_value(&block)
+      def each_value(&)
         return to_enum(:each_value) unless block_given?
 
-        values.each(&block)
+        values.each(&)
         self
       end
-
     end
   end
 end
-
-

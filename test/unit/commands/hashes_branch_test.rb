@@ -13,18 +13,18 @@ class HashesBranchTest < Minitest::Test
       mock_return(args)
     end
 
-    def call_1arg(cmd, a1)
-      @last_command = [cmd, a1]
-      mock_return([cmd, a1])
+    def call_1arg(cmd, arg_one)
+      @last_command = [cmd, arg_one]
+      mock_return([cmd, arg_one])
     end
 
-    def call_2args(cmd, a1, a2)
-      @last_command = [cmd, a1, a2]
+    def call_2args(cmd, arg_one, arg_two)
+      @last_command = [cmd, arg_one, arg_two]
       "val"
     end
 
-    def call_3args(cmd, a1, a2, a3)
-      @last_command = [cmd, a1, a2, a3]
+    def call_3args(cmd, arg_one, arg_two, arg_three)
+      @last_command = [cmd, arg_one, arg_two, arg_three]
       1
     end
 

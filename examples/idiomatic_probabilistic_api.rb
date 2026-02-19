@@ -32,7 +32,7 @@ spam_emails = [
   "spam1@example.com",
   "spam2@example.com",
   "phishing@example.com",
-  "scam@example.com"
+  "scam@example.com",
 ]
 spam_filter.add(*spam_emails)
 
@@ -40,21 +40,21 @@ spam_filter.add(*spam_emails)
 test_emails = [
   "spam1@example.com",      # Known spam
   "legitimate@example.com", # Not spam
-  "user@example.com"        # Not spam
+  "user@example.com", # Not spam
 ]
 
 test_emails.each do |email|
   is_spam = spam_filter.exists?(email)
-  puts "#{email}: #{is_spam ? 'SPAM (probably)' : 'NOT SPAM (definitely)'}"
+  puts "#{email}: #{is_spam ? "SPAM (probably)" : "NOT SPAM (definitely)"}"
 end
 
 # Get filter info
 info = spam_filter.info
-puts "\nFilter capacity: #{info['Capacity']}"
+puts "\nFilter capacity: #{info["Capacity"]}"
 puts "Approximate items: #{spam_filter.cardinality}"
 
 # Set to expire in 24 hours
-spam_filter.expire(86400)
+spam_filter.expire(86_400)
 puts "Filter expires in: #{spam_filter.ttl} seconds"
 
 # ============================================================
@@ -71,8 +71,8 @@ processed_urls.reserve(error_rate: 0.001, capacity: 1_000_000)
 urls_to_process = [
   "https://example.com/page1",
   "https://example.com/page2",
-  "https://example.com/page1",  # Duplicate
-  "https://example.com/page3"
+  "https://example.com/page1", # Duplicate
+  "https://example.com/page3",
 ]
 
 urls_to_process.each do |url|
@@ -102,7 +102,7 @@ active_sessions.add(*sessions)
 
 puts "Active sessions: #{sessions.size}"
 sessions.each do |session|
-  puts "  #{session}: #{active_sessions.exists?(session) ? 'ACTIVE' : 'INACTIVE'}"
+  puts "  #{session}: #{active_sessions.exists?(session) ? "ACTIVE" : "INACTIVE"}"
 end
 
 # Simulate session expiration - remove a session
@@ -112,7 +112,7 @@ puts "\nRemoved expired session: #{expired_session}"
 puts "Session still active? #{active_sessions.exists?(expired_session)}"
 
 # Check count (approximate)
-puts "Session count: #{active_sessions.count('session:def456')}"
+puts "Session count: #{active_sessions.count("session:def456")}"
 
 # ============================================================
 # Example 4: Cuckoo Filter - Cache Admission Control
@@ -126,7 +126,7 @@ cache_admitted = redis.cuckoo_filter(:cache, :admitted)
 cache_admitted.reserve(capacity: 1000, bucket_size: 4)
 
 # Try to admit items (only if not already admitted)
-items = ["item:1", "item:2", "item:3", "item:1"]  # item:1 appears twice
+items = ["item:1", "item:2", "item:3", "item:1"] # item:1 appears twice
 
 items.each do |item|
   if cache_admitted.add_nx(item)
@@ -152,7 +152,7 @@ page_visits = [
   "/home", "/home", "/home", "/home", "/home",
   "/about", "/about", "/about",
   "/contact", "/contact",
-  "/products"
+  "/products",
 ]
 
 page_visits.each { |page| pageviews.increment(page) }
@@ -167,11 +167,11 @@ end
 
 # Get sketch info
 info = pageviews.info
-puts "\nSketch dimensions: #{info['width']} x #{info['depth']}"
-puts "Total items counted: #{info['count']}"
+puts "\nSketch dimensions: #{info["width"]} x #{info["depth"]}"
+puts "Total items counted: #{info["count"]}"
 
 # Set to expire at end of day
-pageviews.expire(86400)
+pageviews.expire(86_400)
 
 # ============================================================
 # Example 6: Count-Min Sketch - Heavy Hitter Detection
@@ -190,7 +190,7 @@ endpoints = {
   "/api/products" => 50,
   "/api/orders" => 25,
   "/api/search" => 200,
-  "/api/health" => 10
+  "/api/health" => 10,
 }
 
 endpoints.each do |endpoint, count|
@@ -199,7 +199,7 @@ end
 
 # Find heavy hitters (endpoints with > 50 calls)
 puts "\nHeavy hitters (> 50 calls):"
-endpoints.keys.each do |endpoint|
+endpoints.each_key do |endpoint|
   count = api_calls.query(endpoint)
   puts "  #{endpoint}: #{count} calls" if count > 50
 end
@@ -222,16 +222,16 @@ server2_views.init_by_dim(width: 2000, depth: 5)
 server2_views.increment("/home", "/home", "/home")
 server2_views.increment("/about", "/about")
 
-puts "Server 1 - /home views: #{server1_views.query('/home')}"
-puts "Server 2 - /home views: #{server2_views.query('/home')}"
+puts "Server 1 - /home views: #{server1_views.query("/home")}"
+puts "Server 2 - /home views: #{server2_views.query("/home")}"
 
 # Merge into total
 total_views = redis.count_min_sketch(:pageviews, :total)
 total_views.init_by_dim(width: 2000, depth: 5)
 total_views.merge("pageviews:server1", "pageviews:server2")
 
-puts "Total - /home views: #{total_views.query('/home')}"
-puts "Total - /about views: #{total_views.query('/about')}"
+puts "Total - /home views: #{total_views.query("/home")}"
+puts "Total - /about views: #{total_views.query("/about")}"
 
 # ============================================================
 # Example 8: Top-K - Trending Products
@@ -251,7 +251,7 @@ products = [
   "product:789", "product:789", "product:789",
   "product:101", "product:101",
   "product:202",
-  "product:303"  # This might not make it to top 5
+  "product:303", # This might not make it to top 5
 ]
 
 products.each { |product| trending.add(product) }
@@ -293,7 +293,7 @@ searches = {
   "docker" => 8,
   "kubernetes" => 5,
   "microservices" => 3,
-  "serverless" => 2
+  "serverless" => 2,
 }
 
 searches.each do |term, count|
@@ -308,11 +308,11 @@ top_searches.each_with_index do |(term, count), index|
 end
 
 # Check if specific terms are in top 10
-check_terms = ["redis", "serverless", "unknown"]
+check_terms = %w[redis serverless unknown]
 puts "\nAre these in top 10?"
 check_terms.each do |term|
   in_top = popular_searches.query(term)
-  puts "  #{term}: #{in_top ? 'YES' : 'NO'}"
+  puts "  #{term}: #{in_top ? "YES" : "NO"}"
 end
 
 # ============================================================
@@ -332,7 +332,7 @@ players = {
   "player:bob" => 800,
   "player:charlie" => 600,
   "player:david" => 400,
-  "player:eve" => 200
+  "player:eve" => 200,
 }
 
 players.each do |player, score|
@@ -342,14 +342,14 @@ end
 # Get top 3 players
 top_players = leaderboard.list(with_counts: true)
 puts "\nTop 3 Players:"
+medals = %w[1st 2nd 3rd].freeze
 top_players.each_with_index do |(player, score), index|
-  medal = ["🥇", "🥈", "🥉"][index]
-  puts "  #{medal} #{player}: #{score} points"
+  puts "  #{medals[index]} #{player}: #{score} points"
 end
 
 # Check if a player is in top 3
-puts "\nIs player:david in top 3? #{leaderboard.query('player:david')}"
-puts "Is player:alice in top 3? #{leaderboard.query('player:alice')}"
+puts "\nIs player:david in top 3? #{leaderboard.query("player:david")}"
+puts "Is player:alice in top 3? #{leaderboard.query("player:alice")}"
 
 # ============================================================
 # Example 11: Chaining Operations
@@ -366,7 +366,7 @@ bloom = redis.bloom_filter(:chaining, :bloom)
   .expire(3600)
 
 puts "  Items added: 3"
-puts "  Exists item1? #{bloom.exists?('item1')}"
+puts "  Exists item1? #{bloom.exists?("item1")}"
 puts "  TTL: #{bloom.ttl} seconds"
 
 # Cuckoo Filter chaining
@@ -378,8 +378,8 @@ cuckoo = redis.cuckoo_filter(:chaining, :cuckoo)
   .expire(3600)
 
 puts "  Items added: 3, removed: 1"
-puts "  Exists item1? #{cuckoo.exists?('item1')}"
-puts "  Exists item2? #{cuckoo.exists?('item2')}"
+puts "  Exists item1? #{cuckoo.exists?("item1")}"
+puts "  Exists item2? #{cuckoo.exists?("item2")}"
 
 # Count-Min Sketch chaining
 puts "\nCount-Min Sketch chaining:"
@@ -389,8 +389,8 @@ cms = redis.count_min_sketch(:chaining, :cms)
   .increment_by("/home", 5)
   .expire(3600)
 
-puts "  /home count: #{cms.query('/home')}"
-puts "  /about count: #{cms.query('/about')}"
+puts "  /home count: #{cms.query("/home")}"
+puts "  /about count: #{cms.query("/about")}"
 
 # Top-K chaining
 puts "\nTop-K chaining:"
@@ -400,7 +400,7 @@ topk = redis.top_k(:chaining, :topk)
   .increment_by("item2", 5)
   .expire(3600)
 
-puts "  Top items: #{topk.list.join(', ')}"
+puts "  Top items: #{topk.list.join(", ")}"
 
 # ============================================================
 # Example 12: Comparison - Bloom vs Cuckoo
@@ -417,34 +417,34 @@ cuckoo_comp = redis.cuckoo_filter(:comparison, :cuckoo)
 cuckoo_comp.reserve(capacity: 1000)
 
 # Add same items to both
-items = ["item1", "item2", "item3"]
+items = %w[item1 item2 item3]
 bloom_comp.add(*items)
 cuckoo_comp.add(*items)
 
-puts "Added items: #{items.join(', ')}"
+puts "Added items: #{items.join(", ")}"
 puts "\nBloom Filter:"
 puts "  Can check existence: YES"
 puts "  Can delete items: NO"
 puts "  False positives: Possible"
-puts "  item1 exists? #{bloom_comp.exists?('item1')}"
+puts "  item1 exists? #{bloom_comp.exists?("item1")}"
 
 puts "\nCuckoo Filter:"
 puts "  Can check existence: YES"
 puts "  Can delete items: YES"
 puts "  False positives: Possible (lower rate)"
-puts "  item1 exists? #{cuckoo_comp.exists?('item1')}"
+puts "  item1 exists? #{cuckoo_comp.exists?("item1")}"
 
 # Try to delete from both
 puts "\nAttempting to delete 'item1':"
 cuckoo_comp.remove("item1")
-puts "  Cuckoo: item1 exists? #{cuckoo_comp.exists?('item1')} (deleted successfully)"
-puts "  Bloom: item1 exists? #{bloom_comp.exists?('item1')} (cannot delete from Bloom)"
+puts "  Cuckoo: item1 exists? #{cuckoo_comp.exists?("item1")} (deleted successfully)"
+puts "  Bloom: item1 exists? #{bloom_comp.exists?("item1")} (cannot delete from Bloom)"
 
 # ============================================================
 # Cleanup
 # ============================================================
 
-puts "\n" + "=" * 80
+puts "\n#{"=" * 80}"
 puts "Cleaning up all test data..."
 puts "=" * 80
 
@@ -454,9 +454,8 @@ puts "=" * 80
   pageviews, api_calls, server1_views, server2_views, total_views,
   trending, popular_searches, leaderboard,
   bloom, cuckoo, cms, topk,
-  bloom_comp, cuckoo_comp
+  bloom_comp, cuckoo_comp,
 ].each(&:delete)
 
 puts "All test data cleaned up!"
 puts "\nExamples completed successfully! 🎉"
-

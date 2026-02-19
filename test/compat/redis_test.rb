@@ -61,7 +61,6 @@ class RedisCompatIntegrationTest < Minitest::Test
   ensure
     redis&.close
   end
-
   # ============ Basic Operations Tests ============
 
   def test_ping
@@ -105,7 +104,6 @@ class RedisCompatIntegrationTest < Minitest::Test
     assert_equal "OK", @redis.set("key", "value2", xx: true)
     assert_equal "value2", @redis.get("key")
   end
-
   # ============ String Command Tests ============
 
   def test_incr_decr
@@ -189,6 +187,20 @@ class RedisCompatIntegrationTest < Minitest::Test
 
     assert pttl.positive? && pttl <= 100_000
   end
+end
+
+class RedisCompatIntegrationTestPart2 < Minitest::Test
+  def setup
+    @redis = Redis.new(url: "redis://#{ENV.fetch("REDIS_HOST", "localhost")}:#{ENV.fetch("REDIS_PORT", 6379)}")
+    @redis.flushdb
+  end
+
+  def teardown
+    @redis.flushdb
+    @redis.close
+  end
+
+  # ============ Initialization Tests ============
 
   # ============ Key Command Tests ============
 
@@ -286,6 +298,20 @@ class RedisCompatIntegrationTest < Minitest::Test
     assert_includes keys, "k2"
     assert_includes keys, "k3"
   end
+end
+
+class RedisCompatIntegrationTestPart3 < Minitest::Test
+  def setup
+    @redis = Redis.new(url: "redis://#{ENV.fetch("REDIS_HOST", "localhost")}:#{ENV.fetch("REDIS_PORT", 6379)}")
+    @redis.flushdb
+  end
+
+  def teardown
+    @redis.flushdb
+    @redis.close
+  end
+
+  # ============ Initialization Tests ============
 
   # ============ Hash Command Tests ============
 
@@ -378,7 +404,6 @@ class RedisCompatIntegrationTest < Minitest::Test
     assert_includes pairs, %w[f1 v1]
     assert_includes pairs, %w[f2 v2]
   end
-
   # ============ List Command Tests ============
 
   def test_lpush_rpush
@@ -433,6 +458,20 @@ class RedisCompatIntegrationTest < Minitest::Test
 
     assert_equal %w[b c d], @redis.lrange("list", 0, -1)
   end
+end
+
+class RedisCompatIntegrationTestPart4 < Minitest::Test
+  def setup
+    @redis = Redis.new(url: "redis://#{ENV.fetch("REDIS_HOST", "localhost")}:#{ENV.fetch("REDIS_PORT", 6379)}")
+    @redis.flushdb
+  end
+
+  def teardown
+    @redis.flushdb
+    @redis.close
+  end
+
+  # ============ Initialization Tests ============
 
   # ============ Set Command Tests ============
 
@@ -525,6 +564,20 @@ class RedisCompatIntegrationTest < Minitest::Test
     assert_equal 3, members.length
     assert_includes members, "a"
   end
+end
+
+class RedisCompatIntegrationTestPart5 < Minitest::Test
+  def setup
+    @redis = Redis.new(url: "redis://#{ENV.fetch("REDIS_HOST", "localhost")}:#{ENV.fetch("REDIS_PORT", 6379)}")
+    @redis.flushdb
+  end
+
+  def teardown
+    @redis.flushdb
+    @redis.close
+  end
+
+  # ============ Initialization Tests ============
 
   # ============ Sorted Set Command Tests ============
 
@@ -652,8 +705,22 @@ class RedisCompatIntegrationTest < Minitest::Test
     pairs = @redis.zscan_each("zset").to_a
 
     assert_equal 3, pairs.length
-    assert(pairs.any? { |m, s| m == "a" && s == 1.0 })
+    assert(pairs.any? { |m, s| m == "a" && (s - 1.0).abs < Float::EPSILON })
   end
+end
+
+class RedisCompatIntegrationTestPart6 < Minitest::Test
+  def setup
+    @redis = Redis.new(url: "redis://#{ENV.fetch("REDIS_HOST", "localhost")}:#{ENV.fetch("REDIS_PORT", 6379)}")
+    @redis.flushdb
+  end
+
+  def teardown
+    @redis.flushdb
+    @redis.close
+  end
+
+  # ============ Initialization Tests ============
 
   # ============ Pipeline Tests ============
 
@@ -712,7 +779,6 @@ class RedisCompatIntegrationTest < Minitest::Test
     assert_includes results[2], "x"
     assert_includes results[2], "y"
   end
-
   # ============ Transaction Tests ============
 
   def test_multi_basic
@@ -736,7 +802,6 @@ class RedisCompatIntegrationTest < Minitest::Test
 
     assert_equal "watched", result
   end
-
   # ============ Error Handling Tests ============
 
   def test_command_error
@@ -753,7 +818,6 @@ class RedisCompatIntegrationTest < Minitest::Test
     assert_operator Redis::WrongTypeError, :<, Redis::CommandError
     assert_operator Redis::ClusterError, :<, Redis::BaseError
   end
-
   # ============ Connection Tests ============
 
   def test_connected
@@ -776,7 +840,6 @@ class RedisCompatIntegrationTest < Minitest::Test
 
     assert_equal "OK", result
   end
-
   # ============ HyperLogLog Tests ============
 
   def test_pfadd_returns_boolean
@@ -790,7 +853,6 @@ class RedisCompatIntegrationTest < Minitest::Test
 
     assert_equal 3, count
   end
-
   # ============ Scripting Tests ============
 
   def test_eval
@@ -805,7 +867,6 @@ class RedisCompatIntegrationTest < Minitest::Test
 
     assert_equal %w[key1 arg1], result
   end
-
   # ============ Server Tests ============
 
   def test_info

@@ -168,10 +168,10 @@ module RR
       # @return [void]
       def stop(wait: true)
         @subscriber&.stop(wait: wait)
-        if wait && @thread
-          @thread.join
-          @running_mutex.synchronize { @running = false }
-        end
+        return unless wait && @thread
+
+        @thread.join
+        @running_mutex.synchronize { @running = false }
       end
 
       # Check if the subscriber is running
@@ -198,9 +198,9 @@ module RR
 
       # Validate that at least one subscription is configured
       def validate_subscriptions!
-        if @channels.empty? && @patterns.empty? && @shard_channels.empty?
-          raise ArgumentError, "No subscriptions configured. Use on(), on_pattern(), or on_shard()"
-        end
+        return unless @channels.empty? && @patterns.empty? && @shard_channels.empty?
+
+        raise ArgumentError, "No subscriptions configured. Use on(), on_pattern(), or on_shard()"
       end
 
       # Create the underlying Subscriber instance
@@ -259,4 +259,3 @@ module RR
     end
   end
 end
-

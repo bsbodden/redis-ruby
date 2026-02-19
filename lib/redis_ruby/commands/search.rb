@@ -497,9 +497,9 @@ module RR
       #       tag :category
       #     end
       #   end
-      def index(index_name, &block)
+      def index(index_name, &)
         builder = RR::DSL::SearchIndexBuilder.new(index_name, self)
-        builder.instance_eval(&block)
+        builder.instance_eval(&)
         builder.create
       end
 

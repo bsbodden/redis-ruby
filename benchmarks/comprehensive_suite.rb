@@ -105,11 +105,11 @@ module ComprehensiveBenchmark
       @samples = []
     end
 
-    def percentile(p)
+    def percentile(pct)
       return 0 if @samples.empty?
 
       sorted = @samples.sort
-      index = ((p / 100.0) * sorted.length).ceil - 1
+      index = ((pct / 100.0) * sorted.length).ceil - 1
       index = [index, 0].max
       sorted[index]
     end
@@ -208,26 +208,341 @@ module ComprehensiveBenchmark
 
       {
         total_benchmarks: @benchmarks.size,
-        avg_throughput_speedup: if throughput_results.empty?
-                                  0
-                                else
-                                  (throughput_results.sum { |r| r[:speedup] } / throughput_results.size).round(3)
-                                end,
-        avg_latency_p99_improvement: if latency_results.empty?
-                                       0
-                                     else
-                                       (latency_results.sum do |r|
-                                         r[:improvement][:p99]
-                                       end / latency_results.size).round(1)
-                                     end,
+        avg_throughput_speedup: average_throughput_speedup(throughput_results),
+        avg_latency_p99_improvement: average_latency_improvement(latency_results),
         faster_count: throughput_results.count { |r| r[:speedup] > 1.0 },
         slower_count: throughput_results.count { |r| r[:speedup] < 1.0 },
       }
+    end
+
+    def average_throughput_speedup(results)
+      return 0 if results.empty?
+
+      (results.sum { |r| r[:speedup] } / results.size).round(3)
+    end
+
+    def average_latency_improvement(results)
+      return 0 if results.empty?
+
+      (results.sum { |r| r[:improvement][:p99] } / results.size).round(1)
+    end
+  end
+
+  # Transaction benchmarks extracted for class length
+  module TransactionBenchmarks
+    def run_transactions_suite
+      run_multi_exec_small_benchmark
+      run_multi_exec_large_benchmark
+      run_watch_multi_benchmark
+    end
+
+    private
+
+    def run_multi_exec_small_benchmark
+      run_throughput_benchmark("MULTI/EXEC (3 cmds)", "Transaction") do |x|
+        x.report("redis-rb") do
+          @redis_rb.multi do |tx|
+            tx.set("bench:tx:1", "v1")
+            tx.set("bench:tx:2", "v2")
+            tx.get("bench:tx:1")
+          end
+        end
+        x.report("redis-ruby") do
+          @redis_ruby.multi do |tx|
+            tx.set("bench:tx:1", "v1")
+            tx.set("bench:tx:2", "v2")
+            tx.get("bench:tx:1")
+          end
+        end
+      end
+    end
+
+    def run_multi_exec_large_benchmark
+      run_throughput_benchmark("MULTI/EXEC (10 cmds)", "Transaction") do |x|
+        x.report("redis-rb") do
+          @redis_rb.multi { |tx| 10.times { |i| tx.set("bench:tx:#{i}", "v#{i}") } }
+        end
+        x.report("redis-ruby") do
+          @redis_ruby.multi { |tx| 10.times { |i| tx.set("bench:tx:#{i}", "v#{i}") } }
+        end
+      end
+    end
+
+    def run_watch_multi_benchmark
+      run_throughput_benchmark("WATCH + MULTI/EXEC", "Transaction") do |x|
+        @redis_rb.set("bench:watch", "0")
+        x.report("redis-rb") do
+          @redis_rb.watch("bench:watch") { |rd| rd.multi { |tx| tx.incr("bench:watch") } }
+        end
+        x.report("redis-ruby") do
+          @redis_ruby.watch("bench:watch") { |rd| rd.multi { |tx| tx.incr("bench:watch") } }
+        end
+      end
+    end
+  end
+
+  # Workload benchmarks extracted for class length
+  module WorkloadBenchmarks
+    def run_workloads_suite
+      run_read_heavy_workload
+      run_write_heavy_workload
+      run_balanced_workload
+      run_mixed_commands_workload
+    end
+
+    private
+
+    def run_read_heavy_workload
+      run_throughput_benchmark("Read-Heavy (10:1)", "Workload") do |x|
+        x.report("redis-rb") do
+          10.times { @redis_rb.get("bench:key:small") }
+          @redis_rb.set("bench:workload", "value")
+        end
+        x.report("redis-ruby") do
+          10.times { @redis_ruby.get("bench:key:small") }
+          @redis_ruby.set("bench:workload", "value")
+        end
+      end
+    end
+
+    def run_write_heavy_workload
+      run_throughput_benchmark("Write-Heavy (1:10)", "Workload") do |x|
+        x.report("redis-rb") do
+          @redis_rb.get("bench:key:small")
+          10.times { |i| @redis_rb.set("bench:workload:#{i}", "v#{i}") }
+        end
+        x.report("redis-ruby") do
+          @redis_ruby.get("bench:key:small")
+          10.times { |i| @redis_ruby.set("bench:workload:#{i}", "v#{i}") }
+        end
+      end
+    end
+
+    def run_balanced_workload
+      run_throughput_benchmark("Balanced (1:1)", "Workload") do |x|
+        x.report("redis-rb") do
+          5.times do |i|
+            @redis_rb.set("bench:balanced:#{i}", "v#{i}")
+            @redis_rb.get("bench:balanced:#{i}")
+          end
+        end
+        x.report("redis-ruby") do
+          5.times do |i|
+            @redis_ruby.set("bench:balanced:#{i}", "v#{i}")
+            @redis_ruby.get("bench:balanced:#{i}")
+          end
+        end
+      end
+    end
+
+    def run_mixed_commands_workload
+      run_throughput_benchmark("Mixed Commands", "Workload") do |x|
+        x.report("redis-rb") do
+          @redis_rb.set("bench:mixed", "value")
+          @redis_rb.get("bench:mixed")
+          @redis_rb.incr("bench:counter")
+          @redis_rb.hset("bench:hash", "f", "v")
+          @redis_rb.hget("bench:hash", "f")
+          @redis_rb.lpush("bench:mixlist", "item")
+          @redis_rb.lpop("bench:mixlist")
+        end
+        x.report("redis-ruby") do
+          @redis_ruby.set("bench:mixed", "value")
+          @redis_ruby.get("bench:mixed")
+          @redis_ruby.incr("bench:counter")
+          @redis_ruby.hset("bench:hash", "f", "v")
+          @redis_ruby.hget("bench:hash", "f")
+          @redis_ruby.lpush("bench:mixlist", "item")
+          @redis_ruby.lpop("bench:mixlist")
+        end
+      end
+    end
+  end
+
+  # Data size and pipeline benchmarks
+  module DataPipelineBenchmarks
+    def run_data_sizes_suite
+      %i[small medium large xlarge].each do |size|
+        bytes = DataGenerator.size_bytes(size)
+        key = "bench:key:#{size}"
+
+        run_throughput_benchmark("GET #{bytes}B", "DataSize") do |x|
+          x.report("redis-rb") { @redis_rb.get(key) }
+          x.report("redis-ruby") { @redis_ruby.get(key) }
+        end
+
+        value = DataGenerator.generate_value(size)
+        run_throughput_benchmark("SET #{bytes}B", "DataSize") do |x|
+          x.report("redis-rb") { @redis_rb.set("bench:size:rb", value) }
+          x.report("redis-ruby") { @redis_ruby.set("bench:size:ruby", value) }
+        end
+      end
+    end
+
+    def run_pipeline_suite
+      [1, 10, 50, 100, 500].each do |size|
+        run_throughput_benchmark("Pipeline #{size} GETs", "Pipeline") do |x|
+          x.report("redis-rb") { @redis_rb.pipelined { |p| size.times { |i| p.get("bench:key:#{i % 100}") } } }
+          x.report("redis-ruby") { @redis_ruby.pipelined { |p| size.times { |i| p.get("bench:key:#{i % 100}") } } }
+        end
+
+        run_throughput_benchmark("Pipeline #{size} SETs", "Pipeline") do |x|
+          x.report("redis-rb") { @redis_rb.pipelined { |p| size.times { |i| p.set("bench:pipe:#{i}", "v#{i}") } } }
+          x.report("redis-ruby") { @redis_ruby.pipelined { |p| size.times { |i| p.set("bench:pipe:#{i}", "v#{i}") } } }
+        end
+      end
+    end
+  end
+
+  # Throughput benchmark suite methods
+  module ThroughputBenchmarks
+    def run_throughput_suite
+      run_basic_throughput_benchmarks
+      run_data_structure_throughput_benchmarks
+    end
+
+    def run_basic_throughput_benchmarks
+      run_throughput_benchmark("PING", "Basic") do |x|
+        x.report("redis-rb") { @redis_rb.ping }
+        x.report("redis-ruby") { @redis_ruby.ping }
+      end
+
+      run_throughput_benchmark("GET (small)", "Basic") do |x|
+        x.report("redis-rb") { @redis_rb.get("bench:key:small") }
+        x.report("redis-ruby") { @redis_ruby.get("bench:key:small") }
+      end
+
+      run_throughput_benchmark("SET (small)", "Basic") do |x|
+        x.report("redis-rb") { @redis_rb.set("bench:set:rb", "value") }
+        x.report("redis-ruby") { @redis_ruby.set("bench:set:ruby", "value") }
+      end
+
+      run_throughput_benchmark("INCR", "Basic") do |x|
+        @redis_rb.set("bench:counter", "0")
+        x.report("redis-rb") { @redis_rb.incr("bench:counter") }
+        x.report("redis-ruby") { @redis_ruby.incr("bench:counter") }
+      end
+    end
+
+    def run_data_structure_throughput_benchmarks
+      run_hash_benchmark
+      run_list_benchmark
+      run_set_benchmarks
+    end
+
+    private
+
+    def run_hash_benchmark
+      run_throughput_benchmark("HGET", "Hash") do |x|
+        x.report("redis-rb") { @redis_rb.hget("bench:hash", "field1") }
+        x.report("redis-ruby") { @redis_ruby.hget("bench:hash", "field1") }
+      end
+    end
+
+    def run_list_benchmark
+      run_throughput_benchmark("LPUSH/LPOP", "List") do |x|
+        x.report("redis-rb") do
+          @redis_rb.lpush("bench:lpop", "x")
+          @redis_rb.lpop("bench:lpop")
+        end
+        x.report("redis-ruby") do
+          @redis_ruby.lpush("bench:lpop", "x")
+          @redis_ruby.lpop("bench:lpop")
+        end
+      end
+    end
+
+    def run_set_benchmarks
+      run_throughput_benchmark("SADD/SISMEMBER", "Set") do |x|
+        x.report("redis-rb") do
+          @redis_rb.sadd("bench:stest", "x")
+          @redis_rb.sismember("bench:stest", "x")
+        end
+        x.report("redis-ruby") do
+          @redis_ruby.sadd("bench:stest", "x")
+          @redis_ruby.sismember("bench:stest", "x")
+        end
+      end
+
+      run_throughput_benchmark("ZADD/ZSCORE", "SortedSet") do |x|
+        x.report("redis-rb") do
+          @redis_rb.zadd("bench:ztest", 1.0, "x")
+          @redis_rb.zscore("bench:ztest", "x")
+        end
+        x.report("redis-ruby") do
+          @redis_ruby.zadd("bench:ztest", 1.0, "x")
+          @redis_ruby.zscore("bench:ztest", "x")
+        end
+      end
+    end
+  end
+
+  # Latency benchmark suite methods
+  module LatencyBenchmarks
+    def run_latency_suite
+      iterations = @config.latency_iterations
+
+      run_latency_benchmark("GET Latency", "Basic", iterations) do |client|
+        client.get("bench:key:small")
+      end
+
+      run_latency_benchmark("SET Latency", "Basic", iterations) do |client|
+        client.set("bench:latency", "value")
+      end
+
+      run_latency_benchmark("Pipeline 10 Latency", "Pipeline", iterations / 10) do |client|
+        client.pipelined { |p| 10.times { |i| p.get("bench:key:#{i}") } }
+      end
+
+      run_latency_benchmark("Pipeline 100 Latency", "Pipeline", iterations / 100) do |client|
+        client.pipelined { |p| 100.times { |i| p.get("bench:key:#{i % 100}") } }
+      end
+    end
+
+    private
+
+    def run_latency_benchmark(name, category, iterations, &)
+      puts "\n#{name} (#{iterations} iterations)"
+      puts "-" * 50
+
+      rb_stats, ruby_stats = collect_latency_stats(iterations, &)
+      print_latency_stats(rb_stats, ruby_stats)
+
+      @results.add_latency(name, category: category,
+                                 redis_rb_stats: rb_stats,
+                                 redis_ruby_stats: ruby_stats)
+    end
+
+    def collect_latency_stats(iterations)
+      rb_measurer = LatencyMeasurer.new
+      ruby_measurer = LatencyMeasurer.new
+
+      iterations.times { rb_measurer.measure { yield(@redis_rb) } }
+      iterations.times { ruby_measurer.measure { yield(@redis_ruby) } }
+
+      [rb_measurer.stats, ruby_measurer.stats]
+    end
+
+    def print_latency_stats(rb_stats, ruby_stats)
+      puts format("  redis-rb:   P50=%<p50>.2fus  P95=%<p95>.2fus  P99=%<p99>.2fus",
+                  p50: rb_stats[:p50], p95: rb_stats[:p95], p99: rb_stats[:p99])
+      puts format("  redis-ruby: P50=%<p50>.2fus  P95=%<p95>.2fus  P99=%<p99>.2fus",
+                  p50: ruby_stats[:p50], p95: ruby_stats[:p95], p99: ruby_stats[:p99])
+
+      improvement_p99 = ((rb_stats[:p99] - ruby_stats[:p99]) / rb_stats[:p99] * 100).round(1)
+      status = improvement_p99 >= 0 ? "BETTER" : "WORSE"
+      puts format("  P99 Improvement: %<imp>+.1f%% (%<status>s)", imp: improvement_p99, status: status)
     end
   end
 
   # Base benchmark runner
   class BenchmarkRunner
+    include TransactionBenchmarks
+    include WorkloadBenchmarks
+    include DataPipelineBenchmarks
+    include ThroughputBenchmarks
+    include LatencyBenchmarks
+
     def initialize(config)
       @config = config
       @results = Results.new(config)
@@ -281,53 +596,53 @@ module ComprehensiveBenchmark
     def setup_test_data
       puts "Setting up test data..."
 
-      # Keys for various tests
-      @redis_rb.set("bench:key:small", DataGenerator.generate_value(:small))
-      @redis_rb.set("bench:key:medium", DataGenerator.generate_value(:medium))
-      @redis_rb.set("bench:key:large", DataGenerator.generate_value(:large))
-      @redis_rb.set("bench:key:xlarge", DataGenerator.generate_value(:xlarge))
-
-      # Multiple keys for batch operations
-      100.times { |i| @redis_rb.set("bench:key:#{i}", "value#{i}") }
-
-      # Hash for hash operations
-      @redis_rb.hset("bench:hash", "field1", "value1", "field2", "value2")
-
-      # List for list operations
-      @redis_rb.rpush("bench:list", (1..100).map { |i| "item#{i}" })
-
-      # Set for set operations
-      @redis_rb.sadd("bench:set", (1..100).map { |i| "member#{i}" })
-
-      # Sorted set for sorted set operations
-      100.times { |i| @redis_rb.zadd("bench:zset", i, "member#{i}") }
+      setup_string_test_data
+      setup_collection_test_data
 
       puts "Test data ready."
     end
 
+    def setup_string_test_data
+      @redis_rb.set("bench:key:small", DataGenerator.generate_value(:small))
+      @redis_rb.set("bench:key:medium", DataGenerator.generate_value(:medium))
+      @redis_rb.set("bench:key:large", DataGenerator.generate_value(:large))
+      @redis_rb.set("bench:key:xlarge", DataGenerator.generate_value(:xlarge))
+      100.times { |i| @redis_rb.set("bench:key:#{i}", "value#{i}") }
+    end
+
+    def setup_collection_test_data
+      @redis_rb.hset("bench:hash", "field1", "value1", "field2", "value2")
+      @redis_rb.rpush("bench:list", (1..100).map { |i| "item#{i}" })
+      @redis_rb.sadd("bench:set", (1..100).map { |i| "member#{i}" })
+      100.times { |i| @redis_rb.zadd("bench:zset", i, "member#{i}") }
+    end
+
     def warmup_jit
       puts "Warming up JIT (#{@config.warmup_time * 500} iterations)..."
+      warmup_basic_commands
+      warmup_pipelines
+      puts "Warmup complete."
+    end
 
+    def warmup_basic_commands
       (@config.warmup_time * 500).times do
         @redis_rb.get("bench:key:small")
         @redis_ruby.get("bench:key:small")
         @redis_rb.set("bench:warmup", "value")
         @redis_ruby.set("bench:warmup", "value")
       end
+    end
 
-      # Pipeline warmup
+    def warmup_pipelines
       50.times do
         @redis_rb.pipelined { |p| 10.times { |i| p.get("bench:key:#{i}") } }
         @redis_ruby.pipelined { |p| 10.times { |i| p.get("bench:key:#{i}") } }
       end
-
-      puts "Warmup complete."
     end
 
     def cleanup_test_data
       puts "Cleaning up test data..."
 
-      # Use scan instead of keys for safer cleanup
       cursor = "0"
       loop do
         cursor, keys = @redis_rb.scan(cursor, match: "bench:*", count: 100)
@@ -336,70 +651,6 @@ module ComprehensiveBenchmark
       end
     rescue StandardError => e
       puts "Cleanup warning: #{e.message}"
-    end
-
-    # ================================================================
-    # THROUGHPUT SUITE
-    # ================================================================
-    def run_throughput_suite
-      run_throughput_benchmark("PING", "Basic") do |x|
-        x.report("redis-rb") { @redis_rb.ping }
-        x.report("redis-ruby") { @redis_ruby.ping }
-      end
-
-      run_throughput_benchmark("GET (small)", "Basic") do |x|
-        x.report("redis-rb") { @redis_rb.get("bench:key:small") }
-        x.report("redis-ruby") { @redis_ruby.get("bench:key:small") }
-      end
-
-      run_throughput_benchmark("SET (small)", "Basic") do |x|
-        x.report("redis-rb") { @redis_rb.set("bench:set:rb", "value") }
-        x.report("redis-ruby") { @redis_ruby.set("bench:set:ruby", "value") }
-      end
-
-      run_throughput_benchmark("INCR", "Basic") do |x|
-        @redis_rb.set("bench:counter", "0")
-        x.report("redis-rb") { @redis_rb.incr("bench:counter") }
-        x.report("redis-ruby") { @redis_ruby.incr("bench:counter") }
-      end
-
-      run_throughput_benchmark("HGET", "Hash") do |x|
-        x.report("redis-rb") { @redis_rb.hget("bench:hash", "field1") }
-        x.report("redis-ruby") { @redis_ruby.hget("bench:hash", "field1") }
-      end
-
-      run_throughput_benchmark("LPUSH/LPOP", "List") do |x|
-        x.report("redis-rb") do
-          @redis_rb.lpush("bench:lpop", "x")
-          @redis_rb.lpop("bench:lpop")
-        end
-        x.report("redis-ruby") do
-          @redis_ruby.lpush("bench:lpop", "x")
-          @redis_ruby.lpop("bench:lpop")
-        end
-      end
-
-      run_throughput_benchmark("SADD/SISMEMBER", "Set") do |x|
-        x.report("redis-rb") do
-          @redis_rb.sadd("bench:stest", "x")
-          @redis_rb.sismember("bench:stest", "x")
-        end
-        x.report("redis-ruby") do
-          @redis_ruby.sadd("bench:stest", "x")
-          @redis_ruby.sismember("bench:stest", "x")
-        end
-      end
-
-      run_throughput_benchmark("ZADD/ZSCORE", "SortedSet") do |x|
-        x.report("redis-rb") do
-          @redis_rb.zadd("bench:ztest", 1.0, "x")
-          @redis_rb.zscore("bench:ztest", "x")
-        end
-        x.report("redis-ruby") do
-          @redis_ruby.zadd("bench:ztest", 1.0, "x")
-          @redis_ruby.zscore("bench:ztest", "x")
-        end
-      end
     end
 
     def run_throughput_benchmark(name, category)
@@ -427,230 +678,287 @@ module ComprehensiveBenchmark
                                     redis_rb_ips: rb_ips,
                                     redis_ruby_ips: ruby_ips)
     end
+  end
 
-    # ================================================================
-    # LATENCY SUITE
-    # ================================================================
-    def run_latency_suite
-      iterations = @config.latency_iterations
+  # HTML data row building helpers
+  module HtmlDataRows
+    private
 
-      run_latency_benchmark("GET Latency", "Basic", iterations) do |client|
-        client.get("bench:key:small")
-      end
+    def generate_table_rows(benchmarks)
+      benchmarks.filter_map do |name, data|
+        next unless data[:throughput]
 
-      run_latency_benchmark("SET Latency", "Basic", iterations) do |client|
-        client.set("bench:latency", "value")
-      end
+        build_table_row(name, data)
+      end.join("\n")
+    end
 
-      run_latency_benchmark("Pipeline 10 Latency", "Pipeline", iterations / 10) do |client|
-        client.pipelined { |p| 10.times { |i| p.get("bench:key:#{i}") } }
-      end
+    def build_table_row(name, data)
+      t = data[:throughput]
+      css = t[:speedup] >= 1.0 ? "faster" : "slower"
+      rb_val = format("%<val>.1f", val: t[:redis_rb][:ips])
+      ruby_val = format("%<val>.1f", val: t[:redis_ruby][:ips])
+      speedup_val = format("%<val>.2fx", val: t[:speedup])
 
-      run_latency_benchmark("Pipeline 100 Latency", "Pipeline", iterations / 100) do |client|
-        client.pipelined { |p| 100.times { |i| p.get("bench:key:#{i % 100}") } }
+      "<tr><td><strong>#{name}</strong></td>" \
+        "<td>#{data[:category]}</td>" \
+        "<td>#{rb_val}</td><td>#{ruby_val}</td>" \
+        "<td class=\"speedup #{css}\">#{speedup_val}</td></tr>"
+    end
+
+    def generate_latency_section(benchmarks)
+      latency_benchmarks = benchmarks.select { |_, d| d[:latency] }
+      return "" if latency_benchmarks.empty?
+
+      rows = latency_benchmarks.map { |name, data| build_latency_row(name, data) }.join("\n")
+      latency_section_html(rows)
+    end
+
+    def build_latency_row(name, data)
+      l = data[:latency]
+      css = l[:improvement][:p99] >= 0 ? "faster" : "slower"
+
+      "<tr><td><strong>#{name}</strong></td>" \
+        "<td>#{format("%<v>.1f", v: l[:redis_rb][:p50])}</td>" \
+        "<td>#{format("%<v>.1f", v: l[:redis_rb][:p99])}</td>" \
+        "<td>#{format("%<v>.1f", v: l[:redis_ruby][:p50])}</td>" \
+        "<td>#{format("%<v>.1f", v: l[:redis_ruby][:p99])}</td>" \
+        "<td class=\"speedup #{css}\">#{format("%<v>+.1f%%", v: l[:improvement][:p99])}</td></tr>"
+    end
+
+    def latency_section_html(rows)
+      <<~HTML
+        <div class="card">
+          <h2>Latency Results (microseconds)</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Benchmark</th><th>redis-rb P50</th><th>redis-rb P99</th>
+                <th>redis-ruby P50</th><th>redis-ruby P99</th><th>P99 Improvement</th>
+              </tr>
+            </thead>
+            <tbody>#{rows}</tbody>
+          </table>
+        </div>
+      HTML
+    end
+  end
+
+  # HTML report structure and layout
+  module HtmlReportBuilder
+    include HtmlDataRows
+
+    private
+
+    def build_html_report
+      data = JSON.parse(@results.to_json, symbolize_names: true)
+
+      [
+        html_head_section,
+        html_body_header(data[:metadata]),
+        html_stats_grid(data[:summary]),
+        html_chart_section,
+        html_results_table(data[:benchmarks]),
+        generate_latency_section(data[:benchmarks]),
+        html_chart_script(data[:benchmarks]),
+        html_footer,
+      ].join("\n")
+    end
+
+    def html_head_section
+      <<~HTML
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Redis-Ruby Comprehensive Benchmark Report</title>
+          <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+          #{html_styles}
+        </head>
+      HTML
+    end
+
+    def html_styles
+      <<~CSS
+        <style>
+          * { box-sizing: border-box; margin: 0; padding: 0; }
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6; color: #333; background: #f5f7fa; padding: 20px;
+          }
+          .container { max-width: 1400px; margin: 0 auto; }
+          h1 { color: #1a1a2e; margin-bottom: 10px; }
+          h2 { color: #16213e; margin: 30px 0 15px; }
+          .subtitle { color: #666; margin-bottom: 30px; }
+          .card { background: white; border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08); padding: 24px; margin-bottom: 24px; }
+          .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; }
+          .stat-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white; border-radius: 12px; padding: 24px; text-align: center; }
+          .stat-value { font-size: 2.5em; font-weight: bold; }
+          .stat-label { opacity: 0.9; font-size: 0.9em; }
+          table { width: 100%; border-collapse: collapse; }
+          th, td { padding: 12px 16px; text-align: left; border-bottom: 1px solid #eee; }
+          th { background: #f8f9fa; font-weight: 600; }
+          tr:hover { background: #f8f9fa; }
+          .speedup { font-weight: bold; }
+          .faster { color: #28a745; } .slower { color: #dc3545; }
+          .chart-container { height: 400px; margin: 20px 0; }
+          .metadata { color: #666; font-size: 0.9em; }
+        </style>
+      CSS
+    end
+
+    def html_body_header(metadata)
+      <<~HTML
+        <body>
+        <div class="container">
+          <h1>Redis-Ruby vs Redis-rb Benchmark Report</h1>
+          <p class="subtitle">Comprehensive performance comparison</p>
+          <div class="card metadata">
+            <strong>Generated:</strong> #{metadata[:timestamp]} |
+            <strong>Ruby:</strong> #{metadata[:ruby_version]} |
+            <strong>YJIT:</strong> #{metadata[:yjit_enabled]} |
+            <strong>Platform:</strong> #{metadata[:ruby_platform]}
+          </div>
+      HTML
+    end
+
+    def stat_card(value, label, style = nil)
+      style_attr = style ? " style=\"background: #{style};\"" : ""
+      "<div class=\"stat-card\"#{style_attr}>" \
+        "<div class=\"stat-value\">#{value}</div>" \
+        "<div class=\"stat-label\">#{label}</div></div>"
+    end
+
+    def html_stats_grid(summary)
+      avg = format("%<val>.2fx", val: summary[:avg_throughput_speedup])
+      cards = [
+        stat_card(avg, "Average Speedup"),
+        stat_card(summary[:faster_count], "Faster Benchmarks",
+                  "linear-gradient(135deg, #11998e 0%, #38ef7d 100%)"),
+        stat_card(summary[:slower_count], "Slower Benchmarks",
+                  "linear-gradient(135deg, #eb3349 0%, #f45c43 100%)"),
+        stat_card(summary[:total_benchmarks], "Total Benchmarks",
+                  "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)"),
+      ]
+      "<div class=\"grid\">#{cards.join("\n")}</div>"
+    end
+
+    def html_chart_section
+      <<~HTML
+        <div class="card">
+          <h2>Throughput Results</h2>
+          <div class="chart-container"><canvas id="speedupChart"></canvas></div>
+        </div>
+      HTML
+    end
+
+    def html_results_table(benchmarks)
+      <<~HTML
+        <div class="card">
+          <h2>Detailed Results</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Benchmark</th><th>Category</th>
+                <th>redis-rb (i/s)</th><th>redis-ruby (i/s)</th><th>Speedup</th>
+              </tr>
+            </thead>
+            <tbody>#{generate_table_rows(benchmarks)}</tbody>
+          </table>
+        </div>
+      HTML
+    end
+
+    def html_chart_script(benchmarks)
+      <<~HTML
+        <script>
+          const ctx = document.getElementById('speedupChart').getContext('2d');
+          const benchmarks = #{benchmarks.to_json};
+          const labels = Object.keys(benchmarks).filter(k => benchmarks[k].throughput);
+          const speedups = labels.map(k => benchmarks[k].throughput.speedup);
+          new Chart(ctx, {
+            type: 'bar',
+            data: { labels: labels, datasets: [{
+              label: 'Speedup vs redis-rb', data: speedups,
+              backgroundColor: speedups.map(s =>
+                s >= 1 ? 'rgba(40, 167, 69, 0.7)' : 'rgba(220, 53, 69, 0.7)'),
+              borderColor: speedups.map(s =>
+                s >= 1 ? 'rgba(40, 167, 69, 1)' : 'rgba(220, 53, 69, 1)'),
+              borderWidth: 1
+            }]},
+            options: { responsive: true, maintainAspectRatio: false,
+              plugins: { title: { display: true,
+                text: 'Speedup Factor (>1 = redis-ruby faster)' },
+                legend: { display: false } },
+              scales: { y: { beginAtZero: true,
+                title: { display: true, text: 'Speedup (x)' } },
+                x: { ticks: { maxRotation: 45, minRotation: 45 } } } }
+          });
+        </script>
+      HTML
+    end
+
+    def html_footer
+      "</div>\n</body>\n</html>"
+    end
+  end
+
+  # Summary printing helpers
+  module SummaryPrinter
+    def print_summary
+      data = JSON.parse(@results.to_json, symbolize_names: true)
+      print_summary_header(data[:metadata])
+      print_category_results(data[:benchmarks])
+      print_summary_footer(data[:summary])
+    end
+
+    private
+
+    def print_summary_header(metadata)
+      puts "\n#{"=" * 70}"
+      puts "BENCHMARK SUMMARY"
+      puts "=" * 70
+      puts "Ruby: #{metadata[:ruby_version]} | YJIT: #{metadata[:yjit_enabled]}"
+      puts "-" * 70
+    end
+
+    def print_category_results(benchmarks)
+      categories = benchmarks.values.group_by { |b| b[:category] }
+
+      categories.each do |category, benches|
+        puts "\n#{category}:"
+        benches.each do |bench|
+          name = benchmarks.key(bench)
+          print_bench_result(name, bench[:throughput])
+        end
       end
     end
 
-    def run_latency_benchmark(name, category, iterations)
-      puts "\n#{name} (#{iterations} iterations)"
-      puts "-" * 50
+    def print_bench_result(name, throughput)
+      return unless throughput
 
-      rb_measurer = LatencyMeasurer.new
-      ruby_measurer = LatencyMeasurer.new
-
-      # Measure redis-rb
-      iterations.times { rb_measurer.measure { yield(@redis_rb) } }
-
-      # Measure redis-ruby
-      iterations.times { ruby_measurer.measure { yield(@redis_ruby) } }
-
-      rb_stats = rb_measurer.stats
-      ruby_stats = ruby_measurer.stats
-
-      puts format("  redis-rb:   P50=%.2fus  P95=%.2fus  P99=%.2fus",
-                  rb_stats[:p50], rb_stats[:p95], rb_stats[:p99])
-      puts format("  redis-ruby: P50=%.2fus  P95=%.2fus  P99=%.2fus",
-                  ruby_stats[:p50], ruby_stats[:p95], ruby_stats[:p99])
-
-      improvement_p99 = ((rb_stats[:p99] - ruby_stats[:p99]) / rb_stats[:p99] * 100).round(1)
-      status = improvement_p99 >= 0 ? "BETTER" : "WORSE"
-      puts format("  P99 Improvement: %+.1f%% (%s)", improvement_p99, status)
-
-      @results.add_latency(name, category: category,
-                                 redis_rb_stats: rb_stats,
-                                 redis_ruby_stats: ruby_stats)
+      status = throughput[:speedup] >= 1.0 ? "FASTER" : "SLOWER"
+      puts format("  %<name>-30s %<speedup>8.1fx  (%<status>s)",
+                  name: name, speedup: throughput[:speedup], status: status)
     end
 
-    # ================================================================
-    # DATA SIZES SUITE
-    # ================================================================
-    def run_data_sizes_suite
-      %i[small medium large xlarge].each do |size|
-        bytes = DataGenerator.size_bytes(size)
-        key = "bench:key:#{size}"
-
-        run_throughput_benchmark("GET #{bytes}B", "DataSize") do |x|
-          x.report("redis-rb") { @redis_rb.get(key) }
-          x.report("redis-ruby") { @redis_ruby.get(key) }
-        end
-
-        value = DataGenerator.generate_value(size)
-        run_throughput_benchmark("SET #{bytes}B", "DataSize") do |x|
-          x.report("redis-rb") { @redis_rb.set("bench:size:rb", value) }
-          x.report("redis-ruby") { @redis_ruby.set("bench:size:ruby", value) }
-        end
-      end
-    end
-
-    # ================================================================
-    # PIPELINE SUITE
-    # ================================================================
-    def run_pipeline_suite
-      [1, 10, 50, 100, 500].each do |size|
-        run_throughput_benchmark("Pipeline #{size} GETs", "Pipeline") do |x|
-          x.report("redis-rb") do
-            @redis_rb.pipelined { |p| size.times { |i| p.get("bench:key:#{i % 100}") } }
-          end
-          x.report("redis-ruby") do
-            @redis_ruby.pipelined { |p| size.times { |i| p.get("bench:key:#{i % 100}") } }
-          end
-        end
-
-        run_throughput_benchmark("Pipeline #{size} SETs", "Pipeline") do |x|
-          x.report("redis-rb") do
-            @redis_rb.pipelined { |p| size.times { |i| p.set("bench:pipe:#{i}", "v#{i}") } }
-          end
-          x.report("redis-ruby") do
-            @redis_ruby.pipelined { |p| size.times { |i| p.set("bench:pipe:#{i}", "v#{i}") } }
-          end
-        end
-      end
-    end
-
-    # ================================================================
-    # TRANSACTIONS SUITE
-    # ================================================================
-    def run_transactions_suite
-      run_throughput_benchmark("MULTI/EXEC (3 cmds)", "Transaction") do |x|
-        x.report("redis-rb") do
-          @redis_rb.multi do |tx|
-            tx.set("bench:tx:1", "v1")
-            tx.set("bench:tx:2", "v2")
-            tx.get("bench:tx:1")
-          end
-        end
-        x.report("redis-ruby") do
-          @redis_ruby.multi do |tx|
-            tx.set("bench:tx:1", "v1")
-            tx.set("bench:tx:2", "v2")
-            tx.get("bench:tx:1")
-          end
-        end
-      end
-
-      run_throughput_benchmark("MULTI/EXEC (10 cmds)", "Transaction") do |x|
-        x.report("redis-rb") do
-          @redis_rb.multi do |tx|
-            10.times { |i| tx.set("bench:tx:#{i}", "v#{i}") }
-          end
-        end
-        x.report("redis-ruby") do
-          @redis_ruby.multi do |tx|
-            10.times { |i| tx.set("bench:tx:#{i}", "v#{i}") }
-          end
-        end
-      end
-
-      # WATCH + MULTI/EXEC
-      run_throughput_benchmark("WATCH + MULTI/EXEC", "Transaction") do |x|
-        @redis_rb.set("bench:watch", "0")
-        x.report("redis-rb") do
-          @redis_rb.watch("bench:watch") do |rd|
-            rd.multi do |tx|
-              tx.incr("bench:watch")
-            end
-          end
-        end
-        x.report("redis-ruby") do
-          @redis_ruby.watch("bench:watch") do |rd|
-            rd.multi do |tx|
-              tx.incr("bench:watch")
-            end
-          end
-        end
-      end
-    end
-
-    # ================================================================
-    # WORKLOADS SUITE
-    # ================================================================
-    def run_workloads_suite
-      # Read-heavy workload (10:1 read:write ratio - typical cache pattern)
-      run_throughput_benchmark("Read-Heavy (10:1)", "Workload") do |x|
-        x.report("redis-rb") do
-          10.times { @redis_rb.get("bench:key:small") }
-          @redis_rb.set("bench:workload", "value")
-        end
-        x.report("redis-ruby") do
-          10.times { @redis_ruby.get("bench:key:small") }
-          @redis_ruby.set("bench:workload", "value")
-        end
-      end
-
-      # Write-heavy workload (1:10 read:write ratio)
-      run_throughput_benchmark("Write-Heavy (1:10)", "Workload") do |x|
-        x.report("redis-rb") do
-          @redis_rb.get("bench:key:small")
-          10.times { |i| @redis_rb.set("bench:workload:#{i}", "v#{i}") }
-        end
-        x.report("redis-ruby") do
-          @redis_ruby.get("bench:key:small")
-          10.times { |i| @redis_ruby.set("bench:workload:#{i}", "v#{i}") }
-        end
-      end
-
-      # Balanced workload (1:1)
-      run_throughput_benchmark("Balanced (1:1)", "Workload") do |x|
-        x.report("redis-rb") do
-          5.times do |i|
-            @redis_rb.set("bench:balanced:#{i}", "v#{i}")
-            @redis_rb.get("bench:balanced:#{i}")
-          end
-        end
-        x.report("redis-ruby") do
-          5.times do |i|
-            @redis_ruby.set("bench:balanced:#{i}", "v#{i}")
-            @redis_ruby.get("bench:balanced:#{i}")
-          end
-        end
-      end
-
-      # Mixed command workload
-      run_throughput_benchmark("Mixed Commands", "Workload") do |x|
-        x.report("redis-rb") do
-          @redis_rb.set("bench:mixed", "value")
-          @redis_rb.get("bench:mixed")
-          @redis_rb.incr("bench:counter")
-          @redis_rb.hset("bench:hash", "f", "v")
-          @redis_rb.hget("bench:hash", "f")
-          @redis_rb.lpush("bench:mixlist", "item")
-          @redis_rb.lpop("bench:mixlist")
-        end
-        x.report("redis-ruby") do
-          @redis_ruby.set("bench:mixed", "value")
-          @redis_ruby.get("bench:mixed")
-          @redis_ruby.incr("bench:counter")
-          @redis_ruby.hset("bench:hash", "f", "v")
-          @redis_ruby.hget("bench:hash", "f")
-          @redis_ruby.lpush("bench:mixlist", "item")
-          @redis_ruby.lpop("bench:mixlist")
-        end
-      end
+    def print_summary_footer(summary)
+      puts "\n#{"-" * 70}"
+      puts format("Average Throughput Speedup: %<speedup>.2fx",
+                  speedup: summary[:avg_throughput_speedup])
+      puts format("Faster: %<faster>d | Slower: %<slower>d",
+                  faster: summary[:faster_count], slower: summary[:slower_count])
+      puts "=" * 70
     end
   end
 
   # Report generator
   class ReportGenerator
+    include HtmlReportBuilder
+    include SummaryPrinter
+
     def initialize(results, config)
       @results = results
       @config = config
@@ -670,245 +978,6 @@ module ComprehensiveBenchmark
       File.write(path, html)
       puts "HTML report saved to: #{path}"
       path
-    end
-
-    def print_summary
-      data = JSON.parse(@results.to_json, symbolize_names: true)
-
-      puts "\n#{"=" * 70}"
-      puts "BENCHMARK SUMMARY"
-      puts "=" * 70
-      puts "Ruby: #{data[:metadata][:ruby_version]} | YJIT: #{data[:metadata][:yjit_enabled]}"
-      puts "-" * 70
-
-      # Group by category
-      categories = data[:benchmarks].values.group_by { |b| b[:category] }
-
-      categories.each do |category, benchmarks|
-        puts "\n#{category}:"
-        benchmarks.each do |bench|
-          name = data[:benchmarks].key(bench)
-          next unless bench[:throughput]
-
-          t = bench[:throughput]
-          status = t[:speedup] >= 1.0 ? "FASTER" : "SLOWER"
-          puts format("  %-30s %8.1fx  (%s)", name, t[:speedup], status)
-        end
-      end
-
-      puts "\n#{"-" * 70}"
-      summary = data[:summary]
-      puts format("Average Throughput Speedup: %.2fx", summary[:avg_throughput_speedup])
-      puts format("Faster: %d | Slower: %d", summary[:faster_count], summary[:slower_count])
-      puts "=" * 70
-    end
-
-    private
-
-    def build_html_report
-      data = JSON.parse(@results.to_json, symbolize_names: true)
-
-      <<~HTML
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Redis-Ruby Comprehensive Benchmark Report</title>
-          <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-          <style>
-            * { box-sizing: border-box; margin: 0; padding: 0; }
-            body {
-              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-              line-height: 1.6;
-              color: #333;
-              background: #f5f7fa;
-              padding: 20px;
-            }
-            .container { max-width: 1400px; margin: 0 auto; }
-            h1 { color: #1a1a2e; margin-bottom: 10px; }
-            h2 { color: #16213e; margin: 30px 0 15px; }
-            .subtitle { color: #666; margin-bottom: 30px; }
-            .card {
-              background: white;
-              border-radius: 12px;
-              box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-              padding: 24px;
-              margin-bottom: 24px;
-            }
-            .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; }
-            .stat-card {
-              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-              color: white;
-              border-radius: 12px;
-              padding: 24px;
-              text-align: center;
-            }
-            .stat-value { font-size: 2.5em; font-weight: bold; }
-            .stat-label { opacity: 0.9; font-size: 0.9em; }
-            table { width: 100%; border-collapse: collapse; }
-            th, td { padding: 12px 16px; text-align: left; border-bottom: 1px solid #eee; }
-            th { background: #f8f9fa; font-weight: 600; }
-            tr:hover { background: #f8f9fa; }
-            .speedup { font-weight: bold; }
-            .faster { color: #28a745; }
-            .slower { color: #dc3545; }
-            .chart-container { height: 400px; margin: 20px 0; }
-            .metadata { color: #666; font-size: 0.9em; }
-            .category-header { background: #e9ecef; font-weight: 600; }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <h1>Redis-Ruby vs Redis-rb Benchmark Report</h1>
-            <p class="subtitle">Comprehensive performance comparison</p>
-
-            <div class="card metadata">
-              <strong>Generated:</strong> #{data[:metadata][:timestamp]} |
-              <strong>Ruby:</strong> #{data[:metadata][:ruby_version]} |
-              <strong>YJIT:</strong> #{data[:metadata][:yjit_enabled]} |
-              <strong>Platform:</strong> #{data[:metadata][:ruby_platform]}
-            </div>
-
-            <div class="grid">
-              <div class="stat-card">
-                <div class="stat-value">#{format("%.2fx", data[:summary][:avg_throughput_speedup])}</div>
-                <div class="stat-label">Average Speedup</div>
-              </div>
-              <div class="stat-card" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">
-                <div class="stat-value">#{data[:summary][:faster_count]}</div>
-                <div class="stat-label">Faster Benchmarks</div>
-              </div>
-              <div class="stat-card" style="background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);">
-                <div class="stat-value">#{data[:summary][:slower_count]}</div>
-                <div class="stat-label">Slower Benchmarks</div>
-              </div>
-              <div class="stat-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
-                <div class="stat-value">#{data[:summary][:total_benchmarks]}</div>
-                <div class="stat-label">Total Benchmarks</div>
-              </div>
-            </div>
-
-            <div class="card">
-              <h2>Throughput Results</h2>
-              <div class="chart-container">
-                <canvas id="speedupChart"></canvas>
-              </div>
-            </div>
-
-            <div class="card">
-              <h2>Detailed Results</h2>
-              <table>
-                <thead>
-                  <tr>
-                    <th>Benchmark</th>
-                    <th>Category</th>
-                    <th>redis-rb (i/s)</th>
-                    <th>redis-ruby (i/s)</th>
-                    <th>Speedup</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  #{generate_table_rows(data[:benchmarks])}
-                </tbody>
-              </table>
-            </div>
-
-            #{generate_latency_section(data[:benchmarks])}
-          </div>
-
-          <script>
-            const ctx = document.getElementById('speedupChart').getContext('2d');
-            const benchmarks = #{data[:benchmarks].to_json};
-            const labels = Object.keys(benchmarks).filter(k => benchmarks[k].throughput);
-            const speedups = labels.map(k => benchmarks[k].throughput.speedup);
-
-            new Chart(ctx, {
-              type: 'bar',
-              data: {
-                labels: labels,
-                datasets: [{
-                  label: 'Speedup vs redis-rb',
-                  data: speedups,
-                  backgroundColor: speedups.map(s => s >= 1 ? 'rgba(40, 167, 69, 0.7)' : 'rgba(220, 53, 69, 0.7)'),
-                  borderColor: speedups.map(s => s >= 1 ? 'rgba(40, 167, 69, 1)' : 'rgba(220, 53, 69, 1)'),
-                  borderWidth: 1
-                }]
-              },
-              options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                  title: { display: true, text: 'Speedup Factor (>1 = redis-ruby faster)' },
-                  legend: { display: false }
-                },
-                scales: {
-                  y: { beginAtZero: true, title: { display: true, text: 'Speedup (x)' } },
-                  x: { ticks: { maxRotation: 45, minRotation: 45 } }
-                }
-              }
-            });
-          </script>
-        </body>
-        </html>
-      HTML
-    end
-
-    def generate_table_rows(benchmarks)
-      benchmarks.filter_map do |name, data|
-        next unless data[:throughput]
-
-        t = data[:throughput]
-        speedup_class = t[:speedup] >= 1.0 ? "faster" : "slower"
-
-        "<tr>
-          <td><strong>#{name}</strong></td>
-          <td>#{data[:category]}</td>
-          <td>#{format("%.1f", t[:redis_rb][:ips])}</td>
-          <td>#{format("%.1f", t[:redis_ruby][:ips])}</td>
-          <td class=\"speedup #{speedup_class}\">#{format("%.2fx", t[:speedup])}</td>
-        </tr>"
-      end.join("\n")
-    end
-
-    def generate_latency_section(benchmarks)
-      latency_benchmarks = benchmarks.select { |_, d| d[:latency] }
-      return "" if latency_benchmarks.empty?
-
-      rows = latency_benchmarks.map do |name, data|
-        l = data[:latency]
-        improvement_class = l[:improvement][:p99] >= 0 ? "faster" : "slower"
-
-        "<tr>
-          <td><strong>#{name}</strong></td>
-          <td>#{format("%.1f", l[:redis_rb][:p50])}</td>
-          <td>#{format("%.1f", l[:redis_rb][:p99])}</td>
-          <td>#{format("%.1f", l[:redis_ruby][:p50])}</td>
-          <td>#{format("%.1f", l[:redis_ruby][:p99])}</td>
-          <td class=\"speedup #{improvement_class}\">#{format("%+.1f%%", l[:improvement][:p99])}</td>
-        </tr>"
-      end.join("\n")
-
-      <<~HTML
-        <div class="card">
-          <h2>Latency Results (microseconds)</h2>
-          <table>
-            <thead>
-              <tr>
-                <th>Benchmark</th>
-                <th>redis-rb P50</th>
-                <th>redis-rb P99</th>
-                <th>redis-ruby P50</th>
-                <th>redis-ruby P99</th>
-                <th>P99 Improvement</th>
-              </tr>
-            </thead>
-            <tbody>
-              #{rows}
-            </tbody>
-          </table>
-        </div>
-      HTML
     end
   end
 end

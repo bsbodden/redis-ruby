@@ -27,8 +27,8 @@ module RR
     # @param url [String, nil] Redis URL (redis://host:port/db)
     # @param kwargs [Hash] Connection options (host, port, db, password, etc.)
     # @return [RR::Client]
-    def new(url: nil, **kwargs)
-      Client.new(url: url, **kwargs)
+    def new(url: nil, **)
+      Client.new(url: url, **)
     end
 
     # Create a new asynchronous Redis client connection
@@ -45,8 +45,8 @@ module RR
     #     client = RR.async(url: "redis://localhost:6379")
     #     client.set("key", "value")
     #   end
-    def async(url: nil, **kwargs)
-      AsyncClient.new(url: url, **kwargs)
+    def async(url: nil, **)
+      AsyncClient.new(url: url, **)
     end
 
     # Create a new pooled Redis client connection
@@ -60,8 +60,8 @@ module RR
     # @example
     #   client = RR.pooled(url: "redis://localhost:6379", pool: { size: 10 })
     #   client.set("key", "value")
-    def pooled(url: nil, **kwargs)
-      PooledClient.new(url: url, **kwargs)
+    def pooled(url: nil, **)
+      PooledClient.new(url: url, **)
     end
 
     # Create a new async pooled Redis client
@@ -81,8 +81,8 @@ module RR
     #     # 100 concurrent operations with 10 connections
     #     tasks = 100.times.map { |i| task.async { client.get("key:#{i}") } }
     #   end
-    def async_pooled(url: nil, **kwargs)
-      AsyncPooledClient.new(url: url, **kwargs)
+    def async_pooled(url: nil, **)
+      AsyncPooledClient.new(url: url, **)
     end
 
     # Create a Sentinel-backed Redis client
@@ -101,8 +101,8 @@ module RR
     #     service_name: "mymaster"
     #   )
     #   client.set("key", "value")
-    def sentinel(sentinels:, service_name:, role: :master, **kwargs)
-      SentinelClient.new(sentinels: sentinels, service_name: service_name, role: role, **kwargs)
+    def sentinel(sentinels:, service_name:, role: :master, **)
+      SentinelClient.new(sentinels: sentinels, service_name: service_name, role: role, **)
     end
 
     # Create a Redis Cluster client
@@ -124,8 +124,8 @@ module RR
     #     nodes: ["redis://node1:6379"],
     #     read_from: :replica_preferred
     #   )
-    def cluster(nodes:, **kwargs)
-      ClusterClient.new(nodes: nodes, **kwargs)
+    def cluster(nodes:, **)
+      ClusterClient.new(nodes: nodes, **)
     end
 
     # Create a Redis Enterprise Discovery Service client
@@ -153,8 +153,8 @@ module RR
     #     database_name: "my-database",
     #     internal: true
     #   )
-    def discovery(nodes:, database_name:, **kwargs)
-      DiscoveryServiceClient.new(nodes: nodes, database_name: database_name, **kwargs)
+    def discovery(nodes:, database_name:, **)
+      DiscoveryServiceClient.new(nodes: nodes, database_name: database_name, **)
     end
 
     # Create a DNS-aware Redis client with load balancing
@@ -178,8 +178,8 @@ module RR
     #     port: 6379,
     #     dns_strategy: :random  # or :round_robin (default)
     #   )
-    def dns(hostname:, **kwargs)
-      DNSClient.new(hostname: hostname, **kwargs)
+    def dns(hostname:, **)
+      DNSClient.new(hostname: hostname, **)
     end
 
     # Create an Active-Active Redis client for multi-region geo-distributed databases
@@ -211,8 +211,8 @@ module RR
     #     password: "secret",
     #     ssl: true
     #   )
-    def active_active(regions:, **kwargs)
-      ActiveActiveClient.new(regions: regions, **kwargs)
+    def active_active(regions:, **)
+      ActiveActiveClient.new(regions: regions, **)
     end
   end
 end

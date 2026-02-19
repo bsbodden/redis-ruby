@@ -54,33 +54,9 @@ module RR
       #
       # @return [self] For chaining
       def set(*args, **kwargs)
-        # Extract nx/xx options
         nx = kwargs.delete(:nx) || false
         xx = kwargs.delete(:xx) || false
-
-        if args.empty?
-          # set(name: "Alice", age: 30) - keyword args only
-          raise ArgumentError, "set requires at least one argument" if kwargs.empty?
-          @client.json_set(@key, "$", kwargs, nx: nx, xx: xx)
-        elsif args.size == 1
-          # set({name: "Alice"}) or set(user: {...}) with kwargs
-          if kwargs.empty?
-            # set({name: "Alice"}) - explicit hash
-            @client.json_set(@key, "$", args[0], nx: nx, xx: xx)
-          else
-            # set(user: {...}) - merge into kwargs
-            # This handles the case where we have both positional and keyword args
-            # which shouldn't happen in normal usage, but we'll treat it as root document
-            data = kwargs
-            @client.json_set(@key, "$", data, nx: nx, xx: xx)
-          end
-        elsif args.size == 2
-          # set(:name, "Alice") - set specific path
-          path = normalize_path(args[0])
-          @client.json_set(@key, path, args[1], nx: nx, xx: xx)
-        else
-          raise ArgumentError, "wrong number of arguments (given #{args.size}, expected 0..2)"
-        end
+        json_set_dispatch(args, kwargs, nx: nx, xx: xx)
         self
       end
 
@@ -96,19 +72,11 @@ module RR
       #   json.get(:name)  # => "Alice"
       #   json.get("$.age")  # => 30
       def get(*paths)
-        if paths.empty?
-          result = @client.json_get(@key)
-          # Unwrap single-element array for root path
-          result.is_a?(Array) && result.size == 1 ? result[0] : result
-        elsif paths.size == 1
-          path = normalize_path(paths[0])
-          result = @client.json_get(@key, path)
-          # Unwrap single-element array for single path
-          result.is_a?(Array) && result.size == 1 ? result[0] : result
-        else
-          normalized_paths = paths.map { |p| normalize_path(p) }
-          @client.json_get(@key, *normalized_paths)
-        end
+        return fetch_root if paths.empty?
+        return fetch_single_path(paths[0]) if paths.size == 1
+
+        normalized_paths = paths.map { |p| normalize_path(p) }
+        @client.json_get(@key, *normalized_paths)
       end
 
       # Delete JSON value at path
@@ -341,10 +309,54 @@ module RR
       # @example
       #   json.exists?  # => true
       def exists?
-        @client.exists(@key) > 0
+        @client.exists(@key).positive?
       end
 
       private
+
+      # Dispatch the set operation based on arguments
+      def json_set_dispatch(args, kwargs, nx:, xx:)
+        if args.empty? && !kwargs.empty?
+          # set(name: "Alice", age: 30)
+          @client.json_set(@key, "$", kwargs)
+        elsif args.size == 1 && args[0].is_a?(Hash)
+          # set({name: "Alice", age: 30})
+          @client.json_set(@key, "$", args[0])
+        elsif args.size >= 2
+          # set(:name, "Alice") or set("$.age", 30, nx: true)
+          json_set_at_path(args[0], args[1], nx: nx, xx: xx)
+        end
+      end
+
+      # Set a value at a specific path with optional flags
+      def json_set_at_path(path, value, nx:, xx:)
+        path = normalize_path(path)
+        if nx
+          @client.json_set(@key, path, value, nx: true)
+        elsif xx
+          @client.json_set(@key, path, value, xx: true)
+        else
+          @client.json_set(@key, path, value)
+        end
+      end
+
+      # Fetch the root document, unwrapping single-element arrays
+      def fetch_root
+        result = @client.json_get(@key)
+        unwrap_single(result)
+      end
+
+      # Fetch a single path, unwrapping single-element arrays
+      def fetch_single_path(path)
+        path = normalize_path(path)
+        result = @client.json_get(@key, path)
+        unwrap_single(result)
+      end
+
+      # Unwrap single-element array results
+      def unwrap_single(result)
+        result.is_a?(Array) && result.size == 1 ? result[0] : result
+      end
 
       # Normalize path to JSONPath format
       #
@@ -361,4 +373,3 @@ module RR
     end
   end
 end
-

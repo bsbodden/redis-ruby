@@ -16,42 +16,41 @@ class BitmapDSLTest < RedisRubyTestCase
 
   def test_bitmap_proxy_creation
     proxy = redis.bitmap(:activity)
-    
+
     assert_instance_of RR::DSL::BitmapProxy, proxy
     assert_equal "activity", proxy.key
   end
 
   def test_bitmap_with_composite_key
     proxy = redis.bitmap(:user, :activity, 123)
-    
+
     assert_equal "user:activity:123", proxy.key
   end
 
   def test_bitmap_with_single_key_part
     proxy = redis.bitmap(:simple)
-    
+
     assert_equal "simple", proxy.key
   end
-
   # ============================================================
   # Set/Get Bit Operations Tests
   # ============================================================
 
   def test_set_bit_returns_self
     bitmap = redis.bitmap(@key)
-    
+
     result = bitmap.set_bit(0, 1)
-    
-    assert_same bitmap, result  # Returns self for chaining
+
+    assert_same bitmap, result # Returns self for chaining
   end
 
   def test_set_and_get_bit
     bitmap = redis.bitmap(@key)
-    
+
     bitmap.set_bit(0, 1)
     bitmap.set_bit(1, 0)
     bitmap.set_bit(7, 1)
-    
+
     assert_equal 1, bitmap.get_bit(0)
     assert_equal 0, bitmap.get_bit(1)
     assert_equal 1, bitmap.get_bit(7)
@@ -59,11 +58,11 @@ class BitmapDSLTest < RedisRubyTestCase
 
   def test_array_syntax_set_and_get
     bitmap = redis.bitmap(@key)
-    
+
     bitmap[0] = 1
     bitmap[1] = 0
     bitmap[7] = 1
-    
+
     assert_equal 1, bitmap[0]
     assert_equal 0, bitmap[1]
     assert_equal 1, bitmap[7]
@@ -71,58 +70,57 @@ class BitmapDSLTest < RedisRubyTestCase
 
   def test_array_syntax_returns_value
     bitmap = redis.bitmap(@key)
-    
+
     result = (bitmap[5] = 1)
-    
+
     assert_equal 1, result
   end
 
   def test_get_bit_nonexistent_key
     bitmap = redis.bitmap(@key)
-    
+
     assert_equal 0, bitmap.get_bit(0)
     assert_equal 0, bitmap[100]
   end
 
   def test_set_bit_large_offset
     bitmap = redis.bitmap(@key)
-    
+
     bitmap.set_bit(1000, 1)
-    
+
     assert_equal 1, bitmap.get_bit(1000)
     assert_equal 0, bitmap.get_bit(999)
   end
-
   # ============================================================
   # Count Operations Tests
   # ============================================================
 
   def test_count_empty_bitmap
     bitmap = redis.bitmap(@key)
-    
+
     assert_equal 0, bitmap.count
   end
 
   def test_count_with_set_bits
     bitmap = redis.bitmap(@key)
-    
+
     bitmap[0] = 1
     bitmap[1] = 1
     bitmap[7] = 1
     bitmap[15] = 1
-    
+
     assert_equal 4, bitmap.count
   end
 
   def test_count_with_byte_range
     bitmap = redis.bitmap(@key)
-    
+
     # Set bits in different bytes
     bitmap[0] = 1   # Byte 0
     bitmap[7] = 1   # Byte 0
     bitmap[8] = 1   # Byte 1
     bitmap[16] = 1  # Byte 2
-    
+
     assert_equal 4, bitmap.count(0, -1)  # All bytes
     assert_equal 2, bitmap.count(0, 0)   # First byte only
     assert_equal 1, bitmap.count(1, 1)   # Second byte only
@@ -130,26 +128,27 @@ class BitmapDSLTest < RedisRubyTestCase
 
   def test_count_after_clearing_bits
     bitmap = redis.bitmap(@key)
-    
+
     bitmap[0] = 1
     bitmap[1] = 1
     bitmap[2] = 1
+
     assert_equal 3, bitmap.count
-    
+
     bitmap[1] = 0
+
     assert_equal 2, bitmap.count
   end
-
   # ============================================================
   # Position Operations Tests
   # ============================================================
 
   def test_position_find_first_set_bit
     bitmap = redis.bitmap(@key)
-    
+
     bitmap[5] = 1
     bitmap[10] = 1
-    
+
     assert_equal 5, bitmap.position(1)
   end
 
@@ -181,8 +180,22 @@ class BitmapDSLTest < RedisRubyTestCase
 
     # Looking for 0 bit in byte 0 which is now all 1s
     result = bitmap.position(0, 0, 0)
+
     assert_equal(-1, result)
   end
+end
+
+class BitmapDSLTestPart2 < RedisRubyTestCase
+  use_testcontainers!
+
+  def setup
+    super
+    @key = "test:bitmap:#{SecureRandom.hex(8)}"
+  end
+
+  # ============================================================
+  # Entry Point Tests
+  # ============================================================
 
   # ============================================================
   # Bitwise AND Operations Tests
@@ -223,7 +236,6 @@ class BitmapDSLTest < RedisRubyTestCase
 
     assert_same bitmap, result
   end
-
   # ============================================================
   # Bitwise OR Operations Tests
   # ============================================================
@@ -265,7 +277,6 @@ class BitmapDSLTest < RedisRubyTestCase
     assert_equal 1, result[2]
     assert_equal 3, result.count
   end
-
   # ============================================================
   # Bitwise XOR Operations Tests
   # ============================================================
@@ -289,7 +300,6 @@ class BitmapDSLTest < RedisRubyTestCase
     assert_equal 1, result[1]  # 1 XOR 0 = 1
     assert_equal 1, result[2]  # 0 XOR 1 = 1
   end
-
   # ============================================================
   # Bitwise NOT Operations Tests
   # ============================================================
@@ -308,6 +318,19 @@ class BitmapDSLTest < RedisRubyTestCase
     assert_equal 1, result[1]  # NOT 0 = 1
     assert_equal 0, result[2]  # NOT 1 = 0
   end
+end
+
+class BitmapDSLTestPart3 < RedisRubyTestCase
+  use_testcontainers!
+
+  def setup
+    super
+    @key = "test:bitmap:#{SecureRandom.hex(8)}"
+  end
+
+  # ============================================================
+  # Entry Point Tests
+  # ============================================================
 
   # ============================================================
   # Non-Destructive Bitwise Operations Tests
@@ -328,6 +351,7 @@ class BitmapDSLTest < RedisRubyTestCase
 
     # Check result
     result_bitmap = redis.bitmap("#{@key}:result")
+
     assert_equal 1, result_bitmap[0]
     assert_equal 0, result_bitmap[1]
 
@@ -346,6 +370,7 @@ class BitmapDSLTest < RedisRubyTestCase
     bitmap1.or_into("#{@key}:result", "#{@key}:2")
 
     result_bitmap = redis.bitmap("#{@key}:result")
+
     assert_equal 1, result_bitmap[0]
     assert_equal 1, result_bitmap[1]
 
@@ -366,6 +391,7 @@ class BitmapDSLTest < RedisRubyTestCase
     bitmap1.xor_into("#{@key}:result", "#{@key}:2")
 
     result_bitmap = redis.bitmap("#{@key}:result")
+
     assert_equal 0, result_bitmap[0]  # 1 XOR 1 = 0
     assert_equal 1, result_bitmap[1]  # 1 XOR 0 = 1
   end
@@ -379,6 +405,7 @@ class BitmapDSLTest < RedisRubyTestCase
     bitmap.not_into("#{@key}:result")
 
     result_bitmap = redis.bitmap("#{@key}:result")
+
     assert_equal 0, result_bitmap[0]
     assert_equal 1, result_bitmap[1]
 
@@ -386,6 +413,19 @@ class BitmapDSLTest < RedisRubyTestCase
     assert_equal 1, bitmap[0]
     assert_equal 0, bitmap[1]
   end
+end
+
+class BitmapDSLTestPart4 < RedisRubyTestCase
+  use_testcontainers!
+
+  def setup
+    super
+    @key = "test:bitmap:#{SecureRandom.hex(8)}"
+  end
+
+  # ============================================================
+  # Entry Point Tests
+  # ============================================================
 
   # ============================================================
   # Bitfield Operations Tests
@@ -451,7 +491,7 @@ class BitmapDSLTest < RedisRubyTestCase
       .incrby(:u8, 0, 1)
       .execute
 
-    assert_equal [0], results  # Wraps around
+    assert_equal [0], results # Wraps around
   end
 
   def test_bitfield_overflow_sat
@@ -464,7 +504,7 @@ class BitmapDSLTest < RedisRubyTestCase
       .incrby(:u8, 0, 10)
       .execute
 
-    assert_equal [255], results  # Saturates at max
+    assert_equal [255], results # Saturates at max
   end
 
   def test_bitfield_overflow_fail
@@ -477,7 +517,7 @@ class BitmapDSLTest < RedisRubyTestCase
       .incrby(:u8, 0, 10)
       .execute
 
-    assert_nil results[0]  # Returns nil on overflow
+    assert_nil results[0] # Returns nil on overflow
   end
 
   def test_bitfield_signed_integers
@@ -496,9 +536,8 @@ class BitmapDSLTest < RedisRubyTestCase
 
     results = bitmap.bitfield.execute
 
-    assert_equal [], results
+    assert_empty results
   end
-
   # ============================================================
   # Existence and Clear Tests
   # ============================================================
@@ -506,7 +545,7 @@ class BitmapDSLTest < RedisRubyTestCase
   def test_exists_returns_false_for_nonexistent_key
     bitmap = redis.bitmap(@key)
 
-    assert_equal false, bitmap.exists?
+    refute_predicate bitmap, :exists?
   end
 
   def test_exists_returns_true_after_setting_bit
@@ -514,13 +553,13 @@ class BitmapDSLTest < RedisRubyTestCase
 
     bitmap[0] = 1
 
-    assert_equal true, bitmap.exists?
+    assert_predicate bitmap, :exists?
   end
 
   def test_empty_returns_true_for_nonexistent_key
     bitmap = redis.bitmap(@key)
 
-    assert_equal true, bitmap.empty?
+    assert_empty bitmap
   end
 
   def test_empty_returns_false_when_bits_set
@@ -528,7 +567,7 @@ class BitmapDSLTest < RedisRubyTestCase
 
     bitmap[0] = 1
 
-    assert_equal false, bitmap.empty?
+    refute_empty bitmap
   end
 
   def test_empty_returns_true_when_all_bits_cleared
@@ -538,18 +577,19 @@ class BitmapDSLTest < RedisRubyTestCase
     bitmap[0] = 0
 
     # Key exists but has no set bits
-    assert_equal true, bitmap.empty?
+    assert_empty bitmap
   end
 
   def test_delete_removes_key
     bitmap = redis.bitmap(@key)
 
     bitmap[0] = 1
-    assert_equal true, bitmap.exists?
+
+    assert_predicate bitmap, :exists?
 
     bitmap.delete
 
-    assert_equal false, bitmap.exists?
+    refute_predicate bitmap, :exists?
   end
 
   def test_clear_alias_for_delete
@@ -558,8 +598,21 @@ class BitmapDSLTest < RedisRubyTestCase
     bitmap[0] = 1
     bitmap.clear
 
-    assert_equal false, bitmap.exists?
+    refute_predicate bitmap, :exists?
   end
+end
+
+class BitmapDSLTestPart5 < RedisRubyTestCase
+  use_testcontainers!
+
+  def setup
+    super
+    @key = "test:bitmap:#{SecureRandom.hex(8)}"
+  end
+
+  # ============================================================
+  # Entry Point Tests
+  # ============================================================
 
   # ============================================================
   # Expiration Tests
@@ -616,6 +669,7 @@ class BitmapDSLTest < RedisRubyTestCase
 
     bitmap[0] = 1
     bitmap.expire(3600)
+
     assert_operator bitmap.ttl, :>, 0
 
     result = bitmap.persist
@@ -623,7 +677,6 @@ class BitmapDSLTest < RedisRubyTestCase
     assert_same bitmap, result
     assert_equal(-1, bitmap.ttl)
   end
-
   # ============================================================
   # Chainability Tests
   # ============================================================
@@ -659,7 +712,6 @@ class BitmapDSLTest < RedisRubyTestCase
     assert_equal 2, result.count
     assert_operator result.ttl, :>, 0
   end
-
   # ============================================================
   # Integration Tests - Real-World Scenarios
   # ============================================================
@@ -676,7 +728,8 @@ class BitmapDSLTest < RedisRubyTestCase
     assert_equal 0, today[11]
 
     # Set to expire at end of day
-    today.expire(86400)
+    today.expire(86_400)
+
     assert_operator today.ttl, :>, 0
   end
 
@@ -733,17 +786,20 @@ class BitmapDSLTest < RedisRubyTestCase
     # Find users active both days (AND)
     both_days = redis.bitmap(:dau, "both")
     both_days.and("dau:2024-01-01", "dau:2024-01-02")
-    assert_equal 3, both_days.count  # Users 3, 4, 5
+
+    assert_equal 3, both_days.count # Users 3, 4, 5
 
     # Find users active either day (OR)
     either_day = redis.bitmap(:dau, "either")
     either_day.or("dau:2024-01-01", "dau:2024-01-02")
-    assert_equal 7, either_day.count  # Users 1-7
+
+    assert_equal 7, either_day.count # Users 1-7
 
     # Find users active only one day (XOR)
     one_day = redis.bitmap(:dau, "one")
     one_day.xor("dau:2024-01-01", "dau:2024-01-02")
-    assert_equal 4, one_day.count  # Users 1, 2, 6, 7
+
+    assert_equal 4, one_day.count # Users 1, 2, 6, 7
   end
 
   def test_bitfield_multiple_counters
@@ -787,7 +843,7 @@ class BitmapDSLTest < RedisRubyTestCase
 
     # Find first active hour
     first_active = activity.position(1)
+
     assert_equal 0, first_active
   end
 end
-

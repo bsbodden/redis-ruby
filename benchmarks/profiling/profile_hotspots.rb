@@ -144,7 +144,9 @@ when "allocations"
   puts "-" * 70
   sorted.each do |(path, line, type), (count, old_count, *)|
     short_path = path.to_s.gsub(%r{.*/lib/}, "lib/")
-    puts format("%-50s %10d %10d", "#{short_path}:#{line} (#{type})", count, old_count)
+    loc = "#{short_path}:#{line} (#{type})"
+    puts format("%<loc>-50s %<count>10d %<old>10d",
+                loc: loc, count: count, old: old_count)
   end
 
 when "all"

@@ -18,18 +18,18 @@ puts
 
 # Monkey-patch to trace reads
 module ReadTracer
-  def read_nonblock(*args, **kwargs, &block)
-    result = super(*args, **kwargs, &block)
+  def read_nonblock(*args, **, &)
+    result = super
     if result.is_a?(String)
-      $stderr.puts "  read_nonblock(#{args[0]}) => #{result.bytesize} bytes: #{result.inspect[0..80]}"
+      warn "  read_nonblock(#{args[0]}) => #{result.bytesize} bytes: #{result.inspect[0..80]}"
     else
-      $stderr.puts "  read_nonblock(#{args[0]}) => #{result.inspect}"
+      warn "  read_nonblock(#{args[0]}) => #{result.inspect}"
     end
     result
   end
 
   def fill_buffer(min_bytes)
-    $stderr.puts "fill_buffer(#{min_bytes}) called, buffer=#{@buffer.bytesize} bytes, offset=#{@offset}"
+    warn "fill_buffer(#{min_bytes}) called, buffer=#{@buffer.bytesize} bytes, offset=#{@offset}"
     super
   end
 end
@@ -60,7 +60,6 @@ puts "Result: #{result.bytesize} bytes"
 redis.del("test:trace")
 redis.close
 
-puts "\n" + "=" * 80
+puts "\n#{"=" * 80}"
 puts "Trace complete!"
 puts "=" * 80
-

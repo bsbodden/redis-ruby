@@ -257,7 +257,7 @@ module RR
 
       begin
         result = call_without_instrumentation(command, args)
-      rescue => e
+      rescue StandardError => e
         error = e
         raise
       ensure

@@ -2,7 +2,7 @@
 
 require_relative "../unit_test_helper"
 
-class StreamsBranchTest < Minitest::Test
+module StreamsBranchTestMocks
   class MockClient
     include RR::Commands::Streams
 
@@ -13,58 +13,63 @@ class StreamsBranchTest < Minitest::Test
       mock_return(args)
     end
 
-    def call_1arg(cmd, a1)
-      @last_command = [cmd, a1]
+    def call_1arg(cmd, arg_one)
+      @last_command = [cmd, arg_one]
       mock_return(@last_command)
     end
 
-    def call_2args(cmd, a1, a2)
-      @last_command = [cmd, a1, a2]
+    def call_2args(cmd, arg_one, arg_two)
+      @last_command = [cmd, arg_one, arg_two]
       mock_return(@last_command)
     end
 
-    def call_3args(cmd, a1, a2, a3)
-      @last_command = [cmd, a1, a2, a3]
+    def call_3args(cmd, arg_one, arg_two, arg_three)
+      @last_command = [cmd, arg_one, arg_two, arg_three]
       mock_return(@last_command)
     end
+
+    MOCK_RETURNS = {
+      "XRANGE" => [["id1", %w[f1 v1]], ["id2", %w[f2 v2]]],
+      "XREVRANGE" => [["id1", %w[f1 v1]], ["id2", %w[f2 v2]]],
+      "XREAD" => [["stream1", [["id1", %w[f1 v1]]]]],
+      "XREADGROUP" => [["stream1", [["id1", %w[f1 v1]]]]],
+      "XPENDING" => ["summary"],
+      "XCLAIM" => [["id1", %w[f1 v1]]],
+      "XAUTOCLAIM" => ["next-id", [["id1", %w[f1 v1]]], []],
+      "XLEN" => 1, "XACK" => 1, "XDEL" => 1,
+    }.freeze
+
+    XINFO_RETURNS = {
+      "STREAM" => %w[key1 val1 key2 val2],
+      "GROUPS" => [%w[name g1 consumers 1]],
+      "CONSUMERS" => [%w[name c1 pending 0]],
+    }.freeze
 
     private
 
     def mock_return(args)
-      case args[0]
-      when "XRANGE", "XREVRANGE" then [["id1", %w[f1 v1]], ["id2", %w[f2 v2]]]
-      when "XREAD", "XREADGROUP" then [["stream1", [["id1", %w[f1 v1]]]]]
-      when "XPENDING" then ["summary"]
-      when "XCLAIM" then [["id1", %w[f1 v1]]]
-      when "XAUTOCLAIM" then ["next-id", [["id1", %w[f1 v1]]], []]
-      when "XINFO"
-        case args[1]
-        when "STREAM" then %w[key1 val1 key2 val2]
-        when "GROUPS" then [%w[name g1 consumers 1]]
-        when "CONSUMERS" then [%w[name c1 pending 0]]
-        end
-      when "XLEN", "XACK", "XDEL" then 1
-      else "OK"
-      end
+      return XINFO_RETURNS[args[1]] if args[0] == "XINFO"
+
+      MOCK_RETURNS.fetch(args[0], "OK")
     end
   end
 
-  # A variant mock that returns nil for specific commands to test nil branches
   class NilReturningMockClient < MockClient
     private
 
     def mock_return(args)
-      case args[0]
-      when "XREAD", "XREADGROUP" then nil
-      when "XAUTOCLAIM" then nil
-      when "XCLAIM" then nil
-      else super
+      if %w[XREAD XREADGROUP XAUTOCLAIM XCLAIM].include?(args[0])
+        nil
+      else
+        super
       end
     end
   end
+end
 
+class StreamsBranchTest < Minitest::Test
   def setup
-    @client = MockClient.new
+    @client = StreamsBranchTestMocks::MockClient.new
   end
 
   # ---------------------------------------------------------------------------
@@ -250,7 +255,7 @@ class StreamsBranchTest < Minitest::Test
   end
 
   def test_xread_nil_result
-    nil_client = NilReturningMockClient.new
+    nil_client = StreamsBranchTestMocks::NilReturningMockClient.new
     result = nil_client.xread("mystream", "0-0")
 
     assert_nil result
@@ -393,6 +398,16 @@ class StreamsBranchTest < Minitest::Test
 
     refute_includes @client.last_command, "NOACK"
   end
+end
+
+class StreamsBranchTestPart2 < Minitest::Test
+  def setup
+    @client = StreamsBranchTestMocks::MockClient.new
+  end
+
+  # ---------------------------------------------------------------------------
+  # xadd
+  # ---------------------------------------------------------------------------
 
   def test_xreadgroup_with_count_block_and_noack
     @client.xreadgroup("mygroup", "consumer1", "mystream", ">", count: 5, block: 2000, noack: true)
@@ -404,7 +419,7 @@ class StreamsBranchTest < Minitest::Test
   end
 
   def test_xreadgroup_nil_result
-    nil_client = NilReturningMockClient.new
+    nil_client = StreamsBranchTestMocks::NilReturningMockClient.new
     result = nil_client.xreadgroup("mygroup", "consumer1", "mystream", ">")
 
     assert_nil result
@@ -539,7 +554,7 @@ class StreamsBranchTest < Minitest::Test
 
   def test_xclaim_with_justid
     # With justid: true, result is returned raw (no parse_entries)
-    nil_client = NilReturningMockClient.new
+    nil_client = StreamsBranchTestMocks::NilReturningMockClient.new
     result = nil_client.xclaim("mystream", "mygroup", "consumer1", 60_000, "1000-0", justid: true)
     # NilReturningMockClient returns nil for XCLAIM; justid branch returns result directly
     assert_nil result
@@ -547,7 +562,7 @@ class StreamsBranchTest < Minitest::Test
 
   def test_xclaim_justid_returns_result_directly
     # Create a custom mock that returns IDs for justid
-    client = MockClient.new
+    client = StreamsBranchTestMocks::MockClient.new
     # When justid is true, the result should be returned as-is (not parsed)
     result = client.xclaim("mystream", "mygroup", "consumer1", 60_000, "1000-0", justid: true)
     # MockClient returns [["id1", ["f1", "v1"]]] for XCLAIM
@@ -640,7 +655,7 @@ class StreamsBranchTest < Minitest::Test
   end
 
   def test_xautoclaim_nil_result
-    nil_client = NilReturningMockClient.new
+    nil_client = StreamsBranchTestMocks::NilReturningMockClient.new
     result = nil_client.xautoclaim("mystream", "mygroup", "consumer1", 60_000, "0-0")
 
     assert_nil result
@@ -696,6 +711,16 @@ class StreamsBranchTest < Minitest::Test
 
   # ---------------------------------------------------------------------------
   # xinfo_consumers
+  # ---------------------------------------------------------------------------
+end
+
+class StreamsBranchTestPart3 < Minitest::Test
+  def setup
+    @client = StreamsBranchTestMocks::MockClient.new
+  end
+
+  # ---------------------------------------------------------------------------
+  # xadd
   # ---------------------------------------------------------------------------
 
   def test_xinfo_consumers
@@ -807,7 +832,7 @@ class StreamsBranchTest < Minitest::Test
 
   def test_parse_entries_with_nil_entries_via_xrange
     # Create a mock that returns nil for XRANGE to test parse_entries nil guard
-    nil_entries_client = Class.new(MockClient) do
+    nil_entries_client = Class.new(StreamsBranchTestMocks::MockClient) do
       private
 
       def mock_return(args)
@@ -829,7 +854,7 @@ class StreamsBranchTest < Minitest::Test
 
   def test_hash_result_with_nil_via_xinfo_stream
     # Create a mock that returns nil for XINFO STREAM to test hash_result nil guard
-    nil_info_client = Class.new(MockClient) do
+    nil_info_client = Class.new(StreamsBranchTestMocks::MockClient) do
       private
 
       def mock_return(args)

@@ -2,6 +2,7 @@
 
 require "uri"
 require_relative "client_url_parsing"
+require_relative "concerns/client_instrumentation"
 
 module RR
   # The main synchronous Redis client
@@ -42,6 +43,7 @@ module RR
     include Commands::ACL
     include Commands::Server
     include ClientUrlParsing
+    include Concerns::ClientInstrumentation
 
     attr_reader :host, :port, :path, :db, :timeout, :password, :ssl, :ssl_params
 
@@ -294,9 +296,9 @@ module RR
     #   client.register_connection_callback(:connected) do |event|
     #     puts "Connected to #{event[:host]}:#{event[:port]}"
     #   end
-    def register_connection_callback(event_type, callback = nil, &block)
+    def register_connection_callback(event_type, callback = nil, &)
       ensure_connected
-      @connection.register_callback(event_type, callback, &block)
+      @connection.register_callback(event_type, callback, &)
     end
 
     # Deregister a callback for connection lifecycle events
@@ -307,133 +309,6 @@ module RR
     def deregister_connection_callback(event_type, callback)
       ensure_connected
       @connection.deregister_callback(event_type, callback)
-    end
-
-    private
-
-    # Execute command with circuit breaker and instrumentation protection
-    def execute_with_protection(command, args)
-      if @circuit_breaker
-        @circuit_breaker.call do
-          execute_with_instrumentation(command, args)
-        end
-      else
-        execute_with_instrumentation(command, args)
-      end
-    end
-
-    # Execute command with optional instrumentation
-    def execute_with_instrumentation(command, args)
-      if @instrumentation
-        call_with_instrumentation(command, args)
-      else
-        call_without_instrumentation(command, args)
-      end
-    end
-
-    # Execute 1-arg command with optional instrumentation
-    def execute_1arg_with_instrumentation(command, arg)
-      if @instrumentation
-        call_with_instrumentation(command, [arg])
-      else
-        call_1arg_without_instrumentation(command, arg)
-      end
-    end
-
-    # Execute 2-args command with optional instrumentation
-    def execute_2args_with_instrumentation(command, arg1, arg2)
-      if @instrumentation
-        call_with_instrumentation(command, [arg1, arg2])
-      else
-        call_2args_without_instrumentation(command, arg1, arg2)
-      end
-    end
-
-    # Execute 3-args command with optional instrumentation
-    def execute_3args_with_instrumentation(command, arg1, arg2, arg3)
-      if @instrumentation
-        call_with_instrumentation(command, [arg1, arg2, arg3])
-      else
-        call_3args_without_instrumentation(command, arg1, arg2, arg3)
-      end
-    end
-
-    # Execute command with instrumentation
-    def call_with_instrumentation(command, args)
-      # Trigger before callbacks
-      @instrumentation.before_callbacks.each { |cb| cb.call(command, args) }
-
-      start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-      error = nil
-
-      begin
-        result = call_without_instrumentation(command, args)
-      rescue => e
-        error = e
-        raise
-      ensure
-        duration = Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time
-        @instrumentation.record_command(command, duration, error: error)
-        @instrumentation.after_callbacks.each { |cb| cb.call(command, args, duration) }
-      end
-
-      result
-    end
-
-    # Execute command without instrumentation
-    def call_without_instrumentation(command, args)
-      @retry_policy.call do
-        ensure_connected
-        result = @connection.call_direct(command, *args)
-        raise result if result.is_a?(CommandError)
-
-        @decode_responses ? decode_result(result) : result
-      end
-    end
-
-    # Fast path without instrumentation
-    def call_1arg_without_instrumentation(command, arg)
-      @retry_policy.call do
-        ensure_connected
-        result = @connection.call_1arg(command, arg)
-        raise result if result.is_a?(CommandError)
-
-        @decode_responses ? decode_result(result) : result
-      end
-    end
-
-    def call_2args_without_instrumentation(command, arg1, arg2)
-      @retry_policy.call do
-        ensure_connected
-        result = @connection.call_2args(command, arg1, arg2)
-        raise result if result.is_a?(CommandError)
-
-        @decode_responses ? decode_result(result) : result
-      end
-    end
-
-    def call_3args_without_instrumentation(command, arg1, arg2, arg3)
-      @retry_policy.call do
-        ensure_connected
-        result = @connection.call_3args(command, arg1, arg2, arg3)
-        raise result if result.is_a?(CommandError)
-
-        @decode_responses ? decode_result(result) : result
-      end
-    end
-
-    # Decode a result to the configured encoding
-    def decode_result(result)
-      case result
-      when String
-        result.frozen? ? result.encode(@encoding) : result.force_encoding(@encoding)
-      when Array
-        result.map { |v| decode_result(v) }
-      when Hash
-        result.each_with_object({}) { |(k, v), h| h[decode_result(k)] = decode_result(v) }
-      else
-        result
-      end
     end
   end
 end

@@ -82,7 +82,7 @@ class RedisRubyTest < RedisRubyTestCase
     assert_equal "value", redis.get("test:exat")
     ttl = redis.ttl("test:exat")
 
-    assert ttl.positive?, "Expected positive TTL, got #{ttl}"
+    assert_predicate ttl, :positive?, "Expected positive TTL, got #{ttl}"
   ensure
     redis.del("test:exat")
   end
@@ -96,7 +96,7 @@ class RedisRubyTest < RedisRubyTestCase
     assert_equal "value", redis.get(key)
     pttl = redis.pttl(key)
 
-    assert pttl.positive?, "Expected positive PTTL, got #{pttl}"
+    assert_predicate pttl, :positive?, "Expected positive PTTL, got #{pttl}"
   ensure
     redis.del(key)
   end

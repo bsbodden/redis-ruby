@@ -59,7 +59,7 @@ ObjectSpace.each_object do |obj|
 
   allocations << {
     class: obj.class.name,
-    file: file.gsub(Dir.pwd + "/", ""),
+    file: file.gsub("#{Dir.pwd}/", ""),
     line: ObjectSpace.allocation_sourceline(obj),
     size: ObjectSpace.memsize_of(obj),
   }
@@ -80,20 +80,19 @@ end
 # Method profiling with stackprof
 begin
   require "stackprof"
-  
-  puts "\n" + "=" * 80
+
+  puts "\n#{"=" * 80}"
   puts "StackProf Analysis (CPU time)"
   puts "=" * 80
-  
+
   GC.start
   profile = StackProf.run(mode: :cpu, interval: 100) do
     10_000.times { redis.set("profile:key", "x" * 100) }
   end
-  
+
   # Print top methods
   puts "\nTop methods by total time:"
   StackProf::Report.new(profile).print_text(false, 30)
-  
 rescue LoadError
   puts "\nStackProf not available. Install with: gem install stackprof"
 end
@@ -101,7 +100,6 @@ end
 redis.del("profile:key")
 redis.close
 
-puts "\n" + "=" * 80
+puts "\n#{"=" * 80}"
 puts "Profiling complete!"
 puts "=" * 80
-

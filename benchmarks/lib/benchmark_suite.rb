@@ -61,71 +61,62 @@ module RedisRuby
 
       # Run a comparison benchmark and store results
       def compare(name, redis_rb:, redis_ruby:, config: DEFAULT_CONFIG)
-        result = {
-          name: name,
-          config: config,
-          measurements: {},
-        }
-
-        Benchmark.ips do |x|
-          x.config(**config)
-
-          x.report("redis-rb") { redis_rb.call }
-          x.report("redis-ruby") { redis_ruby.call }
-
-          x.compare!
-
-          # Capture results after comparison
-          x.entries.each do |entry|
-            result[:measurements][entry.label] = {
-              ips: entry.stats.central_tendency,
-              stddev: entry.stats.error,
-              iterations: entry.iterations,
-            }
-          end
-        end
-
-        # Calculate speedup ratio
-        redis_rb_ips = result[:measurements]["redis-rb"][:ips]
-        redis_ruby_ips = result[:measurements]["redis-ruby"][:ips]
-        result[:speedup] = redis_ruby_ips / redis_rb_ips
-
+        result = { name: name, config: config, measurements: {} }
+        run_ips_comparison(result, redis_rb, redis_ruby, config)
+        calculate_speedup(result)
         @results[name] = result
         result
       end
 
+      private
+
+      def run_ips_comparison(result, redis_rb, redis_ruby, config)
+        Benchmark.ips do |x|
+          x.config(**config)
+          x.report("redis-rb") { redis_rb.call }
+          x.report("redis-ruby") { redis_ruby.call }
+          x.compare!
+          capture_measurements(x, result)
+        end
+      end
+
+      def capture_measurements(benchmark, result)
+        benchmark.entries.each do |entry|
+          result[:measurements][entry.label] = {
+            ips: entry.stats.central_tendency,
+            stddev: entry.stats.error,
+            iterations: entry.iterations,
+          }
+        end
+      end
+
+      def calculate_speedup(result)
+        rb_ips = result[:measurements]["redis-rb"][:ips]
+        ruby_ips = result[:measurements]["redis-ruby"][:ips]
+        result[:speedup] = ruby_ips / rb_ips
+      end
+
+      public
+
       # Verify all results against performance gates
       def verify_gates
-        failures = []
-        passes = []
+        gate_results = classify_gate_results
+        {
+          passes: gate_results.select { |r| r[:status] == :pass },
+          failures: gate_results.select { |r| r[:status] == :fail },
+          all_passed: gate_results.none? { |r| r[:status] == :fail },
+        }
+      end
 
-        PERFORMANCE_GATES.each do |name, gate|
+      def classify_gate_results
+        PERFORMANCE_GATES.filter_map do |name, gate|
           result = @results[name]
           next unless result
 
           speedup = result[:speedup]
-          if speedup >= gate[:min_speedup]
-            passes << {
-              name: name,
-              speedup: speedup,
-              required: gate[:min_speedup],
-              status: :pass,
-            }
-          else
-            failures << {
-              name: name,
-              speedup: speedup,
-              required: gate[:min_speedup],
-              status: :fail,
-            }
-          end
+          status = speedup >= gate[:min_speedup] ? :pass : :fail
+          { name: name, speedup: speedup, required: gate[:min_speedup], status: status }
         end
-
-        {
-          passes: passes,
-          failures: failures,
-          all_passed: failures.empty?,
-        }
       end
 
       # Generate JSON report
@@ -148,28 +139,37 @@ module RedisRuby
 
       # Print summary to console
       def print_summary
+        print_summary_header
+        print_result_rows
+        print_gate_verification
+      end
+
+      def print_summary_header
         puts "\n#{"=" * 70}"
         puts "BENCHMARK SUMMARY"
         puts "=" * 70
         puts "Ruby: #{@metadata[:ruby_version]} | YJIT: #{@metadata[:yjit_enabled]}"
         puts "Timestamp: #{@metadata[:timestamp]}"
         puts "-" * 70
+      end
 
+      def print_result_rows
         @results.each do |name, result|
-          speedup = result[:speedup]
           gate = PERFORMANCE_GATES[name]
-          status = if gate.nil?
-                     "[INFO]"
-                   elsif speedup >= gate[:min_speedup]
-                     "[PASS]"
-                   else
-                     "[FAIL]"
-                   end
-
+          status = gate_status_label(gate, result[:speedup])
           required = gate ? " (need #{gate[:min_speedup]}x)" : ""
-          puts format("%-25s %s %.2fx faster%s", name, status, speedup, required)
+          puts format("%<name>-25s %<status>s %<speedup>.2fx faster%<req>s",
+                      name: name, status: status, speedup: result[:speedup], req: required)
         end
+      end
 
+      def gate_status_label(gate, speedup)
+        return "[INFO]" if gate.nil?
+
+        speedup >= gate[:min_speedup] ? "[PASS]" : "[FAIL]"
+      end
+
+      def print_gate_verification
         puts "-" * 70
         verification = verify_gates
         if verification[:all_passed]
@@ -318,44 +318,57 @@ module RedisRuby
 
       def self.generate(json_report, output_path)
         data = JSON.parse(json_report)
-        metadata = data["metadata"]
-        results = data["results"]
+        html = build_html(data["metadata"], data["results"])
+        FileUtils.mkdir_p(File.dirname(output_path))
+        File.write(output_path, html)
+        output_path
+      end
 
-        gate_rows = results.map do |name, result|
+      def self.build_html(metadata, results)
+        format(TEMPLATE,
+               timestamp: metadata["timestamp"],
+               ruby_version: metadata["ruby_version"],
+               yjit_enabled: metadata["yjit_enabled"],
+               gate_rows: build_gate_rows(results),
+               result_sections: build_result_sections(results),
+               chart_labels: results.keys.to_json,
+               chart_data: results.values.map { |r| r["speedup"].round(2) }.to_json,
+               chart_colors: build_chart_colors(results).to_s)
+      end
+
+      def self.build_gate_rows(results)
+        results.map do |name, result|
           gate = PERFORMANCE_GATES[name]
           speedup = result["speedup"]
-          status = if gate.nil?
-                     "info"
-                   elsif speedup >= gate[:min_speedup]
-                     "pass"
-                   else
-                     "fail"
-                   end
+          status = gate_css_class(gate, speedup)
           required = gate ? "#{gate[:min_speedup]}x" : "N/A"
-          status_text = status.upcase
 
           "<tr class='#{status}'><td>#{name}</td><td>#{speedup.round(2)}x</td>" \
-            "<td>#{required}</td><td>#{status_text}</td></tr>"
+            "<td>#{required}</td><td>#{status.upcase}</td></tr>"
         end.join("\n")
+      end
 
-        result_sections = results.map do |name, result|
+      def self.gate_css_class(gate, speedup)
+        return "info" if gate.nil?
+
+        speedup >= gate[:min_speedup] ? "pass" : "fail"
+      end
+
+      def self.build_result_sections(results)
+        results.map do |name, result|
           measurements = result["measurements"]
           rb_ips = measurements["redis-rb"]["ips"].round(1)
           ruby_ips = measurements["redis-ruby"]["ips"].round(1)
 
-          <<~SECTION
-            <div class="result">
-              <h3>#{name}</h3>
-              <p><strong>redis-rb:</strong> #{rb_ips} i/s</p>
-              <p><strong>redis-ruby:</strong> #{ruby_ips} i/s</p>
-              <p class="speedup">Speedup: #{result["speedup"].round(2)}x</p>
-            </div>
-          SECTION
+          "<div class=\"result\"><h3>#{name}</h3>" \
+            "<p><strong>redis-rb:</strong> #{rb_ips} i/s</p>" \
+            "<p><strong>redis-ruby:</strong> #{ruby_ips} i/s</p>" \
+            "<p class=\"speedup\">Speedup: #{result["speedup"].round(2)}x</p></div>"
         end.join("\n")
+      end
 
-        chart_labels = results.keys.to_json
-        chart_data = results.values.map { |r| r["speedup"].round(2) }.to_json
-        chart_colors = results.map do |name, result|
+      def self.build_chart_colors(results)
+        results.map do |name, result|
           gate = PERFORMANCE_GATES[name]
           if gate.nil?
             "'rgba(23, 162, 184, 0.6)'"
@@ -364,21 +377,7 @@ module RedisRuby
           else
             "'rgba(220, 53, 69, 0.6)'"
           end
-        end.to_s
-
-        html = format(TEMPLATE,
-                      timestamp: metadata["timestamp"],
-                      ruby_version: metadata["ruby_version"],
-                      yjit_enabled: metadata["yjit_enabled"],
-                      gate_rows: gate_rows,
-                      result_sections: result_sections,
-                      chart_labels: chart_labels,
-                      chart_data: chart_data,
-                      chart_colors: chart_colors)
-
-        FileUtils.mkdir_p(File.dirname(output_path))
-        File.write(output_path, html)
-        output_path
+        end
       end
     end
   end

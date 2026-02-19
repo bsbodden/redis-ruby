@@ -13,18 +13,18 @@ class ServerBranchTest < Minitest::Test
       "OK"
     end
 
-    def call_1arg(cmd, a1)
-      @last_command = [cmd, a1]
+    def call_1arg(cmd, arg_one)
+      @last_command = [cmd, arg_one]
       "OK"
     end
 
-    def call_2args(cmd, a1, a2)
-      @last_command = [cmd, a1, a2]
+    def call_2args(cmd, arg_one, arg_two)
+      @last_command = [cmd, arg_one, arg_two]
       "OK"
     end
 
-    def call_3args(cmd, a1, a2, a3)
-      @last_command = [cmd, a1, a2, a3]
+    def call_3args(cmd, arg_one, arg_two, arg_three)
+      @last_command = [cmd, arg_one, arg_two, arg_three]
       "OK"
     end
   end
@@ -204,7 +204,40 @@ class ServerBranchTest < Minitest::Test
 
     assert_equal %w[CLIENT GETNAME], @client.last_command
   end
+end
 
+class ServerBranchTestPart2 < Minitest::Test
+  class MockClient
+    include RR::Commands::Server
+
+    attr_reader :last_command
+
+    def call(*args)
+      @last_command = args
+      "OK"
+    end
+
+    def call_1arg(cmd, arg_one)
+      @last_command = [cmd, arg_one]
+      "OK"
+    end
+
+    def call_2args(cmd, arg_one, arg_two)
+      @last_command = [cmd, arg_one, arg_two]
+      "OK"
+    end
+
+    def call_3args(cmd, arg_one, arg_two, arg_three)
+      @last_command = [cmd, arg_one, arg_two, arg_three]
+      "OK"
+    end
+  end
+
+  def setup
+    @client = MockClient.new
+  end
+
+  # info
   def test_client_setname
     @client.client_setname("myconn")
 
@@ -383,7 +416,40 @@ class ServerBranchTest < Minitest::Test
 
     assert_equal %w[LATENCY LATEST], @client.last_command
   end
+end
 
+class ServerBranchTestPart3 < Minitest::Test
+  class MockClient
+    include RR::Commands::Server
+
+    attr_reader :last_command
+
+    def call(*args)
+      @last_command = args
+      "OK"
+    end
+
+    def call_1arg(cmd, arg_one)
+      @last_command = [cmd, arg_one]
+      "OK"
+    end
+
+    def call_2args(cmd, arg_one, arg_two)
+      @last_command = [cmd, arg_one, arg_two]
+      "OK"
+    end
+
+    def call_3args(cmd, arg_one, arg_two, arg_three)
+      @last_command = [cmd, arg_one, arg_two, arg_three]
+      "OK"
+    end
+  end
+
+  def setup
+    @client = MockClient.new
+  end
+
+  # info
   def test_latency_history
     @client.latency_history("command")
 

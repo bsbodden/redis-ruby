@@ -76,7 +76,6 @@ module RR
       #   bitmap[456] = 0
       def []=(offset, value)
         @redis.setbit(@key, offset, value)
-        value
       end
 
       # Get bit value at offset (Array-like syntax)
@@ -100,7 +99,7 @@ module RR
       #   bitmap.count           # Count all bits
       #   bitmap.count(0, 10)    # Count bits in bytes 0-10
       def count(start_byte = 0, end_byte = -1)
-        if start_byte == 0 && end_byte == -1
+        if start_byte.zero? && end_byte == -1
           @redis.bitcount(@key)
         else
           @redis.bitcount(@key, start_byte, end_byte)
@@ -118,7 +117,7 @@ module RR
       #   bitmap.position(1)        # Find first 1 bit
       #   bitmap.position(0, 10)    # Find first 0 bit starting at byte 10
       def position(bit, start_byte = 0, end_byte = -1)
-        if start_byte == 0 && end_byte == -1
+        if start_byte.zero? && end_byte == -1
           @redis.bitpos(@key, bit)
         else
           @redis.bitpos(@key, bit, start_byte, end_byte)
@@ -134,6 +133,7 @@ module RR
       #   result.and(:bitmap1, :bitmap2)
       def and(*keys)
         return self if keys.empty?
+
         @redis.bitop("AND", @key, *keys.map(&:to_s))
         self
       end
@@ -147,6 +147,7 @@ module RR
       #   result.or(:bitmap1, :bitmap2, :bitmap3)
       def or(*keys)
         return self if keys.empty?
+
         @redis.bitop("OR", @key, *keys.map(&:to_s))
         self
       end
@@ -160,6 +161,7 @@ module RR
       #   result.xor(:bitmap1, :bitmap2)
       def xor(*keys)
         return self if keys.empty?
+
         @redis.bitop("XOR", @key, *keys.map(&:to_s))
         self
       end
@@ -248,7 +250,7 @@ module RR
       # @example
       #   bitmap.exists?  # => true
       def exists?
-        @redis.exists(@key) > 0
+        @redis.exists(@key).positive?
       end
 
       # Check if the bitmap is empty (doesn't exist or has no set bits)
@@ -258,7 +260,7 @@ module RR
       # @example
       #   bitmap.empty?  # => false
       def empty?
-        !exists? || count == 0
+        !exists? || count.zero?
       end
 
       # Delete the bitmap
@@ -271,8 +273,6 @@ module RR
         @redis.del(@key)
       end
       alias clear delete
-
     end
   end
 end
-

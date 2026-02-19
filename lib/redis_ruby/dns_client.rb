@@ -176,14 +176,25 @@ module RR
       @mutex.synchronize do
         return if @connection&.connected?
 
-        ip = @dns_resolver.resolve
-        @connection&.close rescue nil
-        @connection = create_connection(ip, @port)
-        @current_ip = ip
-
-        authenticate if @password
-        select_db if @db.positive?
+        connect_to_resolved_ip
       end
+    end
+
+    # Resolve DNS and connect to the resulting IP
+    def connect_to_resolved_ip
+      ip = @dns_resolver.resolve
+      close_existing_connection
+      @connection = create_connection(ip, @port)
+      @current_ip = ip
+      authenticate if @password
+      select_db if @db.positive?
+    end
+
+    # Safely close existing connection
+    def close_existing_connection
+      @connection&.close
+    rescue StandardError
+      nil
     end
 
     # Create a connection to the resolved IP
@@ -211,32 +222,27 @@ module RR
     # @api private
     def reconnect_to_different_ip(original_error)
       attempts = 0
-
       while attempts < @reconnect_attempts
         attempts += 1
-
         begin
-          @mutex.synchronize do
-            @connection&.close rescue nil
-            @connection = nil
-
-            # Get next IP from DNS resolver
-            ip = @dns_resolver.resolve
-            @connection = create_connection(ip, @port)
-            @current_ip = ip
-
-            authenticate if @password
-            select_db if @db.positive?
-          end
-
+          attempt_reconnect_to_new_ip
           return # Successfully reconnected
         rescue StandardError
           raise original_error if attempts >= @reconnect_attempts
         end
       end
-
       raise original_error
+    end
+
+    # Attempt a single reconnection to a new IP
+    # @return [true] if reconnection succeeded
+    def attempt_reconnect_to_new_ip
+      @mutex.synchronize do
+        close_existing_connection
+        @connection = nil
+        connect_to_resolved_ip
+      end
+      true
     end
   end
 end
-

@@ -121,7 +121,11 @@ module RR
         method_name = EXTENDED_TYPE_METHODS[type_byte]
         unless method_name
           # Better error message with byte value
-          char_repr = type_byte.chr rescue "\\x#{type_byte.to_s(16).rjust(2, '0')}"
+          char_repr = begin
+            type_byte.chr
+          rescue StandardError
+            "\\x#{type_byte.to_s(16).rjust(2, "0")}"
+          end
           raise ProtocolError, "Unknown RESP3 type: #{char_repr} (byte: #{type_byte})"
         end
 

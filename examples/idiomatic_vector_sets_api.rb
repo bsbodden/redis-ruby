@@ -28,8 +28,8 @@ puts "-" * 80
 
 # Define a vector set with configuration (for documentation)
 builder = redis.vector_set("product:embeddings") do
-  dimension 384  # Vector dimension
-  quantization :binary  # Quantization method
+  dimension 384 # Vector dimension
+  quantization :binary # Quantization method
   metadata_schema do
     field :category, type: :string
     field :price, type: :number
@@ -41,7 +41,7 @@ puts "Created vector set configuration:"
 puts "  Key: #{builder.key}"
 puts "  Dimension: #{builder.config[:dimension]}"
 puts "  Quantization: #{builder.config[:quantization]}"
-puts "  Metadata fields: #{builder.config[:metadata_fields].keys.join(', ')}"
+puts "  Metadata fields: #{builder.config[:metadata_fields].keys.join(", ")}"
 puts
 
 # ============================================================
@@ -76,11 +76,11 @@ puts
 # Add multiple vectors in batch
 vectors.add_many([
   { id: "tablet_001", vector: [0.12, 0.22, 0.32] * 128,
-    category: "electronics", price: 499.99, in_stock: true },
+    category: "electronics", price: 499.99, in_stock: true, },
   { id: "novel_001", vector: [0.22, 0.32, 0.42] * 128,
-    category: "books", price: 24.99, in_stock: true },
+    category: "books", price: 24.99, in_stock: true, },
   { id: "speaker_001", vector: [0.18, 0.28, 0.38] * 128,
-    category: "electronics", price: 299.99, in_stock: true },
+    category: "electronics", price: 299.99, in_stock: true, },
 ])
 
 puts "Added 3 more vectors in batch"
@@ -99,7 +99,7 @@ puts "-" * 80
 vector_data = vectors.get("laptop_001")
 puts "Retrieved vector for laptop_001:"
 puts "  Dimension: #{vector_data.length}"
-puts "  First 5 values: #{vector_data.first(5).map { |v| format('%.2f', v) }.join(', ')}"
+puts "  First 5 values: #{vector_data.first(5).map { |v| format("%.2f", v) }.join(", ")}"
 puts
 
 # Get metadata for a vector
@@ -114,8 +114,8 @@ puts
 vectors.set_metadata("laptop_001", price: 899.99, on_sale: true)
 puts "Updated metadata for laptop_001"
 updated_metadata = vectors.metadata("laptop_001")
-puts "  New price: $#{updated_metadata['price']}"
-puts "  On sale: #{updated_metadata['on_sale']}"
+puts "  New price: $#{updated_metadata["price"]}"
+puts "  On sale: #{updated_metadata["on_sale"]}"
 puts
 
 # ============================================================
@@ -143,7 +143,7 @@ results_with_scores = vectors.search(query_vector)
 
 puts "Top 3 similar items with scores:"
 results_with_scores.each do |id, score|
-  puts "  - #{id}: #{format('%.4f', score)}"
+  puts "  - #{id}: #{format("%.4f", score)}"
 end
 puts
 
@@ -163,7 +163,7 @@ electronics_results = vectors.search(query_vector)
 
 puts "Electronics only (filtered search):"
 electronics_results.each do |id, score|
-  puts "  - #{id}: #{format('%.4f', score)}"
+  puts "  - #{id}: #{format("%.4f", score)}"
 end
 puts
 
@@ -177,9 +177,9 @@ affordable_results = vectors.search(query_vector)
 
 puts "Affordable items (price < $300):"
 affordable_results.each do |id, data|
-  puts "  - #{id} (score: #{format('%.4f', data['score'])}):"
-  puts "      price: $#{data['attributes']['price']}"
-  puts "      category: #{data['attributes']['category']}"
+  puts "  - #{id} (score: #{format("%.4f", data["score"])}):"
+  puts "      price: $#{data["attributes"]["price"]}"
+  puts "      category: #{data["attributes"]["category"]}"
 end
 puts
 
@@ -193,9 +193,9 @@ in_stock_electronics = vectors.search(query_vector)
 
 puts "In-stock electronics:"
 in_stock_electronics.each do |id, data|
-  puts "  - #{id} (score: #{format('%.4f', data['score'])}):"
-  puts "      price: $#{data['attributes']['price']}"
-  puts "      in_stock: #{data['attributes']['in_stock']}"
+  puts "  - #{id} (score: #{format("%.4f", data["score"])}):"
+  puts "      price: $#{data["attributes"]["price"]}"
+  puts "      in_stock: #{data["attributes"]["in_stock"]}"
 end
 puts
 
@@ -215,7 +215,7 @@ precise_results = vectors.search(query_vector)
 
 puts "Search with higher exploration factor (ef=200):"
 precise_results.each do |id, score|
-  puts "  - #{id}: #{format('%.4f', score)}"
+  puts "  - #{id}: #{format("%.4f", score)}"
 end
 puts
 
@@ -228,7 +228,7 @@ threshold_results = vectors.search(query_vector)
 
 puts "Search with distance threshold (epsilon=0.5):"
 threshold_results.each do |id, score|
-  puts "  - #{id}: #{format('%.4f', score)}"
+  puts "  - #{id}: #{format("%.4f", score)}"
 end
 puts
 
@@ -260,7 +260,7 @@ puts "-" * 80
 
 # Remove individual vectors
 removed = vectors.remove("headphones_001")
-puts "Removed headphones_001: #{removed == 1 ? 'success' : 'failed'}"
+puts "Removed headphones_001: #{removed == 1 ? "success" : "failed"}"
 puts "Remaining vectors: #{vectors.count}"
 puts
 
@@ -271,7 +271,6 @@ redis.close
 puts "=" * 80
 puts "Example completed!"
 puts "=" * 80
-
 
 # Search with metadata
 results_with_metadata = vectors.search(query_vector)
@@ -295,8 +294,7 @@ results_full = vectors.search(query_vector)
 
 puts "Top 3 similar items with scores and metadata:"
 results_full.each do |id, data|
-  puts "  - #{id} (score: #{format('%.4f', data['score'])}):"
+  puts "  - #{id} (score: #{format("%.4f", data["score"])}):"
   data["attributes"].each { |k, v| puts "      #{k}: #{v}" }
 end
 puts
-

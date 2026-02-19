@@ -65,9 +65,6 @@ class GateVerifier
     puts "\n#{name}"
     puts "-" * 50
 
-    rb_ips = nil
-    ruby_ips = nil
-
     report = Benchmark.ips do |x|
       x.config(**CONFIG)
       x.report("redis-rb") { redis_rb_block.call }
@@ -75,23 +72,25 @@ class GateVerifier
       x.compare!
     end
 
-    # Capture IPS values from the report
-    report.entries.each do |entry|
-      case entry.label
-      when "redis-rb"
-        rb_ips = entry.stats.central_tendency
-      when "redis-ruby"
-        ruby_ips = entry.stats.central_tendency
-      end
-    end
+    rb_ips, ruby_ips = extract_ips(report)
+    record_result(name, rb_ips, ruby_ips)
+  end
 
+  def extract_ips(report)
+    ips_values = {}
+    report.entries.each do |entry|
+      ips_values[entry.label] = entry.stats.central_tendency
+    end
+    [ips_values["redis-rb"], ips_values["redis-ruby"]]
+  end
+
+  def record_result(name, rb_ips, ruby_ips)
     speedup = ruby_ips / rb_ips
     @results[name] = {
       redis_rb_ips: rb_ips,
       redis_ruby_ips: ruby_ips,
       speedup: speedup,
     }
-
     speedup
   end
 
@@ -110,43 +109,40 @@ class GateVerifier
   end
 
   def run_all
-    # Single GET
+    run_single_benchmarks
+    run_pipeline_benchmarks
+    run_connection_benchmark
+  end
+
+  def run_single_benchmarks
     run_benchmark("Single GET",
                   redis_rb_block: -> { @redis_rb.get("benchmark:key") },
                   redis_ruby_block: -> { @redis_ruby.get("benchmark:key") })
 
-    # Single SET
     run_benchmark("Single SET",
                   redis_rb_block: -> { @redis_rb.set("benchmark:set_rb", "value") },
                   redis_ruby_block: -> { @redis_ruby.set("benchmark:set_ruby", "value") })
+  end
 
-    # Pipeline 10 commands
+  def run_pipeline_benchmarks
     run_benchmark("Pipeline 10",
                   redis_rb_block: lambda {
-                    @redis_rb.pipelined do |pipe|
-                      10.times { |i| pipe.get("benchmark:key:#{i}") }
-                    end
+                    @redis_rb.pipelined { |p| 10.times { |i| p.get("benchmark:key:#{i}") } }
                   },
                   redis_ruby_block: lambda {
-                    @redis_ruby.pipelined do |pipe|
-                      10.times { |i| pipe.get("benchmark:key:#{i}") }
-                    end
+                    @redis_ruby.pipelined { |p| 10.times { |i| p.get("benchmark:key:#{i}") } }
                   })
 
-    # Pipeline 100 commands
     run_benchmark("Pipeline 100",
                   redis_rb_block: lambda {
-                    @redis_rb.pipelined do |pipe|
-                      100.times { |i| pipe.get("benchmark:key:#{i % 100}") }
-                    end
+                    @redis_rb.pipelined { |p| 100.times { |i| p.get("benchmark:key:#{i % 100}") } }
                   },
                   redis_ruby_block: lambda {
-                    @redis_ruby.pipelined do |pipe|
-                      100.times { |i| pipe.get("benchmark:key:#{i % 100}") }
-                    end
+                    @redis_ruby.pipelined { |p| 100.times { |i| p.get("benchmark:key:#{i % 100}") } }
                   })
+  end
 
-    # Connection Setup
+  def run_connection_benchmark
     run_benchmark("Connection Setup",
                   redis_rb_block: lambda {
                     c = Redis.new(url: REDIS_URL)

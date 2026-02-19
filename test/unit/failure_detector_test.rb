@@ -10,9 +10,9 @@ class FailureDetectorTest < Minitest::Test
   def test_initialize_with_defaults
     detector = RR::FailureDetector.new
 
-    assert_equal 2.0, detector.window_size
+    assert_in_delta(2.0, detector.window_size)
     assert_equal 1000, detector.min_failures
-    assert_equal 0.10, detector.failure_rate_threshold
+    assert_in_delta(0.10, detector.failure_rate_threshold)
   end
 
   def test_initialize_with_custom_values
@@ -22,9 +22,9 @@ class FailureDetectorTest < Minitest::Test
       failure_rate_threshold: 0.25
     )
 
-    assert_equal 5.0, detector.window_size
+    assert_in_delta(5.0, detector.window_size)
     assert_equal 500, detector.min_failures
-    assert_equal 0.25, detector.failure_rate_threshold
+    assert_in_delta(0.25, detector.failure_rate_threshold)
   end
 
   def test_initialize_raises_on_non_positive_window_size
@@ -69,14 +69,14 @@ class FailureDetectorTest < Minitest::Test
   def test_threshold_not_exceeded_with_no_data
     detector = RR::FailureDetector.new
 
-    refute detector.failure_threshold_exceeded?
+    refute_predicate detector, :failure_threshold_exceeded?
   end
 
   def test_threshold_not_exceeded_below_min_failures
     detector = RR::FailureDetector.new(min_failures: 10)
     5.times { detector.record_failure }
 
-    refute detector.failure_threshold_exceeded?
+    refute_predicate detector, :failure_threshold_exceeded?
   end
 
   def test_threshold_exceeded_when_both_conditions_met
@@ -84,7 +84,7 @@ class FailureDetectorTest < Minitest::Test
     5.times { detector.record_failure }
     2.times { detector.record_success }
 
-    assert detector.failure_threshold_exceeded?
+    assert_predicate detector, :failure_threshold_exceeded?
   end
 
   def test_threshold_not_exceeded_when_rate_below_threshold
@@ -92,7 +92,7 @@ class FailureDetectorTest < Minitest::Test
     3.times { detector.record_failure }
     10.times { detector.record_success }
 
-    refute detector.failure_threshold_exceeded?
+    refute_predicate detector, :failure_threshold_exceeded?
   end
 
   # ============================================================
@@ -119,11 +119,11 @@ class FailureDetectorTest < Minitest::Test
                                        failure_rate_threshold: 0.5)
     3.times { detector.record_failure }
 
-    assert detector.failure_threshold_exceeded?
+    assert_predicate detector, :failure_threshold_exceeded?
 
     sleep 0.06
 
-    refute detector.failure_threshold_exceeded?
+    refute_predicate detector, :failure_threshold_exceeded?
   end
 
   # ============================================================
@@ -140,7 +140,7 @@ class FailureDetectorTest < Minitest::Test
 
     assert_equal 0, stats[:total_failures]
     assert_equal 0, stats[:total_successes]
-    assert_equal 0.0, stats[:failure_rate]
+    assert_in_delta(0.0, stats[:failure_rate])
   end
 
   # ============================================================
@@ -161,7 +161,7 @@ class FailureDetectorTest < Minitest::Test
     detector = RR::FailureDetector.new
     stats = detector.stats
 
-    assert_equal 0.0, stats[:failure_rate]
+    assert_in_delta(0.0, stats[:failure_rate])
   end
 
   def test_stats_includes_configuration
@@ -169,8 +169,8 @@ class FailureDetectorTest < Minitest::Test
                                        failure_rate_threshold: 0.2)
     stats = detector.stats
 
-    assert_equal 3.0, stats[:window_size]
+    assert_in_delta(3.0, stats[:window_size])
     assert_equal 50, stats[:min_failures]
-    assert_equal 0.2, stats[:failure_rate_threshold]
+    assert_in_delta(0.2, stats[:failure_rate_threshold])
   end
 end

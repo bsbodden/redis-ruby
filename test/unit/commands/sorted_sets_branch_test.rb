@@ -19,68 +19,63 @@ class SortedSetsBranchTest < Minitest::Test
       mock_return_value(args)
     end
 
-    def call_1arg(cmd, a1)
-      @last_command = [cmd, a1]
+    def call_1arg(cmd, arg_one)
+      @last_command = [cmd, arg_one]
       mock_return_value(@last_command)
     end
 
-    def call_2args(cmd, a1, a2)
-      @last_command = [cmd, a1, a2]
+    def call_2args(cmd, arg_one, arg_two)
+      @last_command = [cmd, arg_one, arg_two]
       mock_return_value(@last_command)
     end
 
-    def call_3args(cmd, a1, a2, a3)
-      @last_command = [cmd, a1, a2, a3]
+    def call_3args(cmd, arg_one, arg_two, arg_three)
+      @last_command = [cmd, arg_one, arg_two, arg_three]
       mock_return_value(@last_command)
     end
 
-    def set_mock_override(value)
-      @mock_override = value
-    end
+    attr_writer :mock_override
 
     def clear_mock_override
       @mock_override = UNSET
     end
 
+    SIMPLE_RETURNS = {
+      "ZSCORE" => "1.5", "ZINCRBY" => "1.5",
+      "ZMSCORE" => ["1.0", "2.0"],
+      "ZPOPMIN" => ["member1", "1.0"], "ZPOPMAX" => ["member1", "1.0"],
+      "BZPOPMIN" => ["key", "member", "1.0"], "BZPOPMAX" => ["key", "member", "1.0"],
+      "ZSCAN" => ["0", ["member1", "1.0", "member2", "2.0"]],
+      "ZMPOP" => ["key", [["m1", "1.0"], ["m2", "2.0"]]],
+      "BZMPOP" => ["key", [["m1", "1.0"], ["m2", "2.0"]]],
+    }.freeze
+
+    WITHSCORES_CMDS = %w[ZRANGE ZREVRANGE ZRANGEBYSCORE ZREVRANGEBYSCORE ZUNION ZINTER ZDIFF].freeze
+
     private
 
     def mock_return_value(args)
       return @mock_override unless @mock_override.equal?(UNSET)
+      return SIMPLE_RETURNS[args[0]] if SIMPLE_RETURNS.key?(args[0])
+      return withscores_return(args) if WITHSCORES_CMDS.include?(args[0])
+      return zrandmember_return(args) if args[0] == "ZRANDMEMBER"
+      return rank_return(args) if %w[ZRANK ZREVRANK].include?(args[0])
 
-      case args[0]
-      when "ZSCORE", "ZINCRBY" then "1.5"
-      when "ZMSCORE" then ["1.0", "2.0"]
-      when "ZRANGE", "ZREVRANGE", "ZRANGEBYSCORE", "ZREVRANGEBYSCORE"
-        if args.include?("WITHSCORES")
-          ["member1", "1.0", "member2", "2.0"]
-        else
-          %w[member1 member2]
-        end
-      when "ZPOPMIN", "ZPOPMAX" then ["member1", "1.0"]
-      when "BZPOPMIN", "BZPOPMAX" then ["key", "member", "1.0"]
-      when "ZSCAN" then ["0", ["member1", "1.0", "member2", "2.0"]]
-      when "ZUNION", "ZINTER", "ZDIFF"
-        if args.include?("WITHSCORES")
-          ["member1", "1.0", "member2", "2.0"]
-        else
-          %w[member1 member2]
-        end
-      when "ZMPOP", "BZMPOP" then ["key", [["m1", "1.0"], ["m2", "2.0"]]]
-      when "ZRANDMEMBER"
-        if args.include?("WITHSCORES")
-          ["member1", "1.0", "member2", "2.0"]
-        else
-          args.length > 2 ? %w[member1 member2] : "member1"
-        end
-      when "ZRANK", "ZREVRANK"
-        if args.include?("WITHSCORE")
-          [2, "1.5"]
-        else
-          2
-        end
-      else
-        "OK"
-      end
+      "OK"
+    end
+
+    def withscores_return(args)
+      args.include?("WITHSCORES") ? ["member1", "1.0", "member2", "2.0"] : %w[member1 member2]
+    end
+
+    def zrandmember_return(args)
+      return ["member1", "1.0", "member2", "2.0"] if args.include?("WITHSCORES")
+
+      args.length > 2 ? %w[member1 member2] : "member1"
+    end
+
+    def rank_return(args)
+      args.include?("WITHSCORE") ? [2, "1.5"] : 2
     end
   end
 
@@ -130,6 +125,92 @@ class SortedSetsBranchTest < Minitest::Test
   def test_parse_score_negative_string
     assert_in_delta(-7.5, @client.parse_score("-7.5"), 0.001)
   end
+end
+
+class SortedSetsBranchTestPart2 < Minitest::Test
+  class MockClient
+    include RR::Commands::SortedSets
+
+    attr_reader :last_command
+
+    UNSET = Object.new
+
+    def initialize
+      @mock_override = UNSET
+    end
+
+    def call(*args)
+      @last_command = args
+      mock_return_value(args)
+    end
+
+    def call_1arg(cmd, arg_one)
+      @last_command = [cmd, arg_one]
+      mock_return_value(@last_command)
+    end
+
+    def call_2args(cmd, arg_one, arg_two)
+      @last_command = [cmd, arg_one, arg_two]
+      mock_return_value(@last_command)
+    end
+
+    def call_3args(cmd, arg_one, arg_two, arg_three)
+      @last_command = [cmd, arg_one, arg_two, arg_three]
+      mock_return_value(@last_command)
+    end
+
+    attr_writer :mock_override
+
+    def clear_mock_override
+      @mock_override = UNSET
+    end
+
+    SIMPLE_RETURNS = {
+      "ZSCORE" => "1.5", "ZINCRBY" => "1.5",
+      "ZMSCORE" => ["1.0", "2.0"],
+      "ZPOPMIN" => ["member1", "1.0"], "ZPOPMAX" => ["member1", "1.0"],
+      "BZPOPMIN" => ["key", "member", "1.0"], "BZPOPMAX" => ["key", "member", "1.0"],
+      "ZSCAN" => ["0", ["member1", "1.0", "member2", "2.0"]],
+      "ZMPOP" => ["key", [["m1", "1.0"], ["m2", "2.0"]]],
+      "BZMPOP" => ["key", [["m1", "1.0"], ["m2", "2.0"]]],
+    }.freeze
+
+    WITHSCORES_CMDS = %w[ZRANGE ZREVRANGE ZRANGEBYSCORE ZREVRANGEBYSCORE ZUNION ZINTER ZDIFF].freeze
+
+    private
+
+    def mock_return_value(args)
+      return @mock_override unless @mock_override.equal?(UNSET)
+      return SIMPLE_RETURNS[args[0]] if SIMPLE_RETURNS.key?(args[0])
+      return withscores_return(args) if WITHSCORES_CMDS.include?(args[0])
+      return zrandmember_return(args) if args[0] == "ZRANDMEMBER"
+      return rank_return(args) if %w[ZRANK ZREVRANK].include?(args[0])
+
+      "OK"
+    end
+
+    def withscores_return(args)
+      args.include?("WITHSCORES") ? ["member1", "1.0", "member2", "2.0"] : %w[member1 member2]
+    end
+
+    def zrandmember_return(args)
+      return ["member1", "1.0", "member2", "2.0"] if args.include?("WITHSCORES")
+
+      args.length > 2 ? %w[member1 member2] : "member1"
+    end
+
+    def rank_return(args)
+      args.include?("WITHSCORE") ? [2, "1.5"] : 2
+    end
+  end
+
+  def setup
+    @client = MockClient.new
+  end
+
+  # ============================================================
+  # parse_score tests
+  # ============================================================
 
   # ============================================================
   # zadd tests - all flag combinations
@@ -235,6 +316,92 @@ class SortedSetsBranchTest < Minitest::Test
     refute_includes @client.last_command, "CH"
     refute_includes @client.last_command, "INCR"
   end
+end
+
+class SortedSetsBranchTestPart3 < Minitest::Test
+  class MockClient
+    include RR::Commands::SortedSets
+
+    attr_reader :last_command
+
+    UNSET = Object.new
+
+    def initialize
+      @mock_override = UNSET
+    end
+
+    def call(*args)
+      @last_command = args
+      mock_return_value(args)
+    end
+
+    def call_1arg(cmd, arg_one)
+      @last_command = [cmd, arg_one]
+      mock_return_value(@last_command)
+    end
+
+    def call_2args(cmd, arg_one, arg_two)
+      @last_command = [cmd, arg_one, arg_two]
+      mock_return_value(@last_command)
+    end
+
+    def call_3args(cmd, arg_one, arg_two, arg_three)
+      @last_command = [cmd, arg_one, arg_two, arg_three]
+      mock_return_value(@last_command)
+    end
+
+    attr_writer :mock_override
+
+    def clear_mock_override
+      @mock_override = UNSET
+    end
+
+    SIMPLE_RETURNS = {
+      "ZSCORE" => "1.5", "ZINCRBY" => "1.5",
+      "ZMSCORE" => ["1.0", "2.0"],
+      "ZPOPMIN" => ["member1", "1.0"], "ZPOPMAX" => ["member1", "1.0"],
+      "BZPOPMIN" => ["key", "member", "1.0"], "BZPOPMAX" => ["key", "member", "1.0"],
+      "ZSCAN" => ["0", ["member1", "1.0", "member2", "2.0"]],
+      "ZMPOP" => ["key", [["m1", "1.0"], ["m2", "2.0"]]],
+      "BZMPOP" => ["key", [["m1", "1.0"], ["m2", "2.0"]]],
+    }.freeze
+
+    WITHSCORES_CMDS = %w[ZRANGE ZREVRANGE ZRANGEBYSCORE ZREVRANGEBYSCORE ZUNION ZINTER ZDIFF].freeze
+
+    private
+
+    def mock_return_value(args)
+      return @mock_override unless @mock_override.equal?(UNSET)
+      return SIMPLE_RETURNS[args[0]] if SIMPLE_RETURNS.key?(args[0])
+      return withscores_return(args) if WITHSCORES_CMDS.include?(args[0])
+      return zrandmember_return(args) if args[0] == "ZRANDMEMBER"
+      return rank_return(args) if %w[ZRANK ZREVRANK].include?(args[0])
+
+      "OK"
+    end
+
+    def withscores_return(args)
+      args.include?("WITHSCORES") ? ["member1", "1.0", "member2", "2.0"] : %w[member1 member2]
+    end
+
+    def zrandmember_return(args)
+      return ["member1", "1.0", "member2", "2.0"] if args.include?("WITHSCORES")
+
+      args.length > 2 ? %w[member1 member2] : "member1"
+    end
+
+    def rank_return(args)
+      args.include?("WITHSCORE") ? [2, "1.5"] : 2
+    end
+  end
+
+  def setup
+    @client = MockClient.new
+  end
+
+  # ============================================================
+  # parse_score tests
+  # ============================================================
 
   # ============================================================
   # zrem tests - single vs multiple members
@@ -251,7 +418,6 @@ class SortedSetsBranchTest < Minitest::Test
 
     assert_equal %w[ZREM myset m1 m2 m3], @client.last_command
   end
-
   # ============================================================
   # zscore tests
   # ============================================================
@@ -262,7 +428,6 @@ class SortedSetsBranchTest < Minitest::Test
     assert_equal %w[ZSCORE myset member1], @client.last_command
     assert_in_delta 1.5, result, 0.001
   end
-
   # ============================================================
   # zmscore tests
   # ============================================================
@@ -274,7 +439,6 @@ class SortedSetsBranchTest < Minitest::Test
     assert_in_delta 1.0, result[0], 0.001
     assert_in_delta 2.0, result[1], 0.001
   end
-
   # ============================================================
   # zrank tests - with and without withscore
   # ============================================================
@@ -298,7 +462,6 @@ class SortedSetsBranchTest < Minitest::Test
 
     assert_equal %w[ZRANK myset member1], @client.last_command
   end
-
   # ============================================================
   # zrevrank tests - with and without withscore
   # ============================================================
@@ -322,7 +485,6 @@ class SortedSetsBranchTest < Minitest::Test
 
     assert_equal %w[ZREVRANK myset member1], @client.last_command
   end
-
   # ============================================================
   # zcard tests
   # ============================================================
@@ -332,7 +494,6 @@ class SortedSetsBranchTest < Minitest::Test
 
     assert_equal %w[ZCARD myset], @client.last_command
   end
-
   # ============================================================
   # zcount tests
   # ============================================================
@@ -342,6 +503,92 @@ class SortedSetsBranchTest < Minitest::Test
 
     assert_equal ["ZCOUNT", "myset", "-inf", "+inf"], @client.last_command
   end
+end
+
+class SortedSetsBranchTestPart4 < Minitest::Test
+  class MockClient
+    include RR::Commands::SortedSets
+
+    attr_reader :last_command
+
+    UNSET = Object.new
+
+    def initialize
+      @mock_override = UNSET
+    end
+
+    def call(*args)
+      @last_command = args
+      mock_return_value(args)
+    end
+
+    def call_1arg(cmd, arg_one)
+      @last_command = [cmd, arg_one]
+      mock_return_value(@last_command)
+    end
+
+    def call_2args(cmd, arg_one, arg_two)
+      @last_command = [cmd, arg_one, arg_two]
+      mock_return_value(@last_command)
+    end
+
+    def call_3args(cmd, arg_one, arg_two, arg_three)
+      @last_command = [cmd, arg_one, arg_two, arg_three]
+      mock_return_value(@last_command)
+    end
+
+    attr_writer :mock_override
+
+    def clear_mock_override
+      @mock_override = UNSET
+    end
+
+    SIMPLE_RETURNS = {
+      "ZSCORE" => "1.5", "ZINCRBY" => "1.5",
+      "ZMSCORE" => ["1.0", "2.0"],
+      "ZPOPMIN" => ["member1", "1.0"], "ZPOPMAX" => ["member1", "1.0"],
+      "BZPOPMIN" => ["key", "member", "1.0"], "BZPOPMAX" => ["key", "member", "1.0"],
+      "ZSCAN" => ["0", ["member1", "1.0", "member2", "2.0"]],
+      "ZMPOP" => ["key", [["m1", "1.0"], ["m2", "2.0"]]],
+      "BZMPOP" => ["key", [["m1", "1.0"], ["m2", "2.0"]]],
+    }.freeze
+
+    WITHSCORES_CMDS = %w[ZRANGE ZREVRANGE ZRANGEBYSCORE ZREVRANGEBYSCORE ZUNION ZINTER ZDIFF].freeze
+
+    private
+
+    def mock_return_value(args)
+      return @mock_override unless @mock_override.equal?(UNSET)
+      return SIMPLE_RETURNS[args[0]] if SIMPLE_RETURNS.key?(args[0])
+      return withscores_return(args) if WITHSCORES_CMDS.include?(args[0])
+      return zrandmember_return(args) if args[0] == "ZRANDMEMBER"
+      return rank_return(args) if %w[ZRANK ZREVRANK].include?(args[0])
+
+      "OK"
+    end
+
+    def withscores_return(args)
+      args.include?("WITHSCORES") ? ["member1", "1.0", "member2", "2.0"] : %w[member1 member2]
+    end
+
+    def zrandmember_return(args)
+      return ["member1", "1.0", "member2", "2.0"] if args.include?("WITHSCORES")
+
+      args.length > 2 ? %w[member1 member2] : "member1"
+    end
+
+    def rank_return(args)
+      args.include?("WITHSCORE") ? [2, "1.5"] : 2
+    end
+  end
+
+  def setup
+    @client = MockClient.new
+  end
+
+  # ============================================================
+  # parse_score tests
+  # ============================================================
 
   # ============================================================
   # zrange tests - all branches
@@ -413,6 +660,92 @@ class SortedSetsBranchTest < Minitest::Test
     assert_includes @client.last_command, "WITHSCORES"
     assert_equal [["member1", 1.0], ["member2", 2.0]], result
   end
+end
+
+class SortedSetsBranchTestPart5 < Minitest::Test
+  class MockClient
+    include RR::Commands::SortedSets
+
+    attr_reader :last_command
+
+    UNSET = Object.new
+
+    def initialize
+      @mock_override = UNSET
+    end
+
+    def call(*args)
+      @last_command = args
+      mock_return_value(args)
+    end
+
+    def call_1arg(cmd, arg_one)
+      @last_command = [cmd, arg_one]
+      mock_return_value(@last_command)
+    end
+
+    def call_2args(cmd, arg_one, arg_two)
+      @last_command = [cmd, arg_one, arg_two]
+      mock_return_value(@last_command)
+    end
+
+    def call_3args(cmd, arg_one, arg_two, arg_three)
+      @last_command = [cmd, arg_one, arg_two, arg_three]
+      mock_return_value(@last_command)
+    end
+
+    attr_writer :mock_override
+
+    def clear_mock_override
+      @mock_override = UNSET
+    end
+
+    SIMPLE_RETURNS = {
+      "ZSCORE" => "1.5", "ZINCRBY" => "1.5",
+      "ZMSCORE" => ["1.0", "2.0"],
+      "ZPOPMIN" => ["member1", "1.0"], "ZPOPMAX" => ["member1", "1.0"],
+      "BZPOPMIN" => ["key", "member", "1.0"], "BZPOPMAX" => ["key", "member", "1.0"],
+      "ZSCAN" => ["0", ["member1", "1.0", "member2", "2.0"]],
+      "ZMPOP" => ["key", [["m1", "1.0"], ["m2", "2.0"]]],
+      "BZMPOP" => ["key", [["m1", "1.0"], ["m2", "2.0"]]],
+    }.freeze
+
+    WITHSCORES_CMDS = %w[ZRANGE ZREVRANGE ZRANGEBYSCORE ZREVRANGEBYSCORE ZUNION ZINTER ZDIFF].freeze
+
+    private
+
+    def mock_return_value(args)
+      return @mock_override unless @mock_override.equal?(UNSET)
+      return SIMPLE_RETURNS[args[0]] if SIMPLE_RETURNS.key?(args[0])
+      return withscores_return(args) if WITHSCORES_CMDS.include?(args[0])
+      return zrandmember_return(args) if args[0] == "ZRANDMEMBER"
+      return rank_return(args) if %w[ZRANK ZREVRANK].include?(args[0])
+
+      "OK"
+    end
+
+    def withscores_return(args)
+      args.include?("WITHSCORES") ? ["member1", "1.0", "member2", "2.0"] : %w[member1 member2]
+    end
+
+    def zrandmember_return(args)
+      return ["member1", "1.0", "member2", "2.0"] if args.include?("WITHSCORES")
+
+      args.length > 2 ? %w[member1 member2] : "member1"
+    end
+
+    def rank_return(args)
+      args.include?("WITHSCORE") ? [2, "1.5"] : 2
+    end
+  end
+
+  def setup
+    @client = MockClient.new
+  end
+
+  # ============================================================
+  # parse_score tests
+  # ============================================================
 
   # ============================================================
   # zrangestore tests
@@ -467,7 +800,6 @@ class SortedSetsBranchTest < Minitest::Test
     assert_includes @client.last_command, "REV"
     assert_includes @client.last_command, "LIMIT"
   end
-
   # ============================================================
   # zrevrange tests
   # ============================================================
@@ -484,6 +816,92 @@ class SortedSetsBranchTest < Minitest::Test
     assert_includes @client.last_command, "WITHSCORES"
     assert_equal [["member1", 1.0], ["member2", 2.0]], result
   end
+end
+
+class SortedSetsBranchTestPart6 < Minitest::Test
+  class MockClient
+    include RR::Commands::SortedSets
+
+    attr_reader :last_command
+
+    UNSET = Object.new
+
+    def initialize
+      @mock_override = UNSET
+    end
+
+    def call(*args)
+      @last_command = args
+      mock_return_value(args)
+    end
+
+    def call_1arg(cmd, arg_one)
+      @last_command = [cmd, arg_one]
+      mock_return_value(@last_command)
+    end
+
+    def call_2args(cmd, arg_one, arg_two)
+      @last_command = [cmd, arg_one, arg_two]
+      mock_return_value(@last_command)
+    end
+
+    def call_3args(cmd, arg_one, arg_two, arg_three)
+      @last_command = [cmd, arg_one, arg_two, arg_three]
+      mock_return_value(@last_command)
+    end
+
+    attr_writer :mock_override
+
+    def clear_mock_override
+      @mock_override = UNSET
+    end
+
+    SIMPLE_RETURNS = {
+      "ZSCORE" => "1.5", "ZINCRBY" => "1.5",
+      "ZMSCORE" => ["1.0", "2.0"],
+      "ZPOPMIN" => ["member1", "1.0"], "ZPOPMAX" => ["member1", "1.0"],
+      "BZPOPMIN" => ["key", "member", "1.0"], "BZPOPMAX" => ["key", "member", "1.0"],
+      "ZSCAN" => ["0", ["member1", "1.0", "member2", "2.0"]],
+      "ZMPOP" => ["key", [["m1", "1.0"], ["m2", "2.0"]]],
+      "BZMPOP" => ["key", [["m1", "1.0"], ["m2", "2.0"]]],
+    }.freeze
+
+    WITHSCORES_CMDS = %w[ZRANGE ZREVRANGE ZRANGEBYSCORE ZREVRANGEBYSCORE ZUNION ZINTER ZDIFF].freeze
+
+    private
+
+    def mock_return_value(args)
+      return @mock_override unless @mock_override.equal?(UNSET)
+      return SIMPLE_RETURNS[args[0]] if SIMPLE_RETURNS.key?(args[0])
+      return withscores_return(args) if WITHSCORES_CMDS.include?(args[0])
+      return zrandmember_return(args) if args[0] == "ZRANDMEMBER"
+      return rank_return(args) if %w[ZRANK ZREVRANK].include?(args[0])
+
+      "OK"
+    end
+
+    def withscores_return(args)
+      args.include?("WITHSCORES") ? ["member1", "1.0", "member2", "2.0"] : %w[member1 member2]
+    end
+
+    def zrandmember_return(args)
+      return ["member1", "1.0", "member2", "2.0"] if args.include?("WITHSCORES")
+
+      args.length > 2 ? %w[member1 member2] : "member1"
+    end
+
+    def rank_return(args)
+      args.include?("WITHSCORE") ? [2, "1.5"] : 2
+    end
+  end
+
+  def setup
+    @client = MockClient.new
+  end
+
+  # ============================================================
+  # parse_score tests
+  # ============================================================
 
   # ============================================================
   # zrangebyscore tests
@@ -522,7 +940,6 @@ class SortedSetsBranchTest < Minitest::Test
     refute_includes @client.last_command, "WITHSCORES"
     assert_equal %w[member1 member2], result
   end
-
   # ============================================================
   # zrevrangebyscore tests
   # ============================================================
@@ -560,7 +977,6 @@ class SortedSetsBranchTest < Minitest::Test
     refute_includes @client.last_command, "WITHSCORES"
     assert_equal %w[member1 member2], result
   end
-
   # ============================================================
   # zincrby tests
   # ============================================================
@@ -571,7 +987,6 @@ class SortedSetsBranchTest < Minitest::Test
     assert_equal ["ZINCRBY", "myset", 2.5, "member1"], @client.last_command
     assert_in_delta 1.5, result, 0.001
   end
-
   # ============================================================
   # zremrangebyrank tests
   # ============================================================
@@ -581,7 +996,6 @@ class SortedSetsBranchTest < Minitest::Test
 
     assert_equal ["ZREMRANGEBYRANK", "myset", 0, 5], @client.last_command
   end
-
   # ============================================================
   # zremrangebyscore tests
   # ============================================================
@@ -591,6 +1005,92 @@ class SortedSetsBranchTest < Minitest::Test
 
     assert_equal ["ZREMRANGEBYSCORE", "myset", "-inf", "+inf"], @client.last_command
   end
+end
+
+class SortedSetsBranchTestPart7 < Minitest::Test
+  class MockClient
+    include RR::Commands::SortedSets
+
+    attr_reader :last_command
+
+    UNSET = Object.new
+
+    def initialize
+      @mock_override = UNSET
+    end
+
+    def call(*args)
+      @last_command = args
+      mock_return_value(args)
+    end
+
+    def call_1arg(cmd, arg_one)
+      @last_command = [cmd, arg_one]
+      mock_return_value(@last_command)
+    end
+
+    def call_2args(cmd, arg_one, arg_two)
+      @last_command = [cmd, arg_one, arg_two]
+      mock_return_value(@last_command)
+    end
+
+    def call_3args(cmd, arg_one, arg_two, arg_three)
+      @last_command = [cmd, arg_one, arg_two, arg_three]
+      mock_return_value(@last_command)
+    end
+
+    attr_writer :mock_override
+
+    def clear_mock_override
+      @mock_override = UNSET
+    end
+
+    SIMPLE_RETURNS = {
+      "ZSCORE" => "1.5", "ZINCRBY" => "1.5",
+      "ZMSCORE" => ["1.0", "2.0"],
+      "ZPOPMIN" => ["member1", "1.0"], "ZPOPMAX" => ["member1", "1.0"],
+      "BZPOPMIN" => ["key", "member", "1.0"], "BZPOPMAX" => ["key", "member", "1.0"],
+      "ZSCAN" => ["0", ["member1", "1.0", "member2", "2.0"]],
+      "ZMPOP" => ["key", [["m1", "1.0"], ["m2", "2.0"]]],
+      "BZMPOP" => ["key", [["m1", "1.0"], ["m2", "2.0"]]],
+    }.freeze
+
+    WITHSCORES_CMDS = %w[ZRANGE ZREVRANGE ZRANGEBYSCORE ZREVRANGEBYSCORE ZUNION ZINTER ZDIFF].freeze
+
+    private
+
+    def mock_return_value(args)
+      return @mock_override unless @mock_override.equal?(UNSET)
+      return SIMPLE_RETURNS[args[0]] if SIMPLE_RETURNS.key?(args[0])
+      return withscores_return(args) if WITHSCORES_CMDS.include?(args[0])
+      return zrandmember_return(args) if args[0] == "ZRANDMEMBER"
+      return rank_return(args) if %w[ZRANK ZREVRANK].include?(args[0])
+
+      "OK"
+    end
+
+    def withscores_return(args)
+      args.include?("WITHSCORES") ? ["member1", "1.0", "member2", "2.0"] : %w[member1 member2]
+    end
+
+    def zrandmember_return(args)
+      return ["member1", "1.0", "member2", "2.0"] if args.include?("WITHSCORES")
+
+      args.length > 2 ? %w[member1 member2] : "member1"
+    end
+
+    def rank_return(args)
+      args.include?("WITHSCORE") ? [2, "1.5"] : 2
+    end
+  end
+
+  def setup
+    @client = MockClient.new
+  end
+
+  # ============================================================
+  # parse_score tests
+  # ============================================================
 
   # ============================================================
   # zpopmin tests
@@ -611,7 +1111,7 @@ class SortedSetsBranchTest < Minitest::Test
   end
 
   def test_zpopmin_nil_result
-    @client.set_mock_override(nil)
+    @client.mock_override = nil
     result = @client.zpopmin("myset")
 
     assert_nil result
@@ -619,13 +1119,12 @@ class SortedSetsBranchTest < Minitest::Test
   end
 
   def test_zpopmin_empty_result
-    @client.set_mock_override([])
+    @client.mock_override = []
     result = @client.zpopmin("myset")
 
     assert_nil result
     @client.clear_mock_override
   end
-
   # ============================================================
   # zpopmax tests
   # ============================================================
@@ -645,7 +1144,7 @@ class SortedSetsBranchTest < Minitest::Test
   end
 
   def test_zpopmax_nil_result
-    @client.set_mock_override(nil)
+    @client.mock_override = nil
     result = @client.zpopmax("myset")
 
     assert_nil result
@@ -653,13 +1152,12 @@ class SortedSetsBranchTest < Minitest::Test
   end
 
   def test_zpopmax_empty_result
-    @client.set_mock_override([])
+    @client.mock_override = []
     result = @client.zpopmax("myset")
 
     assert_nil result
     @client.clear_mock_override
   end
-
   # ============================================================
   # bzpopmin tests
   # ============================================================
@@ -672,7 +1170,7 @@ class SortedSetsBranchTest < Minitest::Test
   end
 
   def test_bzpopmin_nil_result
-    @client.set_mock_override(nil)
+    @client.mock_override = nil
     result = @client.bzpopmin("key1", timeout: 1)
 
     assert_nil result
@@ -684,6 +1182,92 @@ class SortedSetsBranchTest < Minitest::Test
 
     assert_equal ["BZPOPMIN", "key1", 0], @client.last_command
   end
+end
+
+class SortedSetsBranchTestPart8 < Minitest::Test
+  class MockClient
+    include RR::Commands::SortedSets
+
+    attr_reader :last_command
+
+    UNSET = Object.new
+
+    def initialize
+      @mock_override = UNSET
+    end
+
+    def call(*args)
+      @last_command = args
+      mock_return_value(args)
+    end
+
+    def call_1arg(cmd, arg_one)
+      @last_command = [cmd, arg_one]
+      mock_return_value(@last_command)
+    end
+
+    def call_2args(cmd, arg_one, arg_two)
+      @last_command = [cmd, arg_one, arg_two]
+      mock_return_value(@last_command)
+    end
+
+    def call_3args(cmd, arg_one, arg_two, arg_three)
+      @last_command = [cmd, arg_one, arg_two, arg_three]
+      mock_return_value(@last_command)
+    end
+
+    attr_writer :mock_override
+
+    def clear_mock_override
+      @mock_override = UNSET
+    end
+
+    SIMPLE_RETURNS = {
+      "ZSCORE" => "1.5", "ZINCRBY" => "1.5",
+      "ZMSCORE" => ["1.0", "2.0"],
+      "ZPOPMIN" => ["member1", "1.0"], "ZPOPMAX" => ["member1", "1.0"],
+      "BZPOPMIN" => ["key", "member", "1.0"], "BZPOPMAX" => ["key", "member", "1.0"],
+      "ZSCAN" => ["0", ["member1", "1.0", "member2", "2.0"]],
+      "ZMPOP" => ["key", [["m1", "1.0"], ["m2", "2.0"]]],
+      "BZMPOP" => ["key", [["m1", "1.0"], ["m2", "2.0"]]],
+    }.freeze
+
+    WITHSCORES_CMDS = %w[ZRANGE ZREVRANGE ZRANGEBYSCORE ZREVRANGEBYSCORE ZUNION ZINTER ZDIFF].freeze
+
+    private
+
+    def mock_return_value(args)
+      return @mock_override unless @mock_override.equal?(UNSET)
+      return SIMPLE_RETURNS[args[0]] if SIMPLE_RETURNS.key?(args[0])
+      return withscores_return(args) if WITHSCORES_CMDS.include?(args[0])
+      return zrandmember_return(args) if args[0] == "ZRANDMEMBER"
+      return rank_return(args) if %w[ZRANK ZREVRANK].include?(args[0])
+
+      "OK"
+    end
+
+    def withscores_return(args)
+      args.include?("WITHSCORES") ? ["member1", "1.0", "member2", "2.0"] : %w[member1 member2]
+    end
+
+    def zrandmember_return(args)
+      return ["member1", "1.0", "member2", "2.0"] if args.include?("WITHSCORES")
+
+      args.length > 2 ? %w[member1 member2] : "member1"
+    end
+
+    def rank_return(args)
+      args.include?("WITHSCORE") ? [2, "1.5"] : 2
+    end
+  end
+
+  def setup
+    @client = MockClient.new
+  end
+
+  # ============================================================
+  # parse_score tests
+  # ============================================================
 
   # ============================================================
   # bzpopmax tests
@@ -697,7 +1281,7 @@ class SortedSetsBranchTest < Minitest::Test
   end
 
   def test_bzpopmax_nil_result
-    @client.set_mock_override(nil)
+    @client.mock_override = nil
     result = @client.bzpopmax("key1", timeout: 1)
 
     assert_nil result
@@ -709,7 +1293,6 @@ class SortedSetsBranchTest < Minitest::Test
 
     assert_equal ["BZPOPMAX", "key1", 0], @client.last_command
   end
-
   # ============================================================
   # zscan tests
   # ============================================================
@@ -745,7 +1328,6 @@ class SortedSetsBranchTest < Minitest::Test
     assert_equal "0", cursor
     assert_equal [["member1", 1.0], ["member2", 2.0]], members
   end
-
   # ============================================================
   # zscan_iter tests
   # ============================================================
@@ -770,6 +1352,92 @@ class SortedSetsBranchTest < Minitest::Test
 
     assert_equal [["member1", 1.0], ["member2", 2.0]], results
   end
+end
+
+class SortedSetsBranchTestPart9 < Minitest::Test
+  class MockClient
+    include RR::Commands::SortedSets
+
+    attr_reader :last_command
+
+    UNSET = Object.new
+
+    def initialize
+      @mock_override = UNSET
+    end
+
+    def call(*args)
+      @last_command = args
+      mock_return_value(args)
+    end
+
+    def call_1arg(cmd, arg_one)
+      @last_command = [cmd, arg_one]
+      mock_return_value(@last_command)
+    end
+
+    def call_2args(cmd, arg_one, arg_two)
+      @last_command = [cmd, arg_one, arg_two]
+      mock_return_value(@last_command)
+    end
+
+    def call_3args(cmd, arg_one, arg_two, arg_three)
+      @last_command = [cmd, arg_one, arg_two, arg_three]
+      mock_return_value(@last_command)
+    end
+
+    attr_writer :mock_override
+
+    def clear_mock_override
+      @mock_override = UNSET
+    end
+
+    SIMPLE_RETURNS = {
+      "ZSCORE" => "1.5", "ZINCRBY" => "1.5",
+      "ZMSCORE" => ["1.0", "2.0"],
+      "ZPOPMIN" => ["member1", "1.0"], "ZPOPMAX" => ["member1", "1.0"],
+      "BZPOPMIN" => ["key", "member", "1.0"], "BZPOPMAX" => ["key", "member", "1.0"],
+      "ZSCAN" => ["0", ["member1", "1.0", "member2", "2.0"]],
+      "ZMPOP" => ["key", [["m1", "1.0"], ["m2", "2.0"]]],
+      "BZMPOP" => ["key", [["m1", "1.0"], ["m2", "2.0"]]],
+    }.freeze
+
+    WITHSCORES_CMDS = %w[ZRANGE ZREVRANGE ZRANGEBYSCORE ZREVRANGEBYSCORE ZUNION ZINTER ZDIFF].freeze
+
+    private
+
+    def mock_return_value(args)
+      return @mock_override unless @mock_override.equal?(UNSET)
+      return SIMPLE_RETURNS[args[0]] if SIMPLE_RETURNS.key?(args[0])
+      return withscores_return(args) if WITHSCORES_CMDS.include?(args[0])
+      return zrandmember_return(args) if args[0] == "ZRANDMEMBER"
+      return rank_return(args) if %w[ZRANK ZREVRANK].include?(args[0])
+
+      "OK"
+    end
+
+    def withscores_return(args)
+      args.include?("WITHSCORES") ? ["member1", "1.0", "member2", "2.0"] : %w[member1 member2]
+    end
+
+    def zrandmember_return(args)
+      return ["member1", "1.0", "member2", "2.0"] if args.include?("WITHSCORES")
+
+      args.length > 2 ? %w[member1 member2] : "member1"
+    end
+
+    def rank_return(args)
+      args.include?("WITHSCORE") ? [2, "1.5"] : 2
+    end
+  end
+
+  def setup
+    @client = MockClient.new
+  end
+
+  # ============================================================
+  # parse_score tests
+  # ============================================================
 
   # ============================================================
   # zinterstore tests
@@ -817,7 +1485,6 @@ class SortedSetsBranchTest < Minitest::Test
     refute_includes @client.last_command, "WEIGHTS"
     refute_includes @client.last_command, "AGGREGATE"
   end
-
   # ============================================================
   # zunionstore tests
   # ============================================================
@@ -852,6 +1519,92 @@ class SortedSetsBranchTest < Minitest::Test
     refute_includes @client.last_command, "WEIGHTS"
     refute_includes @client.last_command, "AGGREGATE"
   end
+end
+
+class SortedSetsBranchTestPart10 < Minitest::Test
+  class MockClient
+    include RR::Commands::SortedSets
+
+    attr_reader :last_command
+
+    UNSET = Object.new
+
+    def initialize
+      @mock_override = UNSET
+    end
+
+    def call(*args)
+      @last_command = args
+      mock_return_value(args)
+    end
+
+    def call_1arg(cmd, arg_one)
+      @last_command = [cmd, arg_one]
+      mock_return_value(@last_command)
+    end
+
+    def call_2args(cmd, arg_one, arg_two)
+      @last_command = [cmd, arg_one, arg_two]
+      mock_return_value(@last_command)
+    end
+
+    def call_3args(cmd, arg_one, arg_two, arg_three)
+      @last_command = [cmd, arg_one, arg_two, arg_three]
+      mock_return_value(@last_command)
+    end
+
+    attr_writer :mock_override
+
+    def clear_mock_override
+      @mock_override = UNSET
+    end
+
+    SIMPLE_RETURNS = {
+      "ZSCORE" => "1.5", "ZINCRBY" => "1.5",
+      "ZMSCORE" => ["1.0", "2.0"],
+      "ZPOPMIN" => ["member1", "1.0"], "ZPOPMAX" => ["member1", "1.0"],
+      "BZPOPMIN" => ["key", "member", "1.0"], "BZPOPMAX" => ["key", "member", "1.0"],
+      "ZSCAN" => ["0", ["member1", "1.0", "member2", "2.0"]],
+      "ZMPOP" => ["key", [["m1", "1.0"], ["m2", "2.0"]]],
+      "BZMPOP" => ["key", [["m1", "1.0"], ["m2", "2.0"]]],
+    }.freeze
+
+    WITHSCORES_CMDS = %w[ZRANGE ZREVRANGE ZRANGEBYSCORE ZREVRANGEBYSCORE ZUNION ZINTER ZDIFF].freeze
+
+    private
+
+    def mock_return_value(args)
+      return @mock_override unless @mock_override.equal?(UNSET)
+      return SIMPLE_RETURNS[args[0]] if SIMPLE_RETURNS.key?(args[0])
+      return withscores_return(args) if WITHSCORES_CMDS.include?(args[0])
+      return zrandmember_return(args) if args[0] == "ZRANDMEMBER"
+      return rank_return(args) if %w[ZRANK ZREVRANK].include?(args[0])
+
+      "OK"
+    end
+
+    def withscores_return(args)
+      args.include?("WITHSCORES") ? ["member1", "1.0", "member2", "2.0"] : %w[member1 member2]
+    end
+
+    def zrandmember_return(args)
+      return ["member1", "1.0", "member2", "2.0"] if args.include?("WITHSCORES")
+
+      args.length > 2 ? %w[member1 member2] : "member1"
+    end
+
+    def rank_return(args)
+      args.include?("WITHSCORE") ? [2, "1.5"] : 2
+    end
+  end
+
+  def setup
+    @client = MockClient.new
+  end
+
+  # ============================================================
+  # parse_score tests
+  # ============================================================
 
   # ============================================================
   # zunion tests
@@ -900,7 +1653,6 @@ class SortedSetsBranchTest < Minitest::Test
     assert_includes @client.last_command, "WITHSCORES"
     assert_equal [["member1", 1.0], ["member2", 2.0]], result
   end
-
   # ============================================================
   # zinter tests
   # ============================================================
@@ -948,6 +1700,92 @@ class SortedSetsBranchTest < Minitest::Test
     assert_includes @client.last_command, "WITHSCORES"
     assert_equal [["member1", 1.0], ["member2", 2.0]], result
   end
+end
+
+class SortedSetsBranchTestPart11 < Minitest::Test
+  class MockClient
+    include RR::Commands::SortedSets
+
+    attr_reader :last_command
+
+    UNSET = Object.new
+
+    def initialize
+      @mock_override = UNSET
+    end
+
+    def call(*args)
+      @last_command = args
+      mock_return_value(args)
+    end
+
+    def call_1arg(cmd, arg_one)
+      @last_command = [cmd, arg_one]
+      mock_return_value(@last_command)
+    end
+
+    def call_2args(cmd, arg_one, arg_two)
+      @last_command = [cmd, arg_one, arg_two]
+      mock_return_value(@last_command)
+    end
+
+    def call_3args(cmd, arg_one, arg_two, arg_three)
+      @last_command = [cmd, arg_one, arg_two, arg_three]
+      mock_return_value(@last_command)
+    end
+
+    attr_writer :mock_override
+
+    def clear_mock_override
+      @mock_override = UNSET
+    end
+
+    SIMPLE_RETURNS = {
+      "ZSCORE" => "1.5", "ZINCRBY" => "1.5",
+      "ZMSCORE" => ["1.0", "2.0"],
+      "ZPOPMIN" => ["member1", "1.0"], "ZPOPMAX" => ["member1", "1.0"],
+      "BZPOPMIN" => ["key", "member", "1.0"], "BZPOPMAX" => ["key", "member", "1.0"],
+      "ZSCAN" => ["0", ["member1", "1.0", "member2", "2.0"]],
+      "ZMPOP" => ["key", [["m1", "1.0"], ["m2", "2.0"]]],
+      "BZMPOP" => ["key", [["m1", "1.0"], ["m2", "2.0"]]],
+    }.freeze
+
+    WITHSCORES_CMDS = %w[ZRANGE ZREVRANGE ZRANGEBYSCORE ZREVRANGEBYSCORE ZUNION ZINTER ZDIFF].freeze
+
+    private
+
+    def mock_return_value(args)
+      return @mock_override unless @mock_override.equal?(UNSET)
+      return SIMPLE_RETURNS[args[0]] if SIMPLE_RETURNS.key?(args[0])
+      return withscores_return(args) if WITHSCORES_CMDS.include?(args[0])
+      return zrandmember_return(args) if args[0] == "ZRANDMEMBER"
+      return rank_return(args) if %w[ZRANK ZREVRANK].include?(args[0])
+
+      "OK"
+    end
+
+    def withscores_return(args)
+      args.include?("WITHSCORES") ? ["member1", "1.0", "member2", "2.0"] : %w[member1 member2]
+    end
+
+    def zrandmember_return(args)
+      return ["member1", "1.0", "member2", "2.0"] if args.include?("WITHSCORES")
+
+      args.length > 2 ? %w[member1 member2] : "member1"
+    end
+
+    def rank_return(args)
+      args.include?("WITHSCORE") ? [2, "1.5"] : 2
+    end
+  end
+
+  def setup
+    @client = MockClient.new
+  end
+
+  # ============================================================
+  # parse_score tests
+  # ============================================================
 
   # ============================================================
   # zdiff tests
@@ -966,7 +1804,6 @@ class SortedSetsBranchTest < Minitest::Test
     assert_includes @client.last_command, "WITHSCORES"
     assert_equal [["member1", 1.0], ["member2", 2.0]], result
   end
-
   # ============================================================
   # zdiffstore tests
   # ============================================================
@@ -976,7 +1813,6 @@ class SortedSetsBranchTest < Minitest::Test
 
     assert_equal ["ZDIFFSTORE", "dest", 3, "key1", "key2", "key3"], @client.last_command
   end
-
   # ============================================================
   # zintercard tests
   # ============================================================
@@ -998,7 +1834,6 @@ class SortedSetsBranchTest < Minitest::Test
 
     refute_includes @client.last_command, "LIMIT"
   end
-
   # ============================================================
   # zmpop tests
   # ============================================================
@@ -1037,12 +1872,98 @@ class SortedSetsBranchTest < Minitest::Test
   end
 
   def test_zmpop_nil_result
-    @client.set_mock_override(nil)
+    @client.mock_override = nil
     result = @client.zmpop("key1")
 
     assert_nil result
     @client.clear_mock_override
   end
+end
+
+class SortedSetsBranchTestPart12 < Minitest::Test
+  class MockClient
+    include RR::Commands::SortedSets
+
+    attr_reader :last_command
+
+    UNSET = Object.new
+
+    def initialize
+      @mock_override = UNSET
+    end
+
+    def call(*args)
+      @last_command = args
+      mock_return_value(args)
+    end
+
+    def call_1arg(cmd, arg_one)
+      @last_command = [cmd, arg_one]
+      mock_return_value(@last_command)
+    end
+
+    def call_2args(cmd, arg_one, arg_two)
+      @last_command = [cmd, arg_one, arg_two]
+      mock_return_value(@last_command)
+    end
+
+    def call_3args(cmd, arg_one, arg_two, arg_three)
+      @last_command = [cmd, arg_one, arg_two, arg_three]
+      mock_return_value(@last_command)
+    end
+
+    attr_writer :mock_override
+
+    def clear_mock_override
+      @mock_override = UNSET
+    end
+
+    SIMPLE_RETURNS = {
+      "ZSCORE" => "1.5", "ZINCRBY" => "1.5",
+      "ZMSCORE" => ["1.0", "2.0"],
+      "ZPOPMIN" => ["member1", "1.0"], "ZPOPMAX" => ["member1", "1.0"],
+      "BZPOPMIN" => ["key", "member", "1.0"], "BZPOPMAX" => ["key", "member", "1.0"],
+      "ZSCAN" => ["0", ["member1", "1.0", "member2", "2.0"]],
+      "ZMPOP" => ["key", [["m1", "1.0"], ["m2", "2.0"]]],
+      "BZMPOP" => ["key", [["m1", "1.0"], ["m2", "2.0"]]],
+    }.freeze
+
+    WITHSCORES_CMDS = %w[ZRANGE ZREVRANGE ZRANGEBYSCORE ZREVRANGEBYSCORE ZUNION ZINTER ZDIFF].freeze
+
+    private
+
+    def mock_return_value(args)
+      return @mock_override unless @mock_override.equal?(UNSET)
+      return SIMPLE_RETURNS[args[0]] if SIMPLE_RETURNS.key?(args[0])
+      return withscores_return(args) if WITHSCORES_CMDS.include?(args[0])
+      return zrandmember_return(args) if args[0] == "ZRANDMEMBER"
+      return rank_return(args) if %w[ZRANK ZREVRANK].include?(args[0])
+
+      "OK"
+    end
+
+    def withscores_return(args)
+      args.include?("WITHSCORES") ? ["member1", "1.0", "member2", "2.0"] : %w[member1 member2]
+    end
+
+    def zrandmember_return(args)
+      return ["member1", "1.0", "member2", "2.0"] if args.include?("WITHSCORES")
+
+      args.length > 2 ? %w[member1 member2] : "member1"
+    end
+
+    def rank_return(args)
+      args.include?("WITHSCORE") ? [2, "1.5"] : 2
+    end
+  end
+
+  def setup
+    @client = MockClient.new
+  end
+
+  # ============================================================
+  # parse_score tests
+  # ============================================================
 
   # ============================================================
   # bzmpop tests
@@ -1076,13 +1997,12 @@ class SortedSetsBranchTest < Minitest::Test
   end
 
   def test_bzmpop_nil_result
-    @client.set_mock_override(nil)
+    @client.mock_override = nil
     result = @client.bzmpop(1, "key1")
 
     assert_nil result
     @client.clear_mock_override
   end
-
   # ============================================================
   # zlexcount tests
   # ============================================================
@@ -1092,7 +2012,6 @@ class SortedSetsBranchTest < Minitest::Test
 
     assert_equal ["ZLEXCOUNT", "myset", "-", "+"], @client.last_command
   end
-
   # ============================================================
   # zrangebylex tests
   # ============================================================
@@ -1108,7 +2027,6 @@ class SortedSetsBranchTest < Minitest::Test
 
     assert_equal ["ZRANGEBYLEX", "myset", "[a", "[z", "LIMIT", 0, 10], @client.last_command
   end
-
   # ============================================================
   # zrevrangebylex tests
   # ============================================================
@@ -1124,7 +2042,6 @@ class SortedSetsBranchTest < Minitest::Test
 
     assert_equal ["ZREVRANGEBYLEX", "myset", "[z", "[a", "LIMIT", 0, 10], @client.last_command
   end
-
   # ============================================================
   # zremrangebylex tests
   # ============================================================
@@ -1134,6 +2051,92 @@ class SortedSetsBranchTest < Minitest::Test
 
     assert_equal ["ZREMRANGEBYLEX", "myset", "[a", "[z"], @client.last_command
   end
+end
+
+class SortedSetsBranchTestPart13 < Minitest::Test
+  class MockClient
+    include RR::Commands::SortedSets
+
+    attr_reader :last_command
+
+    UNSET = Object.new
+
+    def initialize
+      @mock_override = UNSET
+    end
+
+    def call(*args)
+      @last_command = args
+      mock_return_value(args)
+    end
+
+    def call_1arg(cmd, arg_one)
+      @last_command = [cmd, arg_one]
+      mock_return_value(@last_command)
+    end
+
+    def call_2args(cmd, arg_one, arg_two)
+      @last_command = [cmd, arg_one, arg_two]
+      mock_return_value(@last_command)
+    end
+
+    def call_3args(cmd, arg_one, arg_two, arg_three)
+      @last_command = [cmd, arg_one, arg_two, arg_three]
+      mock_return_value(@last_command)
+    end
+
+    attr_writer :mock_override
+
+    def clear_mock_override
+      @mock_override = UNSET
+    end
+
+    SIMPLE_RETURNS = {
+      "ZSCORE" => "1.5", "ZINCRBY" => "1.5",
+      "ZMSCORE" => ["1.0", "2.0"],
+      "ZPOPMIN" => ["member1", "1.0"], "ZPOPMAX" => ["member1", "1.0"],
+      "BZPOPMIN" => ["key", "member", "1.0"], "BZPOPMAX" => ["key", "member", "1.0"],
+      "ZSCAN" => ["0", ["member1", "1.0", "member2", "2.0"]],
+      "ZMPOP" => ["key", [["m1", "1.0"], ["m2", "2.0"]]],
+      "BZMPOP" => ["key", [["m1", "1.0"], ["m2", "2.0"]]],
+    }.freeze
+
+    WITHSCORES_CMDS = %w[ZRANGE ZREVRANGE ZRANGEBYSCORE ZREVRANGEBYSCORE ZUNION ZINTER ZDIFF].freeze
+
+    private
+
+    def mock_return_value(args)
+      return @mock_override unless @mock_override.equal?(UNSET)
+      return SIMPLE_RETURNS[args[0]] if SIMPLE_RETURNS.key?(args[0])
+      return withscores_return(args) if WITHSCORES_CMDS.include?(args[0])
+      return zrandmember_return(args) if args[0] == "ZRANDMEMBER"
+      return rank_return(args) if %w[ZRANK ZREVRANK].include?(args[0])
+
+      "OK"
+    end
+
+    def withscores_return(args)
+      args.include?("WITHSCORES") ? ["member1", "1.0", "member2", "2.0"] : %w[member1 member2]
+    end
+
+    def zrandmember_return(args)
+      return ["member1", "1.0", "member2", "2.0"] if args.include?("WITHSCORES")
+
+      args.length > 2 ? %w[member1 member2] : "member1"
+    end
+
+    def rank_return(args)
+      args.include?("WITHSCORE") ? [2, "1.5"] : 2
+    end
+  end
+
+  def setup
+    @client = MockClient.new
+  end
+
+  # ============================================================
+  # parse_score tests
+  # ============================================================
 
   # ============================================================
   # zrandmember tests - all fast paths
@@ -1182,10 +2185,10 @@ class SortedSetsBranchTest < Minitest::Test
 
   def test_zrandmember_withscores_and_count_parses_scores
     result = @client.zrandmember("myset", 2, withscores: true)
-    # Scores should be parsed to Float
-    result.each do |_member, score|
-      assert_instance_of Float, score
-    end
+    # Result is array of [member, score] pairs; scores should be parsed to Float
+    scores = result.map { |pair| pair[1] }
+
+    scores.each { |score| assert_instance_of Float, score }
   end
 
   def test_zrandmember_withscores_true_count_nil_returns_raw_result
@@ -1195,6 +2198,92 @@ class SortedSetsBranchTest < Minitest::Test
     # Should return raw result since withscores && count is falsy
     assert_equal "member1", result
   end
+end
+
+class SortedSetsBranchTestPart14 < Minitest::Test
+  class MockClient
+    include RR::Commands::SortedSets
+
+    attr_reader :last_command
+
+    UNSET = Object.new
+
+    def initialize
+      @mock_override = UNSET
+    end
+
+    def call(*args)
+      @last_command = args
+      mock_return_value(args)
+    end
+
+    def call_1arg(cmd, arg_one)
+      @last_command = [cmd, arg_one]
+      mock_return_value(@last_command)
+    end
+
+    def call_2args(cmd, arg_one, arg_two)
+      @last_command = [cmd, arg_one, arg_two]
+      mock_return_value(@last_command)
+    end
+
+    def call_3args(cmd, arg_one, arg_two, arg_three)
+      @last_command = [cmd, arg_one, arg_two, arg_three]
+      mock_return_value(@last_command)
+    end
+
+    attr_writer :mock_override
+
+    def clear_mock_override
+      @mock_override = UNSET
+    end
+
+    SIMPLE_RETURNS = {
+      "ZSCORE" => "1.5", "ZINCRBY" => "1.5",
+      "ZMSCORE" => ["1.0", "2.0"],
+      "ZPOPMIN" => ["member1", "1.0"], "ZPOPMAX" => ["member1", "1.0"],
+      "BZPOPMIN" => ["key", "member", "1.0"], "BZPOPMAX" => ["key", "member", "1.0"],
+      "ZSCAN" => ["0", ["member1", "1.0", "member2", "2.0"]],
+      "ZMPOP" => ["key", [["m1", "1.0"], ["m2", "2.0"]]],
+      "BZMPOP" => ["key", [["m1", "1.0"], ["m2", "2.0"]]],
+    }.freeze
+
+    WITHSCORES_CMDS = %w[ZRANGE ZREVRANGE ZRANGEBYSCORE ZREVRANGEBYSCORE ZUNION ZINTER ZDIFF].freeze
+
+    private
+
+    def mock_return_value(args)
+      return @mock_override unless @mock_override.equal?(UNSET)
+      return SIMPLE_RETURNS[args[0]] if SIMPLE_RETURNS.key?(args[0])
+      return withscores_return(args) if WITHSCORES_CMDS.include?(args[0])
+      return zrandmember_return(args) if args[0] == "ZRANDMEMBER"
+      return rank_return(args) if %w[ZRANK ZREVRANK].include?(args[0])
+
+      "OK"
+    end
+
+    def withscores_return(args)
+      args.include?("WITHSCORES") ? ["member1", "1.0", "member2", "2.0"] : %w[member1 member2]
+    end
+
+    def zrandmember_return(args)
+      return ["member1", "1.0", "member2", "2.0"] if args.include?("WITHSCORES")
+
+      args.length > 2 ? %w[member1 member2] : "member1"
+    end
+
+    def rank_return(args)
+      args.include?("WITHSCORE") ? [2, "1.5"] : 2
+    end
+  end
+
+  def setup
+    @client = MockClient.new
+  end
+
+  # ============================================================
+  # parse_score tests
+  # ============================================================
 
   # ============================================================
   # Additional edge case tests for thorough branch coverage

@@ -16,7 +16,6 @@ class CallbacksUnitTest < Minitest::Test
 
     assert_empty(callbacks.to_h)
   end
-
   # ============================================================
   # register
   # ============================================================
@@ -65,7 +64,6 @@ class CallbacksUnitTest < Minitest::Test
 
     assert @callbacks.registered?("GET")
   end
-
   # ============================================================
   # unregister
   # ============================================================
@@ -90,7 +88,6 @@ class CallbacksUnitTest < Minitest::Test
 
     assert result
   end
-
   # ============================================================
   # registered?
   # ============================================================
@@ -136,6 +133,16 @@ class CallbacksUnitTest < Minitest::Test
   def test_registered_default_acl_log
     assert @callbacks.registered?("ACL LOG")
   end
+end
+
+class CallbacksUnitTestPart2 < Minitest::Test
+  def setup
+    @callbacks = RR::ResponseCallbacks.new
+  end
+
+  # ============================================================
+  # Initialization
+  # ============================================================
 
   # ============================================================
   # apply
@@ -214,7 +221,6 @@ class CallbacksUnitTest < Minitest::Test
 
     assert_equal "non-array", result
   end
-
   # ============================================================
   # to_h
   # ============================================================
@@ -240,7 +246,6 @@ class CallbacksUnitTest < Minitest::Test
     assert h.key?("SET")
     assert_equal 2, h.size
   end
-
   # ============================================================
   # reset!
   # ============================================================
@@ -259,7 +264,6 @@ class CallbacksUnitTest < Minitest::Test
     # Defaults should still work through registered?
     assert @callbacks.registered?("INFO")
   end
-
   # ============================================================
   # load_defaults!
   # ============================================================
@@ -289,6 +293,16 @@ class CallbacksUnitTest < Minitest::Test
     assert @callbacks.to_h.key?("CUSTOM")
     assert @callbacks.to_h.key?("INFO")
   end
+end
+
+class CallbacksUnitTestPart3 < Minitest::Test
+  def setup
+    @callbacks = RR::ResponseCallbacks.new
+  end
+
+  # ============================================================
+  # Initialization
+  # ============================================================
 
   # ============================================================
   # Class methods: parse_info
@@ -345,7 +359,6 @@ class CallbacksUnitTest < Minitest::Test
 
     assert_equal "abcdef", result["redis_git_sha1"]
   end
-
   # ============================================================
   # Class methods: parse_info_value
   # ============================================================
@@ -373,7 +386,6 @@ class CallbacksUnitTest < Minitest::Test
 
     assert_equal "", result
   end
-
   # ============================================================
   # Class methods: parse_client_list
   # ============================================================
@@ -405,7 +417,6 @@ class CallbacksUnitTest < Minitest::Test
     assert_equal "42", result[0]["id"]
     assert_equal "10.0.0.1:5000", result[0]["addr"]
   end
-
   # ============================================================
   # Class methods: parse_debug_object
   # ============================================================
@@ -435,7 +446,6 @@ class CallbacksUnitTest < Minitest::Test
     # "Value" and "nocolon" don't contain colons, so nothing parsed
     assert_empty(result)
   end
-
   # ============================================================
   # DEFAULTS constant
   # ============================================================
@@ -451,7 +461,6 @@ class CallbacksUnitTest < Minitest::Test
       assert RR::ResponseCallbacks::DEFAULTS.key?(key), "Expected DEFAULTS to have key #{key}"
     end
   end
-
   # ============================================================
   # normalize_command (private, tested via public methods)
   # ============================================================

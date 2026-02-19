@@ -71,6 +71,7 @@ class RedisRbPipeliningTest < Minitest::Test
 
   def test_pipelined_with_an_empty_block
     r.pipelined do
+      # Intentionally empty to test empty pipeline behavior
     end
 
     assert_equal 0, r.dbsize
@@ -149,6 +150,7 @@ class RedisRbPipeliningTest < Minitest::Test
 
   def test_returning_the_result_of_an_empty_pipeline
     result = r.pipelined do
+      # Intentionally empty to test empty pipeline result
     end
 
     assert_empty result

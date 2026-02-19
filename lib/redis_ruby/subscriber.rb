@@ -245,13 +245,11 @@ module RR
     end
 
     def authenticate_if_needed
-      password = @client_config[:password]
-      @connection.call("AUTH", password) if password
+      @connection.call("AUTH", @client_config[:password]) if @client_config[:password]
     end
 
     def select_database_if_needed
-      db = @client_config[:db]
-      @connection.call("SELECT", db) if db && db != 0
+      @connection.call("SELECT", @client_config[:db]) if @client_config[:db]&.nonzero?
     end
 
     def message_loop
@@ -280,12 +278,8 @@ module RR
     # Send all subscription commands
     def send_subscriptions
       @connection.call("SUBSCRIBE", *@channels) unless @channels.empty?
-
       @connection.call("PSUBSCRIBE", *@patterns) unless @patterns.empty?
-
-      return if @shard_channels.empty?
-
-      @connection.call("SSUBSCRIBE", *@shard_channels)
+      @connection.call("SSUBSCRIBE", *@shard_channels) unless @shard_channels.empty?
     end
 
     # Read a message from the connection

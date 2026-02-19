@@ -3,7 +3,25 @@
 require_relative "unit_test_helper"
 require "socket"
 
+# Shared socket mock setup for async client tests
+module AsyncClientTestHelper
+  private
+
+  def setup_mock_socket_options
+    @mock_socket.stubs(:setsockopt)
+    @mock_socket.stubs(:sync=)
+    @mock_socket.stubs(:closed?).returns(false)
+    @mock_socket.stubs(:close)
+  end
+
+  def setup_connected_socket
+    Socket.stubs(:tcp).returns(@mock_socket)
+  end
+end
+
 class AsyncClientBranchTest < Minitest::Test
+  include AsyncClientTestHelper
+
   def setup
     @mock_socket = mock("socket")
     setup_mock_socket_options
@@ -74,7 +92,6 @@ class AsyncClientBranchTest < Minitest::Test
     assert_equal 0, client.db
     client.close
   end
-
   # ============================================================
   # call, call_1arg, call_2args, call_3args
   # ============================================================
@@ -166,7 +183,6 @@ class AsyncClientBranchTest < Minitest::Test
     assert_raises(RR::CommandError) { client.call_3args("CMD", "a", "b", "c") }
     client.close
   end
-
   # ============================================================
   # ping
   # ============================================================
@@ -181,6 +197,19 @@ class AsyncClientBranchTest < Minitest::Test
     assert_equal "PONG", client.ping
     client.close
   end
+end
+
+class AsyncClientBranchTestPart2 < Minitest::Test
+  include AsyncClientTestHelper
+
+  def setup
+    @mock_socket = mock("socket")
+    setup_mock_socket_options
+  end
+
+  # ============================================================
+  # Initialization
+  # ============================================================
 
   # ============================================================
   # connected?
@@ -214,7 +243,6 @@ class AsyncClientBranchTest < Minitest::Test
 
     refute_predicate client, :connected?
   end
-
   # ============================================================
   # close / disconnect / quit aliases
   # ============================================================
@@ -236,7 +264,6 @@ class AsyncClientBranchTest < Minitest::Test
 
     refute_predicate client, :connected?
   end
-
   # ============================================================
   # watch - with and without block
   # ============================================================
@@ -267,7 +294,6 @@ class AsyncClientBranchTest < Minitest::Test
     assert block_executed
     client.close
   end
-
   # ============================================================
   # unwatch
   # ============================================================
@@ -284,7 +310,6 @@ class AsyncClientBranchTest < Minitest::Test
     assert_equal "OK", result
     client.close
   end
-
   # ============================================================
   # Command modules included
   # ============================================================
@@ -304,7 +329,6 @@ class AsyncClientBranchTest < Minitest::Test
     assert_respond_to client, :json_set
     client.close
   end
-
   # ============================================================
   # ensure_connected reconnects
   # ============================================================
@@ -330,18 +354,5 @@ class AsyncClientBranchTest < Minitest::Test
 
     assert_equal "PONG", result
     client.close
-  end
-
-  private
-
-  def setup_mock_socket_options
-    @mock_socket.stubs(:setsockopt)
-    @mock_socket.stubs(:sync=)
-    @mock_socket.stubs(:closed?).returns(false)
-    @mock_socket.stubs(:close)
-  end
-
-  def setup_connected_socket
-    Socket.stubs(:tcp).returns(@mock_socket)
   end
 end

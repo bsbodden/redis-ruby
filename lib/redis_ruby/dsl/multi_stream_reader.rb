@@ -29,8 +29,8 @@ module RR
       #
       # @example
       #   reader.count(10)
-      def count(n)
-        @count_limit = n
+      def count(num)
+        @count_limit = num
         self
       end
       alias limit count
@@ -57,7 +57,7 @@ module RR
       def execute
         result = @redis.xread(@streams, count: @count_limit, block: @block_ms)
         return nil if result.nil?
-        
+
         # Convert array result to hash
         # XREAD returns [[stream_key, entries], ...]
         result.to_h
@@ -74,13 +74,13 @@ module RR
       #   reader.each do |stream, id, fields|
       #     puts "#{stream} - #{id}: #{fields}"
       #   end
-      def each(&block)
+      def each
         results = execute
         return if results.nil?
-        
+
         results.each do |stream_key, entries|
           entries.each do |id, fields|
-            block.call(stream_key, id, fields)
+            yield(stream_key, id, fields)
           end
         end
       end
@@ -94,11 +94,11 @@ module RR
       #   reader.each_stream do |stream, entries|
       #     puts "#{stream}: #{entries.length} entries"
       #   end
-      def each_stream(&block)
+      def each_stream(&)
         results = execute
         return if results.nil?
-        
-        results.each(&block)
+
+        results.each(&)
       end
 
       private
@@ -113,4 +113,3 @@ module RR
     end
   end
 end
-

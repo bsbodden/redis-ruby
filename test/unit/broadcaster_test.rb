@@ -13,6 +13,7 @@ class BroadcasterTest < Minitest::Test
     # Should not raise NameError for undefined constant and should
     # return a valid RR::Client instance (lazily connected)
     client = klass.redis_client
+
     assert_instance_of RR::Client, client
   rescue NameError => e
     flunk "Broadcaster references undefined constant: #{e.message}"
@@ -22,6 +23,7 @@ class BroadcasterTest < Minitest::Test
     mock_client = Object.new
     klass = Class.new do
       include RR::Broadcaster
+
       redis_client mock_client
     end
 
@@ -32,10 +34,12 @@ class BroadcasterTest < Minitest::Test
     mock_client = Object.new
     klass = Class.new do
       include RR::Broadcaster
+
       redis_client mock_client
     end
 
     instance = klass.new
+
     assert_same mock_client, instance.redis_client
   end
 
@@ -43,6 +47,7 @@ class BroadcasterTest < Minitest::Test
     mock_client = Minitest::Mock.new
     klass = Class.new do
       include RR::Broadcaster
+
       redis_client mock_client
     end
 

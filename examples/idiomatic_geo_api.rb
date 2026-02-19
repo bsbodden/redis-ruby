@@ -31,11 +31,12 @@ stores.add(
 puts "Total stores: #{stores.count}"
 
 # Find stores within 5km of user location
-user_lon, user_lat = -122.42, 37.78
+user_lon = -122.42
+user_lat = 37.78
 puts "\nFinding stores within 5km of user location (#{user_lon}, #{user_lat}):"
 
 nearby_stores = stores.radius(user_lon, user_lat, 5, unit: :km,
-  withcoord: true, withdist: true, sort: :asc)
+                                                     withcoord: true, withdist: true, sort: :asc)
 
 nearby_stores.each do |store_data|
   name = store_data[0]
@@ -69,7 +70,7 @@ puts "\nChecking delivery to address: [#{delivery_address[0]}, #{delivery_addres
 
 # Find all restaurants that deliver within 2 miles
 available = restaurants.radius(delivery_address[0], delivery_address[1], 2, unit: :mi,
-  withdist: true, sort: :asc)
+                                                                            withdist: true, sort: :asc)
 
 puts "\nRestaurants that deliver to your area:"
 available.each do |restaurant_data|
@@ -120,10 +121,10 @@ drivers = redis.geo(:drivers, :active)
 
 # Track driver locations (updated in real-time)
 drivers.add(
-  driver_123: [-122.4194, 37.7749],
-  driver_456: [-122.4094, 37.7849],
-  driver_789: [-122.4294, 37.7649],
-  driver_abc: [-122.4394, 37.7549]
+  driver_alpha: [-122.4194, 37.7749],
+  driver_beta: [-122.4094, 37.7849],
+  driver_gamma: [-122.4294, 37.7649],
+  driver_delta: [-122.4394, 37.7549]
 )
 
 puts "Active drivers: #{drivers.count}"
@@ -133,7 +134,7 @@ pickup = [-122.420, 37.780]
 puts "\nFinding nearest driver to pickup location: [#{pickup[0]}, #{pickup[1]}]"
 
 nearest = drivers.radius(pickup[0], pickup[1], 5, unit: :km,
-  withdist: true, count: 3, sort: :asc)
+                                                  withdist: true, count: 3, sort: :asc)
 
 puts "\nTop 3 nearest drivers:"
 nearest.each_with_index do |driver_data, index|
@@ -174,7 +175,7 @@ puts "-" * 80
 attractions = redis.geo(:attractions, :sf)
 
 attractions.add(
-  pier_39: [-122.4098, 37.8087],
+  pier_thirtynine: [-122.4098, 37.8087],
   fishermans_wharf: [-122.4177, 37.8080],
   ghirardelli: [-122.4227, 37.8056],
   coit_tower: [-122.4058, 37.8024],
@@ -183,13 +184,14 @@ attractions.add(
 
 puts "Finding attractions within 1km of Pier 39:"
 
-nearby = attractions.radius_by_member(:pier_39, 1, unit: :km,
-  withdist: true, sort: :asc)
+nearby = attractions.radius_by_member(
+  :pier_thirtynine, 1, unit: :km, withdist: true, sort: :asc
+)
 
 nearby.each do |attraction_data|
   name = attraction_data[0]
   distance = attraction_data[1]
-  puts "  - #{name}: #{distance}km away" unless name == "pier_39"
+  puts "  - #{name}: #{distance}km away" unless name == "pier_thirtynine"
 end
 
 # ============================================================
@@ -217,7 +219,7 @@ work_location = [-122.42, 37.77]
 puts "\nFinding coffee shops within 500m of work:"
 
 nearby_coffee = coffee_shops.radius(work_location[0], work_location[1], 500, unit: :m,
-  withdist: true, sort: :asc)
+                                                                             withdist: true, sort: :asc)
 
 if nearby_coffee.any?
   puts "\nCoffee shops within walking distance:"
@@ -241,9 +243,9 @@ parks = redis.geo(:parks, :sf)
 
 # Chain operations
 parks.add(golden_gate_park: [-122.4862, 37.7694])
-     .add(dolores_park: [-122.4276, 37.7596])
-     .add(alamo_square: [-122.4345, 37.7766])
-     .expire(3600)  # Cache for 1 hour
+  .add(dolores_park: [-122.4276, 37.7596])
+  .add(alamo_square: [-122.4345, 37.7766])
+  .expire(3600) # Cache for 1 hour
 
 puts "Parks added with 1 hour expiration"
 puts "TTL: #{parks.ttl} seconds"
@@ -268,7 +270,7 @@ puts "Is Central Park in the list? #{parks.member?(:central_park)}"
 # Cleanup
 # ============================================================
 
-puts "\n" + "=" * 80
+puts "\n#{"=" * 80}"
 puts "Cleaning up..."
 
 # Clean up all test keys
@@ -285,4 +287,3 @@ puts "Done!"
 puts "=" * 80
 
 redis.close
-

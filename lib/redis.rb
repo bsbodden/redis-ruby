@@ -10,4 +10,3 @@
 #   client = RR.new  # (after we complete the RR rename)
 #
 require_relative "redis-rb-compat"
-

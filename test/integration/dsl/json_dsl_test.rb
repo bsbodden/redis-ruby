@@ -21,6 +21,7 @@ class JSONDSLTest < RedisRubyTestCase
 
     # Get entire document
     result = redis.json(@key).get
+
     assert_equal({ "name" => "Alice", "age" => 30 }, result)
   end
 
@@ -30,9 +31,11 @@ class JSONDSLTest < RedisRubyTestCase
 
     # Get using symbols
     name = redis.json(@key).get(:name)
+
     assert_equal "Bob", name
 
     age = redis.json(@key).get(:age)
+
     assert_equal 25, age
   end
 
@@ -43,6 +46,7 @@ class JSONDSLTest < RedisRubyTestCase
     redis.json(@key).set(:user, { name: "Charlie Updated", age: 36 })
 
     result = redis.json(@key).get(:user)
+
     assert_equal({ "name" => "Charlie Updated", "age" => 36 }, result)
   end
 
@@ -54,9 +58,11 @@ class JSONDSLTest < RedisRubyTestCase
       .increment(:score, 50)
 
     age = redis.json(@key).get(:age)
+
     assert_equal 41, age
 
     score = redis.json(@key).get(:score)
+
     assert_equal 150, score
   end
 
@@ -65,14 +71,17 @@ class JSONDSLTest < RedisRubyTestCase
 
     # Increment
     redis.json(@key).increment(:counter, 5)
+
     assert_equal 15, redis.json(@key).get(:counter)
 
     # Decrement
     redis.json(@key).decrement(:counter, 3)
+
     assert_equal 12, redis.json(@key).get(:counter)
 
     # Default increment by 1
     redis.json(@key).increment(:counter)
+
     assert_equal 13, redis.json(@key).get(:counter)
   end
 
@@ -80,6 +89,7 @@ class JSONDSLTest < RedisRubyTestCase
     redis.json(@key).set(value: 10)
 
     redis.json(@key).multiply(:value, 3)
+
     assert_equal 30, redis.json(@key).get(:value)
   end
 
@@ -89,36 +99,43 @@ class JSONDSLTest < RedisRubyTestCase
     # Append
     redis.json(@key).append(:tags, "redis", "json")
     tags = redis.json(@key).get(:tags)
-    assert_equal ["ruby", "redis", "json"], tags
+
+    assert_equal %w[ruby redis json], tags
 
     # Array length
     length = redis.json(@key).array_length(:tags)
+
     assert_equal 3, length
 
     # Array index
     index = redis.json(@key).array_index(:tags, "redis")
+
     assert_equal 1, index
 
     # Array pop
     popped = redis.json(@key).array_pop(:tags)
+
     assert_equal "json", popped
 
     tags = redis.json(@key).get(:tags)
-    assert_equal ["ruby", "redis"], tags
+
+    assert_equal %w[ruby redis], tags
   end
 
   def test_json_proxy_array_insert_and_trim
-    redis.json(@key).set(items: ["a", "c"])
+    redis.json(@key).set(items: %w[a c])
 
     # Insert
     redis.json(@key).array_insert(:items, 1, "b")
     items = redis.json(@key).get(:items)
-    assert_equal ["a", "b", "c"], items
+
+    assert_equal %w[a b c], items
 
     # Trim
     redis.json(@key).array_trim(:items, 0..1)
     items = redis.json(@key).get(:items)
-    assert_equal ["a", "b"], items
+
+    assert_equal %w[a b], items
   end
 
   def test_json_proxy_object_operations
@@ -126,15 +143,17 @@ class JSONDSLTest < RedisRubyTestCase
 
     # Object keys
     keys = redis.json(@key).keys(:user)
-    assert_equal ["age", "city", "name"], keys.sort
+
+    assert_equal %w[age city name], keys.sort
 
     # Object length
     length = redis.json(@key).object_length(:user)
+
     assert_equal 3, length
   end
 
   def test_json_proxy_type
-    redis.json(@key).set(name: "Frank", age: 45, tags: ["a", "b"])
+    redis.json(@key).set(name: "Frank", age: 45, tags: %w[a b])
 
     assert_equal "string", redis.json(@key).type(:name)
     assert_equal "integer", redis.json(@key).type(:age)
@@ -148,19 +167,22 @@ class JSONDSLTest < RedisRubyTestCase
     redis.json(@key).delete(:temp)
 
     result = redis.json(@key).get
+
     assert_equal({ "name" => "Grace", "age" => 50 }, result)
   end
 
   def test_json_proxy_clear
-    redis.json(@key).set(tags: ["a", "b", "c"], data: { x: 1, y: 2 })
+    redis.json(@key).set(tags: %w[a b c], data: { x: 1, y: 2 })
 
     # Clear array
     redis.json(@key).clear(:tags)
-    assert_equal [], redis.json(@key).get(:tags)
+
+    assert_empty redis.json(@key).get(:tags)
 
     # Clear object
     redis.json(@key).clear(:data)
-    assert_equal({}, redis.json(@key).get(:data))
+
+    assert_empty(redis.json(@key).get(:data))
   end
 
   def test_json_proxy_toggle
@@ -168,23 +190,27 @@ class JSONDSLTest < RedisRubyTestCase
 
     # Toggle boolean
     result = redis.json(@key).toggle(:active)
-    assert_equal false, result
+
+    refute result
 
     result = redis.json(@key).toggle(:active)
-    assert_equal true, result
+
+    assert result
   end
 
   def test_json_proxy_exists
     # Key doesn't exist yet
-    refute redis.json(@key).exists?
+    refute_predicate redis.json(@key), :exists?
 
     # Create key
     redis.json(@key).set(name: "Test")
-    assert redis.json(@key).exists?
+
+    assert_predicate redis.json(@key), :exists?
 
     # Delete key
     redis.del(@key)
-    refute redis.json(@key).exists?
+
+    refute_predicate redis.json(@key), :exists?
   end
 
   def test_json_proxy_with_composite_key
@@ -195,10 +221,11 @@ class JSONDSLTest < RedisRubyTestCase
     redis.json(:user, unique_id).set(name: "Henry", age: 55)
 
     result = redis.json(:user, unique_id).get
+
     assert_equal({ "name" => "Henry", "age" => 55 }, result)
 
     # Verify key format
-    assert redis.exists("user:#{unique_id}") > 0
+    assert_predicate redis.exists("user:#{unique_id}"), :positive?
   ensure
     redis.del("user:#{unique_id}")
   end
@@ -209,14 +236,15 @@ class JSONDSLTest < RedisRubyTestCase
         profile: {
           name: "Ivy",
           contact: {
-            email: "ivy@example.com"
-          }
-        }
+            email: "ivy@example.com",
+          },
+        },
       }
     )
 
     # Access nested paths with JSONPath syntax
     email = redis.json(@key).get("$.user.profile.contact.email")
+
     assert_equal "ivy@example.com", email
   end
 
@@ -226,6 +254,7 @@ class JSONDSLTest < RedisRubyTestCase
 
     # Use new API to read
     name = redis.json(@key).get(:name)
+
     assert_equal "Jack", name
 
     # Use new API to update
@@ -233,7 +262,7 @@ class JSONDSLTest < RedisRubyTestCase
 
     # Use old API to read
     result = redis.json_get(@key, "$.age")
+
     assert_equal [61], result
   end
 end
-

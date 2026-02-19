@@ -170,6 +170,12 @@ class RESP3EncoderBranchTest < Minitest::Test
     assert_includes result, "value"
     assert_includes result.b, "value"
   end
+end
+
+class RESP3EncoderBranchTestPart2 < Minitest::Test
+  def setup
+    @encoder = RR::Protocol::RESP3Encoder.new
+  end
 
   # ============================================================
   # encode_pipeline - slow path (non-fast-path commands)

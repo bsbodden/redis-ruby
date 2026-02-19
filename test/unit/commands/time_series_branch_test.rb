@@ -3,7 +3,7 @@
 require_relative "../unit_test_helper"
 
 # Comprehensive branch coverage tests for RR::Commands::TimeSeries
-class TimeSeriesBranchTest < Minitest::Test
+module TimeSeriesBranchTestMocks
   class MockClient
     include RR::Commands::TimeSeries
 
@@ -14,18 +14,18 @@ class TimeSeriesBranchTest < Minitest::Test
       "OK"
     end
 
-    def call_1arg(cmd, a1)
-      @last_command = [cmd, a1]
+    def call_1arg(cmd, arg_one)
+      @last_command = [cmd, arg_one]
       mock_ts_return(cmd)
     end
 
-    def call_2args(cmd, a1, a2)
-      @last_command = [cmd, a1, a2]
+    def call_2args(cmd, arg_one, arg_two)
+      @last_command = [cmd, arg_one, arg_two]
       "OK"
     end
 
-    def call_3args(cmd, a1, a2, a3)
-      @last_command = [cmd, a1, a2, a3]
+    def call_3args(cmd, arg_one, arg_two, arg_three)
+      @last_command = [cmd, arg_one, arg_two, arg_three]
       "OK"
     end
 
@@ -39,9 +39,11 @@ class TimeSeriesBranchTest < Minitest::Test
       end
     end
   end
+end
 
+class TimeSeriesBranchTest < Minitest::Test
   def setup
-    @client = MockClient.new
+    @client = TimeSeriesBranchTestMocks::MockClient.new
   end
 
   # ============================================================
@@ -417,6 +419,16 @@ class TimeSeriesBranchTest < Minitest::Test
       "TS.MADD", "temp:1", "*", 23.5, "temp:2", "*", 24.0, "temp:3", "*", 22.8,
     ], @client.last_command
   end
+end
+
+class TimeSeriesBranchTestPart2 < Minitest::Test
+  def setup
+    @client = TimeSeriesBranchTestMocks::MockClient.new
+  end
+
+  # ============================================================
+  # ts_create - fast path (no options)
+  # ============================================================
 
   def test_ts_madd_single_sample
     @client.ts_madd(["temp:1", 1_000_000, 23.5])
@@ -771,6 +783,16 @@ class TimeSeriesBranchTest < Minitest::Test
   # ============================================================
   # ts_range - with aggregation + bucket_timestamp
   # ============================================================
+end
+
+class TimeSeriesBranchTestPart3 < Minitest::Test
+  def setup
+    @client = TimeSeriesBranchTestMocks::MockClient.new
+  end
+
+  # ============================================================
+  # ts_create - fast path (no options)
+  # ============================================================
 
   def test_ts_range_with_aggregation_and_bucket_timestamp
     @client.ts_range("temp:sensor1", "-", "+",
@@ -823,27 +845,8 @@ class TimeSeriesBranchTest < Minitest::Test
   # ============================================================
 
   def test_ts_range_all_options
-    @client.ts_range("temp:sensor1", "-", "+",
-                     latest: true,
-                     filter_by_ts: [1_000_000],
-                     filter_by_value: [20.0, 30.0],
-                     count: 100,
-                     align: 0,
-                     aggregation: "avg",
-                     bucket_duration: 3_600_000,
-                     bucket_timestamp: "start",
-                     empty: true)
-    expected = [
-      "TS.RANGE", "temp:sensor1", "-", "+",
-      "LATEST",
-      "FILTER_BY_TS", 1_000_000,
-      "FILTER_BY_VALUE", 20.0, 30.0,
-      "COUNT", 100,
-      "ALIGN", 0,
-      "AGGREGATION", "avg", 3_600_000,
-      "BUCKETTIMESTAMP", "start",
-      "EMPTY",
-    ]
+    @client.ts_range("temp:sensor1", "-", "+", **range_all_options(count: 100, bucket_timestamp: "start"))
+    expected = range_expected_command("TS.RANGE", count: 100, bucket_timestamp: "start")
 
     assert_equal expected, @client.last_command
   end
@@ -935,27 +938,8 @@ class TimeSeriesBranchTest < Minitest::Test
   # ============================================================
 
   def test_ts_revrange_all_options
-    @client.ts_revrange("temp:sensor1", "-", "+",
-                        latest: true,
-                        filter_by_ts: [1_000_000],
-                        filter_by_value: [20.0, 30.0],
-                        count: 50,
-                        align: 0,
-                        aggregation: "avg",
-                        bucket_duration: 3_600_000,
-                        bucket_timestamp: "mid",
-                        empty: true)
-    expected = [
-      "TS.REVRANGE", "temp:sensor1", "-", "+",
-      "LATEST",
-      "FILTER_BY_TS", 1_000_000,
-      "FILTER_BY_VALUE", 20.0, 30.0,
-      "COUNT", 50,
-      "ALIGN", 0,
-      "AGGREGATION", "avg", 3_600_000,
-      "BUCKETTIMESTAMP", "mid",
-      "EMPTY",
-    ]
+    @client.ts_revrange("temp:sensor1", "-", "+", **range_all_options(count: 50, bucket_timestamp: "mid"))
+    expected = range_expected_command("TS.REVRANGE", count: 50, bucket_timestamp: "mid")
 
     assert_equal expected, @client.last_command
   end
@@ -1132,6 +1116,31 @@ class TimeSeriesBranchTest < Minitest::Test
   # ts_mrange - with groupby and reduce
   # ============================================================
 
+  private
+
+  def range_all_options(count:, bucket_timestamp:)
+    { latest: true, filter_by_ts: [1_000_000], filter_by_value: [20.0, 30.0],
+      count: count, align: 0, aggregation: "avg",
+      bucket_duration: 3_600_000, bucket_timestamp: bucket_timestamp, empty: true, }
+  end
+
+  def range_expected_command(cmd, count:, bucket_timestamp:)
+    [cmd, "temp:sensor1", "-", "+",
+     "LATEST", "FILTER_BY_TS", 1_000_000, "FILTER_BY_VALUE", 20.0, 30.0,
+     "COUNT", count, "ALIGN", 0, "AGGREGATION", "avg", 3_600_000,
+     "BUCKETTIMESTAMP", bucket_timestamp, "EMPTY",]
+  end
+end
+
+class TimeSeriesBranchTestPart4 < Minitest::Test
+  def setup
+    @client = TimeSeriesBranchTestMocks::MockClient.new
+  end
+
+  # ============================================================
+  # ts_create - fast path (no options)
+  # ============================================================
+
   def test_ts_mrange_with_groupby_and_reduce
     @client.ts_mrange("-", "+", ["sensor=temp"], groupby: "location", reduce: "avg")
 
@@ -1174,32 +1183,8 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_mrange_all_options
     @client.ts_mrange("-", "+", ["sensor=temp"],
-                      latest: true,
-                      filter_by_ts: [1_000_000],
-                      filter_by_value: [20.0, 30.0],
-                      withlabels: true,
-                      count: 100,
-                      align: 0,
-                      aggregation: "avg",
-                      bucket_duration: 3_600_000,
-                      bucket_timestamp: "start",
-                      empty: true,
-                      groupby: "location",
-                      reduce: "avg")
-    expected = [
-      "TS.MRANGE", "-", "+",
-      "LATEST",
-      "FILTER_BY_TS", 1_000_000,
-      "FILTER_BY_VALUE", 20.0, 30.0,
-      "WITHLABELS",
-      "COUNT", 100,
-      "ALIGN", 0,
-      "AGGREGATION", "avg", 3_600_000,
-      "BUCKETTIMESTAMP", "start",
-      "EMPTY",
-      "FILTER", "sensor=temp",
-      "GROUPBY", "location", "REDUCE", "avg",
-    ]
+                      **mrange_all_options(count: 100, bucket_timestamp: "start", reduce: "avg"))
+    expected = mrange_expected_command("TS.MRANGE", count: 100, bucket_timestamp: "start", reduce: "avg")
 
     assert_equal expected, @client.last_command
   end
@@ -1338,32 +1323,8 @@ class TimeSeriesBranchTest < Minitest::Test
 
   def test_ts_mrevrange_all_options
     @client.ts_mrevrange("-", "+", ["sensor=temp"],
-                         latest: true,
-                         filter_by_ts: [1_000_000],
-                         filter_by_value: [20.0, 30.0],
-                         withlabels: true,
-                         count: 50,
-                         align: 0,
-                         aggregation: "avg",
-                         bucket_duration: 3_600_000,
-                         bucket_timestamp: "mid",
-                         empty: true,
-                         groupby: "location",
-                         reduce: "sum")
-    expected = [
-      "TS.MREVRANGE", "-", "+",
-      "LATEST",
-      "FILTER_BY_TS", 1_000_000,
-      "FILTER_BY_VALUE", 20.0, 30.0,
-      "WITHLABELS",
-      "COUNT", 50,
-      "ALIGN", 0,
-      "AGGREGATION", "avg", 3_600_000,
-      "BUCKETTIMESTAMP", "mid",
-      "EMPTY",
-      "FILTER", "sensor=temp",
-      "GROUPBY", "location", "REDUCE", "sum",
-    ]
+                         **mrange_all_options(count: 50, bucket_timestamp: "mid", reduce: "sum"))
+    expected = mrange_expected_command("TS.MREVRANGE", count: 50, bucket_timestamp: "mid", reduce: "sum")
 
     assert_equal expected, @client.last_command
   end
@@ -1488,6 +1449,33 @@ class TimeSeriesBranchTest < Minitest::Test
 
   # ============================================================
   # ts_mget - with all options
+  # ============================================================
+
+  private
+
+  def mrange_all_options(count:, bucket_timestamp:, reduce:)
+    { latest: true, filter_by_ts: [1_000_000], filter_by_value: [20.0, 30.0],
+      withlabels: true, count: count, align: 0, aggregation: "avg",
+      bucket_duration: 3_600_000, bucket_timestamp: bucket_timestamp,
+      empty: true, groupby: "location", reduce: reduce, }
+  end
+
+  def mrange_expected_command(cmd, count:, bucket_timestamp:, reduce:)
+    [cmd, "-", "+", "LATEST", "FILTER_BY_TS", 1_000_000,
+     "FILTER_BY_VALUE", 20.0, 30.0, "WITHLABELS", "COUNT", count,
+     "ALIGN", 0, "AGGREGATION", "avg", 3_600_000,
+     "BUCKETTIMESTAMP", bucket_timestamp, "EMPTY",
+     "FILTER", "sensor=temp", "GROUPBY", "location", "REDUCE", reduce,]
+  end
+end
+
+class TimeSeriesBranchTestPart5 < Minitest::Test
+  def setup
+    @client = TimeSeriesBranchTestMocks::MockClient.new
+  end
+
+  # ============================================================
+  # ts_create - fast path (no options)
   # ============================================================
 
   def test_ts_mget_all_options

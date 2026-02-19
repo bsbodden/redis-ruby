@@ -10,22 +10,22 @@ module RR
   #
   # @example Basic usage with PingHealthCheck
   #   runner = RR::HealthCheckRunner.new(interval: 5.0)
-  #   
+  #
   #   # Add health checks for each database
   #   runner.add_check(database_id: 0, connection: conn1)
   #   runner.add_check(database_id: 1, connection: conn2)
-  #   
+  #
   #   # Register callback for health state changes
   #   runner.on_health_change do |database_id, old_state, new_state|
   #     puts "Database #{database_id}: #{old_state} -> #{new_state}"
   #   end
-  #   
+  #
   #   # Start monitoring
   #   runner.start
-  #   
+  #
   #   # Check health status
   #   runner.healthy?(0)  # => true/false
-  #   
+  #
   #   # Stop monitoring
   #   runner.stop
   #
@@ -39,7 +39,7 @@ module RR
   #       false
   #     end
   #   end
-  #   
+  #
   #   runner = RR::HealthCheckRunner.new(
   #     health_check_class: CustomHealthCheck,
   #     interval: 10.0,
@@ -119,7 +119,7 @@ module RR
       POLICIES = {
         all: ->(passed, total) { passed == total },
         majority: ->(passed, total) { passed > total / 2.0 },
-        any: ->(passed, total) { passed > 0 }
+        any: ->(passed, _total) { passed.positive? },
       }.freeze
 
       DEFAULT_INTERVAL = 5.0
@@ -143,8 +143,8 @@ module RR
         super() # Initialize MonitorMixin
 
         raise ArgumentError, "Invalid policy: #{policy}" unless POLICIES.key?(policy)
-        raise ArgumentError, "Interval must be positive" unless interval > 0
-        raise ArgumentError, "Probes must be positive" unless probes > 0
+        raise ArgumentError, "Interval must be positive" unless interval.positive?
+        raise ArgumentError, "Probes must be positive" unless probes.positive?
         raise ArgumentError, "Probe delay must be non-negative" unless probe_delay >= 0
 
         @health_check = health_check_class.new
@@ -291,7 +291,7 @@ module RR
 
         @probes.times do |i|
           passed += 1 if @health_check.check(connection)
-          sleep(@probe_delay) if i < @probes - 1 && @probe_delay > 0
+          sleep(@probe_delay) if i < @probes - 1 && @probe_delay.positive?
         end
 
         @policy_fn.call(passed, @probes)
@@ -340,7 +340,7 @@ module RR
       def sleep_until_next_cycle(cycle_start)
         elapsed = monotonic_time - cycle_start
         sleep_time = [@interval - elapsed, 0].max
-        sleep(sleep_time) if sleep_time > 0 && !@stop_requested
+        sleep(sleep_time) if sleep_time.positive? && !@stop_requested
       end
 
       # Get monotonic time for accurate intervals
@@ -356,5 +356,3 @@ end
 # Load additional health check implementations
 require_relative "health_check/lag_aware"
 require_relative "health_check/rest_api"
-
-

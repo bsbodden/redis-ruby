@@ -16,115 +16,113 @@ class HyperLogLogDSLTest < RedisRubyTestCase
 
   def test_hyperloglog_proxy_creation
     proxy = redis.hyperloglog(:visitors)
-    
+
     assert_instance_of RR::DSL::HyperLogLogProxy, proxy
     assert_equal "visitors", proxy.key
   end
 
   def test_hll_alias
     proxy = redis.hll(:visitors)
-    
+
     assert_instance_of RR::DSL::HyperLogLogProxy, proxy
     assert_equal "visitors", proxy.key
   end
 
   def test_hyperloglog_with_composite_key
     proxy = redis.hyperloglog(:visitors, :today, 2024)
-    
+
     assert_equal "visitors:today:2024", proxy.key
   end
 
   def test_hyperloglog_with_single_key_part
     proxy = redis.hll(:simple)
-    
+
     assert_equal "simple", proxy.key
   end
-
   # ============================================================
   # Add Operations Tests
   # ============================================================
 
   def test_add_single_element
     hll = redis.hll(@key)
-    
+
     result = hll.add("user:123")
-    
-    assert_same hll, result  # Returns self for chaining
+
+    assert_same hll, result # Returns self for chaining
     assert_equal 1, hll.count
   end
 
   def test_add_multiple_elements
     hll = redis.hll(@key)
-    
+
     hll.add("user:1", "user:2", "user:3")
-    
+
     assert_equal 3, hll.count
   end
 
   def test_add_duplicate_elements
     hll = redis.hll(@key)
-    
+
     hll.add("user:1", "user:2", "user:3")
-    hll.add("user:1", "user:2")  # Duplicates
-    
+    hll.add("user:1", "user:2") # Duplicates
+
     # Count should still be 3 (unique elements)
     assert_equal 3, hll.count
   end
 
   def test_add_with_symbols
     hll = redis.hll(@key)
-    
+
     hll.add(:user1, :user2, :user3)
-    
+
     assert_equal 3, hll.count
   end
 
   def test_add_with_integers
     hll = redis.hll(@key)
-    
+
     hll.add(1, 2, 3, 4, 5)
-    
+
     assert_equal 5, hll.count
   end
 
   def test_add_empty_elements
     hll = redis.hll(@key)
-    
+
     result = hll.add
-    
+
     assert_same hll, result
     assert_equal 0, hll.count
   end
 
   def test_chainable_add
     hll = redis.hll(@key)
-    
+
     hll.add("a").add("b").add("c")
-    
+
     assert_equal 3, hll.count
   end
-
   # ============================================================
   # Count Operations Tests
   # ============================================================
 
   def test_count_empty_hll
     hll = redis.hll(@key)
-    
+
     assert_equal 0, hll.count
   end
 
   def test_count_with_elements
     hll = redis.hll(@key)
     hll.add("a", "b", "c", "d", "e")
-    
+
     assert_equal 5, hll.count
   end
 
   def test_size_alias
     hll = redis.hll(@key)
     hll.add("a", "b", "c")
-    
+
     assert_equal 3, hll.size
     assert_equal hll.count, hll.size
   end
@@ -132,7 +130,7 @@ class HyperLogLogDSLTest < RedisRubyTestCase
   def test_length_alias
     hll = redis.hll(@key)
     hll.add("a", "b", "c")
-    
+
     assert_equal 3, hll.length
     assert_equal hll.count, hll.length
   end
@@ -146,8 +144,21 @@ class HyperLogLogDSLTest < RedisRubyTestCase
     count = hll.count
     # HyperLogLog has ~0.81% standard error
     # For 10,000 elements, we expect count to be within ~81 of actual
-    assert_in_delta 10_000, count, 200  # Allow 2% margin
+    assert_in_delta 10_000, count, 200 # Allow 2% margin
   end
+end
+
+class HyperLogLogDSLTestPart2 < RedisRubyTestCase
+  use_testcontainers!
+
+  def setup
+    super
+    @key = "test:hll:#{SecureRandom.hex(8)}"
+  end
+
+  # ============================================================
+  # Entry Point Tests
+  # ============================================================
 
   # ============================================================
   # Merge Operations Tests
@@ -162,7 +173,7 @@ class HyperLogLogDSLTest < RedisRubyTestCase
 
     result = hll1.merge("#{@key}:2")
 
-    assert_same hll1, result  # Returns self for chaining
+    assert_same hll1, result # Returns self for chaining
     assert_equal 5, hll1.count  # a, b, c, d, e
   end
 
@@ -212,7 +223,7 @@ class HyperLogLogDSLTest < RedisRubyTestCase
 
     result = hll1.merge_into("#{@key}:merged", "#{@key}:2")
 
-    assert_same hll1, result  # Returns self for chaining
+    assert_same hll1, result # Returns self for chaining
     assert_equal 5, dest.count  # a, b, c, d, e
     assert_equal 3, hll1.count  # Original unchanged
   end
@@ -231,7 +242,6 @@ class HyperLogLogDSLTest < RedisRubyTestCase
 
     assert_equal 6, dest.count
   end
-
   # ============================================================
   # Clear/Delete Operations Tests
   # ============================================================
@@ -243,7 +253,7 @@ class HyperLogLogDSLTest < RedisRubyTestCase
     result = hll.delete
 
     assert_equal 1, result  # Number of keys deleted
-    refute hll.exists?
+    refute_predicate hll, :exists?
   end
 
   def test_clear_alias
@@ -253,7 +263,7 @@ class HyperLogLogDSLTest < RedisRubyTestCase
     result = hll.clear
 
     assert_equal 1, result
-    refute hll.exists?
+    refute_predicate hll, :exists?
   end
 
   def test_delete_nonexistent_hll
@@ -263,7 +273,6 @@ class HyperLogLogDSLTest < RedisRubyTestCase
 
     assert_equal 0, result  # No keys deleted
   end
-
   # ============================================================
   # Existence Tests
   # ============================================================
@@ -272,26 +281,26 @@ class HyperLogLogDSLTest < RedisRubyTestCase
     hll = redis.hll(@key)
     hll.add("a")
 
-    assert hll.exists?
+    assert_predicate hll, :exists?
   end
 
   def test_exists_with_nonexistent_hll
     hll = redis.hll(@key)
 
-    refute hll.exists?
+    refute_predicate hll, :exists?
   end
 
   def test_empty_with_no_elements
     hll = redis.hll(@key)
 
-    assert hll.empty?
+    assert_empty hll
   end
 
   def test_empty_with_elements
     hll = redis.hll(@key)
     hll.add("a", "b", "c")
 
-    refute hll.empty?
+    refute_empty hll
   end
 
   def test_empty_after_delete
@@ -299,8 +308,21 @@ class HyperLogLogDSLTest < RedisRubyTestCase
     hll.add("a", "b", "c")
     hll.delete
 
-    assert hll.empty?
+    assert_empty hll
   end
+end
+
+class HyperLogLogDSLTestPart3 < RedisRubyTestCase
+  use_testcontainers!
+
+  def setup
+    super
+    @key = "test:hll:#{SecureRandom.hex(8)}"
+  end
+
+  # ============================================================
+  # Entry Point Tests
+  # ============================================================
 
   # ============================================================
   # Expiration Tests
@@ -312,10 +334,11 @@ class HyperLogLogDSLTest < RedisRubyTestCase
 
     result = hll.expire(3600)
 
-    assert_same hll, result  # Returns self for chaining
+    assert_same hll, result # Returns self for chaining
     ttl = hll.ttl
-    assert ttl > 0
-    assert ttl <= 3600
+
+    assert_predicate ttl, :positive?
+    assert_operator ttl, :<=, 3600
   end
 
   def test_expire_at_with_time
@@ -327,8 +350,9 @@ class HyperLogLogDSLTest < RedisRubyTestCase
 
     assert_same hll, result
     ttl = hll.ttl
-    assert ttl > 0
-    assert ttl <= 3600
+
+    assert_predicate ttl, :positive?
+    assert_operator ttl, :<=, 3600
   end
 
   def test_expire_at_with_timestamp
@@ -339,8 +363,9 @@ class HyperLogLogDSLTest < RedisRubyTestCase
     hll.expire_at(future_timestamp)
 
     ttl = hll.ttl
-    assert ttl > 0
-    assert ttl <= 3600
+
+    assert_predicate ttl, :positive?
+    assert_operator ttl, :<=, 3600
   end
 
   def test_ttl_with_expiration
@@ -350,8 +375,8 @@ class HyperLogLogDSLTest < RedisRubyTestCase
 
     ttl = hll.ttl
 
-    assert ttl > 0
-    assert ttl <= 1000
+    assert_predicate ttl, :positive?
+    assert_operator ttl, :<=, 1000
   end
 
   def test_ttl_without_expiration
@@ -384,9 +409,8 @@ class HyperLogLogDSLTest < RedisRubyTestCase
       .expire(3600)
 
     assert_equal 3, hll.count
-    assert hll.ttl > 0
+    assert_predicate hll.ttl, :positive?
   end
-
   # ============================================================
   # Integration Tests - Real-World Scenarios
   # ============================================================
@@ -398,13 +422,14 @@ class HyperLogLogDSLTest < RedisRubyTestCase
 
     # Simulate visitors
     today.add("user:123", "user:456", "user:789")
-    today.add("user:123")  # Duplicate visit
+    today.add("user:123") # Duplicate visit
 
     assert_equal 3, today.count
 
     # Set to expire at end of day
-    today.expire(86400)
-    assert today.ttl > 0
+    today.expire(86_400)
+
+    assert_predicate today.ttl, :positive?
   end
 
   def test_unique_event_tracking
@@ -413,7 +438,7 @@ class HyperLogLogDSLTest < RedisRubyTestCase
     user_events = redis.hll(key_prefix, :user, 123)
 
     user_events.add("page_view", "button_click", "form_submit")
-    user_events.add("page_view")  # Duplicate event type
+    user_events.add("page_view") # Duplicate event type
 
     assert_equal 3, user_events.count
   end
@@ -495,8 +520,6 @@ class HyperLogLogDSLTest < RedisRubyTestCase
     day = redis.hll(key_prefix, :day)
     day.merge("#{key_prefix}:hour:1", "#{key_prefix}:hour:2", "#{key_prefix}:hour:3")
 
-    assert_equal 4, day.count  # u1, u2, u3, u4
+    assert_equal 4, day.count # u1, u2, u3, u4
   end
 end
-
-

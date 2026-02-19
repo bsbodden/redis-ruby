@@ -25,7 +25,7 @@ module RR
         @stream_key = stream_key
         @group_name = group_name
         @consumer_name = consumer_name
-        @start_id = ">"  # Default: only new entries
+        @start_id = ">" # Default: only new entries
         @count_limit = nil
         @block_ms = nil
         @noack = false
@@ -73,8 +73,8 @@ module RR
       #
       # @example
       #   reader.count(10)
-      def count(n)
-        @count_limit = n
+      def count(num)
+        @count_limit = num
         self
       end
       alias limit count
@@ -112,7 +112,7 @@ module RR
         result = @redis.xreadgroup(@group_name, @consumer_name, @stream_key, @start_id,
                                    count: @count_limit, block: @block_ms, noack: @noack)
         return nil if result.nil?
-        
+
         # XREADGROUP returns [[stream_key, entries], ...]
         # Extract just the entries for this stream
         result[0][1]
@@ -129,13 +129,12 @@ module RR
       #   reader.count(10).each do |id, fields|
       #     puts "#{id}: #{fields}"
       #   end
-      def each(&block)
+      def each(&)
         entries = execute
         return if entries.nil?
-        
-        entries.each(&block)
+
+        entries.each(&)
       end
     end
   end
 end
-

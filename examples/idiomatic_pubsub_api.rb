@@ -68,7 +68,7 @@ puts "-" * 80
 publisher = redis.publisher(:metrics)
 counts = publisher.subscriber_count
 
-puts "Subscriber count for :metrics: #{counts['metrics']}"
+puts "Subscriber count for :metrics: #{counts["metrics"]}"
 puts
 
 # ============================================================
@@ -129,8 +129,8 @@ puts "Example 7: Subscriber Builder - JSON Decoding"
 puts "-" * 80
 
 subscriber = redis.subscriber
-  .on(:events, json: true) do |channel, data|
-    puts "  Event: #{data['event']}, Order ID: #{data['order_id']}"
+  .on(:events, json: true) do |_channel, data|
+    puts "  Event: #{data["event"]}, Order ID: #{data["order_id"]}"
   end
 
 thread = subscriber.run_async
@@ -154,9 +154,9 @@ puts "Example 8: Subscriber Builder - Mixed Subscriptions"
 puts "-" * 80
 
 subscriber = redis.subscriber
-  .on(:alerts) { |ch, msg| puts "  ALERT: #{msg}" }
-  .on(:logs) { |ch, msg| puts "  LOG: #{msg}" }
-  .on_pattern("metrics:*") { |pat, ch, msg| puts "  METRIC [#{ch}]: #{msg}" }
+  .on(:alerts) { |_ch, msg| puts "  ALERT: #{msg}" }
+  .on(:logs) { |_ch, msg| puts "  LOG: #{msg}" }
+  .on_pattern("metrics:*") { |_pat, ch, msg| puts "  METRIC [#{ch}]: #{msg}" }
 
 thread = subscriber.run_async
 sleep 0.1
@@ -198,8 +198,8 @@ end
 
 # Subscribe to order events
 subscriber = redis.subscriber
-  .on("order_service:order_created", json: true) do |channel, data|
-    puts "  Order created: ID=#{data['order_id']}, Amount=$#{data['amount']}"
+  .on("order_service:order_created", json: true) do |_channel, data|
+    puts "  Order created: ID=#{data["order_id"]}, Amount=$#{data["amount"]}"
   end
 
 thread = subscriber.run_async
@@ -226,8 +226,8 @@ puts "-" * 80
 
 # Set up subscriber with JSON decoding
 subscriber = redis.subscriber
-  .on(:orders, json: true) do |channel, order|
-    puts "  Processing order: #{order['id']} - #{order['status']}"
+  .on(:orders, json: true) do |_channel, order|
+    puts "  Processing order: #{order["id"]} - #{order["status"]}"
   end
 
 thread = subscriber.run_async
@@ -301,4 +301,3 @@ puts "All examples completed successfully!"
 puts "=" * 80
 
 redis.close
-

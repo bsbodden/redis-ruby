@@ -57,7 +57,7 @@ redis.json(:product, 123).set(
   name: "Laptop",
   price: 999.99,
   stock: 50,
-  tags: ["electronics", "computers"]
+  tags: %w[electronics computers]
 )
 
 # Access using symbols (more Ruby-esque)
@@ -76,7 +76,7 @@ puts "-" * 40
 
 redis.json(:post, 1).set(
   title: "Redis JSON Tutorial",
-  tags: ["redis", "json"]
+  tags: %w[redis json]
 )
 
 # Append to array
@@ -85,7 +85,7 @@ puts "Tags after append: #{redis.json(:post, 1).get(:tags).inspect}"
 
 # Array operations
 puts "Array length: #{redis.json(:post, 1).array_length(:tags)}"
-puts "Index of 'ruby': #{redis.json(:post, 1).array_index(:tags, 'ruby')}"
+puts "Index of 'ruby': #{redis.json(:post, 1).array_index(:tags, "ruby")}"
 
 # Pop from array
 popped = redis.json(:post, 1).array_pop(:tags)
@@ -185,4 +185,3 @@ redis.del("user:old", "user:new", "user:1", "product:123", "post:1",
           "counter:stats", "config:app", "data:types", "feature:flags")
 
 puts "Done!"
-

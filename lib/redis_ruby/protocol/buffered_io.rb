@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "io/wait" unless IO.method_defined?(:wait_readable) && IO.method_defined?(:wait_writable)
+require_relative "buffered_io_filling"
 
 module RR
   module Protocol
@@ -16,6 +17,8 @@ module RR
     #   int = io.gets_integer
     #
     class BufferedIO
+      include BufferedIOFilling
+
       EOL = "\r\n".b.freeze
       EOL_SIZE = EOL.bytesize
       # Increased from 4KB to 16KB - reduces number of read syscalls
@@ -97,45 +100,23 @@ module RR
         offset = @offset
         fill_buffer(1) if offset >= @buffer.bytesize
 
-        # Check for negative sign
-        first_byte = @buffer.getbyte(offset)
-        if first_byte == 45 # '-'
-          offset += 1
-          negative = true
-          # Ensure we have at least 3 more bytes for fast path (digit + \r\n)
-          needed = 3 - (@buffer.bytesize - offset)
-          fill_buffer(needed) if needed.positive?
-        else
-          negative = false
-          # Ensure we have at least 3 more bytes for fast path (digit + \r\n)
-          needed = 3 - (@buffer.bytesize - offset)
-          fill_buffer(needed) if needed.positive?
-        end
+        negative, offset = check_negative_sign(offset)
+        needed = 3 - (@buffer.bytesize - offset)
+        fill_buffer(needed) if needed.positive?
 
-        # Fast path: single digit followed by CR (very common for small integers)
-        second_byte = @buffer.getbyte(offset)
-        if second_byte >= 48 && second_byte <= 57 # '0'..'9'
-          third_byte = @buffer.getbyte(offset + 1)
-          if third_byte == 13 # '\r'
-            @offset = offset + 3 # digit + \r\n
-            int = second_byte - 48
-            return negative ? -int : int
-          end
-        end
+        result = try_single_digit_fast_path(offset, negative)
+        return result if result
 
         # Slow path: multi-digit integer
         int, offset = parse_integer_digits(offset)
-        @offset = offset + 2 # Skip \r\n
-
+        @offset = offset + 2
         negative ? -int : int
       end
 
       # Read exactly `bytes` bytes, skipping the trailing CRLF
-      #
       # @param bytes [Integer] number of bytes to read
       # @return [String] the read data
       def read_chomp(bytes)
-        # Inline ensure_remaining to reduce method call overhead
         total_needed = bytes + EOL_SIZE
         needed = total_needed - (@buffer.bytesize - @offset)
         fill_buffer(needed) if needed.positive?
@@ -146,11 +127,9 @@ module RR
       end
 
       # Read exactly `count` bytes
-      #
       # @param count [Integer] number of bytes to read
       # @return [String] the read data
       def read(count)
-        # Inline ensure_remaining to reduce method call overhead
         needed = count - (@buffer.bytesize - @offset)
         fill_buffer(needed) if needed.positive?
 
@@ -159,11 +138,9 @@ module RR
         str
       end
 
-      # Skip `offset` bytes in the buffer
-      #
+      # Skip `bytes` bytes in the buffer
       # @param bytes [Integer] number of bytes to skip
       def skip(bytes)
-        # Inline ensure_remaining to reduce method call overhead
         needed = bytes - (@buffer.bytesize - @offset)
         fill_buffer(needed) if needed.positive?
 
@@ -172,7 +149,6 @@ module RR
       end
 
       # Write data to the underlying IO
-      #
       # @param data [String] data to write
       # @return [Integer] bytes written
       def write(data)
@@ -195,14 +171,12 @@ module RR
       end
 
       # Check if the underlying IO is closed
-      #
       # @return [Boolean]
       def closed?
         @io.closed?
       end
 
       # Check if at EOF
-      #
       # @return [Boolean]
       def eof?
         @offset >= @buffer.bytesize && @io.eof?
@@ -240,6 +214,18 @@ module RR
         [remaining, data]
       end
 
+      # Try fast path for single-digit integer followed by CR
+      # @return [Integer, nil] parsed integer or nil if not single digit
+      def try_single_digit_fast_path(offset, negative)
+        second_byte = @buffer.getbyte(offset)
+        return unless second_byte&.between?(48, 57) # '0'..'9'
+        return unless @buffer.getbyte(offset + 1) == 13 # '\r'
+
+        @offset = offset + 3 # digit + \r\n
+        int = second_byte - 48
+        negative ? -int : int
+      end
+
       # Check for negative sign at current offset
       # @return [Array(Boolean, Integer)] [negative?, new_offset]
       def check_negative_sign(offset)
@@ -267,94 +253,6 @@ module RR
           int = (int * 10) + (chr - 48)
           offset += 1
         end
-      end
-
-      # Ensure at least `bytes` bytes are available in the buffer
-      def ensure_remaining(bytes)
-        needed = bytes - (@buffer.bytesize - @offset)
-        fill_buffer(needed) if needed.positive?
-      end
-
-      # Fill the buffer with more data from the underlying IO
-      #
-      # Uses in-place buffer filling when buffer is empty to avoid
-      # intermediate string allocations. Matches redis-client's approach.
-      #
-      # @param min_bytes [Integer] minimum bytes needed
-      def fill_buffer(min_bytes)
-        empty_buffer = reset_buffer_if_consumed
-
-        remaining = min_bytes
-        while remaining.positive?
-          bytes = read_nonblock_safe(empty_buffer)
-          remaining, empty_buffer = process_read_result(bytes, remaining, empty_buffer)
-        end
-      end
-
-      # Reset buffer if all data has been consumed
-      # @return [Boolean] whether buffer is empty
-      def reset_buffer_if_consumed
-        empty = @offset >= @buffer.bytesize
-        if empty && @buffer.bytesize > BUFFER_CUTOFF
-          @buffer = String.new(encoding: Encoding::BINARY, capacity: @chunk_size)
-        end
-        empty
-      end
-
-      # Perform a non-blocking read, raising ConnectionError on IO failures
-      def read_nonblock_safe(empty_buffer)
-        if empty_buffer
-          @io.read_nonblock(@chunk_size, @buffer, exception: false)
-        else
-          @io.read_nonblock(@chunk_size, exception: false)
-        end
-      rescue IOError, Errno::ECONNRESET => e
-        raise ConnectionError, "Connection error: #{e.message}"
-      end
-
-      # Process the result of a read_nonblock call
-      # @return [Array(Integer, Boolean)] [remaining_bytes, empty_buffer]
-      def process_read_result(bytes, remaining, empty_buffer)
-        case bytes
-        when String
-          empty_buffer = append_read_data(bytes, empty_buffer)
-          [remaining - bytes.bytesize, empty_buffer]
-        when :wait_readable
-          wait_readable_or_timeout!
-          [remaining, empty_buffer]
-        when :wait_writable
-          wait_writable_or_timeout!
-          [remaining, empty_buffer]
-        when nil
-          raise ConnectionError, "Connection closed (EOF)"
-        end
-      end
-
-      # Append read data to the buffer, handling in-place vs append modes
-      # @return [Boolean] updated empty_buffer flag
-      def append_read_data(bytes, empty_buffer)
-        if empty_buffer && bytes.equal?(@buffer)
-          @offset = 0
-          false
-        elsif empty_buffer
-          @buffer.clear
-          @buffer << bytes
-          @offset = 0
-          false
-        else
-          @buffer << bytes
-          empty_buffer
-        end
-      end
-
-      # Wait for readable or raise timeout
-      def wait_readable_or_timeout!
-        @io.wait_readable(@read_timeout) or raise(TimeoutError, "Read timeout after #{@read_timeout}s")
-      end
-
-      # Wait for writable or raise timeout
-      def wait_writable_or_timeout!
-        @io.wait_writable(@write_timeout) or raise(TimeoutError, "Write timeout after #{@write_timeout}s")
       end
     end
   end

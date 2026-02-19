@@ -82,7 +82,6 @@ class SubscriberUnitTest < Minitest::Test
     assert_equal 2, config[:db]
     assert_in_delta(10.0, config[:timeout])
   end
-
   # ============================================================
   # Channel / Pattern subscription registration
   # ============================================================
@@ -127,7 +126,6 @@ class SubscriberUnitTest < Minitest::Test
     assert_equal %w[shard1 shard2], shard_channels
     assert_same subscriber, result
   end
-
   # ============================================================
   # Callback registration
   # ============================================================
@@ -191,7 +189,6 @@ class SubscriberUnitTest < Minitest::Test
     assert_equal block, callbacks[:error]
     assert_same subscriber, result
   end
-
   # ============================================================
   # Fluent chaining
   # ============================================================
@@ -199,8 +196,8 @@ class SubscriberUnitTest < Minitest::Test
   def test_fluent_chaining
     subscriber = RR::Subscriber.new(@mock_client)
     result = subscriber
-      .on_message { |_ch, _msg| }
-      .on_error { |_e| }
+      .on_message { |_ch, _msg| nil }
+      .on_error { |_e| nil }
       .subscribe("ch1")
       .psubscribe("p*")
 
@@ -208,7 +205,6 @@ class SubscriberUnitTest < Minitest::Test
     assert_equal ["ch1"], subscriber.channels
     assert_equal ["p*"], subscriber.patterns
   end
-
   # ============================================================
   # running? / stop_requested?
   # ============================================================
@@ -224,6 +220,16 @@ class SubscriberUnitTest < Minitest::Test
 
     refute_predicate subscriber, :stop_requested?
   end
+end
+
+class SubscriberUnitTestPart2 < Minitest::Test
+  def setup
+    @mock_client = SubscriberMockClient.new
+  end
+
+  # ============================================================
+  # Initialization
+  # ============================================================
 
   # ============================================================
   # process_message (private, but important for coverage)
@@ -348,7 +354,6 @@ class SubscriberUnitTest < Minitest::Test
 
     assert_equal 3, result
   end
-
   # ============================================================
   # call_callback (private, error handling)
   # ============================================================
@@ -380,6 +385,16 @@ class SubscriberUnitTest < Minitest::Test
     assert_instance_of RuntimeError, error_received
     assert_equal "test error", error_received.message
   end
+end
+
+class SubscriberUnitTestPart3 < Minitest::Test
+  def setup
+    @mock_client = SubscriberMockClient.new
+  end
+
+  # ============================================================
+  # Initialization
+  # ============================================================
 
   # ============================================================
   # handle_error (private)
@@ -412,7 +427,6 @@ class SubscriberUnitTest < Minitest::Test
     # Should NOT raise (thread absorbs it)
     subscriber.send(:handle_error, RuntimeError.new("test"))
   end
-
   # ============================================================
   # stop
   # ============================================================
@@ -479,7 +493,6 @@ class SubscriberUnitTest < Minitest::Test
 
     assert_predicate subscriber, :stop_requested?
   end
-
   # ============================================================
   # send_subscriptions (private)
   # ============================================================
@@ -548,7 +561,6 @@ class SubscriberUnitTest < Minitest::Test
     assert_includes mock_conn.calls, ["PSUBSCRIBE", "p*"]
     assert_includes mock_conn.calls, %w[SSUBSCRIBE s1]
   end
-
   # ============================================================
   # read_message (private)
   # ============================================================
@@ -563,6 +575,16 @@ class SubscriberUnitTest < Minitest::Test
 
     assert_equal %w[message ch1 hello], result
   end
+end
+
+class SubscriberUnitTestPart4 < Minitest::Test
+  def setup
+    @mock_client = SubscriberMockClient.new
+  end
+
+  # ============================================================
+  # Initialization
+  # ============================================================
 
   # ============================================================
   # extract_client_config (private)
@@ -595,7 +617,7 @@ class SubscriberUnitTest < Minitest::Test
     subscriber = RR::Subscriber.new(client)
     config = subscriber.instance_variable_get(:@client_config)
 
-    assert_equal true, config[:ssl]
+    assert config[:ssl]
     assert_equal({ verify_mode: 1 }, config[:ssl_params])
   end
 
@@ -628,7 +650,7 @@ class SubscriberUnitTest < Minitest::Test
 
     subscriber.send(:authenticate_if_needed)
 
-    assert_includes mock_conn.calls, ["AUTH", "secret"]
+    assert_includes mock_conn.calls, %w[AUTH secret]
   end
 
   def test_authenticate_not_called_without_password
@@ -640,6 +662,6 @@ class SubscriberUnitTest < Minitest::Test
 
     subscriber.send(:authenticate_if_needed)
 
-    refute mock_conn.calls.any? { |c| c[0] == "AUTH" }
+    refute(mock_conn.calls.any? { |c| c[0] == "AUTH" })
   end
 end

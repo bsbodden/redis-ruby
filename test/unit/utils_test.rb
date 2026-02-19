@@ -92,19 +92,19 @@ class YJITMonitorBranchTest < Minitest::Test
     end
   end
 
-  def test_healthy_when_ratio_above_90
+  def test_healthy_when_ratio_above_ninety
     RR::Utils::YJITMonitor.stub(:ratio_in_yjit, 95.0) do
       assert_predicate RR::Utils::YJITMonitor, :healthy?
     end
   end
 
-  def test_healthy_when_ratio_below_90
+  def test_healthy_when_ratio_below_ninety
     RR::Utils::YJITMonitor.stub(:ratio_in_yjit, 80.0) do
       refute_predicate RR::Utils::YJITMonitor, :healthy?
     end
   end
 
-  def test_healthy_when_ratio_exactly_90
+  def test_healthy_when_ratio_exactly_ninety
     RR::Utils::YJITMonitor.stub(:ratio_in_yjit, 90.0) do
       assert_predicate RR::Utils::YJITMonitor, :healthy?
     end

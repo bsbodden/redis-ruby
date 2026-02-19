@@ -58,7 +58,6 @@ class PubSubBranchTest < Minitest::Test
 
     assert_equal 0, result
   end
-
   # ============================================================
   # spublish
   # ============================================================
@@ -77,7 +76,6 @@ class PubSubBranchTest < Minitest::Test
 
     assert_equal 0, result
   end
-
   # ============================================================
   # pubsub_channels - with and without pattern
   # ============================================================
@@ -112,7 +110,6 @@ class PubSubBranchTest < Minitest::Test
 
     assert_empty result
   end
-
   # ============================================================
   # pubsub_numsub - empty channels, single channel, multiple channels
   # ============================================================
@@ -149,7 +146,6 @@ class PubSubBranchTest < Minitest::Test
 
     assert_equal({ "empty_ch" => 0 }, result)
   end
-
   # ============================================================
   # pubsub_numpat
   # ============================================================
@@ -168,7 +164,6 @@ class PubSubBranchTest < Minitest::Test
 
     assert_equal 0, result
   end
-
   # ============================================================
   # pubsub_shardchannels - with and without pattern
   # ============================================================
@@ -203,6 +198,16 @@ class PubSubBranchTest < Minitest::Test
 
     assert_empty result
   end
+end
+
+class PubSubBranchTestPart2 < Minitest::Test
+  def setup
+    @client = PubSubMockClient.new
+  end
+
+  # ============================================================
+  # publish
+  # ============================================================
 
   # ============================================================
   # pubsub_shardnumsub - empty, single, multiple channels
@@ -239,6 +244,16 @@ class PubSubBranchTest < Minitest::Test
 
     assert_equal({ "empty_shard" => 0 }, result)
   end
+end
+
+class PubSubBranchTestPart3 < Minitest::Test
+  def setup
+    @client = PubSubMockClient.new
+  end
+
+  # ============================================================
+  # publish
+  # ============================================================
 
   # ============================================================
   # SubscriptionHandler class - set and call all callback types
@@ -400,7 +415,15 @@ class PubSubBranchTest < Minitest::Test
   def test_subscription_handler_all_callbacks_set
     handler = RR::Commands::PubSub::SubscriptionHandler.new
     results = {}
+    register_all_callbacks(handler, results)
+    invoke_all_callbacks(handler)
 
+    assert_all_callback_results(results)
+  end
+
+  private
+
+  def register_all_callbacks(handler, results)
     handler.subscribe { |ch, c| results[:subscribe] = [ch, c] }
     handler.psubscribe { |p, c| results[:psubscribe] = [p, c] }
     handler.ssubscribe { |ch, c| results[:ssubscribe] = [ch, c] }
@@ -410,7 +433,9 @@ class PubSubBranchTest < Minitest::Test
     handler.message { |ch, m| results[:message] = [ch, m] }
     handler.pmessage { |p, ch, m| results[:pmessage] = [p, ch, m] }
     handler.smessage { |ch, m| results[:smessage] = [ch, m] }
+  end
 
+  def invoke_all_callbacks(handler)
     handler.call_subscribe(:subscribe, "ch1", 1)
     handler.call_subscribe(:psubscribe, "p1", 2)
     handler.call_subscribe(:ssubscribe, "s1", 3)
@@ -420,7 +445,9 @@ class PubSubBranchTest < Minitest::Test
     handler.call_message("ch1", "msg1")
     handler.call_pmessage("p1", "ch2", "msg2")
     handler.call_smessage("s1", "msg3")
+  end
 
+  def assert_all_callback_results(results)
     assert_equal ["ch1", 1], results[:subscribe]
     assert_equal ["p1", 2], results[:psubscribe]
     assert_equal ["s1", 3], results[:ssubscribe]
@@ -431,6 +458,8 @@ class PubSubBranchTest < Minitest::Test
     assert_equal %w[p1 ch2 msg2], results[:pmessage]
     assert_equal %w[s1 msg3], results[:smessage]
   end
+
+  public
 
   # --- Overwriting callbacks ---
 
@@ -445,6 +474,16 @@ class PubSubBranchTest < Minitest::Test
 
     assert_equal :second, received
   end
+end
+
+class PubSubBranchTestPart4 < Minitest::Test
+  def setup
+    @client = PubSubMockClient.new
+  end
+
+  # ============================================================
+  # publish
+  # ============================================================
 
   # ============================================================
   # unsubscribe / punsubscribe / sunsubscribe
@@ -523,7 +562,6 @@ class PubSubBranchTest < Minitest::Test
     @client.sunsubscribe
     mock_conn.verify
   end
-
   # ============================================================
   # Frozen constant tests
   # ============================================================

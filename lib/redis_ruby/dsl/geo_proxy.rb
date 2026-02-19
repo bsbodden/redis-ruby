@@ -110,14 +110,15 @@ module RR
       # @example
       #   geo.radius(-122.4, 37.8, 10, unit: :km)
       #   geo.radius(-122.4, 37.8, 10, unit: :km, withcoord: true, withdist: true, count: 5, sort: :asc)
-      def radius(longitude, latitude, radius, unit: :m, withcoord: false, withdist: false, withhash: false, count: nil, sort: nil)
+      def radius(longitude, latitude, radius, unit: :m, withcoord: false, withdist: false, withhash: false, count: nil,
+                 sort: nil)
         options = {}
         options[:withcoord] = true if withcoord
         options[:withdist] = true if withdist
         options[:withhash] = true if withhash
         options[:count] = count if count
         options[:sort] = sort if sort
-        
+
         @redis.georadius(@key, longitude, latitude, radius, unit.to_s, **options)
       end
 
@@ -136,7 +137,8 @@ module RR
       # @example
       #   geo.radius_by_member(:store1, 50, unit: :mi)
       #   geo.radius_by_member(:store1, 50, unit: :mi, withdist: true, count: 10, sort: :asc)
-      def radius_by_member(member, radius, unit: :m, withcoord: false, withdist: false, withhash: false, count: nil, sort: nil)
+      def radius_by_member(member, radius, unit: :m, withcoord: false, withdist: false, withhash: false, count: nil,
+                           sort: nil)
         options = {}
         options[:withcoord] = true if withcoord
         options[:withdist] = true if withdist
@@ -164,24 +166,24 @@ module RR
       # @example
       #   geo.search(-122.4, 37.8, 10, unit: :km)
       #   geo.search(-122.4, 37.8, 10, unit: :km, withcoord: true, withdist: true, count: 10, sort: :asc)
-      def search(longitude, latitude, radius, unit: :m, withcoord: false, withdist: false, withhash: false, count: nil, sort: nil, any: false)
+      def search(longitude, latitude, radius, unit: :m, withcoord: false, withdist: false, withhash: false, count: nil,
+                 sort: nil, any: false)
         @redis.geosearch(@key,
-          fromlonlat: [longitude, latitude],
-          byradius: radius,
-          unit: unit.to_s,
-          withcoord: withcoord,
-          withdist: withdist,
-          withhash: withhash,
-          count: count,
-          sort: sort,
-          any: any)
+                         fromlonlat: [longitude, latitude],
+                         byradius: radius,
+                         unit: unit.to_s,
+                         withcoord: withcoord,
+                         withdist: withdist,
+                         withhash: withhash,
+                         count: count,
+                         sort: sort,
+                         any: any)
       rescue RR::CommandError => e
         # Fall back to georadius for older Redis versions
-        if e.message.include?("unknown command") || e.message.include?("GEOSEARCH")
-          radius(longitude, latitude, radius, unit: unit, withcoord: withcoord, withdist: withdist, withhash: withhash, count: count, sort: sort)
-        else
-          raise
-        end
+        raise unless e.message.include?("unknown command") || e.message.include?("GEOSEARCH")
+
+        radius(longitude, latitude, radius, unit: unit, withcoord: withcoord, withdist: withdist, withhash: withhash,
+                                            count: count, sort: sort)
       end
 
       # Search for members within a radius from a member (Redis 6.2+)
@@ -200,24 +202,24 @@ module RR
       # @example
       #   geo.search_by_member(:store1, 50, unit: :mi)
       #   geo.search_by_member(:store1, 50, unit: :mi, withdist: true, count: 10, sort: :asc)
-      def search_by_member(member, radius, unit: :m, withcoord: false, withdist: false, withhash: false, count: nil, sort: nil, any: false)
+      def search_by_member(member, radius, unit: :m, withcoord: false, withdist: false, withhash: false, count: nil,
+                           sort: nil, any: false)
         @redis.geosearch(@key,
-          frommember: member.to_s,
-          byradius: radius,
-          unit: unit.to_s,
-          withcoord: withcoord,
-          withdist: withdist,
-          withhash: withhash,
-          count: count,
-          sort: sort,
-          any: any)
+                         frommember: member.to_s,
+                         byradius: radius,
+                         unit: unit.to_s,
+                         withcoord: withcoord,
+                         withdist: withdist,
+                         withhash: withhash,
+                         count: count,
+                         sort: sort,
+                         any: any)
       rescue RR::CommandError => e
         # Fall back to georadiusbymember for older Redis versions
-        if e.message.include?("unknown command") || e.message.include?("GEOSEARCH")
-          radius_by_member(member, radius, unit: unit, withcoord: withcoord, withdist: withdist, withhash: withhash, count: count, sort: sort)
-        else
-          raise
-        end
+        raise unless e.message.include?("unknown command") || e.message.include?("GEOSEARCH")
+
+        radius_by_member(member, radius, unit: unit, withcoord: withcoord, withdist: withdist, withhash: withhash,
+                                         count: count, sort: sort)
       end
 
       # Get geohash string(s) for member(s)
@@ -245,6 +247,7 @@ module RR
       #   geo.remove(:store1, :store2, :store3)
       def remove(*members)
         return self if members.empty?
+
         @redis.zrem(@key, *members.map(&:to_s))
         self
       end
@@ -278,7 +281,7 @@ module RR
       # @example
       #   geo.empty?  # => false
       def empty?
-        count == 0
+        count.zero?
       end
 
       # Get total number of members
@@ -300,7 +303,7 @@ module RR
       #
       # @example
       #   geo.each { |member, lon, lat| puts "#{member}: #{lon}, #{lat}" }
-      def each(&block)
+      def each
         return enum_for(:each) unless block_given?
 
         cursor = 0
@@ -308,11 +311,9 @@ module RR
           cursor, results = @redis.zscan(@key, cursor)
           # zscan returns [[member, score], ...] pairs
           # For each member, get its position
-          results.each do |member, _score|
+          results.each_key do |member|
             pos = @redis.geopos(@key, member).first
-            if pos
-              yield member.to_sym, pos[0], pos[1]
-            end
+            yield member.to_sym, pos[0], pos[1] if pos
           end
           break if cursor == "0"
         end
@@ -326,7 +327,7 @@ module RR
       #
       # @example
       #   geo.each_member { |member| puts member }
-      def each_member(&block)
+      def each_member
         return enum_for(:each_member) unless block_given?
 
         each { |member, _lon, _lat| yield member }
@@ -353,7 +354,7 @@ module RR
         return {} if members.nil? || members.empty?
 
         positions = @redis.geopos(@key, *members)
-        Hash[members.map.with_index { |member, i| [member.to_sym, positions[i]] }]
+        members.map.with_index { |member, i| [member.to_sym, positions[i]] }.to_h
       end
 
       # Remove all members
@@ -366,8 +367,6 @@ module RR
         @redis.del(@key)
       end
       alias delete clear
-
     end
   end
 end
-

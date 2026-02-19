@@ -56,7 +56,7 @@ puts "-" * 80
 session = redis.hash(:session, "abc123")
   .set(user_id: 789, ip: "192.168.1.1", created_at: Time.now.to_i)
   .increment(:page_views)
-  .expire(1800)  # 30 minutes
+  .expire(1800) # 30 minutes
 
 puts "Session created with TTL: #{session.ttl} seconds"
 puts "Page views: #{session[:page_views]}"
@@ -96,7 +96,7 @@ config.merge(
   debug: "false"
 )
 
-puts "Configuration keys: #{config.keys.join(', ')}"
+puts "Configuration keys: #{config.keys.join(", ")}"
 puts "Number of settings: #{config.length}"
 puts "\nAll settings:"
 config.each do |key, value|
@@ -154,13 +154,13 @@ puts "-" * 80
 
 cache = redis.hash(:cache, :api_response)
 cache.set(data: "cached_value", timestamp: Time.now.to_i)
-cache.expire(60)  # Expire in 60 seconds
+cache.expire(60) # Expire in 60 seconds
 
 puts "Cache TTL: #{cache.ttl} seconds"
 
 # Remove expiration
 cache.persist
-puts "After persist - TTL: #{cache.ttl} (#{cache.ttl == -1 ? 'no expiration' : 'has expiration'})"
+puts "After persist - TTL: #{cache.ttl} (#{cache.ttl == -1 ? "no expiration" : "has expiration"})"
 
 # Set expiration at specific time
 cache.expire_at(Time.now + 120)
@@ -183,7 +183,7 @@ flags.merge(
 
 puts "Feature flags:"
 flags.each do |feature, enabled|
-  puts "  #{feature}: #{enabled == 'true' ? '✓ enabled' : '✗ disabled'}"
+  puts "  #{feature}: #{enabled == "true" ? "✓ enabled" : "✗ disabled"}"
 end
 
 # Toggle a flag
@@ -194,10 +194,9 @@ puts "\nBeta API enabled: #{flags[:beta_api]}"
 # Cleanup
 # ============================================================
 
-puts "\n" + "=" * 80
+puts "\n#{"=" * 80}"
 puts "Cleaning up..."
-redis.del("user:123", "profile:456", "session:abc123", "stats:daily", 
+redis.del("user:123", "profile:456", "session:abc123", "stats:daily",
           "config:app", "user:999", "cache:api_response", "features:production")
 redis.close
 puts "Done!"
-

@@ -100,9 +100,9 @@ module RR
     # @param command [String] Command name
     # @param args [Array] Command arguments
     # @return [Object] Command result
-    def call(command, *args)
+    def call(command, *)
       ensure_connected
-      result = @connection.call(command, *args)
+      result = @connection.call(command, *)
       raise result if result.is_a?(CommandError)
 
       result
@@ -170,19 +170,27 @@ module RR
         return if @connection&.connected?
 
         endpoint = @discovery_service.discover_endpoint
-        new_address = "#{endpoint[:host]}:#{endpoint[:port]}"
-
-        # Only reconnect if the address changed or we don't have a connection
-        if @current_address != new_address || !@connection&.connected?
-          @connection&.close rescue nil
-
-          @connection = create_connection(endpoint[:host], endpoint[:port])
-          @current_address = new_address
-
-          authenticate if @password
-          select_db if @db.positive?
-        end
+        connect_to_endpoint(endpoint)
       end
+    end
+
+    # Connect to the discovered endpoint if address changed
+    def connect_to_endpoint(endpoint)
+      new_address = "#{endpoint[:host]}:#{endpoint[:port]}"
+      return if @current_address == new_address && @connection&.connected?
+
+      close_existing_connection
+      @connection = create_connection(endpoint[:host], endpoint[:port])
+      @current_address = new_address
+      authenticate if @password
+      select_db if @db.positive?
+    end
+
+    # Safely close existing connection
+    def close_existing_connection
+      @connection&.close
+    rescue StandardError
+      nil
     end
 
     # Create a connection to the discovered endpoint
@@ -194,7 +202,5 @@ module RR
         Connection::TCP.new(host: host, port: port, timeout: @timeout)
       end
     end
-
   end
 end
-

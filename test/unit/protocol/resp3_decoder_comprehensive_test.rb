@@ -351,6 +351,17 @@ class RESP3DecoderComprehensiveTest < Minitest::Test
   # ============================================================
   # Unknown type tests
   # ============================================================
+end
+
+class RESP3DecoderComprehensiveTestPart2 < Minitest::Test
+  def decoder_for(data)
+    io = StringIO.new(data.b)
+    RR::Protocol::RESP3Decoder.new(io)
+  end
+
+  # ============================================================
+  # Simple String tests
+  # ============================================================
 
   def test_decode_unknown_type
     decoder = decoder_for("@invalid\r\n")

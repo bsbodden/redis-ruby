@@ -85,8 +85,8 @@ module RR
       #
       # @example
       #   reader.count(10)
-      def count(n)
-        @count_limit = n
+      def count(num)
+        @count_limit = num
         self
       end
       alias limit count
@@ -122,7 +122,7 @@ module RR
           # XREAD query
           result = @redis.xread(@key, @start_id, count: @count_limit, block: @block_ms)
           return nil if result.nil?
-          
+
           # XREAD returns [[stream_key, entries], ...]
           # Extract just the entries for this stream
           result[0][1]
@@ -143,13 +143,12 @@ module RR
       #   reader.from("0-0").each do |id, fields|
       #     puts "#{id}: #{fields}"
       #   end
-      def each(&block)
+      def each(&)
         entries = execute
         return if entries.nil?
-        
-        entries.each(&block)
+
+        entries.each(&)
       end
     end
   end
 end
-

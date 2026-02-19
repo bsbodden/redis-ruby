@@ -159,36 +159,24 @@ module RR
     rescue StandardError
       false
     ensure
-      conn&.close rescue nil
+      begin
+        conn&.close
+      rescue StandardError
+        nil
+      end
     end
 
     # Get all Sentinel addresses for the service
-    #
     # @return [Array<Hash>] List of Sentinel addresses
     def discover_sentinels
       result = []
-
       @sentinels.each do |sentinel|
-        conn = nil
-        begin
-          conn = create_sentinel_connection(sentinel)
-          response = conn.call("SENTINEL", "SENTINELS", @service_name)
+        entries = query_sentinel_peers(sentinel)
+        next unless entries
 
-          response.each do |info|
-            info_hash = parse_info_array(info)
-            result << {
-              host: info_hash["ip"],
-              port: info_hash["port"].to_i,
-            }
-          end
-          break unless result.empty?
-        rescue StandardError
-          next
-        ensure
-          conn&.close rescue nil
-        end
+        result.concat(entries)
+        break unless result.empty?
       end
-
       result.uniq { |s| "#{s[:host]}:#{s[:port]}" }
     end
 
@@ -267,32 +255,67 @@ module RR
     end
 
     # Refresh sentinels list from discovered sentinels (redis-client pattern)
-    # Network I/O is done outside the mutex; only the list mutation is synchronized.
     def refresh_sentinels(conn)
       response = conn.call("SENTINEL", "SENTINELS", @service_name)
       return unless response.is_a?(Array)
 
-      new_sentinels = response.filter_map do |sentinel_array|
+      new_sentinels = parse_sentinel_addresses(response)
+      merge_new_sentinels(new_sentinels)
+    rescue StandardError
+      # Ignore errors refreshing sentinels
+    end
+
+    # Parse sentinel response into address hashes
+    def parse_sentinel_addresses(response)
+      response.filter_map do |sentinel_array|
         info = parse_info_array(sentinel_array)
         { host: info["ip"], port: info["port"].to_i }
       end
+    end
 
+    # Merge newly discovered sentinels into existing list
+    def merge_new_sentinels(new_sentinels)
       @mutex.synchronize do
         new_sentinels.each do |new_sentinel|
-          unless @sentinels.any? { |s| s[:host] == new_sentinel[:host] && s[:port] == new_sentinel[:port] }
-            @sentinels << new_sentinel
-          end
+          next if sentinel_known?(new_sentinel)
+
+          @sentinels << new_sentinel
         end
       end
-    rescue StandardError
-      # Ignore errors refreshing sentinels
+    end
+
+    # Check if a sentinel is already in the list
+    def sentinel_known?(sentinel)
+      @sentinels.any? { |s| s[:host] == sentinel[:host] && s[:port] == sentinel[:port] }
+    end
+
+    # Query a single sentinel for its peer list
+    def query_sentinel_peers(sentinel)
+      conn = create_sentinel_connection(sentinel)
+      begin
+        response = conn.call("SENTINEL", "SENTINELS", @service_name)
+        response.map { |info| sentinel_info_to_address(parse_info_array(info)) }
+      rescue StandardError
+        nil
+      ensure
+        begin
+          conn&.close
+        rescue StandardError
+          nil
+        end
+      end
+    end
+
+    # Convert parsed sentinel info to address hash
+    def sentinel_info_to_address(info_hash)
+      { host: info_hash["ip"], port: info_hash["port"].to_i }
     end
 
     # Promote a sentinel to the front of the list by value (redis-py pattern)
     # Must be called within a mutex synchronize block.
     def promote_sentinel_by_value(sentinel)
       idx = @sentinels.index { |s| s[:host] == sentinel[:host] && s[:port] == sentinel[:port] }
-      @sentinels[0], @sentinels[idx] = @sentinels[idx], @sentinels[0] if idx && idx.positive?
+      @sentinels[0], @sentinels[idx] = @sentinels[idx], @sentinels[0] if idx&.positive?
     end
 
     # Query replica addresses from a specific Sentinel

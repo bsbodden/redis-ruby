@@ -14,19 +14,19 @@ class FunctionsCommandsTest < Minitest::Test
   # --- FUNCTION LOAD ---
 
   def test_function_load
-    @connection.expects(:call_2args).with("FUNCTION", "LOAD",
-                                          "#!lua name=mylib\nredis.register_function('myfunc', function() return 1 end)")
+    lua_code = "#!lua name=mylib\nredis.register_function('myfunc', function() return 1 end)"
+    @connection.expects(:call_2args).with("FUNCTION", "LOAD", lua_code)
       .returns("mylib")
-    result = @client.function_load("#!lua name=mylib\nredis.register_function('myfunc', function() return 1 end)")
+    result = @client.function_load(lua_code)
 
     assert_equal "mylib", result
   end
 
   def test_function_load_with_replace
-    @connection.expects(:call_direct).with("FUNCTION", "LOAD", "REPLACE",
-                                           "#!lua name=mylib\nredis.register_function('myfunc', function() return 1 end)")
+    lua_code = "#!lua name=mylib\nredis.register_function('myfunc', function() return 1 end)"
+    @connection.expects(:call_direct).with("FUNCTION", "LOAD", "REPLACE", lua_code)
       .returns("mylib")
-    result = @client.function_load("#!lua name=mylib\nredis.register_function('myfunc', function() return 1 end)",
+    result = @client.function_load(lua_code,
                                    replace: true)
 
     assert_equal "mylib", result

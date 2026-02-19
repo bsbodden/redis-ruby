@@ -16,7 +16,7 @@ class TimeSeriesDSLTest < Minitest::Test
   def test_time_series_builder_basic
     # Create time series with DSL
     result = @redis.time_series("temp:sensor1") do
-      retention 86400000 # 24 hours
+      retention 86_400_000 # 24 hours
       labels sensor: "temp", location: "room1"
     end
 
@@ -24,8 +24,10 @@ class TimeSeriesDSLTest < Minitest::Test
 
     # Verify it was created
     info = @redis.ts_info("temp:sensor1")
-    assert_equal 86400000, info["retentionTime"]
+
+    assert_equal 86_400_000, info["retentionTime"]
     labels_hash = info["labels"].to_h
+
     assert_equal "temp", labels_hash["sensor"]
     assert_equal "room1", labels_hash["location"]
   end
@@ -33,30 +35,34 @@ class TimeSeriesDSLTest < Minitest::Test
   def test_time_series_builder_with_compaction
     # Create time series with compaction rules
     @redis.time_series("temp:raw") do
-      retention 3600000 # 1 hour
+      retention 3_600_000 # 1 hour
       labels resolution: "raw"
 
-      compact_to "temp:hourly", :avg, 3600000 do
-        retention 86400000 # 24 hours
+      compact_to "temp:hourly", :avg, 3_600_000 do
+        retention 86_400_000 # 24 hours
         labels resolution: "hourly"
       end
     end
 
     # Verify main series
     info = @redis.ts_info("temp:raw")
-    assert_equal 3600000, info["retentionTime"]
+
+    assert_equal 3_600_000, info["retentionTime"]
 
     # Verify destination series
     info = @redis.ts_info("temp:hourly")
-    assert_equal 86400000, info["retentionTime"]
+
+    assert_equal 86_400_000, info["retentionTime"]
 
     # Verify compaction rule exists
     rules = info["rules"]
+
     assert_equal 0, rules.length # Rules are on source, not destination
 
     # Check source has the rule
     info = @redis.ts_info("temp:raw")
     rules = info["rules"]
+
     assert_equal 1, rules.length
   end
 
@@ -74,6 +80,7 @@ class TimeSeriesDSLTest < Minitest::Test
 
     # Verify samples were added
     samples = @redis.ts_range("temp:sensor1", "-", "+")
+
     assert_equal 3, samples.length
   end
 
@@ -88,6 +95,7 @@ class TimeSeriesDSLTest < Minitest::Test
 
     # Get latest value
     latest = @redis.ts("counter:requests").get
+
     assert_equal "105", latest[1]
   end
 
@@ -97,16 +105,18 @@ class TimeSeriesDSLTest < Minitest::Test
 
     # Get latest sample
     result = @redis.ts("temp:sensor1").get
+
     assert_equal timestamp, result[0]
     assert_equal "23.5", result[1]
   end
 
   def test_time_series_proxy_info
-    @redis.ts_create("temp:sensor1", retention: 86400000)
+    @redis.ts_create("temp:sensor1", retention: 86_400_000)
 
     # Get info
     info = @redis.ts("temp:sensor1").info
-    assert_equal 86400000, info["retentionTime"]
+
+    assert_equal 86_400_000, info["retentionTime"]
   end
 
   def test_time_series_proxy_delete
@@ -120,22 +130,25 @@ class TimeSeriesDSLTest < Minitest::Test
 
     # Delete middle sample
     deleted = @redis.ts("temp:sensor1").delete(from: now + 1000, to: now + 1000)
+
     assert_equal 1, deleted
 
     # Verify only 2 samples remain
     samples = @redis.ts_range("temp:sensor1", "-", "+")
+
     assert_equal 2, samples.length
   end
 
   def test_time_series_proxy_alter
-    @redis.ts_create("temp:sensor1", retention: 3600000)
+    @redis.ts_create("temp:sensor1", retention: 3_600_000)
 
     # Alter retention
-    @redis.ts("temp:sensor1").alter(retention: 86400000)
+    @redis.ts("temp:sensor1").alter(retention: 86_400_000)
 
     # Verify change
     info = @redis.ts_info("temp:sensor1")
-    assert_equal 86400000, info["retentionTime"]
+
+    assert_equal 86_400_000, info["retentionTime"]
   end
 
   def test_time_series_proxy_compact_to
@@ -143,11 +156,12 @@ class TimeSeriesDSLTest < Minitest::Test
     @redis.ts_create("temp:hourly")
 
     # Create compaction rule
-    @redis.ts("temp:raw").compact_to("temp:hourly", :avg, 3600000)
+    @redis.ts("temp:raw").compact_to("temp:hourly", :avg, 3_600_000)
 
     # Verify rule exists
     info = @redis.ts_info("temp:raw")
     rules = info["rules"]
+
     assert_equal 1, rules.length
   end
 
@@ -164,17 +178,18 @@ class TimeSeriesDSLTest < Minitest::Test
 
     # Verify samples
     samples = @redis.ts_range("temp:sensor1", "-", "+")
+
     assert_equal 3, samples.length
   end
 
   def test_time_series_query_builder_single_series
     @redis.ts_create("temp:sensor1")
-    
+
     # Add samples
     now = Time.now.to_i * 1000
     @redis.ts_add("temp:sensor1", now, 23.5)
-    @redis.ts_add("temp:sensor1", now + 60000, 24.0)
-    @redis.ts_add("temp:sensor1", now + 120000, 23.8)
+    @redis.ts_add("temp:sensor1", now + 60_000, 24.0)
+    @redis.ts_add("temp:sensor1", now + 120_000, 23.8)
 
     # Query with builder
     result = @redis.ts_query("temp:sensor1")
@@ -191,18 +206,18 @@ class TimeSeriesDSLTest < Minitest::Test
     # Add samples
     now = Time.now.to_i * 1000
     10.times do |i|
-      @redis.ts_add("temp:sensor1", now + (i * 60000), 20 + i)
+      @redis.ts_add("temp:sensor1", now + (i * 60_000), 20 + i)
     end
 
     # Query with aggregation
     result = @redis.ts_query("temp:sensor1")
       .from("-")
       .to("+")
-      .aggregate(:avg, 300000) # 5 minute buckets
+      .aggregate(:avg, 300_000) # 5 minute buckets
       .execute
 
-    assert result.length > 0
-    assert result.length < 10 # Should be aggregated
+    assert_predicate result.length, :positive?
+    assert_operator result.length, :<, 10 # Should be aggregated
   end
 
   def test_time_series_query_builder_multi_series
@@ -234,8 +249,8 @@ class TimeSeriesDSLTest < Minitest::Test
     # Add samples
     now = Time.now.to_i * 1000
     @redis.ts_add("temp:sensor1", now, 23.5)
-    @redis.ts_add("temp:sensor1", now + 60000, 24.0)
-    @redis.ts_add("temp:sensor1", now + 120000, 23.8)
+    @redis.ts_add("temp:sensor1", now + 60_000, 24.0)
+    @redis.ts_add("temp:sensor1", now + 120_000, 23.8)
 
     # Query in reverse
     result = @redis.ts_query("temp:sensor1")
@@ -246,7 +261,7 @@ class TimeSeriesDSLTest < Minitest::Test
 
     assert_equal 3, result.length
     # First result should be the latest timestamp
-    assert result[0][0] > result[1][0]
+    assert_operator result[0][0], :>, result[1][0]
   end
 
   def test_time_series_query_builder_limit
@@ -255,7 +270,7 @@ class TimeSeriesDSLTest < Minitest::Test
     # Add samples
     now = Time.now.to_i * 1000
     10.times do |i|
-      @redis.ts_add("temp:sensor1", now + (i * 60000), 20 + i)
+      @redis.ts_add("temp:sensor1", now + (i * 60_000), 20 + i)
     end
 
     # Query with limit
@@ -274,8 +289,8 @@ class TimeSeriesDSLTest < Minitest::Test
     # Add samples
     now = Time.now.to_i * 1000
     @redis.ts_add("temp:sensor1", now, 23.5)
-    @redis.ts_add("temp:sensor1", now + 60000, 24.0)
-    @redis.ts_add("temp:sensor1", now + 120000, 23.8)
+    @redis.ts_add("temp:sensor1", now + 60_000, 24.0)
+    @redis.ts_add("temp:sensor1", now + 120_000, 23.8)
 
     # Query with proxy range method
     result = @redis.ts("temp:sensor1")
@@ -291,8 +306,8 @@ class TimeSeriesDSLTest < Minitest::Test
     # Add samples
     now = Time.now.to_i * 1000
     @redis.ts_add("temp:sensor1", now, 23.5)
-    @redis.ts_add("temp:sensor1", now + 60000, 24.0)
-    @redis.ts_add("temp:sensor1", now + 120000, 23.8)
+    @redis.ts_add("temp:sensor1", now + 60_000, 24.0)
+    @redis.ts_add("temp:sensor1", now + 120_000, 23.8)
 
     # Query in reverse with proxy
     result = @redis.ts("temp:sensor1")
@@ -301,7 +316,6 @@ class TimeSeriesDSLTest < Minitest::Test
 
     assert_equal 3, result.length
     # First result should be the latest timestamp
-    assert result[0][0] > result[1][0]
+    assert_operator result[0][0], :>, result[1][0]
   end
 end
-

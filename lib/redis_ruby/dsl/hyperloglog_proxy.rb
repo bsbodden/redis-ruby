@@ -48,6 +48,7 @@ module RR
       #   hll.add("user:456", "user:789", "user:101")
       def add(*elements)
         return self if elements.empty?
+
         @redis.pfadd(@key, *elements.map(&:to_s))
         self
       end
@@ -78,6 +79,7 @@ module RR
       #   weekly.merge("visitors:day1", "visitors:day2", "visitors:day3")
       def merge(*other_keys)
         return self if other_keys.empty?
+
         @redis.pfmerge(@key, @key, *other_keys.map(&:to_s))
         self
       end
@@ -118,7 +120,7 @@ module RR
       # @example
       #   hll.exists?  # => true
       def exists?
-        @redis.exists(@key) > 0
+        @redis.exists(@key).positive?
       end
 
       # Check if the HyperLogLog is empty
@@ -130,10 +132,8 @@ module RR
       # @example
       #   hll.empty?  # => false
       def empty?
-        !exists? || count == 0
+        !exists? || count.zero?
       end
-
     end
   end
 end
-

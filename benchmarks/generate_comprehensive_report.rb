@@ -56,7 +56,7 @@ class ComprehensiveBenchmark
     puts "Comprehensive Benchmark Report"
     puts "=" * 80
     puts "Ruby: #{RUBY_VERSION} (#{RUBY_PLATFORM})"
-    puts "YJIT: #{yjit_enabled? ? 'enabled' : 'disabled'}"
+    puts "YJIT: #{yjit_enabled? ? "enabled" : "disabled"}"
     puts "Redis URL: #{REDIS_URL}"
     puts "=" * 80
     puts
@@ -71,7 +71,7 @@ class ComprehensiveBenchmark
   end
 
   def test_redis_rb_plain
-    puts "\n" + "=" * 80
+    puts "\n#{"=" * 80}"
     puts "Testing: redis-rb (plain Ruby driver)"
     puts "=" * 80
 
@@ -81,15 +81,15 @@ class ComprehensiveBenchmark
     @redis_rb_plain = {
       single_get: benchmark_single_get(redis, "redis-rb (plain)"),
       single_set: benchmark_single_set(redis, "redis-rb (plain)"),
-      pipeline_10: benchmark_pipeline_10(redis, "redis-rb (plain)"),
-      pipeline_100: benchmark_pipeline_100(redis, "redis-rb (plain)"),
+      pipeline_ten: benchmark_pipeline_ten(redis, "redis-rb (plain)"),
+      pipeline_hundred: benchmark_pipeline_hundred(redis, "redis-rb (plain)"),
     }
 
     redis.close
   end
 
   def test_redis_rb_hiredis
-    puts "\n" + "=" * 80
+    puts "\n#{"=" * 80}"
     puts "Testing: redis-rb (with hiredis)"
     puts "=" * 80
 
@@ -103,19 +103,19 @@ class ComprehensiveBenchmark
       @redis_rb_hiredis = {
         single_get: benchmark_single_get(redis, "redis-rb (hiredis)"),
         single_set: benchmark_single_set(redis, "redis-rb (hiredis)"),
-        pipeline_10: benchmark_pipeline_10(redis, "redis-rb (hiredis)"),
-        pipeline_100: benchmark_pipeline_100(redis, "redis-rb (hiredis)"),
+        pipeline_ten: benchmark_pipeline_ten(redis, "redis-rb (hiredis)"),
+        pipeline_hundred: benchmark_pipeline_hundred(redis, "redis-rb (hiredis)"),
       }
 
       redis.close
-    rescue LoadError, Gem::LoadError => e
+    rescue LoadError => e
       puts "Hiredis not available (#{e.message}), skipping..."
       @redis_rb_hiredis = nil
     end
   end
 
   def test_redis_ruby
-    puts "\n" + "=" * 80
+    puts "\n#{"=" * 80}"
     puts "Testing: redis-ruby"
     puts "=" * 80
 
@@ -125,8 +125,8 @@ class ComprehensiveBenchmark
     @redis_ruby = {
       single_get: benchmark_single_get(redis, "redis-ruby"),
       single_set: benchmark_single_set(redis, "redis-ruby"),
-      pipeline_10: benchmark_pipeline_10(redis, "redis-ruby"),
-      pipeline_100: benchmark_pipeline_100(redis, "redis-ruby"),
+      pipeline_ten: benchmark_pipeline_ten(redis, "redis-ruby"),
+      pipeline_hundred: benchmark_pipeline_hundred(redis, "redis-ruby"),
     }
 
     redis.close
@@ -155,7 +155,7 @@ class ComprehensiveBenchmark
     report.entries.first.stats.central_tendency
   end
 
-  def benchmark_pipeline_10(redis, label)
+  def benchmark_pipeline_ten(redis, label)
     puts "\nPipeline 10 commands:"
     report = Benchmark.ips do |x|
       x.config(warmup: 2, time: 5)
@@ -168,7 +168,7 @@ class ComprehensiveBenchmark
     report.entries.first.stats.central_tendency
   end
 
-  def benchmark_pipeline_100(redis, label)
+  def benchmark_pipeline_hundred(redis, label)
     puts "\nPipeline 100 commands:"
     report = Benchmark.ips do |x|
       x.config(warmup: 2, time: 5)
@@ -189,40 +189,39 @@ class ComprehensiveBenchmark
     }
 
     FileUtils.mkdir_p("tmp")
-    filename = "tmp/comprehensive_benchmark_#{Time.now.strftime('%Y%m%d_%H%M%S')}.json"
+    filename = "tmp/comprehensive_benchmark_#{Time.now.strftime("%Y%m%d_%H%M%S")}.json"
     File.write(filename, JSON.pretty_generate(@results))
-    puts "\n" + "=" * 80
+    puts "\n#{"=" * 80}"
     puts "Report saved to: #{filename}"
     puts "=" * 80
   end
 
   def print_summary
-    puts "\n" + "=" * 80
+    puts "\n#{"=" * 80}"
     puts "SUMMARY"
     puts "=" * 80
 
-    if @redis_rb_plain && @redis_ruby
-      print_comparison("redis-ruby vs redis-rb (plain)", @redis_ruby, @redis_rb_plain)
-    end
+    print_comparison("redis-ruby vs redis-rb (plain)", @redis_ruby, @redis_rb_plain) if @redis_rb_plain && @redis_ruby
 
-    if @redis_rb_hiredis && @redis_ruby
-      puts
-      print_comparison("redis-ruby vs redis-rb (hiredis)", @redis_ruby, @redis_rb_hiredis)
-    end
+    return unless @redis_rb_hiredis && @redis_ruby
+
+    puts
+    print_comparison("redis-ruby vs redis-rb (hiredis)", @redis_ruby, @redis_rb_hiredis)
   end
 
   def print_comparison(title, ruby_results, rb_results)
     puts "\n#{title}:"
     puts "-" * 80
 
-    [:single_get, :single_set, :pipeline_10, :pipeline_100].each do |bench|
+    %i[single_get single_set pipeline_ten pipeline_hundred].each do |bench|
       ruby_ips = ruby_results[bench]
       rb_ips = rb_results[bench]
       next unless ruby_ips && rb_ips
 
       speedup = ruby_ips / rb_ips
       status = speedup >= 1.0 ? "✓" : "✗"
-      puts "  #{status} #{bench.to_s.ljust(20)}: #{speedup.round(2)}x (#{ruby_ips.round(0)} vs #{rb_ips.round(0)} ops/s)"
+      label = bench.to_s.ljust(20)
+      puts "  #{status} #{label}: #{speedup.round(2)}x (#{ruby_ips.round(0)} vs #{rb_ips.round(0)} ops/s)"
     end
   end
 end
@@ -230,4 +229,3 @@ end
 # Run the benchmark
 benchmark = ComprehensiveBenchmark.new
 benchmark.run_all
-

@@ -28,9 +28,9 @@ module RR
       # @param value [Numeric] Sample value
       # @param options [Hash] Additional options
       # @return [TimeSeriesProxy] self for chaining
-      def add(timestamp, value, **options)
+      def add(timestamp, value, **)
         timestamp = normalize_timestamp(timestamp)
-        @client.ts_add(@key, timestamp, value, **options)
+        @client.ts_add(@key, timestamp, value, **)
         self
       end
 
@@ -38,21 +38,21 @@ module RR
       # @param value [Numeric] Value to add
       # @param options [Hash] Additional options
       # @return [TimeSeriesProxy] self for chaining
-      def increment(value = 1, **options)
-        @client.ts_incrby(@key, value, **options)
+      def increment(value = 1, **)
+        @client.ts_incrby(@key, value, **)
         self
       end
-      alias_method :incr, :increment
+      alias incr increment
 
       # Decrement the latest value
       # @param value [Numeric] Value to subtract
       # @param options [Hash] Additional options
       # @return [TimeSeriesProxy] self for chaining
-      def decrement(value = 1, **options)
-        @client.ts_decrby(@key, value, **options)
+      def decrement(value = 1, **)
+        @client.ts_decrby(@key, value, **)
         self
       end
-      alias_method :decr, :decrement
+      alias decr decrement
 
       # Get the latest sample
       # @param latest [Boolean] Return latest even if replicated
@@ -60,17 +60,17 @@ module RR
       def get(latest: false)
         @client.ts_get(@key, latest: latest)
       end
-      alias_method :latest, :get
+      alias latest get
 
       # Query range with fluent builder
       # @param from [Integer, Time, String] Start timestamp
       # @param to [Integer, Time, String] End timestamp
       # @return [TimeSeriesQueryBuilder] Query builder for chaining
-      def range(from: nil, to: nil)
+      def range(from: nil, until_ts: nil)
         require_relative "time_series_query_builder"
         builder = TimeSeriesQueryBuilder.new(@client, @key)
         builder.from(from) if from
-        builder.to(to) if to
+        builder.to(until_ts) if until_ts
         builder
       end
 
@@ -78,11 +78,11 @@ module RR
       # @param from [Integer, Time, String] Start timestamp
       # @param to [Integer, Time, String] End timestamp
       # @return [TimeSeriesQueryBuilder] Query builder for chaining
-      def reverse_range(from: nil, to: nil)
+      def reverse_range(from: nil, until_ts: nil)
         require_relative "time_series_query_builder"
         builder = TimeSeriesQueryBuilder.new(@client, @key)
         builder.from(from) if from
-        builder.to(to) if to
+        builder.to(until_ts) if until_ts
         builder.reverse
       end
 
@@ -97,17 +97,17 @@ module RR
       # @param from [Integer, Time, String] Start timestamp
       # @param to [Integer, Time, String] End timestamp
       # @return [Integer] Number of samples deleted
-      def delete(from:, to:)
-        from_ts = normalize_timestamp(from)
-        to_ts = normalize_timestamp(to)
-        @client.ts_del(@key, from_ts, to_ts)
+      def delete(from:, until_ts:)
+        from_timestamp = normalize_timestamp(from)
+        to_timestamp = normalize_timestamp(until_ts)
+        @client.ts_del(@key, from_timestamp, to_timestamp)
       end
 
       # Alter time series configuration
       # @param options [Hash] Configuration options
       # @return [TimeSeriesProxy] self for chaining
-      def alter(**options)
-        @client.ts_alter(@key, **options)
+      def alter(**)
+        @client.ts_alter(@key, **)
         self
       end
 
@@ -123,7 +123,7 @@ module RR
         @client.ts_createrule(@key, dest_key, aggregation, bucket_duration)
         self
       end
-      alias_method :aggregate_to, :compact_to
+      alias aggregate_to compact_to
 
       # Delete a compaction rule
       # @param dest_key [String, Symbol] Destination time series
@@ -149,15 +149,16 @@ module RR
       def normalize_timestamp(timestamp)
         return timestamp if timestamp.is_a?(String) # "*", "-", "+", etc.
         return (timestamp.to_f * 1000).to_i if timestamp.is_a?(Time)
+
         timestamp
       end
 
       def duration_to_ms(value)
         return value if value.is_a?(Integer)
         return (value * 1000).to_i if value.respond_to?(:to_i)
+
         value
       end
     end
   end
 end
-

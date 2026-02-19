@@ -249,9 +249,9 @@ module RR
       #       field :price, type: :number
       #     end
       #   end
-      def vector_set(key, &block)
+      def vector_set(key, &)
         builder = DSL::VectorSetBuilder.new(key.to_s)
-        builder.instance_eval(&block) if block_given?
+        builder.instance_eval(&) if block_given?
         builder
       end
 
@@ -319,7 +319,7 @@ module RR
 
       # Append optional arguments for VSIM command
       def append_vsim_options(args, with_scores:, with_attribs:, count:, epsilon:,
-                                    ef:, filter:, filter_ef:, truth:, no_thread:)
+                              ef:, filter:, filter_ef:, truth:, no_thread:)
         args << OPT_WITHSCORES if with_scores
         args << OPT_WITHATTRIBS if with_attribs
         args.push(OPT_COUNT, count) if count
@@ -362,15 +362,25 @@ module RR
       def parse_vlinks_result(result, with_scores)
         return result unless with_scores && result.is_a?(Array)
 
-        result.map do |level|
-          level.is_a?(Hash) ? level.transform_values(&:to_f) : (level.is_a?(Array) ? Hash[*level].transform_values(&:to_f) : level)
-        end
+        result.map { |level| parse_vlinks_level(level) }
+      end
+
+      def parse_vlinks_level(level)
+        return level.transform_values(&:to_f) if level.is_a?(Hash)
+        return Hash[*level].transform_values(&:to_f) if level.is_a?(Array)
+
+        level
       end
 
       # Parse VSIM response based on options
       def parse_vsim_response(result, with_scores, with_attribs)
         return result.transform_values(&:to_f) if with_scores && result.is_a?(Hash)
         return result unless result.is_a?(Array)
+
+        parse_vsim_array(result, with_scores, with_attribs)
+      end
+
+      def parse_vsim_array(result, with_scores, with_attribs)
         return parse_vsim_scores_and_attribs(result) if with_scores && with_attribs
         return Hash[*result].transform_values(&:to_f) if with_scores
         return parse_vsim_attribs_only(result) if with_attribs

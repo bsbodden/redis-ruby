@@ -17,39 +17,36 @@ class SetsBranchTest < Minitest::Test
       mock_return(args)
     end
 
-    def call_1arg(cmd, a1)
-      @last_command = [cmd, a1]
-      mock_return([cmd, a1])
+    def call_1arg(cmd, arg_one)
+      @last_command = [cmd, arg_one]
+      mock_return([cmd, arg_one])
     end
 
-    def call_2args(cmd, a1, a2)
-      @last_command = [cmd, a1, a2]
-      mock_return([cmd, a1, a2])
+    def call_2args(cmd, arg_one, arg_two)
+      @last_command = [cmd, arg_one, arg_two]
+      mock_return([cmd, arg_one, arg_two])
     end
 
-    def call_3args(cmd, a1, a2, a3)
-      @last_command = [cmd, a1, a2, a3]
+    def call_3args(cmd, arg_one, arg_two, arg_three)
+      @last_command = [cmd, arg_one, arg_two, arg_three]
       1
     end
+
+    SIMPLE_RETURNS = {
+      "SADD" => 1, "SREM" => 1, "SISMEMBER" => 1,
+      "SMISMEMBER" => [1, 0, 1], "SMEMBERS" => %w[a b c], "SCARD" => 3,
+      "SINTER" => %w[a b], "SUNION" => %w[a b], "SDIFF" => %w[a b],
+      "SINTERSTORE" => 2, "SUNIONSTORE" => 2, "SDIFFSTORE" => 2, "SINTERCARD" => 2,
+      "SSCAN" => ["0", %w[a b c]],
+    }.freeze
 
     private
 
     def mock_return(args)
-      case args[0]
-      when "SADD" then 1
-      when "SREM" then 1
-      when "SISMEMBER" then 1
-      when "SMISMEMBER" then [1, 0, 1]
-      when "SMEMBERS" then %w[a b c]
-      when "SCARD" then 3
-      when "SPOP" then args.length > 2 ? %w[a b] : "a"
-      when "SRANDMEMBER" then args.length > 2 ? %w[a b] : "a"
-      when "SINTER", "SUNION", "SDIFF" then %w[a b]
-      when "SINTERSTORE", "SUNIONSTORE", "SDIFFSTORE" then 2
-      when "SINTERCARD" then 2
-      when "SSCAN" then ["0", %w[a b c]]
-      else "OK"
-      end
+      return SIMPLE_RETURNS[args[0]] if SIMPLE_RETURNS.key?(args[0])
+      return args.length > 2 ? %w[a b] : "a" if %w[SPOP SRANDMEMBER].include?(args[0])
+
+      "OK"
     end
   end
 
@@ -379,8 +376,8 @@ class SetsBranchTest < Minitest::Test
       end
     end
 
-    def call_1arg(cmd, a1) = call(cmd, a1)
-    def call_2args(cmd, a1, a2) = call(cmd, a1, a2)
-    def call_3args(cmd, a1, a2, a3) = call(cmd, a1, a2, a3)
+    def call_1arg(cmd, arg_one) = call(cmd, arg_one)
+    def call_2args(cmd, arg_one, arg_two) = call(cmd, arg_one, arg_two)
+    def call_3args(cmd, arg_one, arg_two, arg_three) = call(cmd, arg_one, arg_two, arg_three)
   end
 end

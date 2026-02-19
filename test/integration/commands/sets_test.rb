@@ -200,6 +200,11 @@ class SetsCommandsTest < RedisRubyTestCase
   end
 
   # SPOP with count tests
+end
+
+class SetsCommandsTestPart2 < RedisRubyTestCase
+  use_testcontainers!
+
   def test_spop_with_count
     redis.sadd("test:set", "a", "b", "c", "d", "e")
 

@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require "thread"
-
 module RR
   # Executes callbacks asynchronously using a thread pool.
   #
@@ -11,12 +9,12 @@ module RR
   #
   # @example Basic usage
   #   executor = RR::AsyncCallbackExecutor.new(pool_size: 4)
-  #   
+  #
   #   executor.execute do
   #     # This runs in a background thread
   #     send_metrics_to_datadog
   #   end
-  #   
+  #
   #   executor.shutdown
   #
   # @example With error handler
@@ -79,6 +77,7 @@ module RR
     def shutdown(timeout: nil)
       @mutex.synchronize do
         return if @shutdown
+
         @shutdown = true
       end
 
@@ -91,7 +90,7 @@ module RR
       @workers.each do |worker|
         if deadline
           remaining = deadline - Process.clock_gettime(Process::CLOCK_MONOTONIC)
-          worker.join(remaining > 0 ? remaining : 0)
+          worker.join([remaining, 0].max)
         else
           worker.join
         end
@@ -139,4 +138,3 @@ module RR
     end
   end
 end
-

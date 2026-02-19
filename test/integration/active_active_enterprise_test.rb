@@ -11,7 +11,7 @@ class ActiveActiveEnterpriseTest < Minitest::Test
     @regions = [
       { host: @redis_host, port: @redis_port, weight: 1.0 },
       { host: @redis_host, port: @redis_port, weight: 0.8 },
-      { host: @redis_host, port: @redis_port, weight: 0.5 }
+      { host: @redis_host, port: @redis_port, weight: 0.5 },
     ]
   end
 
@@ -32,8 +32,9 @@ class ActiveActiveEnterpriseTest < Minitest::Test
 
     # All regions should be healthy
     status = @client.health_status
+
     assert_equal 3, status.size
-    status.each do |_id, info|
+    status.each_value do |info|
       assert info[:healthy], "Region #{info[:region]} should be healthy"
       assert_equal :closed, info[:circuit_state]
     end
@@ -49,12 +50,14 @@ class ActiveActiveEnterpriseTest < Minitest::Test
     # Perform operations
     key = "enterprise:circuit:#{SecureRandom.hex(8)}"
     @client.set(key, "test")
+
     assert_equal "test", @client.get(key)
 
     # Check circuit breaker states
     status = @client.health_status
-    status.each do |_id, info|
-      assert_includes [:closed, :half_open], info[:circuit_state]
+
+    status.each_value do |info|
+      assert_includes %i[closed half_open], info[:circuit_state]
     end
 
     @client.del(key)
@@ -77,8 +80,9 @@ class ActiveActiveEnterpriseTest < Minitest::Test
     # Check failure stats for current region (region 0)
     status = @client.health_status
     current_region_stats = status[0][:failure_stats]
-    assert current_region_stats[:total_successes] > 0, "Should have recorded successes"
-    assert current_region_stats[:failure_rate] < 0.1, "Failure rate should be low"
+
+    assert_predicate current_region_stats[:total_successes], :positive?, "Should have recorded successes"
+    assert_operator current_region_stats[:failure_rate], :<, 0.1, "Failure rate should be low"
 
     # Cleanup
     100.times { |i| @client.del("#{key}:#{i}") }
@@ -112,6 +116,7 @@ class ActiveActiveEnterpriseTest < Minitest::Test
     assert events.any? { |e| e[:type] == :failover }, "Should have received failover event"
 
     failover_event = events.find { |e| e[:type] == :failover }[:event]
+
     assert_equal "manual", failover_event.reason
     assert_instance_of Time, failover_event.timestamp
   end
@@ -141,13 +146,14 @@ class ActiveActiveEnterpriseTest < Minitest::Test
 
     # Verify regions have weights
     status = @client.health_status
+
     assert_equal 3, status.size
 
     # Perform operations
     key = "enterprise:weight:#{SecureRandom.hex(8)}"
     @client.set(key, "weighted")
+
     assert_equal "weighted", @client.get(key)
     @client.del(key)
   end
 end
-

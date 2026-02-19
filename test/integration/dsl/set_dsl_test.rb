@@ -16,41 +16,40 @@ class SetDSLTest < RedisRubyTestCase
 
   def test_set_proxy_creation
     proxy = redis.redis_set(:tags)
-    
+
     assert_instance_of RR::DSL::SetProxy, proxy
     assert_equal "tags", proxy.key
   end
 
   def test_set_proxy_with_composite_key
     proxy = redis.redis_set(:user, 123, :tags)
-    
+
     assert_equal "user:123:tags", proxy.key
   end
 
   def test_set_proxy_with_single_key_part
     proxy = redis.redis_set(:simple)
-    
+
     assert_equal "simple", proxy.key
   end
-
   # ============================================================
   # Add Operations Tests
   # ============================================================
 
   def test_add_single_member
     set = redis.redis_set(@key)
-    
+
     result = set.add("ruby")
-    
-    assert_same set, result  # Returns self for chaining
+
+    assert_same set, result # Returns self for chaining
     assert set.member?("ruby")
   end
 
   def test_add_multiple_members
     set = redis.redis_set(@key)
-    
+
     set.add("ruby", "redis", "database")
-    
+
     assert set.member?("ruby")
     assert set.member?("redis")
     assert set.member?("database")
@@ -58,37 +57,36 @@ class SetDSLTest < RedisRubyTestCase
 
   def test_add_with_symbols
     set = redis.redis_set(@key)
-    
+
     set.add(:ruby, :redis)
-    
+
     assert set.member?("ruby")
     assert set.member?("redis")
   end
 
   def test_add_empty_members
     set = redis.redis_set(@key)
-    
+
     result = set.add
-    
+
     assert_same set, result
   end
 
   def test_shovel_operator_alias
     set = redis.redis_set(@key)
-    
+
     set << "ruby"
-    
+
     assert set.member?("ruby")
   end
 
   def test_chainable_add
     set = redis.redis_set(@key)
-    
+
     set.add("tag1").add("tag2").add("tag3")
-    
+
     assert_equal 3, set.size
   end
-
   # ============================================================
   # Removal Tests
   # ============================================================
@@ -96,9 +94,9 @@ class SetDSLTest < RedisRubyTestCase
   def test_remove_single_member
     set = redis.redis_set(@key)
     set.add("ruby", "redis", "database")
-    
+
     result = set.remove("ruby")
-    
+
     assert_same set, result
     refute set.member?("ruby")
     assert set.member?("redis")
@@ -107,9 +105,9 @@ class SetDSLTest < RedisRubyTestCase
   def test_remove_multiple_members
     set = redis.redis_set(@key)
     set.add("tag1", "tag2", "tag3", "tag4")
-    
+
     set.remove("tag1", "tag2", "tag3")
-    
+
     refute set.member?("tag1")
     refute set.member?("tag2")
     refute set.member?("tag3")
@@ -119,9 +117,9 @@ class SetDSLTest < RedisRubyTestCase
   def test_remove_with_symbols
     set = redis.redis_set(@key)
     set.add("ruby", "redis")
-    
+
     set.remove(:ruby)
-    
+
     refute set.member?("ruby")
     assert set.member?("redis")
   end
@@ -129,9 +127,9 @@ class SetDSLTest < RedisRubyTestCase
   def test_remove_empty_members
     set = redis.redis_set(@key)
     set.add("ruby")
-    
+
     result = set.remove
-    
+
     assert_same set, result
     assert set.member?("ruby")
   end
@@ -139,9 +137,9 @@ class SetDSLTest < RedisRubyTestCase
   def test_delete_alias
     set = redis.redis_set(@key)
     set.add("ruby")
-    
+
     set.delete("ruby")
-    
+
     refute set.member?("ruby")
   end
 
@@ -151,10 +149,9 @@ class SetDSLTest < RedisRubyTestCase
 
     result = set.clear
 
-    assert_equal 1, result  # Returns number of keys deleted
-    assert set.empty?
+    assert_equal 1, result # Returns number of keys deleted
+    assert_empty set
   end
-
   # ============================================================
   # Membership Tests
   # ============================================================
@@ -185,9 +182,22 @@ class SetDSLTest < RedisRubyTestCase
     set = redis.redis_set(@key)
     set.add("ruby")
 
-    assert set.include?("ruby")
-    refute set.include?("python")
+    assert_includes set, "ruby"
+    refute_includes set, "python"
   end
+end
+
+class SetDSLTestPart2 < RedisRubyTestCase
+  use_testcontainers!
+
+  def setup
+    super
+    @key = "test:set:#{SecureRandom.hex(8)}"
+  end
+
+  # ============================================================
+  # Entry Point Tests
+  # ============================================================
 
   # ============================================================
   # Inspection Tests
@@ -208,7 +218,7 @@ class SetDSLTest < RedisRubyTestCase
   def test_members_empty_set
     set = redis.redis_set(@key)
 
-    assert_equal [], set.members
+    assert_empty set.members
   end
 
   def test_to_a_alias
@@ -248,29 +258,28 @@ class SetDSLTest < RedisRubyTestCase
   def test_empty_with_empty_set
     set = redis.redis_set(@key)
 
-    assert set.empty?
+    assert_empty set
   end
 
   def test_empty_with_non_empty_set
     set = redis.redis_set(@key)
     set.add("tag1")
 
-    refute set.empty?
+    refute_empty set
   end
 
   def test_exists_with_existing_key
     set = redis.redis_set(@key)
     set.add("tag1")
 
-    assert set.exists?
+    assert_predicate set, :exists?
   end
 
   def test_exists_with_nonexistent_key
     set = redis.redis_set(@key)
 
-    refute set.exists?
+    refute_predicate set, :exists?
   end
-
   # ============================================================
   # Set Operations Tests
   # ============================================================
@@ -352,6 +361,19 @@ class SetDSLTest < RedisRubyTestCase
 
     assert_equal 2, result.size
   end
+end
+
+class SetDSLTestPart3 < RedisRubyTestCase
+  use_testcontainers!
+
+  def setup
+    super
+    @key = "test:set:#{SecureRandom.hex(8)}"
+  end
+
+  # ============================================================
+  # Entry Point Tests
+  # ============================================================
 
   # ============================================================
   # Random/Pop Tests
@@ -363,7 +385,7 @@ class SetDSLTest < RedisRubyTestCase
 
     member = set.random
 
-    assert_includes ["tag1", "tag2", "tag3"], member
+    assert_includes %w[tag1 tag2 tag3], member
   end
 
   def test_random_multiple_members
@@ -374,7 +396,7 @@ class SetDSLTest < RedisRubyTestCase
 
     assert_equal 3, members.size
     members.each do |member|
-      assert_includes ["tag1", "tag2", "tag3", "tag4", "tag5"], member
+      assert_includes %w[tag1 tag2 tag3 tag4 tag5], member
     end
   end
 
@@ -390,7 +412,7 @@ class SetDSLTest < RedisRubyTestCase
 
     member = set.pop
 
-    assert_includes ["tag1", "tag2", "tag3"], member
+    assert_includes %w[tag1 tag2 tag3], member
     assert_equal 2, set.size
   end
 
@@ -409,7 +431,6 @@ class SetDSLTest < RedisRubyTestCase
 
     assert_nil set.pop
   end
-
   # ============================================================
   # Iteration Tests
   # ============================================================
@@ -447,7 +468,6 @@ class SetDSLTest < RedisRubyTestCase
 
     assert_equal 2, collected.size
   end
-
   # ============================================================
   # Expiration Tests
   # ============================================================
@@ -460,8 +480,9 @@ class SetDSLTest < RedisRubyTestCase
 
     assert_same set, result
     ttl = set.ttl
-    assert ttl > 0
-    assert ttl <= 3600
+
+    assert_predicate ttl, :positive?
+    assert_operator ttl, :<=, 3600
   end
 
   def test_expire_at_with_time
@@ -472,8 +493,9 @@ class SetDSLTest < RedisRubyTestCase
 
     assert_same set, result
     ttl = set.ttl
-    assert ttl > 0
-    assert ttl <= 3600
+
+    assert_predicate ttl, :positive?
+    assert_operator ttl, :<=, 3600
   end
 
   def test_expire_at_with_timestamp
@@ -484,7 +506,8 @@ class SetDSLTest < RedisRubyTestCase
 
     assert_same set, result
     ttl = set.ttl
-    assert ttl > 0
+
+    assert_predicate ttl, :positive?
   end
 
   def test_ttl_with_expiration
@@ -494,8 +517,8 @@ class SetDSLTest < RedisRubyTestCase
 
     ttl = set.ttl
 
-    assert ttl > 0
-    assert ttl <= 3600
+    assert_predicate ttl, :positive?
+    assert_operator ttl, :<=, 3600
   end
 
   def test_ttl_without_expiration
@@ -521,6 +544,19 @@ class SetDSLTest < RedisRubyTestCase
     assert_same set, result
     assert_equal(-1, set.ttl)
   end
+end
+
+class SetDSLTestPart4 < RedisRubyTestCase
+  use_testcontainers!
+
+  def setup
+    super
+    @key = "test:set:#{SecureRandom.hex(8)}"
+  end
+
+  # ============================================================
+  # Entry Point Tests
+  # ============================================================
 
   # ============================================================
   # Integration Tests
@@ -538,11 +574,12 @@ class SetDSLTest < RedisRubyTestCase
 
     # Remove a tag
     post_tags.remove("tutorial")
+
     assert_equal 3, post_tags.size
 
     # Iterate
-    tags = []
-    post_tags.each { |tag| tags << tag }
+    tags = post_tags.map { |tag| tag }
+
     assert_equal 3, tags.size
 
     # Cleanup
@@ -554,7 +591,7 @@ class SetDSLTest < RedisRubyTestCase
 
     # Add visitors
     visitors.add("user:123", "user:456", "user:789")
-    visitors.add("user:123")  # Duplicate, should not increase count
+    visitors.add("user:123") # Duplicate, should not increase count
 
     assert_equal 3, visitors.size
 
@@ -563,8 +600,9 @@ class SetDSLTest < RedisRubyTestCase
     refute visitors.member?("user:999")
 
     # Set expiration (daily reset)
-    visitors.expire(86400)
-    assert visitors.ttl > 0
+    visitors.expire(86_400)
+
+    assert_predicate visitors.ttl, :positive?
 
     # Cleanup
     visitors.clear
@@ -581,16 +619,19 @@ class SetDSLTest < RedisRubyTestCase
 
     # Users who like both A and B
     both = product_a_fans.intersect("product:B:fans")
+
     assert_equal 2, both.size
     assert_includes both, "user:2"
     assert_includes both, "user:3"
 
     # Users who like A or B
     either = product_a_fans.union("product:B:fans")
+
     assert_equal 6, either.size
 
     # Users who like A but not B
     only_a = product_a_fans.difference("product:B:fans")
+
     assert_equal 2, only_a.size
     assert_includes only_a, "user:1"
     assert_includes only_a, "user:4"
@@ -605,15 +646,13 @@ class SetDSLTest < RedisRubyTestCase
     set = redis.redis_set(@key)
 
     set.add("tag1", "tag2", "tag3")
-       .remove("tag1")
-       .expire(3600)
+      .remove("tag1")
+      .expire(3600)
 
     assert_equal 2, set.size
     refute set.member?("tag1")
-    assert set.ttl > 0
+    assert_predicate set.ttl, :positive?
 
     set.clear
   end
 end
-
-

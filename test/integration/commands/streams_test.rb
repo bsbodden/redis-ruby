@@ -205,7 +205,33 @@ class StreamsIntegrationTest < RedisRubyTestCase
     assert_equal "OK", result
     redis.del("stream:newstream")
   end
+end
 
+class StreamsIntegrationTestPart2 < RedisRubyTestCase
+  use_testcontainers!
+
+  def setup
+    super
+    @stream_key = "stream:test:#{SecureRandom.hex(4)}"
+    @stream_key2 = "stream:test2:#{SecureRandom.hex(4)}"
+  end
+
+  def teardown
+    # Clean up consumer groups
+    begin
+      redis.xgroup_destroy(@stream_key, "mygroup")
+    rescue RR::CommandError
+      # Ignore if group doesn't exist
+    end
+    begin
+      redis.del(@stream_key, @stream_key2)
+    rescue StandardError
+      nil
+    end
+    super
+  end
+
+  # XADD tests
   def test_xgroup_destroy
     redis.xadd(@stream_key, { "a" => "1" })
     redis.xgroup_create(@stream_key, "mygroup", "$")
@@ -371,10 +397,36 @@ class StreamsIntegrationTest < RedisRubyTestCase
 
     result = redis.xtrim(@stream_key, maxlen: 5)
 
-    assert_equal 5, result  # 5 entries deleted
+    assert_equal 5, result # 5 entries deleted
     assert_equal 5, redis.xlen(@stream_key)
   end
+end
 
+class StreamsIntegrationTestPart3 < RedisRubyTestCase
+  use_testcontainers!
+
+  def setup
+    super
+    @stream_key = "stream:test:#{SecureRandom.hex(4)}"
+    @stream_key2 = "stream:test2:#{SecureRandom.hex(4)}"
+  end
+
+  def teardown
+    # Clean up consumer groups
+    begin
+      redis.xgroup_destroy(@stream_key, "mygroup")
+    rescue RR::CommandError
+      # Ignore if group doesn't exist
+    end
+    begin
+      redis.del(@stream_key, @stream_key2)
+    rescue StandardError
+      nil
+    end
+    super
+  end
+
+  # XADD tests
   def test_xtrim_minid
     redis.xadd(@stream_key, { "a" => "1" }, id: "1-0")
     redis.xadd(@stream_key, { "b" => "2" }, id: "2-0")
@@ -382,9 +434,35 @@ class StreamsIntegrationTest < RedisRubyTestCase
 
     result = redis.xtrim(@stream_key, minid: "2-0")
 
-    assert_equal 1, result  # 1 entry deleted
+    assert_equal 1, result # 1 entry deleted
+  end
+end
+
+class StreamsIntegrationTestPart4 < RedisRubyTestCase
+  use_testcontainers!
+
+  def setup
+    super
+    @stream_key = "stream:test:#{SecureRandom.hex(4)}"
+    @stream_key2 = "stream:test2:#{SecureRandom.hex(4)}"
   end
 
+  def teardown
+    # Clean up consumer groups
+    begin
+      redis.xgroup_destroy(@stream_key, "mygroup")
+    rescue RR::CommandError
+      # Ignore if group doesn't exist
+    end
+    begin
+      redis.del(@stream_key, @stream_key2)
+    rescue StandardError
+      nil
+    end
+    super
+  end
+
+  # XADD tests
   # ============================================================
   # Stream Enhancements (Redis 6.2+/7.0+)
   # ============================================================

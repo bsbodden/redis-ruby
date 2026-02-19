@@ -24,7 +24,7 @@ class PubSubDSLTest < RedisRubyTestCase
 
   def test_publisher_proxy_creation
     publisher = redis.publisher(:events)
-    
+
     assert_instance_of RR::DSL::PublisherProxy, publisher
     assert_equal ["events"], publisher.channels
   end
@@ -83,29 +83,11 @@ class PubSubDSLTest < RedisRubyTestCase
     channel2 = "#{@channel}:2"
     messages = []
 
-    # Publisher thread that sleeps briefly, then publishes
-    publisher_thread = Thread.new do
-      sleep 0.1
-      @publisher_redis.publisher.to(channel1, channel2).send("Broadcast")
-      sleep 0.1
-    end
-
-    # Subscribe to both channels and unsubscribe after receiving 2 messages
-    redis.subscribe(channel1, channel2) do |on|
-      on.message do |ch, msg|
-        messages << [ch, msg]
-        redis.unsubscribe if messages.size >= 2
-      end
-    end
-
+    publisher_thread = broadcast_to_channels_async(channel1, channel2)
+    subscribe_collecting_messages(channel1, channel2, messages, count: 2)
     publisher_thread.join
 
-    assert_equal 2, messages.size
-    channels = messages.map(&:first)
-    assert_includes channels, channel1
-    assert_includes channels, channel2
-    assert_equal "Broadcast", messages[0][1]
-    assert_equal "Broadcast", messages[1][1]
+    assert_broadcast_to_channels(messages, channel1, channel2)
   end
 
   def test_publisher_json_encoding
@@ -131,6 +113,7 @@ class PubSubDSLTest < RedisRubyTestCase
 
     assert_kind_of String, received
     data = JSON.parse(received)
+
     assert_equal "order_created", data["event"]
     assert_equal 123, data["order_id"]
   end
@@ -139,10 +122,9 @@ class PubSubDSLTest < RedisRubyTestCase
     publisher = @publisher_redis.publisher(@channel)
 
     # No subscribers initially
-    assert_equal({@channel => 0}, publisher.subscriber_count)
+    assert_equal({ @channel => 0 }, publisher.subscriber_count)
 
     subscriber_ready = false
-    count = nil
 
     # Subscriber thread
     subscriber_thread = Thread.new do
@@ -172,13 +154,62 @@ class PubSubDSLTest < RedisRubyTestCase
 
   def test_publisher_raises_without_channels
     publisher = redis.publisher
-    
+
     error = assert_raises(ArgumentError) do
-      publisher.send("Hello")
+      publisher.send(:Hello)
     end
-    
+
     assert_match(/No channels specified/, error.message)
   end
+
+  private
+
+  def broadcast_to_channels_async(channel1, channel2)
+    Thread.new do
+      sleep 0.1
+      @publisher_redis.publisher.to(channel1, channel2).send(:Broadcast)
+      sleep 0.1
+    end
+  end
+
+  def subscribe_collecting_messages(*channels, messages, count:)
+    redis.subscribe(*channels) do |on|
+      on.message do |ch, msg|
+        messages << [ch, msg]
+        redis.unsubscribe if messages.size >= count
+      end
+    end
+  end
+
+  def assert_broadcast_to_channels(messages, channel1, channel2)
+    assert_equal 2, messages.size
+    channels = messages.map(&:first)
+
+    assert_includes channels, channel1
+    assert_includes channels, channel2
+    assert_equal "Broadcast", messages[0][1]
+    assert_equal "Broadcast", messages[1][1]
+  end
+end
+
+class PubSubDSLTestPart2 < RedisRubyTestCase
+  use_testcontainers!
+
+  def setup
+    super
+    @channel = "test:channel:#{SecureRandom.hex(8)}"
+    # Create separate client for publishing (can't share connection with subscriber)
+    @publisher_redis = RR.new(url: @redis_url)
+  end
+
+  def teardown
+    @publisher_redis&.close
+    super
+  end
+
+  # ============================================================
+  # PublisherProxy Tests
+  # ============================================================
 
   # ============================================================
   # SubscriberBuilder Tests
@@ -301,28 +332,8 @@ class PubSubDSLTest < RedisRubyTestCase
     received_channels = []
     received_patterns = []
 
-    subscriber = redis.subscriber
-      .on(channel1) do |ch, msg|
-        received_channels << [ch, msg]
-        subscriber.stop(wait: false) if received_channels.size + received_patterns.size >= 3
-      end
-      .on(channel2) do |ch, msg|
-        received_channels << [ch, msg]
-        subscriber.stop(wait: false) if received_channels.size + received_patterns.size >= 3
-      end
-      .on_pattern(pattern) do |pat, ch, msg|
-        received_patterns << [pat, ch, msg]
-        subscriber.stop(wait: false) if received_channels.size + received_patterns.size >= 3
-      end
-
-    # Publisher thread that sleeps briefly, then publishes
-    publisher_thread = Thread.new do
-      sleep 0.1
-      @publisher_redis.publish(channel1, "Message 1")
-      @publisher_redis.publish(channel2, "Message 2")
-      @publisher_redis.publish("#{@channel}:pattern:test", "Pattern message")
-      sleep 0.1
-    end
+    subscriber = build_chained_subscriber(channel1, channel2, pattern, received_channels, received_patterns)
+    publisher_thread = publish_chained_messages_async(channel1, channel2)
 
     thread = subscriber.run_async
     thread.join
@@ -350,6 +361,62 @@ class PubSubDSLTest < RedisRubyTestCase
     assert_match(/Block required/, error.message)
   end
 
+  private
+
+  def build_chained_subscriber(channel1, channel2, pattern, received_channels, received_patterns)
+    subscriber = redis.subscriber
+    stop_check = lambda {
+      subscriber.stop(wait: false) if received_channels.size + received_patterns.size >= 3
+    }
+    subscriber.on(channel1) do |ch, msg|
+      received_channels << [ch, msg]
+      stop_check.call
+    end
+    subscriber.on(channel2) do |ch, msg|
+      received_channels << [ch, msg]
+      stop_check.call
+    end
+    subscriber.on_pattern(pattern) do |pat, ch, msg|
+      received_patterns << [pat, ch, msg]
+      stop_check.call
+    end
+    subscriber
+  end
+
+  def publish_chained_messages_async(channel1, channel2)
+    Thread.new do
+      sleep 0.1
+      @publisher_redis.publish(channel1, "Message 1")
+      @publisher_redis.publish(channel2, "Message 2")
+      @publisher_redis.publish("#{@channel}:pattern:test", "Pattern message")
+      sleep 0.1
+    end
+  end
+end
+
+class PubSubDSLTestPart2Part2 < RedisRubyTestCase
+  use_testcontainers!
+
+  def setup
+    super
+    @channel = "test:channel:#{SecureRandom.hex(8)}"
+    # Create separate client for publishing (can't share connection with subscriber)
+    @publisher_redis = RR.new(url: @redis_url)
+  end
+
+  def teardown
+    @publisher_redis&.close
+    super
+  end
+
+  # ============================================================
+  # PublisherProxy Tests
+  # ============================================================
+
+  # ============================================================
+  # SubscriberBuilder Tests
+  # ============================================================
+
   def test_subscriber_running_status
     received = []
     stop_called = false
@@ -363,14 +430,14 @@ class PubSubDSLTest < RedisRubyTestCase
     end
 
     # Initially not running
-    refute subscriber.running?
+    refute_predicate subscriber, :running?
 
     # Start subscriber in background
     thread = subscriber.run_async
 
     # run_async waits until subscriber is running before returning,
     # so we can assert immediately
-    assert subscriber.running?
+    assert_predicate subscriber, :running?
 
     # Now publish a message to trigger the stop
     # Publish multiple times to ensure delivery (pub/sub can be unreliable in tests)
@@ -384,7 +451,7 @@ class PubSubDSLTest < RedisRubyTestCase
     assert thread.join(3), "Subscriber thread should finish within 3 seconds"
 
     # Should be stopped now (thread has exited)
-    refute subscriber.running?
+    refute_predicate subscriber, :running?
     assert_includes received, "test"
   end
 
@@ -427,6 +494,7 @@ class PubSubDSLTest < RedisRubyTestCase
   def test_broadcaster_custom_channel_prefix
     service_class = Class.new do
       include RR::Broadcaster
+
       set_channel_prefix :custom_prefix
     end
 
@@ -434,82 +502,23 @@ class PubSubDSLTest < RedisRubyTestCase
   end
 
   def test_broadcaster_broadcast_publishes_to_redis
-    service_class = Class.new do
-      include RR::Broadcaster
+    service = build_test_service_with_hash_broadcast
 
-      def self.name
-        "TestService"
-      end
-
-      def initialize(redis_client)
-        self.redis_client = redis_client
-      end
-
-      def trigger_event
-        broadcast(:event_triggered, data: "test")
-      end
-    end
-
-    service = service_class.new(@publisher_redis)
-    received = nil
-
-    # Publisher thread that sleeps briefly, then triggers event
-    publisher_thread = Thread.new do
-      sleep 0.1
-      service.trigger_event
-      sleep 0.1
-    end
-
-    # Subscribe and unsubscribe from inside the message callback
-    redis.subscribe("test_service:event_triggered") do |on|
-      on.message do |_ch, msg|
-        received = msg
-        redis.unsubscribe
-      end
-    end
-
+    publisher_thread = trigger_event_async(service)
+    received = subscribe_for_single_message("test_service:event_triggered")
     publisher_thread.join
 
     assert_kind_of String, received
     data = JSON.parse(received)
+
     assert_equal "test", data["data"]
   end
 
   def test_broadcaster_broadcast_with_string_argument
-    service_class = Class.new do
-      include RR::Broadcaster
+    service = build_test_service_with_string_broadcast
 
-      def self.name
-        "TestService"
-      end
-
-      def initialize(redis_client)
-        self.redis_client = redis_client
-      end
-
-      def trigger_event
-        broadcast(:event_triggered, "simple message")
-      end
-    end
-
-    service = service_class.new(@publisher_redis)
-    received = nil
-
-    # Publisher thread that sleeps briefly, then triggers event
-    publisher_thread = Thread.new do
-      sleep 0.2  # Give subscriber more time to connect
-      service.trigger_event
-      sleep 0.1
-    end
-
-    # Subscribe and unsubscribe from inside the message callback
-    redis.subscribe("test_service:event_triggered") do |on|
-      on.message do |_ch, msg|
-        received = msg
-        redis.unsubscribe
-      end
-    end
-
+    publisher_thread = trigger_event_async(service, delay: 0.2)
+    received = subscribe_for_single_message("test_service:event_triggered")
     publisher_thread.join
 
     assert_equal "simple message", received
@@ -523,7 +532,7 @@ class PubSubDSLTest < RedisRubyTestCase
     publisher = @publisher_redis.publisher(@channel)
     received = []
 
-    subscriber = redis.subscriber.on(@channel) do |channel, message|
+    subscriber = redis.subscriber.on(@channel) do |_channel, message|
       received << message
       subscriber.stop(wait: false) if received.size >= 3
     end
@@ -570,6 +579,51 @@ class PubSubDSLTest < RedisRubyTestCase
     assert_equal 42, received["value"]
     assert_equal({ "key" => "value" }, received["nested"])
   end
+
+  private
+
+  def build_test_service_class(broadcast_method)
+    Class.new do
+      include RR::Broadcaster
+
+      def self.name
+        "TestService"
+      end
+
+      define_method(:initialize) do |redis_client|
+        self.redis_client = redis_client
+      end
+
+      define_method(:trigger_event, &broadcast_method)
+    end
+  end
+
+  def build_test_service_with_hash_broadcast
+    klass = build_test_service_class(-> { broadcast(:event_triggered, data: "test") })
+    klass.new(@publisher_redis)
+  end
+
+  def build_test_service_with_string_broadcast
+    klass = build_test_service_class(-> { broadcast(:event_triggered, "simple message") })
+    klass.new(@publisher_redis)
+  end
+
+  def trigger_event_async(service, delay: 0.1)
+    Thread.new do
+      sleep delay
+      service.trigger_event
+      sleep 0.1
+    end
+  end
+
+  def subscribe_for_single_message(channel)
+    received = nil
+    redis.subscribe(channel) do |on|
+      on.message do |_ch, msg|
+        received = msg
+        redis.unsubscribe
+      end
+    end
+    received
+  end
 end
-
-

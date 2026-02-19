@@ -64,10 +64,8 @@ module RR
       #   publisher.send(event: "user_login", user_id: 123)
       def send(message)
         encoded_message = encode_message(message)
-        
-        if @channels.empty?
-          raise ArgumentError, "No channels specified. Use .to(:channel) or publisher(:channel)"
-        end
+
+        raise ArgumentError, "No channels specified. Use .to(:channel) or publisher(:channel)" if @channels.empty?
 
         @channels.each do |channel|
           if @shard
@@ -139,4 +137,3 @@ module RR
     end
   end
 end
-

@@ -20,28 +20,28 @@ puts
 module IOCounter
   attr_accessor :read_count, :write_count, :flush_count, :wait_count
 
-  def read_nonblock(*args, **kwargs, &block)
+  def read_nonblock(...)
     @read_count ||= 0
     @read_count += 1
-    super(*args, **kwargs, &block)
+    super
   end
 
-  def write(*args, **kwargs, &block)
+  def write(...)
     @write_count ||= 0
     @write_count += 1
-    super(*args, **kwargs, &block)
+    super
   end
 
-  def flush(*args, **kwargs, &block)
+  def flush(...)
     @flush_count ||= 0
     @flush_count += 1
-    super(*args, **kwargs, &block)
+    super
   end
 
-  def wait_readable(*args, **kwargs, &block)
+  def wait_readable(...)
     @wait_count ||= 0
     @wait_count += 1
-    super(*args, **kwargs, &block)
+    super
   end
 end
 
@@ -65,16 +65,16 @@ socket.wait_count = 0
 [10, 100, 1000].each do |size|
   value = "x" * size
   redis.set("test:io", value)
-  
+
   # Reset counters
   socket.read_count = 0
   socket.write_count = 0
   socket.flush_count = 0
   socket.wait_count = 0
-  
+
   # Perform 100 GETs
   100.times { redis.get("test:io") }
-  
+
   puts "Value size: #{size} bytes"
   puts "  Reads per GET:  #{(socket.read_count / 100.0).round(2)}"
   puts "  Writes per GET: #{(socket.write_count / 100.0).round(2)}"
@@ -89,4 +89,3 @@ redis.close
 puts "=" * 80
 puts "Analysis complete!"
 puts "=" * 80
-

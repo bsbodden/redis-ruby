@@ -39,7 +39,6 @@ class ServerCommandsTest < Minitest::Test
   end
 
   # --- DBSIZE ---
-
   def test_dbsize
     @connection.expects(:call_direct).with("DBSIZE").returns(42)
 
@@ -47,7 +46,6 @@ class ServerCommandsTest < Minitest::Test
   end
 
   # --- FLUSHDB / FLUSHALL ---
-
   def test_flushdb
     @connection.expects(:call_direct).with("FLUSHDB").returns("OK")
 
@@ -75,7 +73,6 @@ class ServerCommandsTest < Minitest::Test
   end
 
   # --- SAVE / BGSAVE / BGREWRITEAOF ---
-
   def test_save
     @connection.expects(:call_direct).with("SAVE").returns("OK")
 
@@ -108,7 +105,6 @@ class ServerCommandsTest < Minitest::Test
   end
 
   # --- TIME ---
-
   def test_time
     @connection.expects(:call_direct).with("TIME").returns([1_700_000_000, 123_456])
 
@@ -116,7 +112,6 @@ class ServerCommandsTest < Minitest::Test
   end
 
   # --- CONFIG ---
-
   def test_config_get
     # CONFIG GET <pattern> uses call_2args
     expected = { "maxmemory" => "0" }
@@ -146,7 +141,6 @@ class ServerCommandsTest < Minitest::Test
   end
 
   # --- CLIENT ---
-
   def test_client_list
     # CLIENT LIST uses call_1arg
     @connection.expects(:call_1arg).with("CLIENT", "LIST").returns("id=1 addr=127.0.0.1:1234")
@@ -214,6 +208,27 @@ class ServerCommandsTest < Minitest::Test
 
     assert_equal "OK", @client.client_unpause
   end
+end
+
+class ServerCommandsTestPart2 < Minitest::Test
+  # Simple retry policy that just yields
+  class NoOpRetryPolicy
+    def call
+      yield
+    end
+  end
+
+  def setup
+    @client = RR::Client.new
+    @connection = mock("connection")
+    @client.instance_variable_set(:@connection, @connection)
+    @connection.stubs(:connected?).returns(true)
+
+    # Use a simple retry policy that just yields
+    @client.instance_variable_set(:@retry_policy, NoOpRetryPolicy.new)
+  end
+
+  # --- INFO ---
 
   def test_client_no_evict
     # CLIENT NO-EVICT ON/OFF uses call_2args
@@ -223,7 +238,6 @@ class ServerCommandsTest < Minitest::Test
   end
 
   # --- SLOWLOG ---
-
   def test_slowlog_get
     # SLOWLOG GET uses call_1arg
     expected = [[1, 1_700_000_000, 10_000, %w[GET key]]]
@@ -254,7 +268,6 @@ class ServerCommandsTest < Minitest::Test
   end
 
   # --- MEMORY ---
-
   def test_memory_doctor
     # MEMORY DOCTOR uses call_1arg
     @connection.expects(:call_1arg).with("MEMORY", "DOCTOR").returns("Sam, I have no memory problems")
@@ -285,7 +298,6 @@ class ServerCommandsTest < Minitest::Test
   end
 
   # --- OBJECT ---
-
   def test_object_encoding
     # OBJECT ENCODING <key> uses call_2args
     @connection.expects(:call_2args).with("OBJECT", "ENCODING", "mykey").returns("ziplist")
@@ -315,7 +327,6 @@ class ServerCommandsTest < Minitest::Test
   end
 
   # --- COMMAND ---
-
   def test_command_count
     # COMMAND COUNT uses call_1arg
     @connection.expects(:call_1arg).with("COMMAND", "COUNT").returns(242)
@@ -347,7 +358,6 @@ class ServerCommandsTest < Minitest::Test
   end
 
   # --- LATENCY ---
-
   def test_latency_latest
     # LATENCY LATEST uses call_1arg
     @connection.expects(:call_1arg).with("LATENCY", "LATEST").returns([])
@@ -376,7 +386,6 @@ class ServerCommandsTest < Minitest::Test
   end
 
   # --- MODULE ---
-
   def test_module_list
     # MODULE LIST uses call_1arg
     @connection.expects(:call_1arg).with("MODULE", "LIST").returns([])
@@ -405,6 +414,27 @@ class ServerCommandsTest < Minitest::Test
   end
 
   # --- MISC ---
+end
+
+class ServerCommandsTestPart3 < Minitest::Test
+  # Simple retry policy that just yields
+  class NoOpRetryPolicy
+    def call
+      yield
+    end
+  end
+
+  def setup
+    @client = RR::Client.new
+    @connection = mock("connection")
+    @client.instance_variable_set(:@connection, @connection)
+    @connection.stubs(:connected?).returns(true)
+
+    # Use a simple retry policy that just yields
+    @client.instance_variable_set(:@retry_policy, NoOpRetryPolicy.new)
+  end
+
+  # --- INFO ---
 
   def test_echo
     # ECHO <message> uses call_1arg

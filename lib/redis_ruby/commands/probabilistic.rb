@@ -526,9 +526,7 @@ module RR
         return call_2args(CMD_TOPK_RESERVE, key, k) if width.nil? && depth.nil? && decay.nil?
 
         # TOPK.RESERVE requires all three optional params together
-        unless width && depth && decay
-          raise ArgumentError, "width, depth, and decay must all be provided together"
-        end
+        raise ArgumentError, "width, depth, and decay must all be provided together" unless width && depth && decay
 
         call(CMD_TOPK_RESERVE, key, k, width, depth, decay)
       end

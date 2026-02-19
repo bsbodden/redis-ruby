@@ -42,7 +42,6 @@ class TCPConnectionBranchTest < Minitest::Test
   end
 
   # ---------- connected? branches ----------
-
   def test_connected_true_when_socket_open
     conn = RR::Connection::TCP.new
     @mock_socket.stubs(:closed?).returns(false)
@@ -65,7 +64,6 @@ class TCPConnectionBranchTest < Minitest::Test
   end
 
   # ---------- ensure_connected branches ----------
-
   def test_ensure_connected_returns_early_when_connected
     conn = RR::Connection::TCP.new
     @mock_socket.stubs(:closed?).returns(false)
@@ -165,7 +163,6 @@ class TCPConnectionBranchTest < Minitest::Test
   end
 
   # ---------- reconnect branches ----------
-
   def test_reconnect_closes_old_and_opens_new
     conn = RR::Connection::TCP.new
     @mock_socket.expects(:close).at_least_once
@@ -200,12 +197,24 @@ class TCPConnectionBranchTest < Minitest::Test
   end
 
   # ---------- close branches ----------
-
   def test_close_with_active_socket
     conn = RR::Connection::TCP.new
     @mock_socket.expects(:close)
     conn.close
   end
+end
+
+class TCPConnectionBranchTestPart2 < Minitest::Test
+  def setup
+    @mock_socket = mock("socket")
+    @mock_socket.stubs(:setsockopt)
+    @mock_socket.stubs(:sync=)
+    @mock_socket.stubs(:closed?).returns(false)
+    @mock_socket.stubs(:close)
+    Socket.stubs(:tcp).returns(@mock_socket)
+  end
+
+  # ---------- Initialization branches ----------
 
   def test_close_with_nil_socket
     conn = RR::Connection::TCP.new
@@ -215,7 +224,6 @@ class TCPConnectionBranchTest < Minitest::Test
   end
 
   # ---------- call / call_direct branches ----------
-
   def test_call_delegates_to_ensure_connected_then_call_direct
     conn = RR::Connection::TCP.new
     encoder = conn.instance_variable_get(:@encoder)
@@ -241,7 +249,6 @@ class TCPConnectionBranchTest < Minitest::Test
   end
 
   # ---------- call_1arg / call_2args / call_3args ----------
-
   def test_call_1arg
     conn = RR::Connection::TCP.new
     encoder = conn.instance_variable_get(:@encoder)
@@ -279,7 +286,6 @@ class TCPConnectionBranchTest < Minitest::Test
   end
 
   # ---------- write_command branches ----------
-
   def test_write_command_with_string_command
     conn = RR::Connection::TCP.new
     @mock_socket.expects(:write)
@@ -293,7 +299,6 @@ class TCPConnectionBranchTest < Minitest::Test
   end
 
   # ---------- read_response branches ----------
-
   def test_read_response_without_timeout
     conn = RR::Connection::TCP.new
     @mock_socket.stubs(:read_nonblock).returns("+PONG\r\n")
@@ -312,7 +317,6 @@ class TCPConnectionBranchTest < Minitest::Test
   end
 
   # ---------- pipeline branches ----------
-
   def test_pipeline_returns_results
     conn = RR::Connection::TCP.new
     @mock_socket.stubs(:write)
@@ -383,7 +387,6 @@ class SSLConnectionBranchTest < Minitest::Test
   end
 
   # ---------- SSL context branches ----------
-
   def test_ssl_context_with_ca_file
     OpenSSL::SSL::SSLContext.any_instance.stubs(:verify_mode=)
     OpenSSL::SSL::SSLContext.any_instance.stubs(:min_version=)
@@ -461,7 +464,6 @@ class SSLConnectionBranchTest < Minitest::Test
   end
 
   # ---------- verify_peer? branches ----------
-
   def test_post_connection_check_when_verify_peer
     @mock_ssl_socket.expects(:post_connection_check).with("localhost")
     OpenSSL::SSL::SSLContext.any_instance.stubs(:verify_mode=)
@@ -479,7 +481,6 @@ class SSLConnectionBranchTest < Minitest::Test
   end
 
   # ---------- connected? branches ----------
-
   def test_connected_true
     OpenSSL::SSL::SSLContext.any_instance.stubs(:verify_mode=)
     OpenSSL::SSL::SSLContext.any_instance.stubs(:min_version=)
@@ -508,7 +509,6 @@ class SSLConnectionBranchTest < Minitest::Test
   end
 
   # ---------- ensure_connected branches ----------
-
   def test_ensure_connected_no_op_when_connected
     OpenSSL::SSL::SSLContext.any_instance.stubs(:verify_mode=)
     OpenSSL::SSL::SSLContext.any_instance.stubs(:min_version=)
@@ -544,6 +544,29 @@ class SSLConnectionBranchTest < Minitest::Test
 
     assert_predicate conn, :connected?
   end
+end
+
+class SSLConnectionBranchTestPart2 < Minitest::Test
+  def setup
+    @mock_tcp_socket = mock("tcp_socket")
+    @mock_tcp_socket.stubs(:setsockopt)
+    @mock_ssl_socket = mock("ssl_socket")
+    @mock_ssl_socket.stubs(:hostname=)
+    @mock_ssl_socket.stubs(:connect)
+    @mock_ssl_socket.stubs(:post_connection_check)
+    @mock_ssl_socket.stubs(:closed?).returns(false)
+    @mock_ssl_socket.stubs(:close)
+    @mock_ssl_socket.stubs(:flush)
+    @mock_ssl_socket.stubs(:sync=)
+    @mock_tcp_socket.stubs(:close)
+    @mock_tcp_socket.stubs(:closed?).returns(false)
+
+    Socket.stubs(:tcp).returns(@mock_tcp_socket)
+    OpenSSL::SSL::SSLSocket.stubs(:new).returns(@mock_ssl_socket)
+    OpenSSL::SSL::SSLContext.any_instance.stubs(:set_params)
+  end
+
+  # ---------- Initialization branches ----------
 
   def test_ensure_connected_fork_detection
     OpenSSL::SSL::SSLContext.any_instance.stubs(:verify_mode=)
@@ -573,7 +596,6 @@ class SSLConnectionBranchTest < Minitest::Test
   end
 
   # ---------- reconnect branches ----------
-
   def test_reconnect_swallows_close_errors
     OpenSSL::SSL::SSLContext.any_instance.stubs(:verify_mode=)
     OpenSSL::SSL::SSLContext.any_instance.stubs(:min_version=)
@@ -602,7 +624,6 @@ class SSLConnectionBranchTest < Minitest::Test
   end
 
   # ---------- close branches ----------
-
   def test_close_closes_both_sockets
     OpenSSL::SSL::SSLContext.any_instance.stubs(:verify_mode=)
     OpenSSL::SSL::SSLContext.any_instance.stubs(:min_version=)
@@ -623,7 +644,6 @@ class SSLConnectionBranchTest < Minitest::Test
   end
 
   # ---------- pipeline branches ----------
-
   def test_ssl_pipeline
     OpenSSL::SSL::SSLContext.any_instance.stubs(:verify_mode=)
     OpenSSL::SSL::SSLContext.any_instance.stubs(:min_version=)

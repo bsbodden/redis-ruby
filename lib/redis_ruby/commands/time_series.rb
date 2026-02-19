@@ -436,9 +436,9 @@ module RR
       #       retention 30.days
       #     end
       #   end
-      def time_series(key, &block)
+      def time_series(key, &)
         builder = RR::DSL::TimeSeriesBuilder.new(key.to_s, self)
-        builder.instance_eval(&block)
+        builder.instance_eval(&)
         builder.create
       end
 

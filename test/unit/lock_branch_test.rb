@@ -41,7 +41,6 @@ class LockBranchTest < Minitest::Test
 
     refute lock.instance_variable_get(:@thread_local)
   end
-
   # ============================================================
   # acquire - non-blocking
   # ============================================================
@@ -66,7 +65,6 @@ class LockBranchTest < Minitest::Test
 
     assert lock.acquire(token: "my-token")
   end
-
   # ============================================================
   # acquire - blocking
   # ============================================================
@@ -102,7 +100,6 @@ class LockBranchTest < Minitest::Test
     refute lock.acquire(blocking: true, blocking_timeout: 0.01)
     assert clock_called, "Expected Process.clock_gettime(CLOCK_MONOTONIC) to be called"
   end
-
   # ============================================================
   # release
   # ============================================================
@@ -132,7 +129,6 @@ class LockBranchTest < Minitest::Test
 
     refute lock.release
   end
-
   # ============================================================
   # extend
   # ============================================================
@@ -185,6 +181,19 @@ class LockBranchTest < Minitest::Test
 
     refute lock.extend(additional_time: 10)
   end
+end
+
+class LockBranchTestPart2 < Minitest::Test
+  def setup
+    @mock_client = mock("client")
+    @mock_script = mock("script")
+    # register_script is called 3 times in Lock.new
+    @mock_client.stubs(:register_script).returns(@mock_script)
+  end
+
+  # ============================================================
+  # Initialize
+  # ============================================================
 
   # ============================================================
   # reacquire
@@ -216,7 +225,6 @@ class LockBranchTest < Minitest::Test
 
     refute lock.reacquire
   end
-
   # ============================================================
   # owned?
   # ============================================================
@@ -247,7 +255,6 @@ class LockBranchTest < Minitest::Test
 
     refute_predicate lock, :owned?
   end
-
   # ============================================================
   # locked?
   # ============================================================
@@ -265,7 +272,6 @@ class LockBranchTest < Minitest::Test
 
     refute_predicate lock, :locked?
   end
-
   # ============================================================
   # ttl
   # ============================================================
@@ -290,7 +296,6 @@ class LockBranchTest < Minitest::Test
 
     assert_nil lock.ttl
   end
-
   # ============================================================
   # synchronize
   # ============================================================
@@ -311,7 +316,9 @@ class LockBranchTest < Minitest::Test
     @mock_client.expects(:set).returns(nil)
 
     assert_raises(RR::Lock::LockAcquireError) do
-      lock.synchronize(blocking: false) {}
+      lock.synchronize(blocking: false) do
+        # Intentionally empty; lock acquisition should fail
+      end
     end
   end
 
@@ -324,7 +331,6 @@ class LockBranchTest < Minitest::Test
       lock.synchronize { raise "boom" }
     end
   end
-
   # ============================================================
   # Token storage: thread_local vs instance
   # ============================================================
@@ -359,6 +365,19 @@ class LockBranchTest < Minitest::Test
 
     assert_predicate lock, :owned?
   end
+end
+
+class LockBranchTestPart3 < Minitest::Test
+  def setup
+    @mock_client = mock("client")
+    @mock_script = mock("script")
+    # register_script is called 3 times in Lock.new
+    @mock_client.stubs(:register_script).returns(@mock_script)
+  end
+
+  # ============================================================
+  # Initialize
+  # ============================================================
 
   # ============================================================
   # Error classes

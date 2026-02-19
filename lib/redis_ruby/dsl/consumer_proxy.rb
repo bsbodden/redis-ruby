@@ -66,8 +66,8 @@ module RR
       def pending(start: nil, stop: nil, count: nil, consumer: nil, idle: nil)
         if start && stop
           # Detailed pending list
-          @redis.xpending(@stream_key, @group_name, start.to_s, stop.to_s, count, 
-                         consumer: consumer&.to_s, idle: idle)
+          @redis.xpending(@stream_key, @group_name, start.to_s, stop.to_s, count,
+                          consumer: consumer&.to_s, idle: idle)
         else
           # Summary
           @redis.xpending(@stream_key, @group_name)
@@ -89,8 +89,8 @@ module RR
       #   consumer.claim(min_idle: 60000, ids: ["1000-0", "1000-1"])
       def claim(min_idle:, ids:, idle: nil, time: nil, retrycount: nil, force: false, justid: false)
         @redis.xclaim(@stream_key, @group_name, @consumer_name, min_idle, *ids,
-                     idle: idle, time: time, retrycount: retrycount, 
-                     force: force, justid: justid)
+                      idle: idle, time: time, retrycount: retrycount,
+                      force: force, justid: justid)
       end
 
       # Automatically claim idle entries
@@ -105,30 +105,23 @@ module RR
       #   next_id, entries, deleted = consumer.autoclaim(min_idle: 60000, start: "0-0", count: 10)
       def autoclaim(min_idle:, start: "0-0", count: nil, justid: false)
         @redis.xautoclaim(@stream_key, @group_name, @consumer_name, min_idle, start.to_s,
-                         count: count, justid: justid)
+                          count: count, justid: justid)
       end
 
       # Get the stream key
       #
       # @return [String] Stream key
-      def stream_key
-        @stream_key
-      end
+      attr_reader :stream_key
 
       # Get the group name
       #
       # @return [String] Group name
-      def group_name
-        @group_name
-      end
+      attr_reader :group_name
 
       # Get the consumer name
       #
       # @return [String] Consumer name
-      def consumer_name
-        @consumer_name
-      end
+      attr_reader :consumer_name
     end
   end
 end
-

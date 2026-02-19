@@ -25,35 +25,22 @@ class SearchQueryTest < Minitest::Test
     assert_equal "hello world", q.to_s
   end
 
+  OPTIONAL_OPTION_KEYS = %i[
+    return sortby sortby_order highlight summarize params dialect
+    verbatim nocontent nostopwords withscores withpayloads withsortkeys
+    scorer expander slop
+  ].freeze
+
   def test_default_options
     q = RR::Search::Query.new
     opts = q.options
 
-    # Default limit
     assert_equal [0, 10], opts[:limit]
-
-    # No optional keys present by default
-    refute opts.key?(:return)
-    refute opts.key?(:sortby)
-    refute opts.key?(:sortby_order)
-    refute opts.key?(:highlight)
-    refute opts.key?(:summarize)
-    refute opts.key?(:params)
-    refute opts.key?(:dialect)
-    refute opts.key?(:verbatim)
-    refute opts.key?(:nocontent)
-    refute opts.key?(:nostopwords)
-    refute opts.key?(:withscores)
-    refute opts.key?(:withpayloads)
-    refute opts.key?(:withsortkeys)
-    refute opts.key?(:scorer)
-    refute opts.key?(:expander)
-    refute opts.key?(:slop)
+    OPTIONAL_OPTION_KEYS.each { |key| refute opts.key?(key), "Expected #{key} to not be present" }
     refute opts.key?(:inorder)
     refute opts.key?(:language)
     refute opts.key?(:geofilter)
   end
-
   # ==================================================================
   # Query - filter_numeric
   # ==================================================================
@@ -86,7 +73,6 @@ class SearchQueryTest < Minitest::Test
 
     assert_same q, result
   end
-
   # ==================================================================
   # Query - filter_tag
   # ==================================================================
@@ -126,7 +112,6 @@ class SearchQueryTest < Minitest::Test
 
     assert_same q, result
   end
-
   # ==================================================================
   # Query - mixed filter types (numeric + tag)
   # ==================================================================
@@ -138,7 +123,6 @@ class SearchQueryTest < Minitest::Test
 
     assert_equal "hello @price:[10 100] @category:{electronics}", q.to_s
   end
-
   # ==================================================================
   # Query - filter_geo
   # ==================================================================
@@ -173,6 +157,12 @@ class SearchQueryTest < Minitest::Test
 
     refute q.options.key?(:geofilter)
   end
+end
+
+class SearchQueryTestPart2 < Minitest::Test
+  # ==================================================================
+  # Query - initialization and defaults
+  # ==================================================================
 
   # ==================================================================
   # Query - return_fields
@@ -208,7 +198,6 @@ class SearchQueryTest < Minitest::Test
 
     assert_same q, result
   end
-
   # ==================================================================
   # Query - sort_by
   # ==================================================================
@@ -245,7 +234,6 @@ class SearchQueryTest < Minitest::Test
 
     assert_same q, result
   end
-
   # ==================================================================
   # Query - limit and paginate
   # ==================================================================
@@ -274,7 +262,6 @@ class SearchQueryTest < Minitest::Test
 
     assert_equal [0, 10], q.options[:limit]
   end
-
   # ==================================================================
   # Query - highlight
   # ==================================================================
@@ -330,6 +317,12 @@ class SearchQueryTest < Minitest::Test
 
     assert_same q, result
   end
+end
+
+class SearchQueryTestPart3 < Minitest::Test
+  # ==================================================================
+  # Query - initialization and defaults
+  # ==================================================================
 
   # ==================================================================
   # Query - summarize
@@ -390,7 +383,6 @@ class SearchQueryTest < Minitest::Test
 
     assert_same q, result
   end
-
   # ==================================================================
   # Query - params
   # ==================================================================
@@ -426,7 +418,6 @@ class SearchQueryTest < Minitest::Test
 
     assert_same q, result
   end
-
   # ==================================================================
   # Query - dialect
   # ==================================================================
@@ -449,6 +440,12 @@ class SearchQueryTest < Minitest::Test
 
     assert_same q, result
   end
+end
+
+class SearchQueryTestPart4 < Minitest::Test
+  # ==================================================================
+  # Query - initialization and defaults
+  # ==================================================================
 
   # ==================================================================
   # Query - boolean flags
@@ -586,7 +583,6 @@ class SearchQueryTest < Minitest::Test
 
     assert_same q, result
   end
-
   # ==================================================================
   # Query - scorer
   # ==================================================================
@@ -609,7 +605,6 @@ class SearchQueryTest < Minitest::Test
 
     assert_same q, result
   end
-
   # ==================================================================
   # Query - expander
   # ==================================================================
@@ -632,6 +627,12 @@ class SearchQueryTest < Minitest::Test
 
     assert_same q, result
   end
+end
+
+class SearchQueryTestPart5 < Minitest::Test
+  # ==================================================================
+  # Query - initialization and defaults
+  # ==================================================================
 
   # ==================================================================
   # Query - slop
@@ -655,7 +656,6 @@ class SearchQueryTest < Minitest::Test
 
     assert_same q, result
   end
-
   # ==================================================================
   # Query - language
   # ==================================================================
@@ -678,7 +678,6 @@ class SearchQueryTest < Minitest::Test
 
     assert_same q, result
   end
-
   # ==================================================================
   # Query - execute
   # ==================================================================
@@ -693,88 +692,75 @@ class SearchQueryTest < Minitest::Test
 
     assert_equal [1, "doc:1", []], result
   end
-
   # ==================================================================
   # Query - complex chained builder
   # ==================================================================
 
   def test_full_builder_chain
-    q = RR::Search::Query.new("hello world")
-      .filter_numeric("price", 10, 100)
-      .filter_tag("category", "electronics")
-      .filter_geo("location", -73.98, 40.73, 10, unit: :mi)
-      .return_fields("title", "price")
-      .sort_by("price", :desc)
-      .limit(0, 20)
-      .highlight(fields: ["title"], tags: ["<em>", "</em>"])
-      .summarize(fields: ["body"], frags: 5, len: 50, separator: " | ")
-      .params(vec: "data")
-      .dialect(2)
-      .verbatim
-      .no_content
-      .no_stopwords
-      .with_scores
-      .with_payloads
-      .with_sort_keys
-      .scorer("BM25")
-      .expander("my_exp")
-      .slop(2)
-      .in_order
-      .language("english")
-
-    # to_s includes query + numeric + tag filters
+    query = build_full_chain_query
     expected_str = "hello world @price:[10 100] @category:{electronics}"
 
-    assert_equal expected_str, q.to_s
+    assert_equal expected_str, query.to_s
+    assert_full_chain_options(query.options)
+  end
 
-    opts = q.options
+  private
 
-    # Return fields
+  def build_full_chain_query
+    RR::Search::Query.new("hello world")
+      .filter_numeric("price", 10, 100).filter_tag("category", "electronics")
+      .filter_geo("location", -73.98, 40.73, 10, unit: :mi)
+      .return_fields("title", "price").sort_by("price", :desc).limit(0, 20)
+      .highlight(fields: ["title"], tags: ["<em>", "</em>"])
+      .summarize(fields: ["body"], frags: 5, len: 50, separator: " | ")
+      .params(vec: "data").dialect(2)
+      .verbatim.no_content.no_stopwords
+      .with_scores.with_payloads.with_sort_keys
+      .scorer("BM25").expander("my_exp").slop(2).in_order.language("english")
+  end
+
+  def assert_full_chain_options(opts)
     assert_equal %w[title price], opts[:return]
-
-    # Sort
     assert_equal "price", opts[:sortby]
     assert_equal :desc, opts[:sortby_order]
-
-    # Limit
     assert_equal [0, 20], opts[:limit]
+    assert_highlight_options(opts)
+    assert_summarize_options(opts)
+    assert_equal({ vec: "data" }, opts[:params])
+    assert_equal 2, opts[:dialect]
+    assert_flag_options(opts)
+    assert_advanced_options(opts)
+    assert_equal ["location", -73.98, 40.73, 10, "mi"], opts[:geofilter]
+  end
 
-    # Highlight
+  def assert_highlight_options(opts)
     assert opts[:highlight]
     assert_equal ["title"], opts[:highlight_fields]
     assert_equal ["<em>", "</em>"], opts[:highlight_tags]
+  end
 
-    # Summarize
+  def assert_summarize_options(opts)
     assert opts[:summarize]
     assert_equal ["body"], opts[:summarize_fields]
     assert_equal 5, opts[:summarize_frags]
     assert_equal 50, opts[:summarize_len]
     assert_equal " | ", opts[:summarize_separator]
+  end
 
-    # Params
-    assert_equal({ vec: "data" }, opts[:params])
+  def assert_flag_options(opts)
+    %i[verbatim nocontent nostopwords withscores withpayloads withsortkeys inorder].each do |flag|
+      assert opts[flag], "Expected #{flag} to be set"
+    end
+  end
 
-    # Dialect
-    assert_equal 2, opts[:dialect]
-
-    # Flags
-    assert opts[:verbatim]
-    assert opts[:nocontent]
-    assert opts[:nostopwords]
-    assert opts[:withscores]
-    assert opts[:withpayloads]
-    assert opts[:withsortkeys]
-    assert opts[:inorder]
-
-    # Advanced
+  def assert_advanced_options(opts)
     assert_equal "BM25", opts[:scorer]
     assert_equal "my_exp", opts[:expander]
     assert_equal 2, opts[:slop]
     assert_equal "english", opts[:language]
-
-    # Geo
-    assert_equal ["location", -73.98, 40.73, 10, "mi"], opts[:geofilter]
   end
+
+  public
 
   # ==================================================================
   # Query - to_s with no filters
@@ -785,7 +771,6 @@ class SearchQueryTest < Minitest::Test
 
     assert_equal "test query", q.to_s
   end
-
   # ==================================================================
   # AggregateQuery - initialization
   # ==================================================================
@@ -814,6 +799,12 @@ class SearchQueryTest < Minitest::Test
     refute opts.key?(:filter)
     refute opts.key?(:dialect)
   end
+end
+
+class SearchQueryTestPart6 < Minitest::Test
+  # ==================================================================
+  # Query - initialization and defaults
+  # ==================================================================
 
   # ==================================================================
   # AggregateQuery - load
@@ -843,7 +834,6 @@ class SearchQueryTest < Minitest::Test
 
     assert_same aq, result
   end
-
   # ==================================================================
   # AggregateQuery - group_by
   # ==================================================================
@@ -905,7 +895,6 @@ class SearchQueryTest < Minitest::Test
 
     assert_same aq, result
   end
-
   # ==================================================================
   # AggregateQuery - sort_by
   # ==================================================================
@@ -942,7 +931,6 @@ class SearchQueryTest < Minitest::Test
 
     assert_same aq, result
   end
-
   # ==================================================================
   # AggregateQuery - limit
   # ==================================================================
@@ -959,7 +947,6 @@ class SearchQueryTest < Minitest::Test
 
     assert_same aq, result
   end
-
   # ==================================================================
   # AggregateQuery - apply
   # ==================================================================
@@ -995,6 +982,12 @@ class SearchQueryTest < Minitest::Test
 
     assert_same aq, result
   end
+end
+
+class SearchQueryTestPart7 < Minitest::Test
+  # ==================================================================
+  # Query - initialization and defaults
+  # ==================================================================
 
   # ==================================================================
   # AggregateQuery - filter
@@ -1031,7 +1024,6 @@ class SearchQueryTest < Minitest::Test
 
     assert_same aq, result
   end
-
   # ==================================================================
   # AggregateQuery - dialect
   # ==================================================================
@@ -1054,7 +1046,6 @@ class SearchQueryTest < Minitest::Test
 
     assert_same aq, result
   end
-
   # ==================================================================
   # AggregateQuery - execute
   # ==================================================================
@@ -1069,7 +1060,6 @@ class SearchQueryTest < Minitest::Test
 
     assert_empty result
   end
-
   # ==================================================================
   # AggregateQuery - full chain
   # ==================================================================
@@ -1099,6 +1089,12 @@ class SearchQueryTest < Minitest::Test
     assert_equal ["@cnt > 5"], opts[:filter]
     assert_equal 2, opts[:dialect]
   end
+end
+
+class SearchQueryTestPart8 < Minitest::Test
+  # ==================================================================
+  # Query - initialization and defaults
+  # ==================================================================
 
   # ==================================================================
   # Reducer - basic factory methods
@@ -1193,7 +1189,6 @@ class SearchQueryTest < Minitest::Test
     assert_equal "RANDOM_SAMPLE", r.function
     assert_equal ["@name", 5], r.args
   end
-
   # ==================================================================
   # Reducer - first_value
   # ==================================================================
@@ -1223,7 +1218,6 @@ class SearchQueryTest < Minitest::Test
     # nil is falsy, so BY should not be included
     assert_equal ["@name"], r.args
   end
-
   # ==================================================================
   # Reducer - as (alias)
   # ==================================================================
@@ -1235,7 +1229,6 @@ class SearchQueryTest < Minitest::Test
     assert_same r, result
     assert_equal "cnt", r.alias_name
   end
-
   # ==================================================================
   # Reducer - to_args with alias
   # ==================================================================

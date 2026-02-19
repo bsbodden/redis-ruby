@@ -28,16 +28,16 @@ class ExpirableTest < Minitest::Test
   end
 
   def test_expire_at_with_integer
-    @mock_redis.expects(:expireat).with("test:key", 1700000000)
+    @mock_redis.expects(:expireat).with("test:key", 1_700_000_000)
 
-    result = @proxy.expire_at(1700000000)
+    result = @proxy.expire_at(1_700_000_000)
 
     assert_same @proxy, result
   end
 
   def test_expire_at_with_time_object
-    time = Time.at(1700000000)
-    @mock_redis.expects(:expireat).with("test:key", 1700000000)
+    time = Time.at(1_700_000_000)
+    @mock_redis.expects(:expireat).with("test:key", 1_700_000_000)
 
     result = @proxy.expire_at(time)
 

@@ -11,11 +11,11 @@ module RR
     #   redis.time_series("temperature:sensor1") do
     #     retention 24.hours
     #     labels sensor: "temp", location: "room1"
-    #     
+    #
     #     compact_to "temperature:hourly", :avg, 1.hour do
     #       retention 30.days
     #     end
-    #     
+    #
     #     compact_to "temperature:daily", :avg, 1.day do
     #       retention 1.year
     #     end
@@ -72,77 +72,69 @@ module RR
         dest_key = dest_key.to_s
         aggregation = aggregation.to_s
         bucket_duration = duration_to_ms(bucket_duration)
-        
+
         @compaction_rules << {
           dest_key: dest_key,
           aggregation: aggregation,
           bucket_duration: bucket_duration,
-          config: block
+          config: block,
         }
       end
 
       # Alias for compact_to
-      alias_method :aggregate_to, :compact_to
+      alias aggregate_to compact_to
 
       # Create the time series and all compaction rules
       # @private
       def create
-        # Create the main time series
-        create_opts = {}
-        create_opts[:retention] = @retention if @retention
-        create_opts[:encoding] = @encoding if @encoding
-        create_opts[:chunk_size] = @chunk_size if @chunk_size
-        create_opts[:duplicate_policy] = @duplicate_policy if @duplicate_policy
-        create_opts[:labels] = @labels unless @labels.empty?
-
-        @client.ts_create(@key, **create_opts)
-
-        # Create destination time series and compaction rules
-        @compaction_rules.each do |rule|
-          # Create destination time series if config block provided
-          if rule[:config]
-            dest_builder = TimeSeriesBuilder.new(rule[:dest_key], @client)
-            dest_builder.instance_eval(&rule[:config])
-            dest_builder.create_without_rules
-          end
-
-          # Create the compaction rule
-          @client.ts_createrule(
-            @key,
-            rule[:dest_key],
-            rule[:aggregation],
-            rule[:bucket_duration]
-          )
-        end
-
+        @client.ts_create(@key, **build_create_opts)
+        apply_compaction_rules
         @key
       end
 
       # Create time series without compaction rules (used internally)
       # @private
       def create_without_rules
-        create_opts = {}
-        create_opts[:retention] = @retention if @retention
-        create_opts[:encoding] = @encoding if @encoding
-        create_opts[:chunk_size] = @chunk_size if @chunk_size
-        create_opts[:duplicate_policy] = @duplicate_policy if @duplicate_policy
-        create_opts[:labels] = @labels unless @labels.empty?
-
-        @client.ts_create(@key, **create_opts)
+        @client.ts_create(@key, **build_create_opts)
       end
 
       private
 
+      # Build options hash for ts_create
+      def build_create_opts
+        opts = {}
+        opts[:retention] = @retention if @retention
+        opts[:encoding] = @encoding if @encoding
+        opts[:chunk_size] = @chunk_size if @chunk_size
+        opts[:duplicate_policy] = @duplicate_policy if @duplicate_policy
+        opts[:labels] = @labels unless @labels.empty?
+        opts
+      end
+
+      # Apply all compaction rules
+      def apply_compaction_rules
+        @compaction_rules.each do |rule|
+          create_compaction_destination(rule) if rule[:config]
+          @client.ts_createrule(@key, rule[:dest_key], rule[:aggregation], rule[:bucket_duration])
+        end
+      end
+
+      # Create destination time series for compaction rule
+      def create_compaction_destination(rule)
+        dest_builder = TimeSeriesBuilder.new(rule[:dest_key], @client)
+        dest_builder.instance_eval(&rule[:config])
+        dest_builder.create_without_rules
+      end
+
       # Convert duration to milliseconds
       def duration_to_ms(value)
         return value if value.is_a?(Integer)
-        
+
         # Support ActiveSupport::Duration if available
         return (value * 1000).to_i if value.respond_to?(:to_i)
-        
+
         value
       end
     end
   end
 end
-

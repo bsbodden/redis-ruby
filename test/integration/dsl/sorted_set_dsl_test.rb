@@ -9,13 +9,11 @@ class SortedSetDSLTest < Minitest::Test
   end
 
   def teardown
-    @redis.del(@key) if @redis
+    @redis&.del(@key)
     @redis&.close
   end
 
-  def redis
-    @redis
-  end
+  attr_reader :redis
 
   # ============================================================
   # Entry Point Tests
@@ -23,50 +21,48 @@ class SortedSetDSLTest < Minitest::Test
 
   def test_sorted_set_creates_proxy
     sorted_set = redis.sorted_set(@key)
-    
+
     assert_instance_of RR::DSL::SortedSetProxy, sorted_set
     assert_equal @key, sorted_set.key
   end
 
   def test_sorted_set_with_composite_key
     sorted_set = redis.sorted_set(:leaderboard, :game, 123)
-    
+
     assert_equal "leaderboard:game:123", sorted_set.key
   end
-
   # ============================================================
   # Add Operations Tests
   # ============================================================
 
   def test_add_single_member
     sorted_set = redis.sorted_set(@key)
-    
+
     result = sorted_set.add(:player1, 100)
-    
+
     assert_same sorted_set, result
-    assert_equal 100.0, sorted_set.score(:player1)
+    assert_in_delta(100.0, sorted_set.score(:player1))
   end
 
   def test_add_multiple_members_with_hash
     sorted_set = redis.sorted_set(@key)
-    
+
     sorted_set.add(player1: 100, player2: 200, player3: 150)
-    
-    assert_equal 100.0, sorted_set.score(:player1)
-    assert_equal 200.0, sorted_set.score(:player2)
-    assert_equal 150.0, sorted_set.score(:player3)
+
+    assert_in_delta(100.0, sorted_set.score(:player1))
+    assert_in_delta(200.0, sorted_set.score(:player2))
+    assert_in_delta(150.0, sorted_set.score(:player3))
   end
 
   def test_add_chainable
     sorted_set = redis.sorted_set(@key)
-    
+
     sorted_set.add(:player1, 100)
-              .add(:player2, 200)
-              .add(player3: 150)
-    
+      .add(:player2, 200)
+      .add(player3: 150)
+
     assert_equal 3, sorted_set.count
   end
-
   # ============================================================
   # Score Operations Tests
   # ============================================================
@@ -74,40 +70,39 @@ class SortedSetDSLTest < Minitest::Test
   def test_increment_score
     sorted_set = redis.sorted_set(@key)
     sorted_set.add(:player1, 100)
-    
+
     result = sorted_set.increment(:player1, 10)
-    
+
     assert_same sorted_set, result
-    assert_equal 110.0, sorted_set.score(:player1)
+    assert_in_delta(110.0, sorted_set.score(:player1))
   end
 
   def test_increment_default_by_one
     sorted_set = redis.sorted_set(@key)
     sorted_set.add(:player1, 100)
-    
+
     sorted_set.increment(:player1)
-    
-    assert_equal 101.0, sorted_set.score(:player1)
+
+    assert_in_delta(101.0, sorted_set.score(:player1))
   end
 
   def test_decrement_score
     sorted_set = redis.sorted_set(@key)
     sorted_set.add(:player1, 100)
-    
+
     result = sorted_set.decrement(:player1, 10)
-    
+
     assert_same sorted_set, result
-    assert_equal 90.0, sorted_set.score(:player1)
+    assert_in_delta(90.0, sorted_set.score(:player1))
   end
 
   def test_score_returns_nil_for_nonexistent_member
     sorted_set = redis.sorted_set(@key)
-    
+
     score = sorted_set.score(:nonexistent)
-    
+
     assert_nil score
   end
-
   # ============================================================
   # Rank Operations Tests
   # ============================================================
@@ -115,7 +110,7 @@ class SortedSetDSLTest < Minitest::Test
   def test_rank_ascending_order
     sorted_set = redis.sorted_set(@key)
     sorted_set.add(player1: 100, player2: 200, player3: 150)
-    
+
     assert_equal 0, sorted_set.rank(:player1)  # Lowest score
     assert_equal 1, sorted_set.rank(:player3)
     assert_equal 2, sorted_set.rank(:player2)  # Highest score
@@ -124,7 +119,7 @@ class SortedSetDSLTest < Minitest::Test
   def test_reverse_rank_descending_order
     sorted_set = redis.sorted_set(@key)
     sorted_set.add(player1: 100, player2: 200, player3: 150)
-    
+
     assert_equal 2, sorted_set.reverse_rank(:player1)  # Lowest score
     assert_equal 1, sorted_set.reverse_rank(:player3)
     assert_equal 0, sorted_set.reverse_rank(:player2)  # Highest score
@@ -132,10 +127,28 @@ class SortedSetDSLTest < Minitest::Test
 
   def test_rank_returns_nil_for_nonexistent_member
     sorted_set = redis.sorted_set(@key)
-    
+
     assert_nil sorted_set.rank(:nonexistent)
     assert_nil sorted_set.reverse_rank(:nonexistent)
   end
+end
+
+class SortedSetDSLTestPart2 < Minitest::Test
+  def setup
+    @redis = RR.new(url: ENV.fetch("REDIS_URL", "redis://localhost:6379"))
+    @key = "test:sorted_set:#{SecureRandom.hex(8)}"
+  end
+
+  def teardown
+    @redis&.del(@key)
+    @redis&.close
+  end
+
+  attr_reader :redis
+
+  # ============================================================
+  # Entry Point Tests
+  # ============================================================
 
   # ============================================================
   # Range Query Tests
@@ -144,10 +157,10 @@ class SortedSetDSLTest < Minitest::Test
   def test_top_returns_highest_scores
     sorted_set = redis.sorted_set(@key)
     sorted_set.add(player1: 100, player2: 200, player3: 150, player4: 175)
-    
+
     result = sorted_set.top(2)
-    
-    assert_equal ["player2", "player4"], result
+
+    assert_equal %w[player2 player4], result
   end
 
   def test_top_with_scores
@@ -165,7 +178,7 @@ class SortedSetDSLTest < Minitest::Test
 
     result = sorted_set.bottom(2)
 
-    assert_equal ["player1", "player3"], result
+    assert_equal %w[player1 player3], result
   end
 
   def test_bottom_with_scores
@@ -183,7 +196,7 @@ class SortedSetDSLTest < Minitest::Test
 
     result = sorted_set.range(0..1)
 
-    assert_equal ["player1", "player3"], result
+    assert_equal %w[player1 player3], result
   end
 
   def test_reverse_range_by_rank
@@ -192,7 +205,7 @@ class SortedSetDSLTest < Minitest::Test
 
     result = sorted_set.reverse_range(0..1)
 
-    assert_equal ["player2", "player3"], result
+    assert_equal %w[player2 player3], result
   end
 
   def test_by_score_range
@@ -222,9 +235,8 @@ class SortedSetDSLTest < Minitest::Test
 
     result = sorted_set.reverse_by_score(200, 100)
 
-    assert_equal ["player2", "player3", "player1"], result
+    assert_equal %w[player2 player3 player1], result
   end
-
   # ============================================================
   # Removal Tests
   # ============================================================
@@ -247,14 +259,14 @@ class SortedSetDSLTest < Minitest::Test
     sorted_set.remove(:player1, :player2)
 
     assert_equal 1, sorted_set.count
-    assert_equal 150.0, sorted_set.score(:player3)
+    assert_in_delta(150.0, sorted_set.score(:player3))
   end
 
   def test_remove_by_rank
     sorted_set = redis.sorted_set(@key)
     sorted_set.add(player1: 100, player2: 200, player3: 150)
 
-    result = sorted_set.remove_by_rank(0..0)  # Remove lowest
+    result = sorted_set.remove_by_rank(0..0) # Remove lowest
 
     assert_equal 1, result  # Returns count of removed members
     assert_nil sorted_set.score(:player1)
@@ -269,8 +281,26 @@ class SortedSetDSLTest < Minitest::Test
 
     assert_equal 2, result  # Returns count of removed members
     assert_equal 1, sorted_set.count
-    assert_equal 200.0, sorted_set.score(:player2)
+    assert_in_delta(200.0, sorted_set.score(:player2))
   end
+end
+
+class SortedSetDSLTestPart3 < Minitest::Test
+  def setup
+    @redis = RR.new(url: ENV.fetch("REDIS_URL", "redis://localhost:6379"))
+    @key = "test:sorted_set:#{SecureRandom.hex(8)}"
+  end
+
+  def teardown
+    @redis&.del(@key)
+    @redis&.close
+  end
+
+  attr_reader :redis
+
+  # ============================================================
+  # Entry Point Tests
+  # ============================================================
 
   # ============================================================
   # Pop Tests
@@ -292,7 +322,7 @@ class SortedSetDSLTest < Minitest::Test
 
     result = sorted_set.pop_min(2)
 
-    assert_equal ["player1", "player3"], result
+    assert_equal %w[player1 player3], result
     assert_equal 1, sorted_set.count
   end
 
@@ -321,10 +351,9 @@ class SortedSetDSLTest < Minitest::Test
 
     result = sorted_set.pop_max(2)
 
-    assert_equal ["player2", "player3"], result
+    assert_equal %w[player2 player3], result
     assert_equal 1, sorted_set.count
   end
-
   # ============================================================
   # Count Tests
   # ============================================================
@@ -346,7 +375,6 @@ class SortedSetDSLTest < Minitest::Test
 
     assert_equal 3, count
   end
-
   # ============================================================
   # Existence Tests
   # ============================================================
@@ -356,7 +384,7 @@ class SortedSetDSLTest < Minitest::Test
     sorted_set.add(:player1, 100)
 
     assert sorted_set.member?(:player1)
-    assert sorted_set.include?(:player1)
+    assert_includes sorted_set, :player1
   end
 
   def test_member_returns_false_when_not_exists
@@ -369,28 +397,27 @@ class SortedSetDSLTest < Minitest::Test
     sorted_set = redis.sorted_set(@key)
     sorted_set.add(:player1, 100)
 
-    assert sorted_set.exists?
+    assert_predicate sorted_set, :exists?
   end
 
   def test_exists_returns_false_when_key_not_exists
     sorted_set = redis.sorted_set(@key)
 
-    refute sorted_set.exists?
+    refute_predicate sorted_set, :exists?
   end
 
   def test_empty_returns_true_when_no_members
     sorted_set = redis.sorted_set(@key)
 
-    assert sorted_set.empty?
+    assert_empty sorted_set
   end
 
   def test_empty_returns_false_when_has_members
     sorted_set = redis.sorted_set(@key)
     sorted_set.add(:player1, 100)
 
-    refute sorted_set.empty?
+    refute_empty sorted_set
   end
-
   # ============================================================
   # Clear Test
   # ============================================================
@@ -402,9 +429,8 @@ class SortedSetDSLTest < Minitest::Test
     result = sorted_set.clear
 
     assert_equal 1, result
-    refute sorted_set.exists?
+    refute_predicate sorted_set, :exists?
   end
-
   # ============================================================
   # Iteration Tests
   # ============================================================
@@ -442,6 +468,24 @@ class SortedSetDSLTest < Minitest::Test
     assert_includes members, :player1
     assert_includes members, :player2
   end
+end
+
+class SortedSetDSLTestPart4 < Minitest::Test
+  def setup
+    @redis = RR.new(url: ENV.fetch("REDIS_URL", "redis://localhost:6379"))
+    @key = "test:sorted_set:#{SecureRandom.hex(8)}"
+  end
+
+  def teardown
+    @redis&.del(@key)
+    @redis&.close
+  end
+
+  attr_reader :redis
+
+  # ============================================================
+  # Entry Point Tests
+  # ============================================================
 
   # ============================================================
   # Conversion Tests
@@ -453,7 +497,7 @@ class SortedSetDSLTest < Minitest::Test
 
     result = sorted_set.to_a
 
-    assert_equal ["player1", "player3", "player2"], result
+    assert_equal %w[player1 player3 player2], result
   end
 
   def test_to_a_with_scores
@@ -471,7 +515,7 @@ class SortedSetDSLTest < Minitest::Test
 
     result = sorted_set.to_h
 
-    assert_equal({player1: 100.0, player2: 200.0, player3: 150.0}, result)
+    assert_equal({ player1: 100.0, player2: 200.0, player3: 150.0 }, result)
   end
 
   def test_to_h_empty_sorted_set
@@ -479,9 +523,8 @@ class SortedSetDSLTest < Minitest::Test
 
     result = sorted_set.to_h
 
-    assert_equal({}, result)
+    assert_empty(result)
   end
-
   # ============================================================
   # Expiration Tests
   # ============================================================
@@ -494,6 +537,7 @@ class SortedSetDSLTest < Minitest::Test
 
     assert_same sorted_set, result
     ttl = sorted_set.ttl
+
     assert_operator ttl, :>, 0
     assert_operator ttl, :<=, 60
   end
@@ -507,6 +551,7 @@ class SortedSetDSLTest < Minitest::Test
 
     assert_same sorted_set, result
     ttl = sorted_set.ttl
+
     assert_operator ttl, :>, 0
     assert_operator ttl, :<=, 60
   end
@@ -541,7 +586,6 @@ class SortedSetDSLTest < Minitest::Test
     assert_same sorted_set, result
     assert_equal(-1, sorted_set.ttl)
   end
-
   # ============================================================
   # Random Tests
   # ============================================================
@@ -552,7 +596,7 @@ class SortedSetDSLTest < Minitest::Test
 
     result = sorted_set.random
 
-    assert_includes ["player1", "player2"], result
+    assert_includes %w[player1 player2], result
   end
 
   def test_random_with_count
@@ -563,6 +607,24 @@ class SortedSetDSLTest < Minitest::Test
 
     assert_equal 2, result.size
   end
+end
+
+class SortedSetDSLTestPart5 < Minitest::Test
+  def setup
+    @redis = RR.new(url: ENV.fetch("REDIS_URL", "redis://localhost:6379"))
+    @key = "test:sorted_set:#{SecureRandom.hex(8)}"
+  end
+
+  def teardown
+    @redis&.del(@key)
+    @redis&.close
+  end
+
+  attr_reader :redis
+
+  # ============================================================
+  # Entry Point Tests
+  # ============================================================
 
   # ============================================================
   # Integration Tests
@@ -575,15 +637,17 @@ class SortedSetDSLTest < Minitest::Test
       .expire(3600)
 
     # Check top players
-    top_3 = leaderboard.top(3)
-    assert_equal ["diana", "bob", "charlie"], top_3
+    top_three = leaderboard.top(3)
+
+    assert_equal %w[diana bob charlie], top_three
 
     # Check Alice's rank (0-based from highest)
     rank = leaderboard.reverse_rank(:alice)
-    assert_equal 3, rank  # 4th place
+
+    assert_equal 3, rank # 4th place
 
     # Check score
-    assert_equal 1600.0, leaderboard.score(:alice)
+    assert_in_delta(1600.0, leaderboard.score(:alice))
 
     # Check TTL
     assert_operator leaderboard.ttl, :>, 0
@@ -598,6 +662,7 @@ class SortedSetDSLTest < Minitest::Test
 
     # Get highest priority (lowest score)
     task = queue.pop_min
+
     assert_equal "urgent", task
 
     # Verify removed
@@ -620,6 +685,7 @@ class SortedSetDSLTest < Minitest::Test
 
     # Get most recent
     latest = recent.top(2)
+
     assert_equal ["post:123", "post:124"], latest
 
     # Remove old posts
@@ -640,9 +706,8 @@ class SortedSetDSLTest < Minitest::Test
       .decrement(:player2, 25)
       .expire(3600)
 
-    assert_equal 150.0, sorted_set.score(:player1)
-    assert_equal 175.0, sorted_set.score(:player2)
+    assert_in_delta(150.0, sorted_set.score(:player1))
+    assert_in_delta(175.0, sorted_set.score(:player2))
     assert_operator sorted_set.ttl, :>, 0
   end
 end
-

@@ -95,7 +95,6 @@ class RESP3EncoderComprehensiveTest < Minitest::Test
     assert_includes result, "key2"
     assert_includes result, "val2"
   end
-
   # ============================================================
   # Hash argument encoding tests
   # ============================================================
@@ -156,6 +155,16 @@ class RESP3EncoderComprehensiveTest < Minitest::Test
     assert_includes result, "member1"
     assert_includes result, "member2"
   end
+end
+
+class RESP3EncoderComprehensiveTestPart2 < Minitest::Test
+  def setup
+    @encoder = RR::Protocol::RESP3Encoder.new
+  end
+
+  # ============================================================
+  # Fast path command encoding tests
+  # ============================================================
 
   # ============================================================
   # Pipeline encoding tests
@@ -284,7 +293,6 @@ class RESP3EncoderComprehensiveTest < Minitest::Test
     assert_includes result, "field1"
     assert_includes result, "val1"
   end
-
   # ============================================================
   # Bulk string encoding tests
   # ============================================================
@@ -335,6 +343,16 @@ class RESP3EncoderComprehensiveTest < Minitest::Test
 
     assert_includes result, "$1024\r\n"
   end
+end
+
+class RESP3EncoderComprehensiveTestPart3 < Minitest::Test
+  def setup
+    @encoder = RR::Protocol::RESP3Encoder.new
+  end
+
+  # ============================================================
+  # Fast path command encoding tests
+  # ============================================================
 
   # ============================================================
   # Buffer management tests
@@ -358,7 +376,6 @@ class RESP3EncoderComprehensiveTest < Minitest::Test
     assert_equal "*2\r\n$3\r\nGET\r\n$4\r\nkey1\r\n", result1
     assert_equal "*2\r\n$3\r\nGET\r\n$4\r\nkey2\r\n", result2
   end
-
   # ============================================================
   # Data type encoding tests
   # ============================================================
@@ -394,7 +411,6 @@ class RESP3EncoderComprehensiveTest < Minitest::Test
     assert_includes result, "2"
     assert_includes result, "another"
   end
-
   # ============================================================
   # Edge cases
   # ============================================================

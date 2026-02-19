@@ -2,11 +2,7 @@
 
 require_relative "unit_test_helper"
 
-class TransactionUnitTest < Minitest::Test
-  # ============================================================
-  # Helper: mock connection that records calls
-  # ============================================================
-
+module TransactionUnitTestMocks
   class MockConnection
     attr_reader :calls
 
@@ -23,20 +19,25 @@ class TransactionUnitTest < Minitest::Test
       end
     end
   end
+end
 
+class TransactionUnitTest < Minitest::Test
+  # ============================================================
+  # Helper: mock connection that records calls
+  # ============================================================
   # ============================================================
   # Initialization
   # ============================================================
 
   def test_transaction_initializes_with_connection
-    conn = MockConnection.new
+    conn = TransactionUnitTestMocks::MockConnection.new
     tx = RR::Transaction.new(conn)
 
     assert_instance_of RR::Transaction, tx
   end
 
   def test_transaction_starts_empty
-    conn = MockConnection.new
+    conn = TransactionUnitTestMocks::MockConnection.new
     tx = RR::Transaction.new(conn)
 
     assert_empty tx
@@ -48,7 +49,7 @@ class TransactionUnitTest < Minitest::Test
   # ============================================================
 
   def test_call_returns_queued
-    conn = MockConnection.new
+    conn = TransactionUnitTestMocks::MockConnection.new
     tx = RR::Transaction.new(conn)
     result = tx.call("SET", "key", "value")
 
@@ -56,7 +57,7 @@ class TransactionUnitTest < Minitest::Test
   end
 
   def test_call_queues_commands
-    conn = MockConnection.new
+    conn = TransactionUnitTestMocks::MockConnection.new
     tx = RR::Transaction.new(conn)
     tx.call("SET", "key1", "value1")
     tx.call("GET", "key1")
@@ -69,7 +70,7 @@ class TransactionUnitTest < Minitest::Test
   # ============================================================
 
   def test_call_1arg_returns_queued
-    conn = MockConnection.new
+    conn = TransactionUnitTestMocks::MockConnection.new
     tx = RR::Transaction.new(conn)
     result = tx.call_1arg("GET", "key")
 
@@ -78,7 +79,7 @@ class TransactionUnitTest < Minitest::Test
   end
 
   def test_call_2args_returns_queued
-    conn = MockConnection.new
+    conn = TransactionUnitTestMocks::MockConnection.new
     tx = RR::Transaction.new(conn)
     result = tx.call_2args("HGET", "hash", "field")
 
@@ -87,7 +88,7 @@ class TransactionUnitTest < Minitest::Test
   end
 
   def test_call_3args_returns_queued
-    conn = MockConnection.new
+    conn = TransactionUnitTestMocks::MockConnection.new
     tx = RR::Transaction.new(conn)
     result = tx.call_3args("HSET", "hash", "field", "value")
 
@@ -100,7 +101,7 @@ class TransactionUnitTest < Minitest::Test
   # ============================================================
 
   def test_size_and_length_are_aliases
-    conn = MockConnection.new
+    conn = TransactionUnitTestMocks::MockConnection.new
     tx = RR::Transaction.new(conn)
 
     assert_equal tx.size, tx.length
@@ -111,14 +112,14 @@ class TransactionUnitTest < Minitest::Test
   end
 
   def test_empty_is_true_when_no_commands
-    conn = MockConnection.new
+    conn = TransactionUnitTestMocks::MockConnection.new
     tx = RR::Transaction.new(conn)
 
     assert_empty tx
   end
 
   def test_empty_is_false_after_queueing
-    conn = MockConnection.new
+    conn = TransactionUnitTestMocks::MockConnection.new
     tx = RR::Transaction.new(conn)
     tx.call("SET", "k", "v")
 
@@ -130,7 +131,7 @@ class TransactionUnitTest < Minitest::Test
   # ============================================================
 
   def test_execute_sends_multi_commands_exec
-    conn = MockConnection.new
+    conn = TransactionUnitTestMocks::MockConnection.new
     tx = RR::Transaction.new(conn)
     tx.call("SET", "key1", "value1")
     tx.call("GET", "key1")
@@ -144,7 +145,7 @@ class TransactionUnitTest < Minitest::Test
   end
 
   def test_execute_with_no_commands
-    conn = MockConnection.new
+    conn = TransactionUnitTestMocks::MockConnection.new
     tx = RR::Transaction.new(conn)
     tx.execute
 
@@ -158,7 +159,7 @@ class TransactionUnitTest < Minitest::Test
   # ============================================================
 
   def test_method_missing_without_kwargs
-    conn = MockConnection.new
+    conn = TransactionUnitTestMocks::MockConnection.new
     tx = RR::Transaction.new(conn)
     result = tx.echo("hello")
 
@@ -167,7 +168,7 @@ class TransactionUnitTest < Minitest::Test
   end
 
   def test_method_missing_with_kwargs
-    conn = MockConnection.new
+    conn = TransactionUnitTestMocks::MockConnection.new
     tx = RR::Transaction.new(conn)
     # This should go through the kwargs branch
     result = tx.custom_cmd("arg1", some_opt: "val")
@@ -177,14 +178,14 @@ class TransactionUnitTest < Minitest::Test
   end
 
   def test_respond_to_missing_returns_true
-    conn = MockConnection.new
+    conn = TransactionUnitTestMocks::MockConnection.new
     tx = RR::Transaction.new(conn)
 
     assert_respond_to tx, :any_arbitrary_method
   end
 
   def test_respond_to_missing_with_include_private
-    conn = MockConnection.new
+    conn = TransactionUnitTestMocks::MockConnection.new
     tx = RR::Transaction.new(conn)
 
     assert_respond_to tx, :some_method
@@ -195,7 +196,7 @@ class TransactionUnitTest < Minitest::Test
   # ============================================================
 
   def test_ping_queues_ping_command
-    conn = MockConnection.new
+    conn = TransactionUnitTestMocks::MockConnection.new
     tx = RR::Transaction.new(conn)
     result = tx.ping
 
@@ -203,7 +204,7 @@ class TransactionUnitTest < Minitest::Test
   end
 
   def test_hgetall_queues_hgetall_command
-    conn = MockConnection.new
+    conn = TransactionUnitTestMocks::MockConnection.new
     tx = RR::Transaction.new(conn)
     result = tx.hgetall("myhash")
 
@@ -211,7 +212,7 @@ class TransactionUnitTest < Minitest::Test
   end
 
   def test_zscore_queues_zscore_command
-    conn = MockConnection.new
+    conn = TransactionUnitTestMocks::MockConnection.new
     tx = RR::Transaction.new(conn)
     result = tx.zscore("zset", "member")
 
@@ -219,7 +220,7 @@ class TransactionUnitTest < Minitest::Test
   end
 
   def test_zmscore_queues_zmscore_command
-    conn = MockConnection.new
+    conn = TransactionUnitTestMocks::MockConnection.new
     tx = RR::Transaction.new(conn)
     result = tx.zmscore("zset", "m1", "m2")
 
@@ -231,7 +232,7 @@ class TransactionUnitTest < Minitest::Test
   # ============================================================
 
   def test_zrange_without_scores
-    conn = MockConnection.new
+    conn = TransactionUnitTestMocks::MockConnection.new
     tx = RR::Transaction.new(conn)
     tx.zrange("zset", 0, -1)
     tx.execute
@@ -240,7 +241,7 @@ class TransactionUnitTest < Minitest::Test
   end
 
   def test_zrange_with_withscores_true
-    conn = MockConnection.new
+    conn = TransactionUnitTestMocks::MockConnection.new
     tx = RR::Transaction.new(conn)
     tx.zrange("zset", 0, -1, withscores: true)
     tx.execute
@@ -249,7 +250,7 @@ class TransactionUnitTest < Minitest::Test
   end
 
   def test_zrange_with_with_scores_true
-    conn = MockConnection.new
+    conn = TransactionUnitTestMocks::MockConnection.new
     tx = RR::Transaction.new(conn)
     tx.zrange("zset", 0, -1, with_scores: true)
     tx.execute
@@ -262,7 +263,7 @@ class TransactionUnitTest < Minitest::Test
   # ============================================================
 
   def test_zrevrange_without_scores
-    conn = MockConnection.new
+    conn = TransactionUnitTestMocks::MockConnection.new
     tx = RR::Transaction.new(conn)
     tx.zrevrange("zset", 0, -1)
     tx.execute
@@ -271,7 +272,7 @@ class TransactionUnitTest < Minitest::Test
   end
 
   def test_zrevrange_with_withscores_true
-    conn = MockConnection.new
+    conn = TransactionUnitTestMocks::MockConnection.new
     tx = RR::Transaction.new(conn)
     tx.zrevrange("zset", 0, -1, withscores: true)
     tx.execute
@@ -280,7 +281,7 @@ class TransactionUnitTest < Minitest::Test
   end
 
   def test_zrevrange_with_with_scores_true
-    conn = MockConnection.new
+    conn = TransactionUnitTestMocks::MockConnection.new
     tx = RR::Transaction.new(conn)
     tx.zrevrange("zset", 0, -1, with_scores: true)
     tx.execute
@@ -293,7 +294,7 @@ class TransactionUnitTest < Minitest::Test
   # ============================================================
 
   def test_zrangebyscore_without_options
-    conn = MockConnection.new
+    conn = TransactionUnitTestMocks::MockConnection.new
     tx = RR::Transaction.new(conn)
     tx.zrangebyscore("zset", "-inf", "+inf")
     tx.execute
@@ -302,7 +303,7 @@ class TransactionUnitTest < Minitest::Test
   end
 
   def test_zrangebyscore_with_withscores
-    conn = MockConnection.new
+    conn = TransactionUnitTestMocks::MockConnection.new
     tx = RR::Transaction.new(conn)
     tx.zrangebyscore("zset", "-inf", "+inf", withscores: true)
     tx.execute
@@ -311,16 +312,25 @@ class TransactionUnitTest < Minitest::Test
   end
 
   def test_zrangebyscore_with_with_scores
-    conn = MockConnection.new
+    conn = TransactionUnitTestMocks::MockConnection.new
     tx = RR::Transaction.new(conn)
     tx.zrangebyscore("zset", "-inf", "+inf", with_scores: true)
     tx.execute
 
     assert_includes conn.calls[1], "WITHSCORES"
   end
+end
+
+class TransactionUnitTestPart2 < Minitest::Test
+  # ============================================================
+  # Helper: mock connection that records calls
+  # ============================================================
+  # ============================================================
+  # Initialization
+  # ============================================================
 
   def test_zrangebyscore_with_limit
-    conn = MockConnection.new
+    conn = TransactionUnitTestMocks::MockConnection.new
     tx = RR::Transaction.new(conn)
     tx.zrangebyscore("zset", "-inf", "+inf", limit: [0, 10])
     tx.execute
@@ -331,7 +341,7 @@ class TransactionUnitTest < Minitest::Test
   end
 
   def test_zrangebyscore_with_withscores_and_limit
-    conn = MockConnection.new
+    conn = TransactionUnitTestMocks::MockConnection.new
     tx = RR::Transaction.new(conn)
     tx.zrangebyscore("zset", "-inf", "+inf", withscores: true, limit: [0, 5])
     tx.execute
@@ -345,7 +355,7 @@ class TransactionUnitTest < Minitest::Test
   # ============================================================
 
   def test_zrevrangebyscore_without_options
-    conn = MockConnection.new
+    conn = TransactionUnitTestMocks::MockConnection.new
     tx = RR::Transaction.new(conn)
     tx.zrevrangebyscore("zset", "+inf", "-inf")
     tx.execute
@@ -354,7 +364,7 @@ class TransactionUnitTest < Minitest::Test
   end
 
   def test_zrevrangebyscore_with_withscores
-    conn = MockConnection.new
+    conn = TransactionUnitTestMocks::MockConnection.new
     tx = RR::Transaction.new(conn)
     tx.zrevrangebyscore("zset", "+inf", "-inf", withscores: true)
     tx.execute
@@ -363,7 +373,7 @@ class TransactionUnitTest < Minitest::Test
   end
 
   def test_zrevrangebyscore_with_with_scores
-    conn = MockConnection.new
+    conn = TransactionUnitTestMocks::MockConnection.new
     tx = RR::Transaction.new(conn)
     tx.zrevrangebyscore("zset", "+inf", "-inf", with_scores: true)
     tx.execute
@@ -372,7 +382,7 @@ class TransactionUnitTest < Minitest::Test
   end
 
   def test_zrevrangebyscore_with_limit
-    conn = MockConnection.new
+    conn = TransactionUnitTestMocks::MockConnection.new
     tx = RR::Transaction.new(conn)
     tx.zrevrangebyscore("zset", "+inf", "-inf", limit: [0, 10])
     tx.execute
@@ -381,7 +391,7 @@ class TransactionUnitTest < Minitest::Test
   end
 
   def test_zrevrangebyscore_with_withscores_and_limit
-    conn = MockConnection.new
+    conn = TransactionUnitTestMocks::MockConnection.new
     tx = RR::Transaction.new(conn)
     tx.zrevrangebyscore("zset", "+inf", "-inf", withscores: true, limit: [0, 5])
     tx.execute
@@ -395,7 +405,7 @@ class TransactionUnitTest < Minitest::Test
   # ============================================================
 
   def test_zincrby_queues_command
-    conn = MockConnection.new
+    conn = TransactionUnitTestMocks::MockConnection.new
     tx = RR::Transaction.new(conn)
     result = tx.zincrby("zset", 1.5, "member")
 
@@ -407,7 +417,7 @@ class TransactionUnitTest < Minitest::Test
   # ============================================================
 
   def test_zpopmin_without_count
-    conn = MockConnection.new
+    conn = TransactionUnitTestMocks::MockConnection.new
     tx = RR::Transaction.new(conn)
     tx.zpopmin("zset")
     tx.execute
@@ -416,7 +426,7 @@ class TransactionUnitTest < Minitest::Test
   end
 
   def test_zpopmin_with_count
-    conn = MockConnection.new
+    conn = TransactionUnitTestMocks::MockConnection.new
     tx = RR::Transaction.new(conn)
     tx.zpopmin("zset", 3)
     tx.execute
@@ -425,7 +435,7 @@ class TransactionUnitTest < Minitest::Test
   end
 
   def test_zpopmax_without_count
-    conn = MockConnection.new
+    conn = TransactionUnitTestMocks::MockConnection.new
     tx = RR::Transaction.new(conn)
     tx.zpopmax("zset")
     tx.execute
@@ -434,7 +444,7 @@ class TransactionUnitTest < Minitest::Test
   end
 
   def test_zpopmax_with_count
-    conn = MockConnection.new
+    conn = TransactionUnitTestMocks::MockConnection.new
     tx = RR::Transaction.new(conn)
     tx.zpopmax("zset", 2)
     tx.execute
@@ -447,7 +457,7 @@ class TransactionUnitTest < Minitest::Test
   # ============================================================
 
   def test_zscan_without_options
-    conn = MockConnection.new
+    conn = TransactionUnitTestMocks::MockConnection.new
     tx = RR::Transaction.new(conn)
     tx.zscan("zset", "0")
     tx.execute
@@ -456,7 +466,7 @@ class TransactionUnitTest < Minitest::Test
   end
 
   def test_zscan_with_match
-    conn = MockConnection.new
+    conn = TransactionUnitTestMocks::MockConnection.new
     tx = RR::Transaction.new(conn)
     tx.zscan("zset", "0", match: "foo*")
     tx.execute
@@ -466,7 +476,7 @@ class TransactionUnitTest < Minitest::Test
   end
 
   def test_zscan_with_count
-    conn = MockConnection.new
+    conn = TransactionUnitTestMocks::MockConnection.new
     tx = RR::Transaction.new(conn)
     tx.zscan("zset", "0", count: 100)
     tx.execute
@@ -476,7 +486,7 @@ class TransactionUnitTest < Minitest::Test
   end
 
   def test_zscan_with_match_and_count
-    conn = MockConnection.new
+    conn = TransactionUnitTestMocks::MockConnection.new
     tx = RR::Transaction.new(conn)
     tx.zscan("zset", "0", match: "bar*", count: 50)
     tx.execute
@@ -490,7 +500,7 @@ class TransactionUnitTest < Minitest::Test
   # ============================================================
 
   def test_sadd_question_flattens_members
-    conn = MockConnection.new
+    conn = TransactionUnitTestMocks::MockConnection.new
     tx = RR::Transaction.new(conn)
     result = tx.sadd?("myset", "m1", "m2")
 
@@ -498,7 +508,7 @@ class TransactionUnitTest < Minitest::Test
   end
 
   def test_srem_question_flattens_members
-    conn = MockConnection.new
+    conn = TransactionUnitTestMocks::MockConnection.new
     tx = RR::Transaction.new(conn)
     result = tx.srem?("myset", "m1", "m2")
 
@@ -506,7 +516,7 @@ class TransactionUnitTest < Minitest::Test
   end
 
   def test_exists_question_flattens_keys
-    conn = MockConnection.new
+    conn = TransactionUnitTestMocks::MockConnection.new
     tx = RR::Transaction.new(conn)
     result = tx.exists?("key1", "key2")
 
@@ -514,7 +524,7 @@ class TransactionUnitTest < Minitest::Test
   end
 
   def test_sismember_question
-    conn = MockConnection.new
+    conn = TransactionUnitTestMocks::MockConnection.new
     tx = RR::Transaction.new(conn)
     result = tx.sismember?("myset", "member")
 
@@ -526,7 +536,7 @@ class TransactionUnitTest < Minitest::Test
   # ============================================================
 
   def test_info_with_section
-    conn = MockConnection.new
+    conn = TransactionUnitTestMocks::MockConnection.new
     tx = RR::Transaction.new(conn)
     tx.info("server")
     tx.execute
@@ -535,7 +545,7 @@ class TransactionUnitTest < Minitest::Test
   end
 
   def test_info_without_section
-    conn = MockConnection.new
+    conn = TransactionUnitTestMocks::MockConnection.new
     tx = RR::Transaction.new(conn)
     tx.info
     tx.execute
@@ -548,7 +558,7 @@ class TransactionUnitTest < Minitest::Test
   # ============================================================
 
   def test_mapped_mget_flattens_keys
-    conn = MockConnection.new
+    conn = TransactionUnitTestMocks::MockConnection.new
     tx = RR::Transaction.new(conn)
     result = tx.mapped_mget("k1", "k2")
 
@@ -556,7 +566,7 @@ class TransactionUnitTest < Minitest::Test
   end
 
   def test_mapped_hmget_flattens_fields
-    conn = MockConnection.new
+    conn = TransactionUnitTestMocks::MockConnection.new
     tx = RR::Transaction.new(conn)
     result = tx.mapped_hmget("myhash", "f1", "f2")
 
@@ -568,7 +578,7 @@ class TransactionUnitTest < Minitest::Test
   # ============================================================
 
   def test_set_command_in_transaction
-    conn = MockConnection.new
+    conn = TransactionUnitTestMocks::MockConnection.new
     tx = RR::Transaction.new(conn)
     result = tx.set("key", "value")
 
@@ -576,7 +586,7 @@ class TransactionUnitTest < Minitest::Test
   end
 
   def test_get_command_in_transaction
-    conn = MockConnection.new
+    conn = TransactionUnitTestMocks::MockConnection.new
     tx = RR::Transaction.new(conn)
     result = tx.get("key")
 
@@ -584,7 +594,7 @@ class TransactionUnitTest < Minitest::Test
   end
 
   def test_del_command_in_transaction
-    conn = MockConnection.new
+    conn = TransactionUnitTestMocks::MockConnection.new
     tx = RR::Transaction.new(conn)
     result = tx.del("key")
 
@@ -592,15 +602,24 @@ class TransactionUnitTest < Minitest::Test
   end
 
   def test_incr_command_in_transaction
-    conn = MockConnection.new
+    conn = TransactionUnitTestMocks::MockConnection.new
     tx = RR::Transaction.new(conn)
     result = tx.incr("counter")
 
     assert_equal "QUEUED", result
   end
+end
+
+class TransactionUnitTestPart3 < Minitest::Test
+  # ============================================================
+  # Helper: mock connection that records calls
+  # ============================================================
+  # ============================================================
+  # Initialization
+  # ============================================================
 
   def test_multiple_commands_queued_in_order
-    conn = MockConnection.new
+    conn = TransactionUnitTestMocks::MockConnection.new
     tx = RR::Transaction.new(conn)
     tx.call("SET", "k1", "v1")
     tx.call("SET", "k2", "v2")

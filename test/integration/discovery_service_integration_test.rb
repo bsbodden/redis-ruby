@@ -4,7 +4,7 @@ require_relative "../test_helper"
 
 module RR
   class DiscoveryServiceIntegrationTest < Minitest::Test
-    # Note: These tests require a Redis Enterprise cluster with Discovery Service
+    # NOTE: These tests require a Redis Enterprise cluster with Discovery Service
     # running on port 8001. Since we don't have Redis Enterprise in CI, we'll
     # create mock-based integration tests that verify the client behavior.
 
@@ -27,8 +27,8 @@ module RR
       )
 
       assert_equal "test-db", client.database_name
-      assert_equal 5.0, client.timeout
-      refute client.connected?
+      assert_in_delta(5.0, client.timeout)
+      refute_predicate client, :connected?
 
       client.close
     end
@@ -49,25 +49,9 @@ module RR
     # ============================================================
 
     def test_client_discovers_and_connects
-      client = DiscoveryServiceClient.allocate
-      client.instance_variable_set(:@database_name, "test-db")
-      client.instance_variable_set(:@password, nil)
-      client.instance_variable_set(:@db, 0)
-      client.instance_variable_set(:@timeout, 5.0)
-      client.instance_variable_set(:@ssl, false)
-      client.instance_variable_set(:@ssl_params, {})
-      client.instance_variable_set(:@reconnect_attempts, 3)
-      client.instance_variable_set(:@connection, nil)
-      client.instance_variable_set(:@current_address, nil)
-      client.instance_variable_set(:@mutex, Mutex.new)
-
-      mock_discovery = Minitest::Mock.new
-      mock_discovery.expect(:discover_endpoint, { host: "10.0.0.45", port: 12000 })
-
-      # Create a simple stub connection that responds to connected? and call
-      stub_connection = Object.new
-      def stub_connection.connected?; true; end
-      def stub_connection.call(*args); "PONG"; end
+      client = build_discovery_client
+      mock_discovery = build_mock_discovery(host: "10.0.0.45", port: 12_000)
+      stub_connection = build_stub_connection
 
       client.instance_variable_set(:@discovery_service, mock_discovery)
 
@@ -83,30 +67,11 @@ module RR
     end
 
     def test_client_reconnects_on_address_change
-      client = DiscoveryServiceClient.allocate
-      client.instance_variable_set(:@database_name, "test-db")
-      client.instance_variable_set(:@password, nil)
-      client.instance_variable_set(:@db, 0)
-      client.instance_variable_set(:@timeout, 5.0)
-      client.instance_variable_set(:@ssl, false)
-      client.instance_variable_set(:@ssl_params, {})
-      client.instance_variable_set(:@reconnect_attempts, 3)
-      client.instance_variable_set(:@current_address, "10.0.0.45:12000")
-      client.instance_variable_set(:@mutex, Mutex.new)
+      client = build_discovery_client(current_address: "10.0.0.45:12000")
+      client.instance_variable_set(:@connection, build_disconnected_stub)
 
-      # Old connection that is no longer connected
-      old_connection = Object.new
-      def old_connection.connected?; false; end
-      def old_connection.close; end
-
-      client.instance_variable_set(:@connection, old_connection)
-
-      mock_discovery = Minitest::Mock.new
-      mock_discovery.expect(:discover_endpoint, { host: "10.0.0.46", port: 12001 })
-
-      # New connection
-      new_connection = Object.new
-      def new_connection.connected?; true; end
+      mock_discovery = build_mock_discovery(host: "10.0.0.46", port: 12_001)
+      new_connection = build_stub_connection
 
       client.instance_variable_set(:@discovery_service, mock_discovery)
 
@@ -145,6 +110,42 @@ module RR
       assert_instance_of DiscoveryServiceClient, client
       client.close
     end
+
+    private
+
+    def build_discovery_client(current_address: nil)
+      client = DiscoveryServiceClient.allocate
+      client.instance_variable_set(:@database_name, "test-db")
+      client.instance_variable_set(:@password, nil)
+      client.instance_variable_set(:@db, 0)
+      client.instance_variable_set(:@timeout, 5.0)
+      client.instance_variable_set(:@ssl, false)
+      client.instance_variable_set(:@ssl_params, {})
+      client.instance_variable_set(:@reconnect_attempts, 3)
+      client.instance_variable_set(:@connection, nil)
+      client.instance_variable_set(:@current_address, current_address)
+      client.instance_variable_set(:@mutex, Mutex.new)
+      client
+    end
+
+    def build_mock_discovery(host:, port:)
+      mock = Minitest::Mock.new
+      mock.expect(:discover_endpoint, { host: host, port: port })
+      mock
+    end
+
+    def build_stub_connection
+      stub_conn = Object.new
+      def stub_conn.connected? = true
+      def stub_conn.call(*_args) = "PONG"
+      stub_conn
+    end
+
+    def build_disconnected_stub
+      stub_conn = Object.new
+      def stub_conn.connected? = false
+      def stub_conn.close; end
+      stub_conn
+    end
   end
 end
-

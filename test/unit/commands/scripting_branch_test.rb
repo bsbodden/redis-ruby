@@ -13,18 +13,18 @@ class ScriptingBranchTest < Minitest::Test
       mock_return(args)
     end
 
-    def call_1arg(cmd, a1)
-      @last_command = [cmd, a1]
+    def call_1arg(cmd, arg_one)
+      @last_command = [cmd, arg_one]
       "OK"
     end
 
-    def call_2args(cmd, a1, a2)
-      @last_command = [cmd, a1, a2]
+    def call_2args(cmd, arg_one, arg_two)
+      @last_command = [cmd, arg_one, arg_two]
       mock_return(@last_command)
     end
 
-    def call_3args(cmd, a1, a2, a3)
-      @last_command = [cmd, a1, a2, a3]
+    def call_3args(cmd, arg_one, arg_two, arg_three)
+      @last_command = [cmd, arg_one, arg_two, arg_three]
       "OK"
     end
 
@@ -186,7 +186,7 @@ class ScriptingBranchTest < Minitest::Test
       end
     end
 
-    def call_2args(cmd, _a1, _a2)
+    def call_2args(cmd, _arg_one, _arg_two)
       if cmd == "EVALSHA"
         raise RR::CommandError, "NOSCRIPT No matching script"
       elsif cmd == "EVAL"
@@ -210,7 +210,7 @@ class ScriptingBranchTest < Minitest::Test
       raise RR::CommandError, "ERR some other error"
     end
 
-    def call_2args(_cmd, _a1, _a2)
+    def call_2args(_cmd, _arg_one, _arg_two)
       raise RR::CommandError, "ERR some other error"
     end
   end

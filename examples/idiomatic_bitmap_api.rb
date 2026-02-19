@@ -31,11 +31,11 @@ today = redis.bitmap(:dau, Date.today.to_s)
 end
 
 puts "Daily Active Users: #{today.count}"
-puts "User 10 active? #{today[10] == 1 ? 'Yes' : 'No'}"
-puts "User 11 active? #{today[11] == 1 ? 'Yes' : 'No'}"
+puts "User 10 active? #{today[10] == 1 ? "Yes" : "No"}"
+puts "User 11 active? #{today[11] == 1 ? "Yes" : "No"}"
 
 # Set to expire at end of day (24 hours)
-today.expire(86400)
+today.expire(86_400)
 puts "Expires in: #{today.ttl} seconds"
 
 # ============================================================
@@ -61,11 +61,11 @@ user_features[FEATURE_ADMIN] = 0
 user_features[FEATURE_ANALYTICS] = 1
 
 puts "User 123 features:"
-puts "  Search: #{user_features[FEATURE_SEARCH] == 1 ? 'Enabled' : 'Disabled'}"
-puts "  Export: #{user_features[FEATURE_EXPORT] == 1 ? 'Enabled' : 'Disabled'}"
-puts "  API: #{user_features[FEATURE_API] == 1 ? 'Enabled' : 'Disabled'}"
-puts "  Admin: #{user_features[FEATURE_ADMIN] == 1 ? 'Enabled' : 'Disabled'}"
-puts "  Analytics: #{user_features[FEATURE_ANALYTICS] == 1 ? 'Enabled' : 'Disabled'}"
+puts "  Search: #{user_features[FEATURE_SEARCH] == 1 ? "Enabled" : "Disabled"}"
+puts "  Export: #{user_features[FEATURE_EXPORT] == 1 ? "Enabled" : "Disabled"}"
+puts "  API: #{user_features[FEATURE_API] == 1 ? "Enabled" : "Disabled"}"
+puts "  Admin: #{user_features[FEATURE_ADMIN] == 1 ? "Enabled" : "Disabled"}"
+puts "  Analytics: #{user_features[FEATURE_ANALYTICS] == 1 ? "Enabled" : "Disabled"}"
 puts "Total enabled features: #{user_features.count}"
 
 # ============================================================
@@ -91,10 +91,10 @@ user_perms.set_bit(PERM_READ, 1)
   .set_bit(PERM_SUPER_ADMIN, 0)
 
 puts "User 456 permissions:"
-puts "  Read: #{user_perms[PERM_READ] == 1 ? 'Yes' : 'No'}"
-puts "  Write: #{user_perms[PERM_WRITE] == 1 ? 'Yes' : 'No'}"
-puts "  Delete: #{user_perms[PERM_DELETE] == 1 ? 'Yes' : 'No'}"
-puts "  Admin: #{user_perms[PERM_ADMIN] == 1 ? 'Yes' : 'No'}"
+puts "  Read: #{user_perms[PERM_READ] == 1 ? "Yes" : "No"}"
+puts "  Write: #{user_perms[PERM_WRITE] == 1 ? "Yes" : "No"}"
+puts "  Delete: #{user_perms[PERM_DELETE] == 1 ? "Yes" : "No"}"
+puts "  Admin: #{user_perms[PERM_ADMIN] == 1 ? "Yes" : "No"}"
 puts "Total permissions: #{user_perms.count}"
 
 # ============================================================
@@ -248,7 +248,7 @@ result = small_counters.bitfield
   .overflow(:fail)
   .incrby(:u8, 16, 10)
   .execute
-puts "  Result: #{result[0].nil? ? 'nil (operation failed)' : result[0]}"
+puts "  Result: #{result[0].nil? ? "nil (operation failed)" : result[0]}"
 
 # ============================================================
 # Example 8: User Activity Heatmap
@@ -320,9 +320,9 @@ in_b = variant_b[user_id] == 1
 in_control = variant_control[user_id] == 1
 
 puts "\nUser #{user_id} assignment:"
-puts "  Variant A: #{in_a ? 'Yes' : 'No'}"
-puts "  Variant B: #{in_b ? 'Yes' : 'No'}"
-puts "  Control: #{in_control ? 'Yes' : 'No'}"
+puts "  Variant A: #{in_a ? "Yes" : "No"}"
+puts "  Variant B: #{in_b ? "Yes" : "No"}"
+puts "  Control: #{in_control ? "Yes" : "No"}"
 
 # ============================================================
 # Example 10: Memory Efficiency Demonstration
@@ -336,7 +336,7 @@ large_bitmap = redis.bitmap(:large_scale_tracking)
 
 puts "Setting bits for 1,000 users..."
 1000.times do |i|
-  large_bitmap[i * 1000] = 1  # Sparse bitmap
+  large_bitmap[i * 1000] = 1 # Sparse bitmap
 end
 
 puts "Active users: #{large_bitmap.count}"
@@ -348,7 +348,7 @@ puts "For 1 million users: ~125KB (vs 1MB+ for sets)"
 # Cleanup
 # ============================================================
 
-puts "\n" + "=" * 80
+puts "\n#{"=" * 80}"
 puts "Cleaning up..."
 redis.del(
   "dau:#{Date.today}",
@@ -376,4 +376,3 @@ redis.del(
 )
 redis.close
 puts "Done!"
-

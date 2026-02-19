@@ -43,7 +43,6 @@ class PipelineUnitTest < Minitest::Test
     assert_empty @pipeline
     assert_equal 0, @pipeline.size
   end
-
   # ============================================================
   # call - queuing commands
   # ============================================================
@@ -67,7 +66,6 @@ class PipelineUnitTest < Minitest::Test
 
     assert_equal 3, @pipeline.size
   end
-
   # ============================================================
   # call_1arg, call_2args, call_3args
   # ============================================================
@@ -92,7 +90,6 @@ class PipelineUnitTest < Minitest::Test
     assert_same @pipeline, result
     assert_equal 1, @pipeline.size
   end
-
   # ============================================================
   # size / length / empty?
   # ============================================================
@@ -114,7 +111,6 @@ class PipelineUnitTest < Minitest::Test
 
     refute_empty @pipeline
   end
-
   # ============================================================
   # execute
   # ============================================================
@@ -135,7 +131,6 @@ class PipelineUnitTest < Minitest::Test
     assert_equal 2, @conn.pipeline_calls[0].size
     assert_equal %w[OK OK], result
   end
-
   # ============================================================
   # ping override
   # ============================================================
@@ -146,7 +141,6 @@ class PipelineUnitTest < Minitest::Test
     assert_same @pipeline, result
     assert_equal 1, @pipeline.size
   end
-
   # ============================================================
   # hgetall override
   # ============================================================
@@ -157,7 +151,6 @@ class PipelineUnitTest < Minitest::Test
     assert_same @pipeline, result
     assert_equal 1, @pipeline.size
   end
-
   # ============================================================
   # zscore / zmscore overrides
   # ============================================================
@@ -175,6 +168,40 @@ class PipelineUnitTest < Minitest::Test
     assert_same @pipeline, result
     assert_equal 1, @pipeline.size
   end
+end
+
+class PipelineUnitTestPart2 < Minitest::Test
+  # ============================================================
+  # Helper: mock connection that records pipeline calls
+  # ============================================================
+
+  class MockConnection
+    attr_reader :calls, :pipeline_calls
+
+    def initialize
+      @calls = []
+      @pipeline_calls = []
+    end
+
+    def call(*args)
+      @calls << args
+      "OK"
+    end
+
+    def pipeline(commands)
+      @pipeline_calls << commands
+      commands.map { "OK" }
+    end
+  end
+
+  def setup
+    @conn = MockConnection.new
+    @pipeline = RR::Pipeline.new(@conn)
+  end
+
+  # ============================================================
+  # Initialization
+  # ============================================================
 
   # ============================================================
   # zrange branches
@@ -203,7 +230,6 @@ class PipelineUnitTest < Minitest::Test
 
     refute_includes cmds[0], "WITHSCORES"
   end
-
   # ============================================================
   # zrevrange branches
   # ============================================================
@@ -231,7 +257,6 @@ class PipelineUnitTest < Minitest::Test
 
     refute_includes cmds[0], "WITHSCORES"
   end
-
   # ============================================================
   # zrangebyscore branches
   # ============================================================
@@ -279,7 +304,6 @@ class PipelineUnitTest < Minitest::Test
     refute_includes cmds[0], "WITHSCORES"
     refute_includes cmds[0], "LIMIT"
   end
-
   # ============================================================
   # zrevrangebyscore branches
   # ============================================================
@@ -325,7 +349,6 @@ class PipelineUnitTest < Minitest::Test
     refute_includes cmds[0], "WITHSCORES"
     refute_includes cmds[0], "LIMIT"
   end
-
   # ============================================================
   # zincrby
   # ============================================================
@@ -336,6 +359,40 @@ class PipelineUnitTest < Minitest::Test
     assert_same @pipeline, result
     assert_equal 1, @pipeline.size
   end
+end
+
+class PipelineUnitTestPart3 < Minitest::Test
+  # ============================================================
+  # Helper: mock connection that records pipeline calls
+  # ============================================================
+
+  class MockConnection
+    attr_reader :calls, :pipeline_calls
+
+    def initialize
+      @calls = []
+      @pipeline_calls = []
+    end
+
+    def call(*args)
+      @calls << args
+      "OK"
+    end
+
+    def pipeline(commands)
+      @pipeline_calls << commands
+      commands.map { "OK" }
+    end
+  end
+
+  def setup
+    @conn = MockConnection.new
+    @pipeline = RR::Pipeline.new(@conn)
+  end
+
+  # ============================================================
+  # Initialization
+  # ============================================================
 
   # ============================================================
   # zpopmin / zpopmax branches
@@ -372,7 +429,6 @@ class PipelineUnitTest < Minitest::Test
 
     assert_equal ["ZPOPMAX", "zset", 2], cmds[0]
   end
-
   # ============================================================
   # bzpopmin / bzpopmax
   # ============================================================
@@ -408,7 +464,6 @@ class PipelineUnitTest < Minitest::Test
 
     assert_equal ["BZPOPMAX", "zset1", 10], cmds[0]
   end
-
   # ============================================================
   # zscan branches
   # ============================================================
@@ -458,6 +513,40 @@ class PipelineUnitTest < Minitest::Test
     refute_includes cmds[0], "MATCH"
     refute_includes cmds[0], "COUNT"
   end
+end
+
+class PipelineUnitTestPart4 < Minitest::Test
+  # ============================================================
+  # Helper: mock connection that records pipeline calls
+  # ============================================================
+
+  class MockConnection
+    attr_reader :calls, :pipeline_calls
+
+    def initialize
+      @calls = []
+      @pipeline_calls = []
+    end
+
+    def call(*args)
+      @calls << args
+      "OK"
+    end
+
+    def pipeline(commands)
+      @pipeline_calls << commands
+      commands.map { "OK" }
+    end
+  end
+
+  def setup
+    @conn = MockConnection.new
+    @pipeline = RR::Pipeline.new(@conn)
+  end
+
+  # ============================================================
+  # Initialization
+  # ============================================================
 
   # ============================================================
   # Commands from included modules work through pipeline
@@ -498,7 +587,6 @@ class PipelineUnitTest < Minitest::Test
 
     assert_equal 1, @pipeline.size
   end
-
   # ============================================================
   # Chaining
   # ============================================================

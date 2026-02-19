@@ -201,7 +201,31 @@ class GeoIntegrationTest < RedisRubyTestCase
     assert_includes result, "San Francisco"
     assert_includes result, "Oakland"
   end
+end
 
+class GeoIntegrationTestPart2 < RedisRubyTestCase
+  use_testcontainers!
+
+  def setup
+    super
+    @geo_key = "@geo_key:#{SecureRandom.hex(4)}"
+  end
+
+  def teardown
+    begin
+      redis.del(@geo_key)
+    rescue StandardError
+      nil
+    end
+    begin
+      redis.del("geo:nearby")
+    rescue StandardError
+      nil
+    end
+    super
+  end
+
+  # GEOADD tests
   def test_geosearch_with_count
     redis.geoadd(@geo_key,
                  -122.4194, 37.7749, "San Francisco",
@@ -367,7 +391,31 @@ class GeoIntegrationTest < RedisRubyTestCase
     assert_includes result, "Oakland"
     refute_includes result, "Los Angeles"
   end
+end
 
+class GeoIntegrationTestPart3 < RedisRubyTestCase
+  use_testcontainers!
+
+  def setup
+    super
+    @geo_key = "@geo_key:#{SecureRandom.hex(4)}"
+  end
+
+  def teardown
+    begin
+      redis.del(@geo_key)
+    rescue StandardError
+      nil
+    end
+    begin
+      redis.del("geo:nearby")
+    rescue StandardError
+      nil
+    end
+    super
+  end
+
+  # GEOADD tests
   def test_georadius_with_options
     redis.geoadd(@geo_key,
                  -122.4194, 37.7749, "San Francisco",

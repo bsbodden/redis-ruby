@@ -2,7 +2,30 @@
 
 require_relative "unit_test_helper"
 
+# Shared helper for building cluster clients in tests
+module ClusterClientTestHelper
+  private
+
+  def build_cluster_with_mock_topology(read_from: :master, host_translation: nil)
+    mock_conn = mock("cluster_conn")
+    mock_conn.stubs(:call).returns([
+      [0, 5460, ["host1", 6379], ["replica1", 6379], ["replica2", 6379]],
+      [5461, 10_922, ["host2", 6379]],
+    ])
+    mock_conn.stubs(:close)
+    RR::Connection::TCP.stubs(:new).returns(mock_conn)
+
+    RR::ClusterClient.new(
+      nodes: ["redis://host1:6379"],
+      read_from: read_from,
+      host_translation: host_translation
+    )
+  end
+end
+
 class ClusterClientUnitTest < Minitest::Test
+  include ClusterClientTestHelper
+
   # ==========================================================================
   # CRC16 and Hash Slot Calculation
   # ==========================================================================
@@ -315,6 +338,14 @@ class ClusterClientUnitTest < Minitest::Test
   # ==========================================================================
   # Error Handling - MOVED, ASK, CLUSTERDOWN
   # ==========================================================================
+end
+
+class ClusterClientUnitTestPart2 < Minitest::Test
+  include ClusterClientTestHelper
+
+  # ==========================================================================
+  # CRC16 and Hash Slot Calculation
+  # ==========================================================================
 
   def test_handle_moved_error
     client = build_cluster_with_mock_topology
@@ -595,6 +626,14 @@ class ClusterClientUnitTest < Minitest::Test
 
     assert_predicate client, :cluster_healthy?
   end
+end
+
+class ClusterClientUnitTestPart3 < Minitest::Test
+  include ClusterClientTestHelper
+
+  # ==========================================================================
+  # CRC16 and Hash Slot Calculation
+  # ==========================================================================
 
   def test_cluster_unhealthy_when_not_ok
     client = build_cluster_with_mock_topology
@@ -880,30 +919,14 @@ class ClusterClientUnitTest < Minitest::Test
   def test_cluster_client_includes_vector_set_commands
     assert_includes RR::ClusterClient.ancestors, RR::Commands::VectorSet
   end
+end
+
+class ClusterClientUnitTestPart4 < Minitest::Test
+  # ==========================================================================
+  # CRC16 and Hash Slot Calculation
+  # ==========================================================================
 
   def test_cluster_client_includes_pubsub_commands
     assert_includes RR::ClusterClient.ancestors, RR::Commands::PubSub
-  end
-
-  private
-
-  # Build a cluster client with pre-populated mock topology
-  # (bypasses refresh_slots which needs real connections)
-  def build_cluster_with_mock_topology(read_from: :master, host_translation: nil)
-    # Stub out TCP connections to prevent real network calls
-    mock_conn = mock("cluster_conn")
-    mock_conn.stubs(:call).returns([
-      [0, 5460, ["host1", 6379], ["replica1", 6379], ["replica2", 6379]],
-      [5461, 10_922, ["host2", 6379]],
-    ])
-    mock_conn.stubs(:close)
-
-    RR::Connection::TCP.stubs(:new).returns(mock_conn)
-
-    RR::ClusterClient.new(
-      nodes: ["redis://host1:6379"],
-      read_from: read_from,
-      host_translation: host_translation
-    )
   end
 end

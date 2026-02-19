@@ -45,16 +45,16 @@ module RR
       # @param command [String] Command name
       # @param args [Array] Command arguments
       # @return [Object] Command result
-      def call(command, *args)
+      def call(command, *)
         ensure_connected
-        write_command(command, *args)
+        write_command(command, *)
         read_response
       end
 
       # Direct call without connection check - use when caller already verified connection
       # @api private
-      def call_direct(command, *args)
-        write_command(command, *args)
+      def call_direct(command, *)
+        write_command(command, *)
         read_response
       end
 
@@ -147,9 +147,9 @@ module RR
         callback ||= block
         raise ArgumentError, "Callback must be provided" unless callback
 
-        valid_events = [:connected, :disconnected, :reconnected, :error]
+        valid_events = %i[connected disconnected reconnected error]
         unless valid_events.include?(event_type)
-          raise ArgumentError, "Invalid event type: #{event_type}. Valid types: #{valid_events.join(', ')}"
+          raise ArgumentError, "Invalid event type: #{event_type}. Valid types: #{valid_events.join(", ")}"
         end
 
         @callbacks[event_type] << callback
@@ -173,7 +173,7 @@ module RR
         trigger_callbacks(:disconnected, {
           type: :disconnected,
           path: @path,
-          timestamp: Time.now
+          timestamp: Time.now,
         })
 
         close
@@ -188,42 +188,26 @@ module RR
         @buffered_io = Protocol::BufferedIO.new(@socket, read_timeout: @timeout, write_timeout: @timeout)
         @decoder = Protocol::RESP3Decoder.new(@buffered_io)
         @pid = Process.pid
+        trigger_connect_success
+      rescue Errno::ENOENT
+        raise_connection_error("Unix socket not found: #{@path}")
+      rescue Errno::EACCES
+        raise_connection_error("Permission denied for Unix socket: #{@path}")
+      rescue Errno::ECONNREFUSED
+        raise_connection_error("Connection refused for Unix socket: #{@path}")
+      end
 
-        # Trigger appropriate callback
+      # Trigger connected/reconnected callback
+      def trigger_connect_success
         event_type = @ever_connected ? :reconnected : :connected
         @ever_connected = true
+        trigger_callbacks(event_type, { type: event_type, path: @path, timestamp: Time.now })
+      end
 
-        trigger_callbacks(event_type, {
-          type: event_type,
-          path: @path,
-          timestamp: Time.now
-        })
-      rescue Errno::ENOENT
-        error = ConnectionError.new("Unix socket not found: #{@path}")
-        trigger_callbacks(:error, {
-          type: :error,
-          path: @path,
-          error: error,
-          timestamp: Time.now
-        })
-        raise error
-      rescue Errno::EACCES
-        error = ConnectionError.new("Permission denied for Unix socket: #{@path}")
-        trigger_callbacks(:error, {
-          type: :error,
-          path: @path,
-          error: error,
-          timestamp: Time.now
-        })
-        raise error
-      rescue Errno::ECONNREFUSED
-        error = ConnectionError.new("Connection refused for Unix socket: #{@path}")
-        trigger_callbacks(:error, {
-          type: :error,
-          path: @path,
-          error: error,
-          timestamp: Time.now
-        })
+      # Raise connection error with callback notification
+      def raise_connection_error(message)
+        error = ConnectionError.new(message)
+        trigger_callbacks(:error, { type: :error, path: @path, error: error, timestamp: Time.now })
         raise error
       end
 
@@ -245,8 +229,8 @@ module RR
       end
 
       # Write a single command to the socket
-      def write_command(command, *args)
-        encoded = @encoder.encode_command(command, *args)
+      def write_command(command, *)
+        encoded = @encoder.encode_command(command, *)
         @socket.write(encoded)
       end
 

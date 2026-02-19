@@ -253,9 +253,7 @@ module RR
 
     # Acquire with blocking/polling
     def acquire_with_blocking(token, timeout_ms, blocking_timeout)
-      deadline = if blocking_timeout
-                   Process.clock_gettime(Process::CLOCK_MONOTONIC) + blocking_timeout
-                 end
+      deadline = (Process.clock_gettime(Process::CLOCK_MONOTONIC) + blocking_timeout if blocking_timeout)
 
       loop do
         return true if acquire_once(token, timeout_ms)

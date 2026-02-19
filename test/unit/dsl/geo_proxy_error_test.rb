@@ -13,7 +13,8 @@ class GeoProxyErrorTest < Minitest::Test
     # Should rescue RR::CommandError and fall back to georadius,
     # not raise NameError for Redis::CommandError
     result = geo.search(-122.4, 37.8, 10)
-    assert_equal [], result
+
+    assert_empty result
   end
 
   def test_search_by_member_rescues_rr_command_error_not_redis_command_error
@@ -24,7 +25,8 @@ class GeoProxyErrorTest < Minitest::Test
     geo = RR::DSL::GeoProxy.new(mock_client, "test:geo")
 
     result = geo.search_by_member("store1", 50)
-    assert_equal [], result
+
+    assert_empty result
   end
 
   def test_search_re_raises_non_geosearch_command_errors

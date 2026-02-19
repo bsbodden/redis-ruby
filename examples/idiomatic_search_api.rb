@@ -42,7 +42,7 @@ puts <<~RUBY
   redis.search_index(:products) do
     on :hash
     prefix "product:"
-    
+  #{"  "}
     schema do
       text :name, sortable: true, weight: 5.0
       text :description
@@ -82,11 +82,13 @@ puts "\n2. ADDING SAMPLE DATA"
 puts "-" * 80
 
 products = [
-  { id: 1, name: "Laptop", description: "High-performance laptop", price: 1200, category: "electronics", brand: "TechCo" },
+  { id: 1, name: "Laptop", description: "High-performance laptop", price: 1200, category: "electronics",
+    brand: "TechCo", },
   { id: 2, name: "Mouse", description: "Wireless mouse", price: 25, category: "electronics", brand: "TechCo" },
-  { id: 3, name: "Keyboard", description: "Mechanical keyboard", price: 150, category: "electronics", brand: "KeyMaster" },
+  { id: 3, name: "Keyboard", description: "Mechanical keyboard", price: 150, category: "electronics",
+    brand: "KeyMaster", },
   { id: 4, name: "Desk", description: "Standing desk", price: 500, category: "furniture", brand: "OfficePro" },
-  { id: 5, name: "Chair", description: "Ergonomic chair", price: 300, category: "furniture", brand: "OfficePro" }
+  { id: 5, name: "Chair", description: "Ergonomic chair", price: 300, category: "furniture", brand: "OfficePro" },
 ]
 
 products.each do |product|
@@ -139,11 +141,11 @@ puts <<~RUBY
 RUBY
 
 results = redis.search(:products)
-               .query("@category:{electronics}")
-               .filter(:price, 0..1000)
-               .sort_by(:price, :asc)
-               .limit(10)
-               .execute
+  .query("@category:{electronics}")
+  .filter(:price, 0..1000)
+  .sort_by(:price, :asc)
+  .limit(10)
+  .execute
 
 puts "Found #{results[0]} results:"
 results[1..].each_slice(2) do |key, fields|
@@ -158,19 +160,18 @@ puts "\n4. COMPLEX QUERY WITH MULTIPLE FILTERS"
 puts "-" * 80
 
 results = redis.search(:products)
-               .query("*")
-               .filter(:price, 100..600)
-               .in_fields(:name, :description)
-               .sort_by(:price, :desc)
-               .limit(5)
-               .execute
+  .query("*")
+  .filter(:price, 100..600)
+  .in_fields(:name, :description)
+  .sort_by(:price, :desc)
+  .limit(5)
+  .execute
 
 puts "Products between $100-$600 (sorted by price desc):"
-results[1..].each_slice(2) do |key, fields|
+results[1..].each_slice(2) do |_key, fields|
   puts "  - #{fields[1]}: $#{fields[3]}"
 end
 
-puts "\n" + "=" * 80
+puts "\n#{"=" * 80}"
 puts "✓ All examples completed successfully!"
 puts "=" * 80
-

@@ -27,40 +27,13 @@ class SearchCommandsTest < RedisRubyTestCase
   end
 
   def test_ft_create_and_search_hash
-    # Create index on hash documents
-    redis.ft_create(@index_name,
-                    "ON", "HASH",
-                    "PREFIX", 1, "doc:",
-                    "SCHEMA",
-                    "title", "TEXT", "SORTABLE",
-                    "body", "TEXT",
-                    "price", "NUMERIC", "SORTABLE")
-
-    # Add documents
-    redis.hset("doc:1", "title", "Hello World", "body", "This is a test document", "price", 100)
-    redis.hset("doc:2", "title", "Redis Search", "body", "Full-text search is awesome", "price", 200)
-    redis.hset("doc:3", "title", "World of Redis", "body", "Learning Redis is fun", "price", 150)
-
-    # Wait for indexing
+    create_hash_search_index
+    populate_search_documents
     sleep 0.1
 
-    # Basic search
-    result = redis.ft_search(@index_name, "Hello")
-
-    assert_equal 1, result[0]
-    assert_equal "doc:1", result[1]
-
-    # Search with multiple results
-    result = redis.ft_search(@index_name, "Redis")
-
-    assert_equal 2, result[0]
-
-    # Search with scores
-    result = redis.ft_search(@index_name, "World", withscores: true)
-
-    assert_equal 2, result[0]
-    # With scores: [total, doc_id, score, fields, doc_id, score, fields, ...]
-    assert_includes ["doc:1", "doc:3"], result[1]
+    assert_hello_search_results
+    assert_redis_search_results
+    assert_world_search_with_scores
   ensure
     redis.del("doc:1", "doc:2", "doc:3")
   end
@@ -187,6 +160,69 @@ class SearchCommandsTest < RedisRubyTestCase
     indexes = redis.ft_list
 
     assert_includes indexes, @index_name
+  end
+
+  private
+
+  def create_hash_search_index
+    redis.ft_create(@index_name,
+                    "ON", "HASH",
+                    "PREFIX", 1, "doc:",
+                    "SCHEMA",
+                    "title", "TEXT", "SORTABLE",
+                    "body", "TEXT",
+                    "price", "NUMERIC", "SORTABLE")
+  end
+
+  def populate_search_documents
+    redis.hset("doc:1", "title", "Hello World", "body", "This is a test document", "price", 100)
+    redis.hset("doc:2", "title", "Redis Search", "body", "Full-text search is awesome", "price", 200)
+    redis.hset("doc:3", "title", "World of Redis", "body", "Learning Redis is fun", "price", 150)
+  end
+
+  def assert_hello_search_results
+    result = redis.ft_search(@index_name, "Hello")
+
+    assert_equal 1, result[0]
+    assert_equal "doc:1", result[1]
+  end
+
+  def assert_redis_search_results
+    result = redis.ft_search(@index_name, "Redis")
+
+    assert_equal 2, result[0]
+  end
+
+  def assert_world_search_with_scores
+    result = redis.ft_search(@index_name, "World", withscores: true)
+
+    assert_equal 2, result[0]
+    assert_includes ["doc:1", "doc:3"], result[1]
+  end
+end
+
+class SearchCommandsTestPart2 < RedisRubyTestCase
+  use_testcontainers!
+
+  def setup
+    super
+    @index_name = "test_idx_#{SecureRandom.hex(4)}"
+    # Clean up any leftover indexes
+    begin
+      redis.ft_dropindex(@index_name, delete_docs: true)
+    rescue RR::CommandError
+      # Index doesn't exist, that's fine
+    end
+  end
+
+  def teardown
+    # Clean up after each test
+    begin
+      redis.ft_dropindex(@index_name, delete_docs: true)
+    rescue RR::CommandError
+      # Index doesn't exist, that's fine
+    end
+    super
   end
 
   def test_ft_dropindex
@@ -362,6 +398,31 @@ class SearchCommandsTest < RedisRubyTestCase
   ensure
     redis.del(suggestion_key)
   end
+end
+
+class SearchCommandsTestPart3 < RedisRubyTestCase
+  use_testcontainers!
+
+  def setup
+    super
+    @index_name = "test_idx_#{SecureRandom.hex(4)}"
+    # Clean up any leftover indexes
+    begin
+      redis.ft_dropindex(@index_name, delete_docs: true)
+    rescue RR::CommandError
+      # Index doesn't exist, that's fine
+    end
+  end
+
+  def teardown
+    # Clean up after each test
+    begin
+      redis.ft_dropindex(@index_name, delete_docs: true)
+    rescue RR::CommandError
+      # Index doesn't exist, that's fine
+    end
+    super
+  end
 
   def test_ft_sugdel
     suggestion_key = "suggestions:del:#{SecureRandom.hex(4)}"
@@ -520,6 +581,31 @@ class SearchCommandsTest < RedisRubyTestCase
 
     assert_kind_of Hash, timeout_config
   end
+end
+
+class SearchCommandsTestPart4 < RedisRubyTestCase
+  use_testcontainers!
+
+  def setup
+    super
+    @index_name = "test_idx_#{SecureRandom.hex(4)}"
+    # Clean up any leftover indexes
+    begin
+      redis.ft_dropindex(@index_name, delete_docs: true)
+    rescue RR::CommandError
+      # Index doesn't exist, that's fine
+    end
+  end
+
+  def teardown
+    # Clean up after each test
+    begin
+      redis.ft_dropindex(@index_name, delete_docs: true)
+    rescue RR::CommandError
+      # Index doesn't exist, that's fine
+    end
+    super
+  end
 
   def test_ft_search_with_return_fields
     redis.ft_create(@index_name,
@@ -568,35 +654,51 @@ class SearchCommandsTest < RedisRubyTestCase
     json_index = "json_idx_#{SecureRandom.hex(4)}"
 
     begin
-      # Create index on JSON documents
-      redis.ft_create(json_index,
-                      "ON", "JSON",
-                      "PREFIX", 1, "user:",
-                      "SCHEMA",
-                      "$.name", "AS", "name", "TEXT",
-                      "$.age", "AS", "age", "NUMERIC", "SORTABLE")
-
-      # Add JSON documents
-      redis.json_set("user:1", "$", { name: "Alice", age: 30 })
-      redis.json_set("user:2", "$", { name: "Bob", age: 25 })
+      create_json_search_index(json_index)
+      populate_json_documents
       sleep 0.1
 
-      # Search JSON index
-      result = redis.ft_search(json_index, "@name:Alice")
-
-      assert_equal 1, result[0]
-
-      # Sort by age
-      result = redis.ft_search(json_index, "*", sortby: "age", sortasc: true)
-
-      assert_equal 2, result[0]
+      assert_json_name_search(json_index)
+      assert_json_sort_by_age(json_index)
     ensure
-      begin
-        redis.ft_dropindex(json_index, delete_docs: true)
-      rescue StandardError
-        nil
-      end
-      redis.del("user:1", "user:2")
+      cleanup_json_index(json_index)
     end
+  end
+
+  private
+
+  def create_json_search_index(index_name)
+    redis.ft_create(index_name,
+                    "ON", "JSON",
+                    "PREFIX", 1, "user:",
+                    "SCHEMA",
+                    "$.name", "AS", "name", "TEXT",
+                    "$.age", "AS", "age", "NUMERIC", "SORTABLE")
+  end
+
+  def populate_json_documents
+    redis.json_set("user:1", "$", { name: "Alice", age: 30 })
+    redis.json_set("user:2", "$", { name: "Bob", age: 25 })
+  end
+
+  def assert_json_name_search(index_name)
+    result = redis.ft_search(index_name, "@name:Alice")
+
+    assert_equal 1, result[0]
+  end
+
+  def assert_json_sort_by_age(index_name)
+    result = redis.ft_search(index_name, "*", sortby: "age", sortasc: true)
+
+    assert_equal 2, result[0]
+  end
+
+  def cleanup_json_index(index_name)
+    begin
+      redis.ft_dropindex(index_name, delete_docs: true)
+    rescue StandardError
+      nil
+    end
+    redis.del("user:1", "user:2")
   end
 end

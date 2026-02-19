@@ -63,7 +63,7 @@ module RR
       #   filter.add("item2", "item3", "item4")
       def add(*items)
         return self if items.empty?
-        
+
         if items.size == 1
           @redis.bf_add(@key, items.first.to_s)
         else
@@ -82,7 +82,7 @@ module RR
       #   filter.exists?("item1", "item2")  # => [true, false]
       def exists?(*items)
         return false if items.empty?
-        
+
         if items.size == 1
           @redis.bf_exists(@key, items.first.to_s) == 1
         else
@@ -121,7 +121,7 @@ module RR
       # @example
       #   filter.key_exists?  # => true
       def key_exists?
-        @redis.exists(@key) > 0
+        @redis.exists(@key).positive?
       end
 
       # Delete the Bloom Filter
@@ -136,8 +136,6 @@ module RR
 
       # Alias for delete
       alias clear delete
-
     end
   end
 end
-

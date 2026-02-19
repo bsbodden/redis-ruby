@@ -2,7 +2,7 @@
 
 require_relative "../unit_test_helper"
 
-class StringsBranchTest < Minitest::Test
+module StringsBranchMocks
   class MockClient
     include RR::Commands::Strings
 
@@ -13,19 +13,19 @@ class StringsBranchTest < Minitest::Test
       mock_return(args)
     end
 
-    def call_1arg(cmd, a1)
-      @last_command = [cmd, a1]
-      mock_return([cmd, a1])
+    def call_1arg(cmd, arg_one)
+      @last_command = [cmd, arg_one]
+      mock_return([cmd, arg_one])
     end
 
-    def call_2args(cmd, a1, a2)
-      @last_command = [cmd, a1, a2]
-      mock_return([cmd, a1, a2])
+    def call_2args(cmd, arg_one, arg_two)
+      @last_command = [cmd, arg_one, arg_two]
+      mock_return([cmd, arg_one, arg_two])
     end
 
-    def call_3args(cmd, a1, a2, a3)
-      @last_command = [cmd, a1, a2, a3]
-      mock_return([cmd, a1, a2, a3])
+    def call_3args(cmd, arg_one, arg_two, arg_three)
+      @last_command = [cmd, arg_one, arg_two, arg_three]
+      mock_return([cmd, arg_one, arg_two, arg_three])
     end
 
     private
@@ -33,8 +33,7 @@ class StringsBranchTest < Minitest::Test
     def mock_return(args)
       case args[0]
       when "INCRBYFLOAT" then "3.14"
-      when "SETNX" then 1
-      when "MSETNX" then 1
+      when "SETNX", "MSETNX" then 1
       when "GET", "GETDEL", "GETSET", "GETEX" then "value"
       when "INCR", "DECR", "INCRBY", "DECRBY", "APPEND", "STRLEN", "SETRANGE" then 42
       when "GETRANGE" then "alu"
@@ -55,25 +54,36 @@ class StringsBranchTest < Minitest::Test
        "OK")
     end
 
-    def call_1arg(cmd, a1)
-      (@last_command = [cmd, a1]
+    def call_1arg(cmd, arg_one)
+      (@last_command = [cmd, arg_one]
        "OK")
     end
 
-    def call_2args(cmd, a1, a2)
-      @last_command = [cmd, a1, a2]
+    def call_2args(cmd, arg_one, arg_two)
+      @last_command = [cmd, arg_one, arg_two]
       # Return a Float directly (not a String) to test the else branch of incrbyfloat
       3.14
     end
 
-    def call_3args(cmd, a1, a2, a3)
-      (@last_command = [cmd, a1, a2, a3]
+    def call_3args(cmd, arg_one, arg_two, arg_three)
+      (@last_command = [cmd, arg_one, arg_two, arg_three]
        1)
     end
   end
 
+  class MockClientSetnxFalse
+    include RR::Commands::Strings
+
+    def call(*_args) = 0
+    def call_1arg(_cmd, _arg_one) = 0
+    def call_2args(_cmd, _arg_one, _arg_two) = 0
+    def call_3args(_cmd, _arg_one, _arg_two, _arg_three) = 0
+  end
+end
+
+class StringsBranchTest < Minitest::Test
   def setup
-    @client = MockClient.new
+    @client = StringsBranchMocks::MockClient.new
   end
 
   # ============================================================
@@ -244,11 +254,17 @@ class StringsBranchTest < Minitest::Test
   # ============================================================
 
   def test_incrbyfloat_non_string_result
-    client = MockClientFloatDirect.new
+    client = StringsBranchMocks::MockClientFloatDirect.new
     result = client.incrbyfloat("counter", 1.5)
 
     assert_equal ["INCRBYFLOAT", "counter", 1.5], client.last_command
     assert_in_delta 3.14, result, 0.001
+  end
+end
+
+class StringsBranchTestPart2 < Minitest::Test
+  def setup
+    @client = StringsBranchMocks::MockClient.new
   end
 
   # ============================================================
@@ -329,20 +345,10 @@ class StringsBranchTest < Minitest::Test
   end
 
   def test_setnx_returns_false_when_not_set
-    # Create a mock that returns 0 for SETNX
-    client = MockClientSetnxFalse.new
+    client = StringsBranchMocks::MockClientSetnxFalse.new
     result = client.setnx("mykey", "myval")
 
     refute result
-  end
-
-  class MockClientSetnxFalse
-    include RR::Commands::Strings
-
-    def call(*_args) = 0
-    def call_1arg(_cmd, _a1) = 0
-    def call_2args(_cmd, _a1, _a2) = 0
-    def call_3args(_cmd, _a1, _a2, _a3) = 0
   end
 
   # ============================================================

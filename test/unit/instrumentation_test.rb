@@ -36,8 +36,9 @@ module RR
       @instrumentation.record_command("SET", 0.005)
 
       latency = @instrumentation.command_latency("SET")
-      assert latency.is_a?(Float)
-      assert_equal 0.005, latency
+
+      assert_kind_of Float, latency
+      assert_in_delta(0.005, latency)
     end
 
     def test_instrumentation_tracks_average_latency
@@ -48,7 +49,8 @@ module RR
       @instrumentation.record_command("SET", 0.005)
 
       avg_latency = @instrumentation.average_latency("SET")
-      assert avg_latency.is_a?(Float)
+
+      assert_kind_of Float, avg_latency
       assert_in_delta 0.003, avg_latency, 0.0001
     end
 
@@ -73,23 +75,25 @@ module RR
       snapshot = @instrumentation.snapshot
 
       assert_equal 2, snapshot[:total_commands]
-      assert snapshot[:commands].is_a?(Hash)
+      assert_kind_of Hash, snapshot[:commands]
       assert_equal 1, snapshot[:commands]["SET"][:count]
       assert_equal 1, snapshot[:commands]["GET"][:count]
-      assert_equal 0.001, snapshot[:commands]["SET"][:total_time]
-      assert_equal 0.002, snapshot[:commands]["GET"][:total_time]
+      assert_in_delta(0.001, snapshot[:commands]["SET"][:total_time])
+      assert_in_delta(0.002, snapshot[:commands]["GET"][:total_time])
     end
 
     def test_instrumentation_can_be_reset
       @instrumentation.record_command("SET", 0.001)
+
       assert_equal 1, @instrumentation.command_count
 
       @instrumentation.reset!
+
       assert_equal 0, @instrumentation.command_count
     end
 
     def test_instrumentation_is_thread_safe
-      threads = 10.times.map do
+      threads = Array.new(10) do
         Thread.new do
           10.times { @instrumentation.record_command("SET", 0.001) }
         end
@@ -141,11 +145,11 @@ module RR
       end
 
       # Simulate calling the callback
-      @instrumentation.before_callbacks.each { |cb| cb.call("SET", ["key", "value"]) }
+      @instrumentation.before_callbacks.each { |cb| cb.call("SET", %w[key value]) }
 
       assert called
       assert_equal "SET", command_name
-      assert_equal ["key", "value"], command_args
+      assert_equal %w[key value], command_args
     end
 
     def test_instrumentation_supports_after_command_callback
@@ -153,19 +157,18 @@ module RR
       command_name = nil
       duration_recorded = nil
 
-      @instrumentation.after_command do |cmd, args, duration|
+      @instrumentation.after_command do |cmd, _args, duration|
         called = true
         command_name = cmd
         duration_recorded = duration
       end
 
       # Simulate calling the callback
-      @instrumentation.after_callbacks.each { |cb| cb.call("SET", ["key", "value"], 0.005) }
+      @instrumentation.after_callbacks.each { |cb| cb.call("SET", %w[key value], 0.005) }
 
       assert called
       assert_equal "SET", command_name
-      assert_equal 0.005, duration_recorded
+      assert_in_delta(0.005, duration_recorded)
     end
   end
 end
-

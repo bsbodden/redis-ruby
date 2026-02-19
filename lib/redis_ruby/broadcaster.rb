@@ -62,24 +62,25 @@ module RR
       # @example
       #   OrderService.channel_prefix  # => "order_service"
       def channel_prefix
-        @channel_prefix ||= name.gsub("::", "_").
-                                 gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2').
-                                 gsub(/([a-z\d])([A-Z])/, '\1_\2').
-                                 downcase
+        @channel_prefix ||= name.gsub("::", "_")
+          .gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2')
+          .gsub(/([a-z\d])([A-Z])/, '\1_\2')
+          .downcase
       end
 
-      # Set a custom channel prefix
+      # Assign a custom channel prefix
       #
       # @param prefix [String, Symbol] Custom prefix
       #
       # @example
       #   class OrderService
       #     include RR::Broadcaster
-      #     set_channel_prefix :orders
+      #     assign_channel_prefix :orders
       #   end
-      def set_channel_prefix(prefix)
+      def assign_channel_prefix(prefix)
         @channel_prefix = prefix.to_s
       end
+      alias set_channel_prefix assign_channel_prefix
     end
 
     # Broadcast an event to Redis Pub/Sub
@@ -98,7 +99,7 @@ module RR
     def broadcast(event, *args)
       channel = build_channel_name(event)
       message = encode_broadcast_message(args)
-      
+
       redis_client.publish(channel, message)
     end
 
@@ -162,4 +163,3 @@ module RR
     end
   end
 end
-

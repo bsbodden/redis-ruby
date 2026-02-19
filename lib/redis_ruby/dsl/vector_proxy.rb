@@ -47,13 +47,13 @@ module RR
           vector,
           id.to_s,
           **options,
-          attributes: attributes.empty? ? nil : attributes,
+          attributes: attributes.empty? ? nil : attributes
         )
         self
       end
 
       # Alias for add
-      alias_method :upsert, :add
+      alias upsert add
 
       # Add multiple vectors in batch
       #
@@ -84,7 +84,7 @@ module RR
       end
 
       # Alias for remove
-      alias_method :delete, :remove
+      alias delete remove
 
       # Get vector by ID
       #
@@ -96,7 +96,7 @@ module RR
       end
 
       # Alias for get
-      alias_method :fetch, :get
+      alias fetch get
 
       # Get metadata for a vector
       #
@@ -123,7 +123,7 @@ module RR
       end
 
       # Alias for dimension
-      alias_method :dim, :dimension
+      alias dim dimension
 
       # Get number of vectors in set
       #
@@ -133,8 +133,8 @@ module RR
       end
 
       # Alias for count
-      alias_method :size, :count
-      alias_method :cardinality, :count
+      alias size count
+      alias cardinality count
 
       # Get vector set info
       #
@@ -173,4 +173,3 @@ module RR
     end
   end
 end
-

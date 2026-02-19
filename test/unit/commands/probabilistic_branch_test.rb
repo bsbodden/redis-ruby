@@ -18,18 +18,18 @@ class ProbabilisticBranchTest < Minitest::Test
       @next_return
     end
 
-    def call_1arg(cmd, a)
-      @last_command = [cmd, a]
+    def call_1arg(cmd, arg_one)
+      @last_command = [cmd, arg_one]
       @next_return
     end
 
-    def call_2args(cmd, a, b)
-      @last_command = [cmd, a, b]
+    def call_2args(cmd, arg_one, arg_two)
+      @last_command = [cmd, arg_one, arg_two]
       @next_return
     end
 
-    def call_3args(cmd, a, b, c)
-      @last_command = [cmd, a, b, c]
+    def call_3args(cmd, arg_one, arg_two, arg_three)
+      @last_command = [cmd, arg_one, arg_two, arg_three]
       @next_return
     end
   end
@@ -231,6 +231,46 @@ class ProbabilisticBranchTest < Minitest::Test
     assert_equal "OK", result
     assert_equal ["BF.LOADCHUNK", "bf", 1, "data"], @client.last_command
   end
+end
+
+class ProbabilisticBranchTestPart2 < Minitest::Test
+  # ------------------------------------------------------------------ mock --
+  class MockClient
+    include RR::Commands::Probabilistic
+
+    attr_reader :last_command
+    attr_accessor :next_return
+
+    def call(*args)
+      @last_command = args
+      @next_return
+    end
+
+    def call_1arg(cmd, arg_one)
+      @last_command = [cmd, arg_one]
+      @next_return
+    end
+
+    def call_2args(cmd, arg_one, arg_two)
+      @last_command = [cmd, arg_one, arg_two]
+      @next_return
+    end
+
+    def call_3args(cmd, arg_one, arg_two, arg_three)
+      @last_command = [cmd, arg_one, arg_two, arg_three]
+      @next_return
+    end
+  end
+
+  def setup
+    @client = MockClient.new
+  end
+
+  # ============================================================
+  # BLOOM FILTER
+  # ============================================================
+
+  # --- bf_reserve ---
 
   # ============================================================
   # CUCKOO FILTER
@@ -437,6 +477,46 @@ class ProbabilisticBranchTest < Minitest::Test
     assert_equal "OK", result
     assert_equal ["CF.LOADCHUNK", "cf", 1, "data"], @client.last_command
   end
+end
+
+class ProbabilisticBranchTestPart3 < Minitest::Test
+  # ------------------------------------------------------------------ mock --
+  class MockClient
+    include RR::Commands::Probabilistic
+
+    attr_reader :last_command
+    attr_accessor :next_return
+
+    def call(*args)
+      @last_command = args
+      @next_return
+    end
+
+    def call_1arg(cmd, arg_one)
+      @last_command = [cmd, arg_one]
+      @next_return
+    end
+
+    def call_2args(cmd, arg_one, arg_two)
+      @last_command = [cmd, arg_one, arg_two]
+      @next_return
+    end
+
+    def call_3args(cmd, arg_one, arg_two, arg_three)
+      @last_command = [cmd, arg_one, arg_two, arg_three]
+      @next_return
+    end
+  end
+
+  def setup
+    @client = MockClient.new
+  end
+
+  # ============================================================
+  # BLOOM FILTER
+  # ============================================================
+
+  # --- bf_reserve ---
 
   # ============================================================
   # COUNT-MIN SKETCH
@@ -518,6 +598,46 @@ class ProbabilisticBranchTest < Minitest::Test
     assert_equal({ "width" => 2000, "depth" => 5, "count" => 100 }, result)
     assert_equal ["CMS.INFO", "cms"], @client.last_command
   end
+end
+
+class ProbabilisticBranchTestPart4 < Minitest::Test
+  # ------------------------------------------------------------------ mock --
+  class MockClient
+    include RR::Commands::Probabilistic
+
+    attr_reader :last_command
+    attr_accessor :next_return
+
+    def call(*args)
+      @last_command = args
+      @next_return
+    end
+
+    def call_1arg(cmd, arg_one)
+      @last_command = [cmd, arg_one]
+      @next_return
+    end
+
+    def call_2args(cmd, arg_one, arg_two)
+      @last_command = [cmd, arg_one, arg_two]
+      @next_return
+    end
+
+    def call_3args(cmd, arg_one, arg_two, arg_three)
+      @last_command = [cmd, arg_one, arg_two, arg_three]
+      @next_return
+    end
+  end
+
+  def setup
+    @client = MockClient.new
+  end
+
+  # ============================================================
+  # BLOOM FILTER
+  # ============================================================
+
+  # --- bf_reserve ---
 
   # ============================================================
   # TOP-K
@@ -627,6 +747,46 @@ class ProbabilisticBranchTest < Minitest::Test
     assert_equal({ "k" => 10, "width" => 50, "depth" => 5, "decay" => 0.9 }, result)
     assert_equal ["TOPK.INFO", "tk"], @client.last_command
   end
+end
+
+class ProbabilisticBranchTestPart5 < Minitest::Test
+  # ------------------------------------------------------------------ mock --
+  class MockClient
+    include RR::Commands::Probabilistic
+
+    attr_reader :last_command
+    attr_accessor :next_return
+
+    def call(*args)
+      @last_command = args
+      @next_return
+    end
+
+    def call_1arg(cmd, arg_one)
+      @last_command = [cmd, arg_one]
+      @next_return
+    end
+
+    def call_2args(cmd, arg_one, arg_two)
+      @last_command = [cmd, arg_one, arg_two]
+      @next_return
+    end
+
+    def call_3args(cmd, arg_one, arg_two, arg_three)
+      @last_command = [cmd, arg_one, arg_two, arg_three]
+      @next_return
+    end
+  end
+
+  def setup
+    @client = MockClient.new
+  end
+
+  # ============================================================
+  # BLOOM FILTER
+  # ============================================================
+
+  # --- bf_reserve ---
 
   # ============================================================
   # T-DIGEST

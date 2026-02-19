@@ -110,8 +110,8 @@ module RR
 
       # Limit number of results
       # @param n [Integer] Maximum number of samples
-      def limit(n)
-        @count = n
+      def limit(num)
+        @count = num
         self
       end
 
@@ -166,6 +166,7 @@ module RR
         else
           # Multi-series query
           raise ArgumentError, "filters are required for multi-series query" if @filters.empty?
+
           execute_multi_series
         end
       end
@@ -174,7 +175,7 @@ module RR
 
       def execute_single_series
         method = @reverse ? :ts_revrange : :ts_range
-        
+
         @client.send(
           method,
           @key,
@@ -194,7 +195,7 @@ module RR
 
       def execute_multi_series
         method = @reverse ? :ts_mrevrange : :ts_mrange
-        
+
         @client.send(
           method,
           @from_ts,
@@ -219,15 +220,16 @@ module RR
       def normalize_timestamp(timestamp)
         return timestamp if timestamp.is_a?(String) # "-", "+", etc.
         return (timestamp.to_f * 1000).to_i if timestamp.is_a?(Time)
+
         timestamp
       end
 
       def duration_to_ms(value)
         return value if value.is_a?(Integer)
         return (value * 1000).to_i if value.respond_to?(:to_i)
+
         value
       end
     end
   end
 end
-

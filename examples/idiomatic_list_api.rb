@@ -27,7 +27,7 @@ puts "Queue length: #{jobs.length}"
 # Consumer processes jobs (FIFO - First In, First Out)
 puts "\nProcessing jobs:"
 3.times do
-  job = jobs.shift  # Get oldest job
+  job = jobs.shift # Get oldest job
   puts "  - Processing: #{job}"
 end
 
@@ -53,7 +53,7 @@ puts "Actions in stack: #{undo_stack.length}"
 # Undo last 2 actions (LIFO - Last In, First Out)
 puts "\nUndoing actions:"
 2.times do
-  action = undo_stack.pop  # Get most recent action
+  action = undo_stack.pop # Get most recent action
   puts "  - Undoing: #{action}"
 end
 
@@ -94,7 +94,7 @@ items = redis.list(:shopping, :cart)
 # Add items using different methods
 items << "apples"
 items.push("bananas", "oranges")
-items.unshift("milk")  # Add to front
+items.unshift("milk") # Add to front
 
 puts "Cart items: #{items.to_a.inspect}"
 
@@ -148,10 +148,10 @@ puts "-" * 80
 readings = redis.list(:sensor, :temperature)
 
 # Simulate sensor readings
-10.times do |i|
-  temp = 20 + rand(5)
+10.times do |_i|
+  temp = rand(20..24)
   readings.push("#{temp}°C")
-  readings.keep(5)  # Keep only last 5 readings
+  readings.keep(5) # Keep only last 5 readings
 end
 
 puts "Last 5 temperature readings:"
@@ -188,8 +188,8 @@ puts "-" * 80
 
 session_queue = redis.list(:session, SecureRandom.hex(4))
   .push("task1", "task2", "task3", "task4", "task5")
-  .trim(0..2)  # Keep only first 3
-  .expire(3600)  # Expire in 1 hour
+  .trim(0..2) # Keep only first 3
+  .expire(3600) # Expire in 1 hour
 
 puts "Session queue: #{session_queue.to_a.inspect}"
 puts "TTL: #{session_queue.ttl} seconds"
@@ -198,7 +198,7 @@ puts "TTL: #{session_queue.ttl} seconds"
 # Cleanup
 # ============================================================
 
-puts "\n" + "=" * 80
+puts "\n#{"=" * 80}"
 puts "Cleaning up..."
 redis.del(
   "jobs:pending",
@@ -212,4 +212,3 @@ redis.del(
 # Session queue will auto-expire
 redis.close
 puts "Done!"
-

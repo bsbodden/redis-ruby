@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "monitor"
+require_relative "concerns/instrumentation_metrics"
 
 module RR
   # Instrumentation and metrics collection for Redis operations
@@ -45,6 +46,7 @@ module RR
   #
   class Instrumentation
     include MonitorMixin
+    include Concerns::InstrumentationMetrics
 
     # Connection close reasons (matching redis-py)
     module CloseReason
@@ -62,8 +64,7 @@ module RR
       USED = "used"
     end
 
-    attr_reader :commands, :errors, :before_callbacks, :after_callbacks
-    attr_reader :pool_metrics
+    attr_reader :commands, :errors, :before_callbacks, :after_callbacks, :pool_metrics
 
     # Initialize instrumentation
     #
@@ -71,53 +72,9 @@ module RR
     # @param percentile_window_size [Integer] Number of samples to keep for percentiles (default: 1000)
     def initialize(percentiles: false, percentile_window_size: 1000)
       super() # Initialize MonitorMixin
-
-      # Command metrics
-      @commands = Hash.new do |h, k|
-        h[k] = {
-          count: 0,
-          total_time: 0.0,
-          errors: 0,
-          success: 0,
-          latencies: percentiles ? [] : nil
-        }
-      end
-      @errors = Hash.new(0)
-      @total_commands = 0
-      @total_errors = 0
-      @before_callbacks = []
-      @after_callbacks = []
-
-      # Pool metrics
-      @pool_metrics = {
-        connection_creates: 0,
-        connection_create_time: 0.0,
-        connection_wait_time: 0.0,
-        connection_checkout_time: 0.0,
-        connection_closes: Hash.new(0),
-        pool_exhaustions: 0,
-        active_connections: 0,
-        idle_connections: 0
-      }
-
-      # Callback metrics
-      @callback_metrics = Hash.new do |h, k|
-        h[k] = {
-          count: 0,
-          total_time: 0.0,
-          errors: 0
-        }
-      end
-
-      # Pipeline/Transaction metrics
-      @pipeline_count = 0
-      @pipeline_total_time = 0.0
-      @pipeline_command_count = 0
-      @transaction_count = 0
-      @transaction_total_time = 0.0
-      @transaction_command_count = 0
-
-      # Configuration
+      initialize_command_metrics(percentiles)
+      initialize_pool_metrics
+      initialize_pipeline_metrics
       @percentiles_enabled = percentiles
       @percentile_window_size = percentile_window_size
     end
@@ -151,32 +108,6 @@ module RR
           # Keep only the most recent samples (sliding window)
           latencies.shift if latencies.size > @percentile_window_size
         end
-      end
-    end
-
-    # Record a pipeline execution
-    #
-    # @param duration [Float] Execution time in seconds
-    # @param command_count [Integer] Number of commands in pipeline
-    # @return [void]
-    def record_pipeline(duration, command_count)
-      synchronize do
-        @pipeline_count += 1
-        @pipeline_total_time += duration
-        @pipeline_command_count += command_count
-      end
-    end
-
-    # Record a transaction execution
-    #
-    # @param duration [Float] Execution time in seconds
-    # @param command_count [Integer] Number of commands in transaction
-    # @return [void]
-    def record_transaction(duration, command_count)
-      synchronize do
-        @transaction_count += 1
-        @transaction_total_time += duration
-        @transaction_command_count += command_count
       end
     end
 
@@ -267,7 +198,7 @@ module RR
           count: metrics[:count],
           total_time: metrics[:total_time],
           avg_time: metrics[:count].zero? ? 0.0 : metrics[:total_time] / metrics[:count],
-          errors: metrics[:errors]
+          errors: metrics[:errors],
         }
       end
     end
@@ -282,7 +213,7 @@ module RR
             count: metrics[:count],
             total_time: metrics[:total_time],
             avg_time: metrics[:count].zero? ? 0.0 : metrics[:total_time] / metrics[:count],
-            errors: metrics[:errors]
+            errors: metrics[:errors],
           }
         end
       end
@@ -382,89 +313,6 @@ module RR
       synchronize { @errors[error_type] }
     end
 
-    # Get a snapshot of all metrics
-    #
-    # @return [Hash] Metrics snapshot
-    def snapshot
-      synchronize do
-        {
-          total_commands: @total_commands,
-          total_errors: @total_errors,
-          commands: @commands.transform_values { |v| v.dup.tap { |h| h.delete(:latencies) } },
-          errors: @errors.dup,
-          pipelines: {
-            count: @pipeline_count,
-            total_time: @pipeline_total_time,
-            avg_time: @pipeline_count.zero? ? 0.0 : @pipeline_total_time / @pipeline_count,
-            total_commands: @pipeline_command_count,
-            avg_commands: @pipeline_count.zero? ? 0.0 : @pipeline_command_count.to_f / @pipeline_count
-          },
-          transactions: {
-            count: @transaction_count,
-            total_time: @transaction_total_time,
-            avg_time: @transaction_count.zero? ? 0.0 : @transaction_total_time / @transaction_count,
-            total_commands: @transaction_command_count,
-            avg_commands: @transaction_count.zero? ? 0.0 : @transaction_command_count.to_f / @transaction_count
-          },
-          pool: pool_snapshot,
-          callbacks: all_callback_metrics
-        }
-      end
-    end
-
-    # Get pool metrics snapshot
-    #
-    # @return [Hash] Pool metrics
-    def pool_snapshot
-      synchronize do
-        {
-          connection_creates: @pool_metrics[:connection_creates],
-          avg_connection_create_time: @pool_metrics[:connection_creates].zero? ? 0.0 :
-            @pool_metrics[:connection_create_time] / @pool_metrics[:connection_creates],
-          total_connection_wait_time: @pool_metrics[:connection_wait_time],
-          total_connection_checkout_time: @pool_metrics[:connection_checkout_time],
-          connection_closes: @pool_metrics[:connection_closes].dup,
-          pool_exhaustions: @pool_metrics[:pool_exhaustions],
-          active_connections: @pool_metrics[:active_connections],
-          idle_connections: @pool_metrics[:idle_connections],
-          total_connections: @pool_metrics[:active_connections] + @pool_metrics[:idle_connections]
-        }
-      end
-    end
-
-    # Reset all metrics
-    #
-    # @return [void]
-    def reset!
-      synchronize do
-        @commands.clear
-        @errors.clear
-        @total_commands = 0
-        @total_errors = 0
-
-        # Reset pool metrics
-        @pool_metrics[:connection_creates] = 0
-        @pool_metrics[:connection_create_time] = 0.0
-        @pool_metrics[:connection_wait_time] = 0.0
-        @pool_metrics[:connection_checkout_time] = 0.0
-        @pool_metrics[:connection_closes].clear
-        @pool_metrics[:pool_exhaustions] = 0
-        @pool_metrics[:active_connections] = 0
-        @pool_metrics[:idle_connections] = 0
-
-        # Reset pipeline/transaction metrics
-        @pipeline_count = 0
-        @pipeline_total_time = 0.0
-        @pipeline_command_count = 0
-        @transaction_count = 0
-        @transaction_total_time = 0.0
-        @transaction_command_count = 0
-
-        # Reset callback metrics
-        @callback_metrics.clear
-      end
-    end
-
     # Register a callback to run before each command
     #
     # @yield [command, args] Block to execute before command
@@ -488,6 +336,39 @@ module RR
 
     private
 
+    # Initialize command-level metrics
+    def initialize_command_metrics(percentiles)
+      @commands = Hash.new do |h, k|
+        h[k] = { count: 0, total_time: 0.0, errors: 0, success: 0, latencies: percentiles ? [] : nil }
+      end
+      @errors = Hash.new(0)
+      @total_commands = 0
+      @total_errors = 0
+      @before_callbacks = []
+      @after_callbacks = []
+      @callback_metrics = Hash.new { |h, k| h[k] = { count: 0, total_time: 0.0, errors: 0 } }
+    end
+
+    # Initialize pool metrics
+    def initialize_pool_metrics
+      @pool_metrics = {
+        connection_creates: 0, connection_create_time: 0.0,
+        connection_wait_time: 0.0, connection_checkout_time: 0.0,
+        connection_closes: Hash.new(0), pool_exhaustions: 0,
+        active_connections: 0, idle_connections: 0,
+      }
+    end
+
+    # Initialize pipeline/transaction metrics
+    def initialize_pipeline_metrics
+      @pipeline_count = 0
+      @pipeline_total_time = 0.0
+      @pipeline_command_count = 0
+      @transaction_count = 0
+      @transaction_total_time = 0.0
+      @transaction_command_count = 0
+    end
+
     # Calculate percentile from sorted array of values
     #
     # @param values [Array<Float>] Array of values
@@ -503,8 +384,7 @@ module RR
       upper = sorted[rank.ceil]
 
       # Linear interpolation
-      lower + (upper - lower) * (rank - rank.floor)
+      lower + ((upper - lower) * (rank - rank.floor))
     end
   end
 end
-

@@ -89,7 +89,6 @@ class SentinelManagerBranchTest < Minitest::Test
 
     assert_equal 3, mgr.sentinels.length
   end
-
   # ============================================================
   # password / sentinel_password
   # ============================================================
@@ -124,6 +123,34 @@ class SentinelManagerBranchTest < Minitest::Test
     mgr = build_manager
     assert_raises(RR::MasterNotFoundError) { mgr.discover_master }
   end
+end
+
+class SentinelManagerBranchTestPart2 < Minitest::Test
+  # Helper: build manager with sensible defaults
+  def build_manager(sentinels: [{ host: "s1", port: 26_379 }],
+                    service_name: "mymaster",
+                    password: nil, sentinel_password: nil,
+                    min_other_sentinels: 0, timeout: 0.5)
+    RR::SentinelManager.new(
+      sentinels: sentinels,
+      service_name: service_name,
+      password: password,
+      sentinel_password: sentinel_password,
+      min_other_sentinels: min_other_sentinels,
+      timeout: timeout
+    )
+  end
+
+  # Helper: build a fake connection object
+  def mock_conn
+    conn = mock("conn")
+    conn.stubs(:close)
+    conn
+  end
+
+  # ============================================================
+  # normalize_sentinels
+  # ============================================================
 
   # ============================================================
   # discover_master
@@ -150,34 +177,19 @@ class SentinelManagerBranchTest < Minitest::Test
 
   def test_discover_master_promotes_sentinel_on_success
     # First sentinel fails, second succeeds => second is promoted to front
-    master_info = [
-      "name", "mymaster", "ip", "10.0.0.1", "port", "6379",
-      "role-reported", "master", "flags", "master",
-      "num-other-sentinels", "2",
-    ]
-
     conn_fail = mock_conn
     conn_fail.stubs(:call).raises(StandardError, "down")
+    conn_ok = stub_master_conn(default_master_info)
 
-    conn_ok = mock_conn
-    conn_ok.stubs(:call).with("SENTINEL", "MASTERS").returns([master_info])
-    conn_ok.stubs(:call).with("SENTINEL", "SENTINELS", "mymaster").returns([])
+    RR::Connection::TCP.stubs(:new).returns(conn_fail).then.returns(conn_ok)
 
-    RR::Connection::TCP.stubs(:new)
-      .returns(conn_fail)
-      .then.returns(conn_ok)
-
-    mgr = build_manager(sentinels: [
-      { host: "s1", port: 26_379 },
-      { host: "s2", port: 26_380 },
-    ])
-    mgr.stubs(:sleep) # skip sleep during SENTINEL_DELAY
+    sentinels = [{ host: "s1", port: 26_379 }, { host: "s2", port: 26_380 }]
+    mgr = build_manager(sentinels: sentinels)
+    mgr.stubs(:sleep)
 
     address = mgr.discover_master
 
     assert_equal "10.0.0.1", address[:host]
-
-    # s2 should now be first (promoted)
     assert_equal "s2", mgr.sentinels[0][:host]
   end
 
@@ -250,6 +262,48 @@ class SentinelManagerBranchTest < Minitest::Test
     mgr = build_manager
     assert_raises(RR::MasterNotFoundError) { mgr.discover_master }
   end
+
+  private
+
+  def default_master_info
+    ["name", "mymaster", "ip", "10.0.0.1", "port", "6379",
+     "role-reported", "master", "flags", "master", "num-other-sentinels", "2",]
+  end
+
+  def stub_master_conn(info)
+    conn = mock_conn
+    conn.stubs(:call).with("SENTINEL", "MASTERS").returns([info])
+    conn.stubs(:call).with("SENTINEL", "SENTINELS", "mymaster").returns([])
+    conn
+  end
+end
+
+class SentinelManagerBranchTestPart3 < Minitest::Test
+  # Helper: build manager with sensible defaults
+  def build_manager(sentinels: [{ host: "s1", port: 26_379 }],
+                    service_name: "mymaster",
+                    password: nil, sentinel_password: nil,
+                    min_other_sentinels: 0, timeout: 0.5)
+    RR::SentinelManager.new(
+      sentinels: sentinels,
+      service_name: service_name,
+      password: password,
+      sentinel_password: sentinel_password,
+      min_other_sentinels: min_other_sentinels,
+      timeout: timeout
+    )
+  end
+
+  # Helper: build a fake connection object
+  def mock_conn
+    conn = mock("conn")
+    conn.stubs(:close)
+    conn
+  end
+
+  # ============================================================
+  # normalize_sentinels
+  # ============================================================
 
   # ============================================================
   # check_master_state -- branch coverage
@@ -336,7 +390,6 @@ class SentinelManagerBranchTest < Minitest::Test
     # Should pass
     assert mgr.send(:check_master_state, state)
   end
-
   # ============================================================
   # find_master_state
   # ============================================================
@@ -374,6 +427,34 @@ class SentinelManagerBranchTest < Minitest::Test
 
     assert_nil result
   end
+end
+
+class SentinelManagerBranchTestPart4 < Minitest::Test
+  # Helper: build manager with sensible defaults
+  def build_manager(sentinels: [{ host: "s1", port: 26_379 }],
+                    service_name: "mymaster",
+                    password: nil, sentinel_password: nil,
+                    min_other_sentinels: 0, timeout: 0.5)
+    RR::SentinelManager.new(
+      sentinels: sentinels,
+      service_name: service_name,
+      password: password,
+      sentinel_password: sentinel_password,
+      min_other_sentinels: min_other_sentinels,
+      timeout: timeout
+    )
+  end
+
+  # Helper: build a fake connection object
+  def mock_conn
+    conn = mock("conn")
+    conn.stubs(:close)
+    conn
+  end
+
+  # ============================================================
+  # normalize_sentinels
+  # ============================================================
 
   # ============================================================
   # refresh_sentinels
@@ -428,7 +509,6 @@ class SentinelManagerBranchTest < Minitest::Test
     # Should not raise
     mgr.send(:refresh_sentinels, conn)
   end
-
   # ============================================================
   # discover_replicas
   # ============================================================
@@ -530,6 +610,34 @@ class SentinelManagerBranchTest < Minitest::Test
     mgr = build_manager
     assert_raises(RR::ReplicaNotFoundError) { mgr.discover_replicas }
   end
+end
+
+class SentinelManagerBranchTestPart5 < Minitest::Test
+  # Helper: build manager with sensible defaults
+  def build_manager(sentinels: [{ host: "s1", port: 26_379 }],
+                    service_name: "mymaster",
+                    password: nil, sentinel_password: nil,
+                    min_other_sentinels: 0, timeout: 0.5)
+    RR::SentinelManager.new(
+      sentinels: sentinels,
+      service_name: service_name,
+      password: password,
+      sentinel_password: sentinel_password,
+      min_other_sentinels: min_other_sentinels,
+      timeout: timeout
+    )
+  end
+
+  # Helper: build a fake connection object
+  def mock_conn
+    conn = mock("conn")
+    conn.stubs(:close)
+    conn
+  end
+
+  # ============================================================
+  # normalize_sentinels
+  # ============================================================
 
   # ============================================================
   # random_replica
@@ -550,7 +658,6 @@ class SentinelManagerBranchTest < Minitest::Test
 
     assert_includes %w[10.0.0.2 10.0.0.3], replica[:host]
   end
-
   # ============================================================
   # rotate_replicas
   # ============================================================
@@ -596,32 +703,20 @@ class SentinelManagerBranchTest < Minitest::Test
   end
 
   def test_rotate_replicas_falls_back_to_master
-    # Replicas found, iterated, then master fallback is yielded
-    replica_info = [
-      ["ip", "10.0.0.2", "port", "6380", "flags", "slave"],
-    ]
-    master_info = [
-      "name", "mymaster", "ip", "10.0.0.1", "port", "6379",
-      "role-reported", "master", "flags", "master",
-      "num-other-sentinels", "0",
-    ]
+    replica_info = [["ip", "10.0.0.2", "port", "6380", "flags", "slave"]]
+    master_info = ["name", "mymaster", "ip", "10.0.0.1", "port", "6379",
+                   "role-reported", "master", "flags", "master", "num-other-sentinels", "0",]
 
     conn = mock_conn
-    # First call: replicas
     conn.stubs(:call).with("SENTINEL", "REPLICAS", "mymaster").returns(replica_info)
-    # Second call (for master fallback): masters
     conn.stubs(:call).with("SENTINEL", "MASTERS").returns([master_info])
     conn.stubs(:call).with("SENTINEL", "SENTINELS", "mymaster").returns([])
     RR::Connection::TCP.stubs(:new).returns(conn)
 
     mgr = build_manager
     yielded = []
+    assert_raises(RR::ReplicaNotFoundError) { mgr.rotate_replicas { |addr| yielded << addr } }
 
-    assert_raises(RR::ReplicaNotFoundError) do
-      mgr.rotate_replicas { |addr| yielded << addr }
-    end
-
-    # At least the replica + master should have been yielded
     hosts = yielded.map { |a| a[:host] }
 
     assert_includes hosts, "10.0.0.2"
@@ -647,7 +742,6 @@ class SentinelManagerBranchTest < Minitest::Test
     end
     assert_includes error.message, "mymaster"
   end
-
   # ============================================================
   # rotate_sentinels!
   # ============================================================
@@ -664,7 +758,6 @@ class SentinelManagerBranchTest < Minitest::Test
 
     refute_equal first, mgr.sentinels[0][:host]
   end
-
   # ============================================================
   # reset
   # ============================================================
@@ -676,6 +769,34 @@ class SentinelManagerBranchTest < Minitest::Test
 
     assert_nil mgr.instance_variable_get(:@slave_rr_counter)
   end
+end
+
+class SentinelManagerBranchTestPart6 < Minitest::Test
+  # Helper: build manager with sensible defaults
+  def build_manager(sentinels: [{ host: "s1", port: 26_379 }],
+                    service_name: "mymaster",
+                    password: nil, sentinel_password: nil,
+                    min_other_sentinels: 0, timeout: 0.5)
+    RR::SentinelManager.new(
+      sentinels: sentinels,
+      service_name: service_name,
+      password: password,
+      sentinel_password: sentinel_password,
+      min_other_sentinels: min_other_sentinels,
+      timeout: timeout
+    )
+  end
+
+  # Helper: build a fake connection object
+  def mock_conn
+    conn = mock("conn")
+    conn.stubs(:close)
+    conn
+  end
+
+  # ============================================================
+  # normalize_sentinels
+  # ============================================================
 
   # ============================================================
   # sentinel_reachable?
@@ -708,7 +829,6 @@ class SentinelManagerBranchTest < Minitest::Test
 
     refute mgr.sentinel_reachable?({ host: "s1", port: 26_379 })
   end
-
   # ============================================================
   # discover_sentinels
   # ============================================================
@@ -800,7 +920,6 @@ class SentinelManagerBranchTest < Minitest::Test
 
     assert_empty sentinels
   end
-
   # ============================================================
   # parse_info_array
   # ============================================================
@@ -824,6 +943,34 @@ class SentinelManagerBranchTest < Minitest::Test
 
     assert_empty(mgr.send(:parse_info_array, "string"))
   end
+end
+
+class SentinelManagerBranchTestPart7 < Minitest::Test
+  # Helper: build manager with sensible defaults
+  def build_manager(sentinels: [{ host: "s1", port: 26_379 }],
+                    service_name: "mymaster",
+                    password: nil, sentinel_password: nil,
+                    min_other_sentinels: 0, timeout: 0.5)
+    RR::SentinelManager.new(
+      sentinels: sentinels,
+      service_name: service_name,
+      password: password,
+      sentinel_password: sentinel_password,
+      min_other_sentinels: min_other_sentinels,
+      timeout: timeout
+    )
+  end
+
+  # Helper: build a fake connection object
+  def mock_conn
+    conn = mock("conn")
+    conn.stubs(:close)
+    conn
+  end
+
+  # ============================================================
+  # normalize_sentinels
+  # ============================================================
 
   # ============================================================
   # verify_master_role?
@@ -868,7 +1015,6 @@ class SentinelManagerBranchTest < Minitest::Test
 
     refute mgr.send(:verify_master_role?, { host: "10.0.0.1", port: 6379 })
   end
-
   # ============================================================
   # create_sentinel_connection with password
   # ============================================================
@@ -894,7 +1040,6 @@ class SentinelManagerBranchTest < Minitest::Test
 
     assert_equal conn, result
   end
-
   # ============================================================
   # query_replicas_from_sentinel -- nil flags edge case
   # ============================================================
@@ -1009,7 +1154,6 @@ class SentinelClientBranchTest < Minitest::Test
 
     assert_equal :replica, client.send(:normalize_role, "slave")
   end
-
   # ============================================================
   # master? and replica?
   # ============================================================
@@ -1027,7 +1171,6 @@ class SentinelClientBranchTest < Minitest::Test
     assert_predicate client, :replica?
     refute_predicate client, :master?
   end
-
   # ============================================================
   # connected?
   # ============================================================
@@ -1055,7 +1198,6 @@ class SentinelClientBranchTest < Minitest::Test
 
     refute_predicate client, :connected?
   end
-
   # ============================================================
   # close / disconnect / quit
   # ============================================================
@@ -1089,7 +1231,6 @@ class SentinelClientBranchTest < Minitest::Test
 
     assert_respond_to client, :quit
   end
-
   # ============================================================
   # reconnect
   # ============================================================
@@ -1109,6 +1250,41 @@ class SentinelClientBranchTest < Minitest::Test
     assert_nil client.instance_variable_get(:@connection)
     assert_nil client.current_address
   end
+end
+
+class SentinelClientBranchTestPart2 < Minitest::Test
+  # Helper: create a SentinelClient with mocked internals
+  def build_client(role: :master, password: nil, db: 0, ssl: false,
+                   reconnect_attempts: 3)
+    client = RR::SentinelClient.allocate
+    client.instance_variable_set(:@service_name, "mymaster")
+    client.instance_variable_set(:@role, role)
+    client.instance_variable_set(:@password, password)
+    client.instance_variable_set(:@db, db)
+    client.instance_variable_set(:@timeout, 5.0)
+    client.instance_variable_set(:@ssl, ssl)
+    client.instance_variable_set(:@ssl_params, {})
+    client.instance_variable_set(:@reconnect_attempts, reconnect_attempts)
+    client.instance_variable_set(:@connection, nil)
+    client.instance_variable_set(:@current_address, nil)
+    client.instance_variable_set(:@mutex, Mutex.new)
+
+    manager = mock("manager")
+    manager.stubs(:reset)
+    client.instance_variable_set(:@sentinel_manager, manager)
+
+    client
+  end
+
+  def mock_conn
+    conn = mock("conn")
+    conn.stubs(:close)
+    conn
+  end
+
+  # ============================================================
+  # validate_role! and normalize_role
+  # ============================================================
 
   # ============================================================
   # discover_address (master vs replica branch)
@@ -1144,7 +1320,6 @@ class SentinelClientBranchTest < Minitest::Test
 
     assert_equal "master", address[:host]
   end
-
   # ============================================================
   # create_connection (TCP vs SSL branch)
   # ============================================================
@@ -1177,7 +1352,6 @@ class SentinelClientBranchTest < Minitest::Test
 
     assert_equal conn, result
   end
-
   # ============================================================
   # verify_role!
   # ============================================================
@@ -1223,7 +1397,6 @@ class SentinelClientBranchTest < Minitest::Test
     assert_includes error.message, "replica"
     assert_includes error.message, "master"
   end
-
   # ============================================================
   # authenticate and select_db
   # ============================================================
@@ -1245,6 +1418,41 @@ class SentinelClientBranchTest < Minitest::Test
 
     client.send(:select_db)
   end
+end
+
+class SentinelClientBranchTestPart3 < Minitest::Test
+  # Helper: create a SentinelClient with mocked internals
+  def build_client(role: :master, password: nil, db: 0, ssl: false,
+                   reconnect_attempts: 3)
+    client = RR::SentinelClient.allocate
+    client.instance_variable_set(:@service_name, "mymaster")
+    client.instance_variable_set(:@role, role)
+    client.instance_variable_set(:@password, password)
+    client.instance_variable_set(:@db, db)
+    client.instance_variable_set(:@timeout, 5.0)
+    client.instance_variable_set(:@ssl, ssl)
+    client.instance_variable_set(:@ssl_params, {})
+    client.instance_variable_set(:@reconnect_attempts, reconnect_attempts)
+    client.instance_variable_set(:@connection, nil)
+    client.instance_variable_set(:@current_address, nil)
+    client.instance_variable_set(:@mutex, Mutex.new)
+
+    manager = mock("manager")
+    manager.stubs(:reset)
+    client.instance_variable_set(:@sentinel_manager, manager)
+
+    client
+  end
+
+  def mock_conn
+    conn = mock("conn")
+    conn.stubs(:close)
+    conn
+  end
+
+  # ============================================================
+  # validate_role! and normalize_role
+  # ============================================================
 
   # ============================================================
   # ensure_connected (branches)
@@ -1306,7 +1514,6 @@ class SentinelClientBranchTest < Minitest::Test
 
     client.send(:ensure_connected)
   end
-
   # ============================================================
   # readonly_error?
   # ============================================================
@@ -1331,7 +1538,6 @@ class SentinelClientBranchTest < Minitest::Test
 
     refute client.send(:readonly_error?, err)
   end
-
   # ============================================================
   # handle_failover
   # ============================================================
@@ -1360,7 +1566,6 @@ class SentinelClientBranchTest < Minitest::Test
     # Should not raise
     client.send(:handle_failover)
   end
-
   # ============================================================
   # call -- thread safety (connection nil race condition)
   # ============================================================
@@ -1374,7 +1579,6 @@ class SentinelClientBranchTest < Minitest::Test
 
     assert_raises(RR::ConnectionError) { client.call("PING") }
   end
-
   # ============================================================
   # call -- success path
   # ============================================================
@@ -1390,6 +1594,41 @@ class SentinelClientBranchTest < Minitest::Test
 
     assert_equal "value", result
   end
+end
+
+class SentinelClientBranchTestPart4 < Minitest::Test
+  # Helper: create a SentinelClient with mocked internals
+  def build_client(role: :master, password: nil, db: 0, ssl: false,
+                   reconnect_attempts: 3)
+    client = RR::SentinelClient.allocate
+    client.instance_variable_set(:@service_name, "mymaster")
+    client.instance_variable_set(:@role, role)
+    client.instance_variable_set(:@password, password)
+    client.instance_variable_set(:@db, db)
+    client.instance_variable_set(:@timeout, 5.0)
+    client.instance_variable_set(:@ssl, ssl)
+    client.instance_variable_set(:@ssl_params, {})
+    client.instance_variable_set(:@reconnect_attempts, reconnect_attempts)
+    client.instance_variable_set(:@connection, nil)
+    client.instance_variable_set(:@current_address, nil)
+    client.instance_variable_set(:@mutex, Mutex.new)
+
+    manager = mock("manager")
+    manager.stubs(:reset)
+    client.instance_variable_set(:@sentinel_manager, manager)
+
+    client
+  end
+
+  def mock_conn
+    conn = mock("conn")
+    conn.stubs(:close)
+    conn
+  end
+
+  # ============================================================
+  # validate_role! and normalize_role
+  # ============================================================
 
   # ============================================================
   # call -- CommandError handling
@@ -1426,7 +1665,6 @@ class SentinelClientBranchTest < Minitest::Test
     # exhaust retries -> raise ReadOnlyError
     assert_raises(RR::ReadOnlyError) { client.call("SET", "k", "v") }
   end
-
   # ============================================================
   # call -- retry with exponential backoff
   # ============================================================
@@ -1477,7 +1715,6 @@ class SentinelClientBranchTest < Minitest::Test
 
     assert_raises(RR::FailoverError) { client.call("PING") }
   end
-
   # ============================================================
   # call -- backoff only after first retry
   # ============================================================
@@ -1522,7 +1759,6 @@ class SentinelClientBranchTest < Minitest::Test
 
     assert_equal "OK", result
   end
-
   # ============================================================
   # ping
   # ============================================================
@@ -1536,6 +1772,41 @@ class SentinelClientBranchTest < Minitest::Test
 
     assert_equal "PONG", client.ping
   end
+end
+
+class SentinelClientBranchTestPart5 < Minitest::Test
+  # Helper: create a SentinelClient with mocked internals
+  def build_client(role: :master, password: nil, db: 0, ssl: false,
+                   reconnect_attempts: 3)
+    client = RR::SentinelClient.allocate
+    client.instance_variable_set(:@service_name, "mymaster")
+    client.instance_variable_set(:@role, role)
+    client.instance_variable_set(:@password, password)
+    client.instance_variable_set(:@db, db)
+    client.instance_variable_set(:@timeout, 5.0)
+    client.instance_variable_set(:@ssl, ssl)
+    client.instance_variable_set(:@ssl_params, {})
+    client.instance_variable_set(:@reconnect_attempts, reconnect_attempts)
+    client.instance_variable_set(:@connection, nil)
+    client.instance_variable_set(:@current_address, nil)
+    client.instance_variable_set(:@mutex, Mutex.new)
+
+    manager = mock("manager")
+    manager.stubs(:reset)
+    client.instance_variable_set(:@sentinel_manager, manager)
+
+    client
+  end
+
+  def mock_conn
+    conn = mock("conn")
+    conn.stubs(:close)
+    conn
+  end
+
+  # ============================================================
+  # validate_role! and normalize_role
+  # ============================================================
 
   # ============================================================
   # pipelined
@@ -1551,7 +1822,9 @@ class SentinelClientBranchTest < Minitest::Test
     pipeline_mock.expects(:execute).returns(%w[OK value])
     RR::Pipeline.expects(:new).with(conn).returns(pipeline_mock)
 
-    results = client.pipelined { |pipe| }
+    results = client.pipelined do |_pipe|
+      # Intentionally empty; pipeline is mocked
+    end
 
     assert_equal %w[OK value], results
   end
@@ -1568,10 +1841,11 @@ class SentinelClientBranchTest < Minitest::Test
     RR::Pipeline.expects(:new).with(conn).returns(pipeline_mock)
 
     assert_raises(RR::CommandError) do
-      client.pipelined { |pipe| }
+      client.pipelined do |_pipe|
+        # Intentionally empty; pipeline is mocked
+      end
     end
   end
-
   # ============================================================
   # multi (transaction)
   # ============================================================
@@ -1586,7 +1860,9 @@ class SentinelClientBranchTest < Minitest::Test
     tx_mock.expects(:execute).returns(["OK", 1])
     RR::Transaction.expects(:new).with(conn).returns(tx_mock)
 
-    results = client.multi { |tx| }
+    results = client.multi do |_tx|
+      # Intentionally empty; transaction is mocked
+    end
 
     assert_equal ["OK", 1], results
   end
@@ -1601,7 +1877,9 @@ class SentinelClientBranchTest < Minitest::Test
     tx_mock.expects(:execute).returns(nil)
     RR::Transaction.expects(:new).with(conn).returns(tx_mock)
 
-    result = client.multi { |tx| }
+    result = client.multi do |_tx|
+      # Intentionally empty; transaction is mocked
+    end
 
     assert_nil result
   end
@@ -1618,7 +1896,9 @@ class SentinelClientBranchTest < Minitest::Test
     RR::Transaction.expects(:new).with(conn).returns(tx_mock)
 
     assert_raises(RR::CommandError) do
-      client.multi { |tx| }
+      client.multi do |_tx|
+        # Intentionally empty; transaction is mocked
+      end
     end
   end
 
@@ -1634,10 +1914,11 @@ class SentinelClientBranchTest < Minitest::Test
     RR::Transaction.expects(:new).with(conn).returns(tx_mock)
 
     assert_raises(RR::CommandError) do
-      client.multi { |tx| }
+      client.multi do |_tx|
+        # Intentionally empty; transaction is mocked
+      end
     end
   end
-
   # ============================================================
   # watch
   # ============================================================
@@ -1679,6 +1960,41 @@ class SentinelClientBranchTest < Minitest::Test
       client.watch("key1") { raise "boom" }
     end
   end
+end
+
+class SentinelClientBranchTestPart6 < Minitest::Test
+  # Helper: create a SentinelClient with mocked internals
+  def build_client(role: :master, password: nil, db: 0, ssl: false,
+                   reconnect_attempts: 3)
+    client = RR::SentinelClient.allocate
+    client.instance_variable_set(:@service_name, "mymaster")
+    client.instance_variable_set(:@role, role)
+    client.instance_variable_set(:@password, password)
+    client.instance_variable_set(:@db, db)
+    client.instance_variable_set(:@timeout, 5.0)
+    client.instance_variable_set(:@ssl, ssl)
+    client.instance_variable_set(:@ssl_params, {})
+    client.instance_variable_set(:@reconnect_attempts, reconnect_attempts)
+    client.instance_variable_set(:@connection, nil)
+    client.instance_variable_set(:@current_address, nil)
+    client.instance_variable_set(:@mutex, Mutex.new)
+
+    manager = mock("manager")
+    manager.stubs(:reset)
+    client.instance_variable_set(:@sentinel_manager, manager)
+
+    client
+  end
+
+  def mock_conn
+    conn = mock("conn")
+    conn.stubs(:close)
+    conn
+  end
+
+  # ============================================================
+  # validate_role! and normalize_role
+  # ============================================================
 
   # ============================================================
   # unwatch
@@ -1695,24 +2011,16 @@ class SentinelClientBranchTest < Minitest::Test
 
     assert_equal "OK", result
   end
-
   # ============================================================
   # Full initialization (with real constructor)
   # ============================================================
 
   def test_initialize_with_real_constructor
     client = RR::SentinelClient.new(
-      sentinels: [{ host: "s1", port: 26_379 }],
-      service_name: "mymaster",
-      role: :master,
-      password: "pass",
-      sentinel_password: "spass",
-      db: 3,
-      timeout: 2.0,
-      ssl: false,
-      ssl_params: {},
-      reconnect_attempts: 5,
-      min_other_sentinels: 1
+      sentinels: [{ host: "s1", port: 26_379 }], service_name: "mymaster",
+      role: :master, password: "pass", sentinel_password: "spass",
+      db: 3, timeout: 2.0, ssl: false, ssl_params: {},
+      reconnect_attempts: 5, min_other_sentinels: 1
     )
 
     assert_equal "mymaster", client.service_name
@@ -1745,7 +2053,6 @@ class SentinelClientBranchTest < Minitest::Test
       )
     end
   end
-
   # ============================================================
   # sentinel_manager attribute
   # ============================================================
@@ -1755,7 +2062,6 @@ class SentinelClientBranchTest < Minitest::Test
 
     refute_nil client.sentinel_manager
   end
-
   # ============================================================
   # call -- normal (non-error) result
   # ============================================================
@@ -1795,7 +2101,6 @@ class SentinelClientBranchTest < Minitest::Test
 
     assert_equal 42, result
   end
-
   # ============================================================
   # call_1arg / call_2args / call_3args fast-path methods
   # ============================================================

@@ -19,18 +19,18 @@ class VectorSetBranchTest < Minitest::Test
       @next_return
     end
 
-    def call_1arg(cmd, a)
-      @last_command = [cmd, a]
+    def call_1arg(cmd, arg_one)
+      @last_command = [cmd, arg_one]
       @next_return
     end
 
-    def call_2args(cmd, a, b)
-      @last_command = [cmd, a, b]
+    def call_2args(cmd, arg_one, arg_two)
+      @last_command = [cmd, arg_one, arg_two]
       @next_return
     end
 
-    def call_3args(cmd, a, b, c)
-      @last_command = [cmd, a, b, c]
+    def call_3args(cmd, arg_one, arg_two, arg_three)
+      @last_command = [cmd, arg_one, arg_two, arg_three]
       @next_return
     end
   end
@@ -173,6 +173,44 @@ class VectorSetBranchTest < Minitest::Test
     assert_includes cmd, "SETATTR"
     assert_includes cmd, "M"
   end
+end
+
+class VectorSetBranchTestPart2 < Minitest::Test
+  # ------------------------------------------------------------------ mock --
+  class MockClient
+    include RR::Commands::VectorSet
+
+    attr_reader :last_command
+    attr_accessor :next_return
+
+    def call(*args)
+      @last_command = args
+      @next_return
+    end
+
+    def call_1arg(cmd, arg_one)
+      @last_command = [cmd, arg_one]
+      @next_return
+    end
+
+    def call_2args(cmd, arg_one, arg_two)
+      @last_command = [cmd, arg_one, arg_two]
+      @next_return
+    end
+
+    def call_3args(cmd, arg_one, arg_two, arg_three)
+      @last_command = [cmd, arg_one, arg_two, arg_three]
+      @next_return
+    end
+  end
+
+  def setup
+    @client = MockClient.new
+  end
+
+  # ============================================================
+  # vadd
+  # ============================================================
 
   # ============================================================
   # vsim
@@ -313,6 +351,44 @@ class VectorSetBranchTest < Minitest::Test
     refute_includes @client.last_command, "TRUTH"
     refute_includes @client.last_command, "NOTHREAD"
   end
+end
+
+class VectorSetBranchTestPart3 < Minitest::Test
+  # ------------------------------------------------------------------ mock --
+  class MockClient
+    include RR::Commands::VectorSet
+
+    attr_reader :last_command
+    attr_accessor :next_return
+
+    def call(*args)
+      @last_command = args
+      @next_return
+    end
+
+    def call_1arg(cmd, arg_one)
+      @last_command = [cmd, arg_one]
+      @next_return
+    end
+
+    def call_2args(cmd, arg_one, arg_two)
+      @last_command = [cmd, arg_one, arg_two]
+      @next_return
+    end
+
+    def call_3args(cmd, arg_one, arg_two, arg_three)
+      @last_command = [cmd, arg_one, arg_two, arg_three]
+      @next_return
+    end
+  end
+
+  def setup
+    @client = MockClient.new
+  end
+
+  # ============================================================
+  # vadd
+  # ============================================================
 
   # ============================================================
   # vdim / vcard / vrem
@@ -341,7 +417,6 @@ class VectorSetBranchTest < Minitest::Test
     assert_equal 1, result
     assert_equal %w[VREM vset item1], @client.last_command
   end
-
   # ============================================================
   # vemb
   # ============================================================
@@ -395,7 +470,6 @@ class VectorSetBranchTest < Minitest::Test
 
     assert_equal [1.0, 2.0], result
   end
-
   # ============================================================
   # vlinks
   # ============================================================
@@ -448,7 +522,6 @@ class VectorSetBranchTest < Minitest::Test
     # When not an array, returns as-is
     assert_equal "not_an_array", result
   end
-
   # ============================================================
   # vinfo
   # ============================================================
@@ -460,6 +533,44 @@ class VectorSetBranchTest < Minitest::Test
     assert_equal({ "num_elements" => 100, "dimension" => 3 }, result)
     assert_equal %w[VINFO vset], @client.last_command
   end
+end
+
+class VectorSetBranchTestPart4 < Minitest::Test
+  # ------------------------------------------------------------------ mock --
+  class MockClient
+    include RR::Commands::VectorSet
+
+    attr_reader :last_command
+    attr_accessor :next_return
+
+    def call(*args)
+      @last_command = args
+      @next_return
+    end
+
+    def call_1arg(cmd, arg_one)
+      @last_command = [cmd, arg_one]
+      @next_return
+    end
+
+    def call_2args(cmd, arg_one, arg_two)
+      @last_command = [cmd, arg_one, arg_two]
+      @next_return
+    end
+
+    def call_3args(cmd, arg_one, arg_two, arg_three)
+      @last_command = [cmd, arg_one, arg_two, arg_three]
+      @next_return
+    end
+  end
+
+  def setup
+    @client = MockClient.new
+  end
+
+  # ============================================================
+  # vadd
+  # ============================================================
 
   # ============================================================
   # vsetattr
@@ -490,7 +601,6 @@ class VectorSetBranchTest < Minitest::Test
 
     assert_equal '{"custom":"json"}', cmd[3]
   end
-
   # ============================================================
   # vgetattr
   # ============================================================
@@ -523,7 +633,6 @@ class VectorSetBranchTest < Minitest::Test
 
     assert_nil result
   end
-
   # ============================================================
   # vrandmember
   # ============================================================
@@ -543,7 +652,6 @@ class VectorSetBranchTest < Minitest::Test
     assert_equal %w[item1 item2 item3], result
     assert_equal ["VRANDMEMBER", "vset", 3], @client.last_command
   end
-
   # ============================================================
   # parse_vsim_response (tested indirectly via vsim)
   # ============================================================
@@ -597,6 +705,44 @@ class VectorSetBranchTest < Minitest::Test
 
     assert_equal "not_an_array", result
   end
+end
+
+class VectorSetBranchTestPart5 < Minitest::Test
+  # ------------------------------------------------------------------ mock --
+  class MockClient
+    include RR::Commands::VectorSet
+
+    attr_reader :last_command
+    attr_accessor :next_return
+
+    def call(*args)
+      @last_command = args
+      @next_return
+    end
+
+    def call_1arg(cmd, arg_one)
+      @last_command = [cmd, arg_one]
+      @next_return
+    end
+
+    def call_2args(cmd, arg_one, arg_two)
+      @last_command = [cmd, arg_one, arg_two]
+      @next_return
+    end
+
+    def call_3args(cmd, arg_one, arg_two, arg_three)
+      @last_command = [cmd, arg_one, arg_two, arg_three]
+      @next_return
+    end
+  end
+
+  def setup
+    @client = MockClient.new
+  end
+
+  # ============================================================
+  # vadd
+  # ============================================================
 
   # ============================================================
   # parse_json_attrs (tested indirectly via vsim/vgetattr)
@@ -629,7 +775,6 @@ class VectorSetBranchTest < Minitest::Test
 
     assert_nil result["e1"]["attributes"]
   end
-
   # ============================================================
   # vsim attribs-only path with nil / invalid JSON
   # ============================================================

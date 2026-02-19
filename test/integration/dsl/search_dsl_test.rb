@@ -44,6 +44,7 @@ class SearchDSLTest < RedisRubyTestCase
 
     # Verify index was created
     info = redis.ft_info(@index_name)
+
     assert_equal "HASH", info["index_definition"][1]
   end
 
@@ -71,6 +72,7 @@ class SearchDSLTest < RedisRubyTestCase
     sleep 0.1
 
     results = redis.ft_search(@index_name, "@name:laptop")
+
     assert_equal 1, results[0]
   end
 
@@ -89,10 +91,11 @@ class SearchDSLTest < RedisRubyTestCase
     assert_equal "OK", result
 
     # Add JSON document
-    redis.json_set("user:1", "$", { name: "Alice", age: 30, tags: ["ruby", "redis"] })
+    redis.json_set("user:1", "$", { name: "Alice", age: 30, tags: %w[ruby redis] })
     sleep 0.1
 
     results = redis.ft_search(@index_name, "@name:alice")
+
     assert_equal 1, results[0]
   end
 
@@ -114,10 +117,10 @@ class SearchDSLTest < RedisRubyTestCase
 
     # Use query builder
     results = redis.search(@index_name)
-                   .query("@category:{electronics}")
-                   .sort_by(:price, :asc)
-                   .limit(10)
-                   .execute
+      .query("@category:{electronics}")
+      .sort_by(:price, :asc)
+      .limit(10)
+      .execute
 
     assert_equal 2, results[0]
     assert_includes results[1], "product:2" # Mouse is cheaper
@@ -141,11 +144,11 @@ class SearchDSLTest < RedisRubyTestCase
 
     # Query with filters
     results = redis.search(@index_name)
-                   .query("*")
-                   .filter(:price, 0..100)
-                   .filter(:rating, 4..5)
-                   .with_scores
-                   .execute
+      .query("*")
+      .filter(:price, 0..100)
+      .filter(:rating, 4..5)
+      .with_scores
+      .execute
 
     assert_equal 1, results[0]
     assert_includes results[1], "product:2" # Only mouse matches both filters
@@ -165,13 +168,12 @@ class SearchDSLTest < RedisRubyTestCase
 
     # Test method chaining
     results = redis.search(@index_name)
-                   .query("hello")
-                   .verbatim
-                   .limit(5)
-                   .with_scores
-                   .execute
+      .query("hello")
+      .verbatim
+      .limit(5)
+      .with_scores
+      .execute
 
     assert_equal 2, results[0]
   end
 end
-

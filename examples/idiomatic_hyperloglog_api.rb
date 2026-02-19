@@ -25,14 +25,14 @@ puts "-" * 80
 # Track unique visitors per day
 today = redis.hll(:visitors, Date.today.to_s)
 today.add("user:123", "user:456", "user:789", "user:101", "user:202")
-today.add("user:123", "user:456")  # Duplicates - won't increase count
+today.add("user:123", "user:456") # Duplicates - won't increase count
 
 puts "Unique visitors today: #{today.count}"
 puts "Is empty? #{today.empty?}"
 puts "Exists? #{today.exists?}"
 
 # Set to expire at end of day (24 hours)
-today.expire(86400)
+today.expire(86_400)
 puts "Expires in: #{today.ttl} seconds"
 
 # ============================================================
@@ -43,15 +43,15 @@ puts "\nExample 2: Unique Event Tracking"
 puts "-" * 80
 
 # Track unique event types per user
-user_events = redis.hll(:events, :user, 12345)
+user_events = redis.hll(:events, :user, 12_345)
 user_events.add("page_view", "button_click", "form_submit", "download", "share")
-user_events.add("page_view", "button_click")  # Duplicate events
+user_events.add("page_view", "button_click") # Duplicate events
 
 puts "Unique event types for user 12345: #{user_events.count}"
-puts "Total unique events: #{user_events.size}"  # Alias for count
+puts "Total unique events: #{user_events.size}" # Alias for count
 
 # Track events for another user
-user2_events = redis.hll(:events, :user, 67890)
+user2_events = redis.hll(:events, :user, 67_890)
 user2_events.add("page_view", "video_play", "comment", "like")
 
 puts "Unique event types for user 67890: #{user2_events.count}"
@@ -186,15 +186,15 @@ puts "\nExample 7: Multi-Level Time Aggregation (Hour → Day → Week)"
 puts "-" * 80
 
 # Track unique visitors per hour
-hour_1 = redis.hll(:visitors, :hour, 1).add("u1", "u2", "u3", "u4")
-hour_2 = redis.hll(:visitors, :hour, 2).add("u3", "u4", "u5", "u6")
-hour_3 = redis.hll(:visitors, :hour, 3).add("u5", "u6", "u7", "u8")
-hour_4 = redis.hll(:visitors, :hour, 4).add("u7", "u8", "u9", "u10")
+hour_one = redis.hll(:visitors, :hour, 1).add("u1", "u2", "u3", "u4")
+hour_two = redis.hll(:visitors, :hour, 2).add("u3", "u4", "u5", "u6")
+hour_three = redis.hll(:visitors, :hour, 3).add("u5", "u6", "u7", "u8")
+hour_four = redis.hll(:visitors, :hour, 4).add("u7", "u8", "u9", "u10")
 
-puts "Hour 1: #{hour_1.count} unique visitors"
-puts "Hour 2: #{hour_2.count} unique visitors"
-puts "Hour 3: #{hour_3.count} unique visitors"
-puts "Hour 4: #{hour_4.count} unique visitors"
+puts "Hour 1: #{hour_one.count} unique visitors"
+puts "Hour 2: #{hour_two.count} unique visitors"
+puts "Hour 3: #{hour_three.count} unique visitors"
+puts "Hour 4: #{hour_four.count} unique visitors"
 
 # Aggregate into daily count
 daily = redis.hll(:visitors, :daily)
@@ -218,7 +218,7 @@ puts "-" * 80
 session_tracker = redis.hll(:sessions, :active)
   .add("session:1", "session:2", "session:3")
   .add("session:4", "session:5")
-  .expire(3600)  # Expire in 1 hour
+  .expire(3600) # Expire in 1 hour
 
 puts "Active sessions: #{session_tracker.count}"
 puts "TTL: #{session_tracker.ttl} seconds"
@@ -272,7 +272,7 @@ puts "Empty? #{temp_tracker.empty?}"
 # Cleanup
 # ============================================================
 
-puts "\n" + "=" * 80
+puts "\n#{"=" * 80}"
 puts "Cleaning up..."
 redis.del(
   "visitors:#{Date.today}",
@@ -305,5 +305,3 @@ redis.del(
 )
 redis.close
 puts "Done!"
-
-

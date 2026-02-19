@@ -71,6 +71,10 @@ Metrics/BlockLength:
     - "*.gemspec"
 
 # Naming
+Naming/FileName:
+  Exclude:
+    - "lib/redis-rb-compat.rb"
+
 Naming/MethodParameterName:
   AllowedNames:
     - as   # alias

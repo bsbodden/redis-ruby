@@ -24,8 +24,29 @@ class PubSubIntegrationTest < RedisRubyTestCase
   private
 
   def create_publisher_connection
-    # Use the same URL as the main redis connection (from testcontainers or ENV)
     RR.new(url: @redis_url)
+  end
+
+  def publish_messages_async(channel, *messages)
+    Thread.new do
+      sleep 0.1
+      messages.each { |msg| @publisher.publish(channel, msg) }
+      sleep 0.1
+    end
+  end
+
+  def publish_to_channels_async(channel_message_map)
+    Thread.new do
+      sleep 0.1
+      channel_message_map.each { |ch, msg| @publisher.publish(ch, msg) }
+      sleep 0.1
+    end
+  end
+
+  def assert_subscribe_block_messages(messages)
+    assert_equal 2, messages.size
+    assert_equal ["pubsub:test:block", "message1"], messages[0]
+    assert_equal ["pubsub:test:block", "message2"], messages[1]
   end
 
   public
@@ -87,55 +108,32 @@ class PubSubIntegrationTest < RedisRubyTestCase
     subscribe_count = 0
     unsubscribe_count = 0
 
-    # Use a separate thread to publish
-    publisher_thread = Thread.new do
-      sleep 0.1 # Wait for subscription to be set up
-      @publisher.publish("pubsub:test:block", "message1")
-      @publisher.publish("pubsub:test:block", "message2")
-      sleep 0.1
-    end
+    publisher_thread = publish_messages_async("pubsub:test:block", "message1", "message2")
 
     redis.subscribe("pubsub:test:block") do |on|
-      on.subscribe do |_channel, _subscriptions|
-        subscribe_count += 1
-      end
-
+      on.subscribe { |_channel, _subscriptions| subscribe_count += 1 }
       on.message do |channel, message|
         messages << [channel, message]
-        # Unsubscribe after receiving 2 messages
         redis.unsubscribe if messages.size >= 2
       end
-
-      on.unsubscribe do |_channel, _subscriptions|
-        unsubscribe_count += 1
-      end
+      on.unsubscribe { |_channel, _subscriptions| unsubscribe_count += 1 }
     end
 
     publisher_thread.join
 
     assert_equal 1, subscribe_count
     assert_equal 1, unsubscribe_count
-    assert_equal 2, messages.size
-    assert_equal ["pubsub:test:block", "message1"], messages[0]
-    assert_equal ["pubsub:test:block", "message2"], messages[1]
+    assert_subscribe_block_messages(messages)
   end
 
   def test_subscribe_multiple_channels
     channels_subscribed = []
     messages = []
 
-    publisher_thread = Thread.new do
-      sleep 0.1
-      @publisher.publish("pubsub:test:multi1", "msg1")
-      @publisher.publish("pubsub:test:multi2", "msg2")
-      sleep 0.1
-    end
+    publisher_thread = publish_to_channels_async("pubsub:test:multi1" => "msg1", "pubsub:test:multi2" => "msg2")
 
     redis.subscribe("pubsub:test:multi1", "pubsub:test:multi2") do |on|
-      on.subscribe do |channel, _count|
-        channels_subscribed << channel
-      end
-
+      on.subscribe { |channel, _count| channels_subscribed << channel }
       on.message do |channel, message|
         messages << [channel, message]
         redis.unsubscribe if messages.size >= 2
@@ -211,10 +209,59 @@ class PubSubIntegrationTest < RedisRubyTestCase
     skip "PUBSUB SHARDNUMSUB not supported" if e.message.include?("unknown subcommand")
     raise
   end
+end
 
-  # ============================================================
+class PubSubIntegrationTestPart2 < RedisRubyTestCase
+  use_testcontainers!
+
+  def setup
+    super
+    @channel_prefix = "pubsub:test:#{SecureRandom.hex(4)}"
+    @publisher = create_publisher_connection
+  end
+
+  def teardown
+    begin
+      @publisher&.close
+    rescue StandardError
+      nil
+    end
+    super
+  end
+
+  private
+
+  def create_publisher_connection
+    RR.new(url: @redis_url)
+  end
+
+  def spublish_messages_async(channel, *messages)
+    Thread.new do
+      sleep 0.1
+      messages.each { |msg| @publisher.spublish(channel, msg) }
+      sleep 0.1
+    end
+  end
+
+  def spublish_to_channels_async(channel_message_map)
+    Thread.new do
+      sleep 0.1
+      channel_message_map.each { |ch, msg| @publisher.spublish(ch, msg) }
+      sleep 0.1
+    end
+  end
+
+  def assert_ssubscribe_block_results(subscribe_count, unsubscribe_count, messages)
+    assert_equal 1, subscribe_count
+    assert_equal 1, unsubscribe_count
+    assert_equal 2, messages.size
+    assert_equal ["shard:test:block", "message1"], messages[0]
+    assert_equal ["shard:test:block", "message2"], messages[1]
+  end
+
+  public
+
   # Sharded PubSub Tests (Redis 7.0+)
-  # ============================================================
 
   # SPUBLISH tests
   def test_spublish_returns_subscriber_count
@@ -242,35 +289,20 @@ class PubSubIntegrationTest < RedisRubyTestCase
     subscribe_count = 0
     unsubscribe_count = 0
 
-    publisher_thread = Thread.new do
-      sleep 0.1
-      @publisher.spublish("shard:test:block", "message1")
-      @publisher.spublish("shard:test:block", "message2")
-      sleep 0.1
-    end
+    publisher_thread = spublish_messages_async("shard:test:block", "message1", "message2")
 
     redis.ssubscribe("shard:test:block") do |on|
-      on.ssubscribe do |_channel, _subscriptions|
-        subscribe_count += 1
-      end
-
+      on.ssubscribe { |_channel, _subscriptions| subscribe_count += 1 }
       on.smessage do |channel, message|
         messages << [channel, message]
         redis.sunsubscribe if messages.size >= 2
       end
-
-      on.sunsubscribe do |_channel, _subscriptions|
-        unsubscribe_count += 1
-      end
+      on.sunsubscribe { |_channel, _subscriptions| unsubscribe_count += 1 }
     end
 
     publisher_thread.join
 
-    assert_equal 1, subscribe_count
-    assert_equal 1, unsubscribe_count
-    assert_equal 2, messages.size
-    assert_equal ["shard:test:block", "message1"], messages[0]
-    assert_equal ["shard:test:block", "message2"], messages[1]
+    assert_ssubscribe_block_results(subscribe_count, unsubscribe_count, messages)
   rescue RR::CommandError => e
     skip "SSUBSCRIBE not supported (requires Redis 7.0+)" if e.message.include?("unknown command")
     raise
@@ -280,18 +312,10 @@ class PubSubIntegrationTest < RedisRubyTestCase
     channels_subscribed = []
     messages = []
 
-    publisher_thread = Thread.new do
-      sleep 0.1
-      @publisher.spublish("shard:test:multi1", "msg1")
-      @publisher.spublish("shard:test:multi2", "msg2")
-      sleep 0.1
-    end
+    publisher_thread = spublish_to_channels_async("shard:test:multi1" => "msg1", "shard:test:multi2" => "msg2")
 
     redis.ssubscribe("shard:test:multi1", "shard:test:multi2") do |on|
-      on.ssubscribe do |channel, _count|
-        channels_subscribed << channel
-      end
-
+      on.ssubscribe { |channel, _count| channels_subscribed << channel }
       on.smessage do |channel, message|
         messages << [channel, message]
         redis.sunsubscribe if messages.size >= 2
@@ -334,7 +358,37 @@ class PubSubIntegrationTest < RedisRubyTestCase
     skip "PUBSUB SHARDCHANNELS not supported" if e.message.include?("unknown subcommand")
     raise
   end
+end
 
+class PubSubIntegrationTestPart3 < RedisRubyTestCase
+  use_testcontainers!
+
+  def setup
+    super
+    @channel_prefix = "pubsub:test:#{SecureRandom.hex(4)}"
+    # Publisher needs its own connection for concurrent operations
+    @publisher = create_publisher_connection
+  end
+
+  def teardown
+    begin
+      @publisher&.close
+    rescue StandardError
+      nil
+    end
+    super
+  end
+
+  private
+
+  def create_publisher_connection
+    # Use the same URL as the main redis connection (from testcontainers or ENV)
+    RR.new(url: @redis_url)
+  end
+
+  public
+
+  # PUBLISH tests
   # ============================================================
   # Additional Comprehensive PubSub Tests
   # ============================================================

@@ -206,6 +206,11 @@ class ListsCommandsTest < RedisRubyTestCase
   end
 
   # RPUSHX tests
+end
+
+class ListsCommandsTestPart2 < RedisRubyTestCase
+  use_testcontainers!
+
   def test_rpushx_on_existing_list
     redis.rpush("test:list", "a")
     result = redis.rpushx("test:list", "b", "c")
@@ -407,6 +412,10 @@ class ListsCommandsTest < RedisRubyTestCase
   ensure
     redis.del("test:src", "test:dst")
   end
+end
+
+class ListsCommandsTestPart2 < RedisRubyTestCase
+  use_testcontainers!
 
   # ============================================================
   # LMPOP Tests (Redis 7.0+)

@@ -4,7 +4,7 @@ require_relative "../test_helper"
 
 class ActiveActiveIntegrationTest < Minitest::Test
   def setup
-    # Note: These tests require Redis Enterprise with Active-Active databases
+    # NOTE: These tests require Redis Enterprise with Active-Active databases
     # For testing purposes, we'll use a single Redis instance simulating multiple regions
     @redis_host = ENV.fetch("REDIS_HOST", "localhost")
     @redis_port = ENV.fetch("REDIS_PORT", "6379").to_i
@@ -14,7 +14,7 @@ class ActiveActiveIntegrationTest < Minitest::Test
     @regions = [
       { host: @redis_host, port: @redis_port },
       { host: @redis_host, port: @redis_port },
-      { host: @redis_host, port: @redis_port }
+      { host: @redis_host, port: @redis_port },
     ]
 
     @client = RR.active_active(regions: @regions)
@@ -28,6 +28,7 @@ class ActiveActiveIntegrationTest < Minitest::Test
     key = "active_active:test:#{SecureRandom.hex(8)}"
 
     @client.set(key, "hello")
+
     assert_equal "hello", @client.get(key)
 
     @client.del(key)
@@ -43,6 +44,7 @@ class ActiveActiveIntegrationTest < Minitest::Test
     assert_equal "value2", @client.hget(key, "field2")
 
     result = @client.hgetall(key)
+
     assert_equal({ "field1" => "value1", "field2" => "value2" }, result)
 
     @client.del(key)
@@ -55,7 +57,7 @@ class ActiveActiveIntegrationTest < Minitest::Test
     @client.lpush(key, "item2")
     @client.lpush(key, "item3")
 
-    assert_equal ["item3", "item2", "item1"], @client.lrange(key, 0, -1)
+    assert_equal %w[item3 item2 item1], @client.lrange(key, 0, -1)
 
     @client.del(key)
   end
@@ -68,6 +70,7 @@ class ActiveActiveIntegrationTest < Minitest::Test
     @client.sadd(key, "member3")
 
     members = @client.smembers(key)
+
     assert_equal 3, members.size
     assert_includes members, "member1"
     assert_includes members, "member2"
@@ -84,7 +87,8 @@ class ActiveActiveIntegrationTest < Minitest::Test
     @client.zadd(key, 3.0, "member3")
 
     result = @client.zrange(key, 0, -1)
-    assert_equal ["member1", "member2", "member3"], result
+
+    assert_equal %w[member1 member2 member3], result
 
     @client.del(key)
   end
@@ -93,14 +97,16 @@ class ActiveActiveIntegrationTest < Minitest::Test
     # Connection is lazy - trigger it with a command
     @client.ping
 
-    assert @client.connected?
+    assert_predicate @client, :connected?
 
     @client.close
-    refute @client.connected?
+
+    refute_predicate @client, :connected?
   end
 
   def test_current_region
     region = @client.current_region
+
     assert_equal @redis_host, region[:host]
     assert_equal @redis_port, region[:port]
   end
@@ -112,6 +118,7 @@ class ActiveActiveIntegrationTest < Minitest::Test
     # (even though in testing they point to the same Redis instance)
     key = "active_active:failover:#{SecureRandom.hex(8)}"
     @client.set(key, "test")
+
     assert_equal "test", @client.get(key)
     @client.del(key)
   end
@@ -124,13 +131,14 @@ class ActiveActiveIntegrationTest < Minitest::Test
 
     key = "active_active:factory:#{SecureRandom.hex(8)}"
     client.set(key, "factory_test")
+
     assert_equal "factory_test", client.get(key)
     client.del(key)
     client.close
   end
 
   def test_crdt_semantics_note
-    # Note: This test documents CRDT behavior but doesn't test it
+    # NOTE: This test documents CRDT behavior but doesn't test it
     # because we're using a single Redis instance, not a true Active-Active database
     #
     # In a real Active-Active setup with CRDTs:
@@ -152,4 +160,3 @@ class ActiveActiveIntegrationTest < Minitest::Test
     pass
   end
 end
-

@@ -111,9 +111,9 @@ module RR
       #     .execute  # => [0, 110, 110]
       def execute
         return [] if @operations.empty?
+
         @redis.bitfield(@key, *@operations)
       end
     end
   end
 end
-

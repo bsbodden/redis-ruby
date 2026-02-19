@@ -159,41 +159,11 @@ class SentinelCommandsIntegrationTest < SentinelTestCase
 
   # Test: Client can reconnect to master after getting address
   def test_reconnect_to_discovered_master
-    sentinel = connect_to_sentinel
+    host, port = discover_master_address
+    master_conn = connect_to_master(host, port)
 
-    # Get master address from sentinel
-    result = sentinel.call("SENTINEL", "GET-MASTER-ADDR-BY-NAME", service_name)
-    host, port = result
+    assert_match(/role:master/, master_conn.call("INFO", "replication"))
 
-    sentinel.close
-
-    # Translate Docker internal IP to localhost if needed (for Docker Compose setup)
-    if host.match?(/^172\.\d+\.\d+\.\d+$/) || host.match?(/^192\.168\.\d+\.\d+$/)
-      # Map internal port to external port
-      host = "127.0.0.1"
-      port = case port.to_i
-             when 6379
-               SentinelTestContainerSupport::MASTER_PORT
-             when 6380
-               SentinelTestContainerSupport::REPLICA_PORT
-             else
-               port.to_i
-             end
-    end
-
-    # Connect to the master
-    master_conn = RR::Connection::TCP.new(
-      host: host,
-      port: port.to_i,
-      timeout: 5.0
-    )
-
-    # Verify it's the master
-    info = master_conn.call("INFO", "replication")
-
-    assert_match(/role:master/, info)
-
-    # Perform operations
     master_conn.call("SET", "direct:test", "value")
 
     assert_equal "value", master_conn.call("GET", "direct:test")
@@ -207,6 +177,30 @@ class SentinelCommandsIntegrationTest < SentinelTestCase
   end
 
   private
+
+  def discover_master_address
+    sentinel = connect_to_sentinel
+    result = sentinel.call("SENTINEL", "GET-MASTER-ADDR-BY-NAME", service_name)
+    sentinel.close
+    translate_docker_address(*result)
+  end
+
+  def translate_docker_address(host, port)
+    if host.match?(/^172\.\d+\.\d+\.\d+$/) || host.match?(/^192\.168\.\d+\.\d+$/)
+      translated_port = case port.to_i
+                        when 6379 then SentinelTestContainerSupport::MASTER_PORT
+                        when 6380 then SentinelTestContainerSupport::REPLICA_PORT
+                        else port.to_i
+                        end
+      ["127.0.0.1", translated_port]
+    else
+      [host, port.to_i]
+    end
+  end
+
+  def connect_to_master(host, port)
+    RR::Connection::TCP.new(host: host, port: port, timeout: 5.0)
+  end
 
   def connect_to_sentinel
     addr = sentinel_addresses.first

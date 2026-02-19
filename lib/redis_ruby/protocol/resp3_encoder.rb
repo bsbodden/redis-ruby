@@ -66,16 +66,11 @@ module RR
       # @param args [Array] Command arguments
       # @return [String] RESP3 encoded command (binary encoding)
       def encode_command(command, *args)
-        # Reset buffer if it grew too large (prevents memory bloat)
         reset_buffer_if_large
-
         argc = args.size
-
-        # Try fast path encoders for common commands (performance-critical)
         fast_result = try_fast_path_encoding(command, args, argc)
         return fast_result if fast_result
 
-        # General path: check for hash args and encode accordingly
         encode_general_command(command, args, argc)
       end
 
@@ -114,24 +109,16 @@ module RR
       # @param commands [Array<Array>] Array of command arrays
       # @return [String] RESP3 encoded commands concatenated (binary encoding)
       def encode_pipeline(commands)
-        # Reset buffer if it grew too large (prevents memory bloat)
         reset_buffer_if_large
         @buffer.clear
-        commands.each do |cmd|
-          encode_pipeline_command(cmd)
-        end
+        commands.each { |cmd| encode_pipeline_command(cmd) }
         @buffer
       end
 
       # Encode a single command in pipeline (fast path optimized)
       def encode_pipeline_command(cmd)
-        first = cmd[0]
-        size = cmd.size
+        return if try_pipeline_fast_path(cmd[0], cmd.size, cmd)
 
-        # Try fast path for common commands
-        return if try_pipeline_fast_path(first, size, cmd)
-
-        # Slow path for other commands
         dump_array(cmd, @buffer)
       end
 
@@ -200,10 +187,7 @@ module RR
       end
 
       # Fast bulk string encoding - inlined for hot path
-      # Handles binary encoding properly for non-ASCII strings
-      # Optimized to avoid unnecessary to_s calls for strings
       def dump_bulk_string_fast(str, buffer)
-        # Fast path: if already a string, avoid to_s allocation
         if str.is_a?(String)
           if str.ascii_only?
             buffer << BULK_PREFIX << int_to_s(str.bytesize) << EOL << str << EOL
@@ -212,16 +196,13 @@ module RR
             buffer << BULK_PREFIX << int_to_s(s.bytesize) << EOL << s << EOL
           end
         else
-          # Slow path: convert to string first
           s = str.to_s
           s = s.b unless s.ascii_only?
           buffer << BULK_PREFIX << int_to_s(s.bytesize) << EOL << s << EOL
         end
       end
 
-      # Fast path for arrays without hash arguments
-      # Reuses internal buffer to avoid allocations
-      # Note: Caller must use returned string before next encode_command call
+      # Fast path for arrays without hash arguments (reuses internal buffer)
       def dump_array_fast(command, args)
         count = args.size + 1
         @buffer.clear
@@ -255,11 +236,7 @@ module RR
         buffer
       end
 
-      # Dump a single element to buffer
-      # Optimized: Uses Symbol#name on Ruby 3.1+ (returns frozen string, no allocation)
-      #
-      # @param element [Object] Element to encode
-      # @param buffer [String] Buffer to write to
+      # Dump a single element to buffer (uses Symbol#name on Ruby 3.1+)
       if USE_SYMBOL_NAME
         def dump_element(element, buffer)
           case element
@@ -287,10 +264,7 @@ module RR
         end
       end
 
-      # Dump a string to buffer - for strings that might need encoding conversion
-      #
-      # @param string [String] String to encode
-      # @param buffer [String] Buffer to write to
+      # Dump a string to buffer, converting non-ASCII to binary
       def dump_string(string, buffer)
         if string.ascii_only?
           dump_string_value(string, buffer)
@@ -299,22 +273,14 @@ module RR
         end
       end
 
-      # Dump a string value to buffer - assumes proper encoding
-      # Inlined for performance
-      #
-      # @param string [String] String to encode
-      # @param buffer [String] Buffer to write to
+      # Dump a string value to buffer (assumes proper encoding)
       def dump_string_value(string, buffer)
         buffer << BULK_PREFIX << int_to_s(string.bytesize) << EOL << string << EOL
       end
 
-      # Convert integer to string, using cache for common sizes
-      # This eliminates most allocations since most sizes are < 1024
-      #
-      # @param int [Integer] Integer to convert
-      # @return [String] Frozen string representation
+      # Convert integer to string, using cache for sizes <= 1024
       def int_to_s(int)
-        if int >= 0 && int <= SIZE_CACHE_LIMIT
+        if int.between?(0, SIZE_CACHE_LIMIT)
           SIZE_CACHE[int]
         else
           int.to_s

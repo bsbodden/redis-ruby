@@ -194,7 +194,12 @@ class KeysCommandsTest < RedisRubyTestCase
   ensure
     redis.del("test:key")
   end
+end
 
+class KeysCommandsTestPart2 < RedisRubyTestCase
+  use_testcontainers!
+
+  # EXISTS tests
   def test_expire_with_gt_new_ttl_smaller
     redis.set("test:key", "value")
     redis.expire("test:key", 200)
@@ -391,7 +396,12 @@ class KeysCommandsTest < RedisRubyTestCase
   ensure
     redis.del("test:key")
   end
+end
 
+class KeysCommandsTestPart3 < RedisRubyTestCase
+  use_testcontainers!
+
+  # EXISTS tests
   def test_pexpireat_with_xx
     redis.set("test:key", "value")
     future_time = (Time.now.to_f * 1000).to_i + 100_000
@@ -592,6 +602,12 @@ class KeysCommandsTest < RedisRubyTestCase
   end
 
   # RENAME tests
+end
+
+class KeysCommandsTestPart4 < RedisRubyTestCase
+  use_testcontainers!
+
+  # EXISTS tests
   def test_rename_key
     redis.set("test:old", "value")
 
@@ -788,6 +804,12 @@ class KeysCommandsTest < RedisRubyTestCase
   end
 
   # MEMORY USAGE tests
+end
+
+class KeysCommandsTestPart5 < RedisRubyTestCase
+  use_testcontainers!
+
+  # EXISTS tests
   def test_memory_usage
     redis.set("test:key", "value")
 

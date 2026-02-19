@@ -15,8 +15,8 @@ class SingleConnectionOperationsTest < Minitest::Test
       @db = db
     end
 
-    def call(command, *args)
-      @connection.call(command, *args)
+    def call(command, *)
+      @connection.call(command, *)
     end
 
     def ensure_connected

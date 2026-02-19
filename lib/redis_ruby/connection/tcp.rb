@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "socket"
+require_relative "tcp_event_dispatch"
 
 module RR
   module Connection
@@ -31,6 +32,8 @@ module RR
     #   async_executor = RR::AsyncCallbackExecutor.new(pool_size: 4)
     #   conn = TCP.new(host: "localhost", port: 6379, async_callbacks: async_executor)
     class TCP
+      include TCPEventDispatch
+
       attr_reader :host, :port, :timeout
 
       DEFAULT_HOST = "localhost"
@@ -72,15 +75,15 @@ module RR
       # @param command [String] Command name
       # @param args [Array] Command arguments
       # @return [Object] Command result
-      def call(command, *args)
+      def call(command, *)
         ensure_connected
-        call_direct(command, *args)
+        call_direct(command, *)
       end
 
       # Direct call without connection check - use when caller already verified connection
       # @api private
-      def call_direct(command, *args)
-        write_command_fast(command, *args)
+      def call_direct(command, *)
+        write_command_fast(command, *)
         @decoder.decode
       end
 
@@ -129,7 +132,7 @@ module RR
               host: @host,
               port: @port,
               reason: "fork_detected",
-              timestamp: Time.now
+              timestamp: Time.now,
             })
             @socket = nil # Don't close - parent owns this socket
           end
@@ -173,109 +176,17 @@ module RR
         @socket && !@socket.closed?
       end
 
-      # Register a callback for connection lifecycle events
-      #
-      # Supports both legacy event types and new event types:
-      # - Legacy: :connected, :disconnected, :reconnected, :error
-      # - New: :connection_created, :health_check, :marked_for_reconnect
-      #
-      # @param event_type [Symbol] Event type
-      # @param callback [Proc] Callback to invoke when event occurs
-      # @return [void]
-      # @raise [ArgumentError] if event_type is invalid
-      #
-      # @example Register a callback
-      #   conn.register_callback(:connected) do |event|
-      #     puts "Connected to #{event[:host]}:#{event[:port]}"
-      #   end
-      #
-      # @example Register a health check callback
-      #   conn.register_callback(:health_check) do |event|
-      #     puts "Health check: #{event[:healthy] ? 'OK' : 'FAILED'}"
-      #   end
-      def register_callback(event_type, callback = nil, &block)
-        callback ||= block
-        raise ArgumentError, "Callback must be provided" unless callback
-
-        valid_events = [:connected, :disconnected, :reconnected, :error,
-                        :connection_created, :health_check, :marked_for_reconnect]
-        unless valid_events.include?(event_type)
-          raise ArgumentError, "Invalid event type: #{event_type}. Valid types: #{valid_events.join(', ')}"
-        end
-
-        @callbacks[event_type] << callback
-      end
-
-      # Deregister a callback for connection lifecycle events
-      #
-      # @param event_type [Symbol] Event type
-      # @param callback [Proc] Callback to remove
-      # @return [void]
-      def deregister_callback(event_type, callback)
-        @callbacks[event_type].delete(callback)
-      end
-
-      # Perform a health check on the connection
-      #
-      # @param command [String] Command to use for health check (default: "PING")
-      # @return [Boolean] true if healthy, false otherwise
-      def health_check(command: "PING")
-        return false unless connected?
-
-        start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-        healthy = false
-
-        begin
-          call(command)
-          healthy = true
-        rescue StandardError
-          healthy = false
-        ensure
-          latency = Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time
-
-          # Trigger health check event
-          trigger_event(:health_check, {
-            type: :health_check,
-            host: @host,
-            port: @port,
-            healthy: healthy,
-            latency: latency,
-            timestamp: Time.now
-          })
-        end
-
-        healthy
-      end
-
-      # Disconnect from the server
-      #
-      # @param reason [String, nil] Reason for disconnection
-      # @return [void]
-      def disconnect(reason: nil)
-        return unless connected?
-
-        trigger_event(:disconnected, {
-          type: :disconnected,
-          host: @host,
-          port: @port,
-          reason: reason,
-          timestamp: Time.now
-        })
-
-        close
-      end
-
       # Write a single command to the socket
       # Note: flush removed since TCP_NODELAY is enabled (no buffering)
       #
       # @param command [String, Array] Command (can be pre-built array)
       # @param args [Array] Command arguments
       # @return [void]
-      def write_command(command, *args)
+      def write_command(command, *)
         encoded = if command.is_a?(Array)
                     @encoder.encode_pipeline([command])
                   else
-                    @encoder.encode_command(command, *args)
+                    @encoder.encode_command(command, *)
                   end
         @socket.write(encoded)
       end
@@ -283,8 +194,8 @@ module RR
       # Fast path write - assumes command is a string (99% of calls)
       # Note: flush removed since TCP_NODELAY is enabled (no buffering)
       # @api private
-      def write_command_fast(command, *args)
-        @socket.write(@encoder.encode_command(command, *args))
+      def write_command_fast(command, *)
+        @socket.write(@encoder.encode_command(command, *))
       end
 
       # Read a response from the socket
@@ -301,160 +212,87 @@ module RR
         end
       end
 
+      # Map of event types to builder lambdas
+      EVENT_BUILDERS = {
+        connection_created: lambda { |d|
+          ConnectionCreatedEvent.new(host: d[:host], port: d[:port], timestamp: d[:timestamp])
+        },
+        connected: lambda { |d|
+          ConnectionConnectedEvent.new(host: d[:host], port: d[:port], first_connection: d[:first_connection],
+                                       timestamp: d[:timestamp])
+        },
+        reconnected: lambda { |d|
+          ConnectionConnectedEvent.new(host: d[:host], port: d[:port], first_connection: d[:first_connection],
+                                       timestamp: d[:timestamp])
+        },
+        disconnected: lambda { |d|
+          ConnectionDisconnectedEvent.new(host: d[:host], port: d[:port], reason: d[:reason], timestamp: d[:timestamp])
+        },
+        error: lambda { |d|
+          ConnectionErrorEvent.new(host: d[:host], port: d[:port], error: d[:error], timestamp: d[:timestamp])
+        },
+        health_check: lambda { |d|
+          ConnectionHealthCheckEvent.new(host: d[:host], port: d[:port], healthy: d[:healthy], latency: d[:latency],
+                                         timestamp: d[:timestamp])
+        },
+        marked_for_reconnect: lambda { |d|
+          ConnectionMarkedForReconnectEvent.new(host: d[:host], port: d[:port], reason: d[:reason],
+                                                timestamp: d[:timestamp])
+        },
+      }.freeze
+
       private
 
       # Establish socket connection
       def connect
-        # Trigger connection_created event
-        trigger_event(:connection_created, {
-          type: :connection_created,
-          host: @host,
-          port: @port,
-          timestamp: Time.now
-        })
+        trigger_event(:connection_created, { type: :connection_created, host: @host, port: @port, timestamp: Time.now })
+        establish_tcp_socket
+        @pid = Process.pid
+        trigger_connect_success
+      rescue StandardError => e
+        trigger_connect_error(e)
+      end
 
+      # Open TCP socket and initialize protocol layers
+      def establish_tcp_socket
         @socket = Socket.tcp(@host, @port, connect_timeout: @timeout)
         begin
           configure_socket
           @buffered_io = Protocol::BufferedIO.new(@socket, read_timeout: @timeout, write_timeout: @timeout)
           @decoder = Protocol::RESP3Decoder.new(@buffered_io)
         rescue StandardError
-          @socket.close rescue nil
+          begin
+            @socket.close
+          rescue StandardError
+            nil
+          end
           @socket = nil
           raise
         end
-        @pid = Process.pid # Track PID for fork safety
+      end
 
-        # Trigger appropriate callback
+      # Trigger appropriate callback on successful connection
+      def trigger_connect_success
         event_type = @ever_connected ? :reconnected : :connected
         @ever_connected = true
-
         trigger_event(event_type, {
-          type: event_type,
-          host: @host,
-          port: @port,
-          first_connection: event_type == :connected,
-          timestamp: Time.now
+          type: event_type, host: @host, port: @port,
+          first_connection: event_type == :connected, timestamp: Time.now,
         })
-      rescue Errno::ECONNREFUSED, Errno::EHOSTUNREACH, Errno::ETIMEDOUT, Errno::ENETUNREACH,
-             Socket::ResolutionError, SocketError, StandardError => e
-        error = e.is_a?(ConnectionError) ? e : ConnectionError.new("Failed to connect to #{@host}:#{@port}: #{e.message}")
+      end
 
-        trigger_event(:error, {
-          type: :error,
-          host: @host,
-          port: @port,
-          error: error,
-          timestamp: Time.now
-        })
-
+      # Trigger error callback and raise wrapped error
+      def trigger_connect_error(err)
+        error = wrap_connection_error(err)
+        trigger_event(:error, { type: :error, host: @host, port: @port, error: error, timestamp: Time.now })
         raise error
       end
 
-      # Trigger callbacks and events for a lifecycle event
-      # @api private
-      def trigger_event(event_type, event_data)
-        # Track callback execution time if instrumentation is enabled
-        start_time = @instrumentation ? Process.clock_gettime(Process::CLOCK_MONOTONIC) : nil
+      # Wrap non-ConnectionError exceptions
+      def wrap_connection_error(err)
+        return err if err.is_a?(ConnectionError)
 
-        # Trigger legacy callbacks (backward compatibility)
-        trigger_legacy_callbacks(event_type, event_data)
-
-        # Dispatch event to event dispatcher if configured
-        dispatch_event(event_type, event_data) if @event_dispatcher
-
-        # Record callback metrics
-        if @instrumentation && start_time
-          duration = Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time
-          @instrumentation.record_callback_execution(event_type.to_s, duration)
-        end
-      end
-
-      # Trigger legacy callbacks for backward compatibility
-      # @api private
-      def trigger_legacy_callbacks(event_type, event_data)
-        return if @callbacks[event_type].empty?
-
-        @callbacks[event_type].each do |callback|
-          execute_callback(callback, event_data, "#{event_type} callback")
-        end
-      end
-
-      # Execute a single callback with error handling
-      # @api private
-      def execute_callback(callback, event_data, context)
-        if @async_callbacks
-          # Execute asynchronously
-          @async_callbacks.execute(context: context) do
-            callback.call(event_data)
-          end
-        elsif @callback_error_handler
-          # Execute synchronously with error handling
-          @callback_error_handler.call(context: context) do
-            callback.call(event_data)
-          end
-        else
-          # Execute synchronously without error handling (backward compatibility)
-          callback.call(event_data)
-        end
-      end
-
-      # Dispatch event to event dispatcher
-      # @api private
-      def dispatch_event(event_type, event_data)
-        event = create_event_object(event_type, event_data)
-        return unless event
-
-        @event_dispatcher.dispatch(event)
-      end
-
-      # Create an event object from event data
-      # @api private
-      def create_event_object(event_type, event_data)
-        case event_type
-        when :connection_created
-          ConnectionCreatedEvent.new(
-            host: event_data[:host],
-            port: event_data[:port],
-            timestamp: event_data[:timestamp]
-          )
-        when :connected, :reconnected
-          ConnectionConnectedEvent.new(
-            host: event_data[:host],
-            port: event_data[:port],
-            first_connection: event_data[:first_connection],
-            timestamp: event_data[:timestamp]
-          )
-        when :disconnected
-          ConnectionDisconnectedEvent.new(
-            host: event_data[:host],
-            port: event_data[:port],
-            reason: event_data[:reason],
-            timestamp: event_data[:timestamp]
-          )
-        when :error
-          ConnectionErrorEvent.new(
-            host: event_data[:host],
-            port: event_data[:port],
-            error: event_data[:error],
-            timestamp: event_data[:timestamp]
-          )
-        when :health_check
-          ConnectionHealthCheckEvent.new(
-            host: event_data[:host],
-            port: event_data[:port],
-            healthy: event_data[:healthy],
-            latency: event_data[:latency],
-            timestamp: event_data[:timestamp]
-          )
-        when :marked_for_reconnect
-          ConnectionMarkedForReconnectEvent.new(
-            host: event_data[:host],
-            port: event_data[:port],
-            reason: event_data[:reason],
-            timestamp: event_data[:timestamp]
-          )
-        end
+        ConnectionError.new("Failed to connect to #{@host}:#{@port}: #{err.message}")
       end
 
       # Configure socket options for performance

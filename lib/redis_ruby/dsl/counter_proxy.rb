@@ -42,7 +42,7 @@ module RR
       #   counter.get()  # => 42
       def get
         val = @redis.get(@key)
-        val.nil? ? nil : val.to_i
+        val&.to_i
       end
       alias value get
       alias to_i get
@@ -68,7 +68,6 @@ module RR
       #   counter.value = 100
       def value=(val)
         @redis.set(@key, val.to_i)
-        val
       end
 
       # Increment the counter
@@ -140,7 +139,7 @@ module RR
       #   old_value = counter.getset(100)
       def getset(val)
         old_val = @redis.getset(@key, val.to_i)
-        old_val.nil? ? nil : old_val.to_i
+        old_val&.to_i
       end
 
       # Check if the key exists
@@ -150,7 +149,7 @@ module RR
       # @example
       #   counter.exists?()  # => true
       def exists?
-        @redis.exists(@key) > 0
+        @redis.exists(@key).positive?
       end
 
       # Check if the counter value is zero or doesn't exist
@@ -161,7 +160,7 @@ module RR
       #   counter.zero?()  # => false
       def zero?
         val = get
-        val.nil? || val == 0
+        val.nil? || val.zero?
       end
 
       # Delete the key
@@ -177,5 +176,3 @@ module RR
     end
   end
 end
-
-

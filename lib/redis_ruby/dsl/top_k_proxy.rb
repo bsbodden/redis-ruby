@@ -66,7 +66,7 @@ module RR
       #   dropped = topk.add("item2", "item3")  # => [nil, "old_item"]
       def add(*items)
         return [] if items.empty?
-        
+
         @redis.topk_add(@key, *items.map(&:to_s))
       end
 
@@ -94,7 +94,7 @@ module RR
       #   topk.query("item1", "item2")  # => [true, false]
       def query(*items)
         return false if items.empty?
-        
+
         result = @redis.topk_query(@key, *items.map(&:to_s)).map { |r| r == 1 }
         items.size == 1 ? result.first : result
       end
@@ -109,7 +109,7 @@ module RR
       #   topk.count("item1", "item2")  # => [15, 8]
       def count(*items)
         return 0 if items.empty?
-        
+
         result = @redis.topk_count(@key, *items.map(&:to_s))
         items.size == 1 ? result.first : result
       end
@@ -124,7 +124,7 @@ module RR
       #   topk.list(with_counts: true)  # => [["item1", 15], ["item2", 8], ...]
       def list(with_counts: false)
         result = @redis.topk_list(@key, withcount: with_counts)
-        
+
         if with_counts
           # Result is flat array: [item1, count1, item2, count2, ...]
           # Convert to nested array: [[item1, count1], [item2, count2], ...]
@@ -154,7 +154,7 @@ module RR
       # @example
       #   topk.key_exists?  # => true
       def key_exists?
-        @redis.exists(@key) > 0
+        @redis.exists(@key).positive?
       end
 
       # Delete the Top-K
@@ -169,8 +169,6 @@ module RR
 
       # Alias for delete
       alias clear delete
-
     end
   end
 end
-

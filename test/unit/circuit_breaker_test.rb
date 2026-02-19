@@ -14,27 +14,30 @@ module RR
 
     def test_initial_state_is_closed
       assert_equal :closed, @circuit_breaker.state
-      assert @circuit_breaker.closed?
-      refute @circuit_breaker.open?
-      refute @circuit_breaker.half_open?
+      assert_predicate @circuit_breaker, :closed?
+      refute_predicate @circuit_breaker, :open?
+      refute_predicate @circuit_breaker, :half_open?
     end
 
     def test_circuit_opens_after_threshold_failures
       3.times { @circuit_breaker.send(:record_failure) }
+
       assert_equal :open, @circuit_breaker.state
-      assert @circuit_breaker.open?
-      refute @circuit_breaker.closed?
+      assert_predicate @circuit_breaker, :open?
+      refute_predicate @circuit_breaker, :closed?
     end
 
     def test_circuit_stays_closed_below_threshold
       2.times { @circuit_breaker.send(:record_failure) }
+
       assert_equal :closed, @circuit_breaker.state
-      assert @circuit_breaker.closed?
+      assert_predicate @circuit_breaker, :closed?
     end
 
     def test_circuit_resets_on_success
       2.times { @circuit_breaker.send(:record_failure) }
       @circuit_breaker.send(:record_success)
+
       assert_equal :closed, @circuit_breaker.state
       assert_equal 0, @circuit_breaker.failure_count
     end
@@ -51,15 +54,21 @@ module RR
 
     def test_circuit_transitions_to_half_open_after_timeout
       3.times { @circuit_breaker.send(:record_failure) }
+
       assert_equal :open, @circuit_breaker.state
 
       # Wait for reset timeout
       sleep 0.6
 
       # Next call should transition to half-open
-      @circuit_breaker.call { "test" } rescue nil
+      begin
+        @circuit_breaker.call { "test" }
+      rescue StandardError
+        nil
+      end
+
       assert_equal :half_open, @circuit_breaker.state
-      assert @circuit_breaker.half_open?
+      assert_predicate @circuit_breaker, :half_open?
     end
 
     def test_half_open_circuit_closes_after_success_threshold
@@ -68,11 +77,15 @@ module RR
       sleep 0.6
 
       # Transition to half-open and record successes
-      @circuit_breaker.call { "test" } rescue nil
+      begin
+        @circuit_breaker.call { "test" }
+      rescue StandardError
+        nil
+      end
       2.times { @circuit_breaker.send(:record_success) }
 
       assert_equal :closed, @circuit_breaker.state
-      assert @circuit_breaker.closed?
+      assert_predicate @circuit_breaker, :closed?
     end
 
     def test_half_open_circuit_reopens_on_failure
@@ -81,22 +94,28 @@ module RR
       sleep 0.6
 
       # Transition to half-open
-      @circuit_breaker.call { "test" } rescue nil
+      begin
+        @circuit_breaker.call { "test" }
+      rescue StandardError
+        nil
+      end
 
       # Record a failure
       @circuit_breaker.send(:record_failure)
 
       assert_equal :open, @circuit_breaker.state
-      assert @circuit_breaker.open?
+      assert_predicate @circuit_breaker, :open?
     end
 
     def test_call_executes_block_when_closed
       result = @circuit_breaker.call { "success" }
+
       assert_equal "success", result
     end
 
     def test_call_records_success_automatically
       @circuit_breaker.call { "success" }
+
       assert_equal 0, @circuit_breaker.failure_count
     end
 
@@ -104,31 +123,30 @@ module RR
       assert_raises(RuntimeError) do
         @circuit_breaker.call { raise "error" }
       end
-      
+
       assert_equal 1, @circuit_breaker.failure_count
     end
 
     def test_thread_safety
-      threads = 10.times.map do
+      threads = Array.new(10) do
         Thread.new do
           100.times do
-            begin
-              @circuit_breaker.call { rand > 0.5 ? "success" : raise("error") }
-            rescue
-              # Ignore errors
-            end
+            @circuit_breaker.call { rand > 0.5 ? "success" : raise("error") }
+          rescue StandardError
+            # Ignore errors
           end
         end
       end
-      
+
       threads.each(&:join)
-      
+
       # Should be in a valid state
-      assert [:closed, :open, :half_open].include?(@circuit_breaker.state)
+      assert_includes %i[closed open half_open], @circuit_breaker.state
     end
 
     def test_reset_returns_to_closed_state
       3.times { @circuit_breaker.send(:record_failure) }
+
       assert_equal :open, @circuit_breaker.state
 
       @circuit_breaker.reset!
@@ -136,16 +154,16 @@ module RR
       assert_equal :closed, @circuit_breaker.state
       assert_equal 0, @circuit_breaker.failure_count
       assert_equal 0, @circuit_breaker.success_count
-      assert @circuit_breaker.closed?
+      assert_predicate @circuit_breaker, :closed?
     end
 
     def test_trip_manually_opens_circuit
-      assert @circuit_breaker.closed?
+      assert_predicate @circuit_breaker, :closed?
 
       @circuit_breaker.trip!
 
       assert_equal :open, @circuit_breaker.state
-      assert @circuit_breaker.open?
+      assert_predicate @circuit_breaker, :open?
 
       # Should reject calls
       assert_raises(RR::CircuitBreakerOpenError) do
@@ -155,29 +173,35 @@ module RR
 
     def test_state_query_methods
       # Initially closed
-      assert @circuit_breaker.closed?
-      refute @circuit_breaker.open?
-      refute @circuit_breaker.half_open?
+      assert_predicate @circuit_breaker, :closed?
+      refute_predicate @circuit_breaker, :open?
+      refute_predicate @circuit_breaker, :half_open?
 
       # Open circuit
       @circuit_breaker.trip!
-      refute @circuit_breaker.closed?
-      assert @circuit_breaker.open?
-      refute @circuit_breaker.half_open?
+
+      refute_predicate @circuit_breaker, :closed?
+      assert_predicate @circuit_breaker, :open?
+      refute_predicate @circuit_breaker, :half_open?
 
       # Wait for reset timeout and transition to half-open
       sleep 0.6
-      @circuit_breaker.call { "test" } rescue nil
-      refute @circuit_breaker.closed?
-      refute @circuit_breaker.open?
-      assert @circuit_breaker.half_open?
+      begin
+        @circuit_breaker.call { "test" }
+      rescue StandardError
+        nil
+      end
+
+      refute_predicate @circuit_breaker, :closed?
+      refute_predicate @circuit_breaker, :open?
+      assert_predicate @circuit_breaker, :half_open?
     end
 
     def test_state_change_callback_runs_synchronously
       results = []
       breaker = RR::CircuitBreaker.new(
         failure_threshold: 3,
-        on_state_change: ->(_old_state, new_state, _metrics) {
+        on_state_change: lambda { |_old_state, new_state, _metrics|
           results << new_state
         }
       )
@@ -187,7 +211,8 @@ module RR
       assert_equal [:open], results, "on_state_change callback should run synchronously"
 
       breaker.reset!
-      assert_equal [:open, :closed], results, "on_state_change callback should run synchronously"
+
+      assert_equal %i[open closed], results, "on_state_change callback should run synchronously"
     end
 
     def test_state_change_callback_can_query_circuit_state
@@ -195,14 +220,14 @@ module RR
       observed_state = nil
       breaker = RR::CircuitBreaker.new(
         failure_threshold: 3,
-        on_state_change: ->(_old_state, _new_state, _metrics) {
+        on_state_change: lambda { |_old_state, _new_state, _metrics|
           observed_state = breaker.open?
         }
       )
 
       breaker.trip!
+
       assert observed_state, "Callback should observe open? == true without deadlock"
     end
   end
 end
-

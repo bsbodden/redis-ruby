@@ -206,6 +206,10 @@ class HashesCommandsTest < RedisRubyTestCase
   ensure
     redis.del("test:hash")
   end
+end
+
+class HashesCommandsTestPart2 < RedisRubyTestCase
+  use_testcontainers!
 
   def test_hscan_returns_field_value_pairs
     redis.hset("test:hash", "f1", "v1", "f2", "v2")
@@ -325,6 +329,10 @@ class HashesCommandsTest < RedisRubyTestCase
   ensure
     redis.del("test:hash")
   end
+end
+
+class HashesCommandsTestPart2 < RedisRubyTestCase
+  use_testcontainers!
 
   # ============================================================
   # Hash Field Expiration Tests (Redis 7.4+)
@@ -516,6 +524,14 @@ class HashesCommandsTest < RedisRubyTestCase
   ensure
     redis.del("test:hash")
   end
+end
+
+class HashesCommandsTestPart2Part2 < RedisRubyTestCase
+  use_testcontainers!
+
+  # ============================================================
+  # Hash Field Expiration Tests (Redis 7.4+)
+  # ============================================================
 
   def test_httl_nonexistent_field
     redis.hset("test:hash", "field1", "value1")

@@ -84,16 +84,14 @@ module RR
     #
     # @return [Array<String>] Array of IP addresses
     def resolve_all
-      begin
-        dns = Resolv::DNS.new
-        addresses = dns.getaddresses(@hostname)
-        addresses.map(&:to_s)
-      rescue Resolv::ResolvError, Resolv::ResolvTimeout
-        # DNS resolution failed, return empty array
-        []
-      ensure
-        dns&.close
-      end
+      dns = Resolv::DNS.new
+      addresses = dns.getaddresses(@hostname)
+      addresses.map(&:to_s)
+    rescue Resolv::ResolvError, Resolv::ResolvTimeout
+      # DNS resolution failed, return empty array
+      []
+    ensure
+      dns&.close
     end
 
     # Refresh the cached IP addresses by re-resolving the hostname
@@ -118,4 +116,3 @@ module RR
   # Error raised when DNS resolution fails
   class DNSResolutionError < Error; end
 end
-

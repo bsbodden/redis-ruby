@@ -70,7 +70,7 @@ module RR
                    failure_rate_threshold: DEFAULT_FAILURE_RATE_THRESHOLD)
       raise ArgumentError, "window_size must be positive" unless window_size.positive?
       raise ArgumentError, "min_failures must be positive" unless min_failures.positive?
-      unless failure_rate_threshold >= 0.0 && failure_rate_threshold <= 1.0
+      unless failure_rate_threshold.between?(0.0, 1.0)
         raise ArgumentError, "failure_rate_threshold must be between 0.0 and 1.0"
       end
 
@@ -171,7 +171,7 @@ module RR
           failure_rate: total.zero? ? 0.0 : failures.to_f / total,
           window_size: @window_size,
           min_failures: @min_failures,
-          failure_rate_threshold: @failure_rate_threshold
+          failure_rate_threshold: @failure_rate_threshold,
         }
       end
     end
@@ -222,5 +222,3 @@ module RR
     end
   end
 end
-
-

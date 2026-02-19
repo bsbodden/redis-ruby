@@ -76,7 +76,9 @@ class ConnectionPoolTest < Minitest::Test
     Socket.expects(:tcp).once.returns(@mock_socket)
 
     pool = RR::Connection::Pool.new(host: "localhost", port: 6379, size: 5)
-    pool.with { |_conn| }
+    pool.with do |_conn|
+      # Intentionally empty; verifying connection creation
+    end
   end
 
   def test_pool_checkout_returns_connection
@@ -96,7 +98,9 @@ class ConnectionPoolTest < Minitest::Test
     pool = RR::Connection::Pool.new(host: "localhost", port: 6379, size: 2)
 
     # Create connections by checking them out
-    pool.with { |_| }
+    pool.with do |_conn|
+      # Intentionally empty; just triggering connection creation
+    end
 
     @mock_socket.expects(:close).at_least_once
 

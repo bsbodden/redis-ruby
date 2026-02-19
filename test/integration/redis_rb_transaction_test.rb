@@ -145,12 +145,13 @@ class RedisRbTransactionTest < Minitest::Test
         m.set("foo", "s1")
         @counter = m.incr("foo") # not an integer
       end
-    rescue Exception
-      # Not gonna deal with it
+    rescue StandardError
+      # Expected error from INCR on string value
     end
     begin
       @counter.value
     rescue StandardError => e
+      # Capture the error to assert on it below
     end
 
     assert_kind_of RuntimeError, e
@@ -209,6 +210,21 @@ class RedisRbTransactionTest < Minitest::Test
     assert_nil res
     assert_equal "s1", r.get("foo")
   end
+end
+
+class RedisRbTransactionTestPart2 < Minitest::Test
+  def setup
+    @redis = Redis.new(url: ENV["REDIS_URL"] || "redis://localhost:6379")
+    @redis.flushdb
+  end
+
+  def teardown
+    @redis&.flushdb
+  end
+
+  def r
+    @redis
+  end
 
   def test_watch_with_a_block_and_an_unmodified_key
     result = r.watch "foo" do |rd|
@@ -245,6 +261,7 @@ class RedisRbTransactionTest < Minitest::Test
         raise "test"
       end
     rescue RuntimeError
+      # Expected: testing that watch is released after exception
     end
 
     r.set("foo", "s2")

@@ -9,13 +9,11 @@ class GeoDSLTest < Minitest::Test
   end
 
   def teardown
-    @redis.del(@key) if @redis
+    @redis&.del(@key)
     @redis&.close
   end
 
-  def redis
-    @redis
-  end
+  attr_reader :redis
 
   # ============================================================
   # Entry Point Tests
@@ -23,66 +21,67 @@ class GeoDSLTest < Minitest::Test
 
   def test_geo_creates_proxy
     geo = redis.geo(@key)
-    
+
     assert_instance_of RR::DSL::GeoProxy, geo
     assert_equal @key, geo.key
   end
 
   def test_geo_with_composite_key
     geo = redis.geo(:stores, :sf, :locations)
-    
+
     assert_equal "stores:sf:locations", geo.key
   end
-
   # ============================================================
   # Add Operations Tests
   # ============================================================
 
   def test_add_single_location
     geo = redis.geo(@key)
-    
+
     result = geo.add(:store1, -122.4194, 37.7749)
-    
+
     assert_same geo, result
     pos = geo.position(:store1)
+
     assert_in_delta(-122.4194, pos[0], 0.001)
     assert_in_delta(37.7749, pos[1], 0.001)
   end
 
   def test_add_multiple_locations_with_hash
     geo = redis.geo(@key)
-    
+
     geo.add(
       store1: [-122.4194, 37.7749],
       store2: [-118.2437, 34.0522],
       store3: [-87.6298, 41.8781]
     )
-    
+
     assert_equal 3, geo.count
     pos1 = geo.position(:store1)
+
     assert_in_delta(-122.4194, pos1[0], 0.001)
     pos2 = geo.position(:store2)
+
     assert_in_delta(-118.2437, pos2[0], 0.001)
   end
 
   def test_add_chainable
     geo = redis.geo(@key)
-    
+
     geo.add(:store1, -122.4194, 37.7749)
-       .add(:store2, -118.2437, 34.0522)
-       .add(store3: [-87.6298, 41.8781])
-    
+      .add(:store2, -118.2437, 34.0522)
+      .add(store3: [-87.6298, 41.8781])
+
     assert_equal 3, geo.count
   end
 
   def test_add_invalid_arguments
     geo = redis.geo(@key)
-    
+
     assert_raises(ArgumentError) do
       geo.add(:store1)
     end
   end
-
   # ============================================================
   # Position Query Tests
   # ============================================================
@@ -90,9 +89,9 @@ class GeoDSLTest < Minitest::Test
   def test_position_returns_coordinates
     geo = redis.geo(@key)
     geo.add(:sf, -122.4194, 37.7749)
-    
+
     pos = geo.position(:sf)
-    
+
     assert_instance_of Array, pos
     assert_equal 2, pos.size
     assert_in_delta(-122.4194, pos[0], 0.001)
@@ -101,12 +100,11 @@ class GeoDSLTest < Minitest::Test
 
   def test_position_returns_nil_for_missing_member
     geo = redis.geo(@key)
-    
+
     pos = geo.position(:nonexistent)
-    
+
     assert_nil pos
   end
-
   # ============================================================
   # Distance Tests
   # ============================================================
@@ -114,46 +112,46 @@ class GeoDSLTest < Minitest::Test
   def test_distance_in_meters
     geo = redis.geo(@key)
     geo.add(sf: [-122.4194, 37.7749], la: [-118.2437, 34.0522])
-    
+
     dist = geo.distance(:sf, :la, unit: :m)
-    
+
     assert_instance_of Float, dist
-    assert_in_delta 559_118, dist, 1000  # ~559km in meters
+    assert_in_delta 559_118, dist, 1000 # ~559km in meters
   end
 
   def test_distance_in_kilometers
     geo = redis.geo(@key)
     geo.add(sf: [-122.4194, 37.7749], la: [-118.2437, 34.0522])
-    
+
     dist = geo.distance(:sf, :la, unit: :km)
-    
+
     assert_in_delta 559.1, dist, 1.0
   end
 
   def test_distance_in_miles
     geo = redis.geo(@key)
     geo.add(sf: [-122.4194, 37.7749], la: [-118.2437, 34.0522])
-    
+
     dist = geo.distance(:sf, :la, unit: :mi)
-    
+
     assert_in_delta 347.4, dist, 1.0
   end
 
   def test_distance_in_feet
     geo = redis.geo(@key)
     geo.add(sf: [-122.4194, 37.7749], la: [-118.2437, 34.0522])
-    
+
     dist = geo.distance(:sf, :la, unit: :ft)
-    
+
     assert_in_delta 1_834_652, dist, 5000
   end
 
   def test_distance_default_unit_meters
     geo = redis.geo(@key)
     geo.add(sf: [-122.4194, 37.7749], la: [-118.2437, 34.0522])
-    
+
     dist = geo.distance(:sf, :la)
-    
+
     assert_in_delta 559_118, dist, 1000
   end
 
@@ -165,6 +163,24 @@ class GeoDSLTest < Minitest::Test
 
     assert_nil dist
   end
+end
+
+class GeoDSLTestPart2 < Minitest::Test
+  def setup
+    @redis = RR.new(url: ENV.fetch("REDIS_URL", "redis://localhost:6379"))
+    @key = "test:geo:#{SecureRandom.hex(8)}"
+  end
+
+  def teardown
+    @redis&.del(@key)
+    @redis&.close
+  end
+
+  attr_reader :redis
+
+  # ============================================================
+  # Entry Point Tests
+  # ============================================================
 
   # ============================================================
   # Radius Search Tests
@@ -192,7 +208,7 @@ class GeoDSLTest < Minitest::Test
     nearby = geo.radius(-122.42, 37.78, 5, unit: :km, withcoord: true)
 
     assert_instance_of Array, nearby
-    assert nearby.size > 0
+    assert_predicate nearby.size, :positive?
     # Each result should be [member, [lon, lat]]
     assert_instance_of Array, nearby[0]
     assert_instance_of Array, nearby[0][1]
@@ -205,7 +221,7 @@ class GeoDSLTest < Minitest::Test
     nearby = geo.radius(-122.42, 37.78, 5, unit: :km, withdist: true)
 
     assert_instance_of Array, nearby
-    assert nearby.size > 0
+    assert_predicate nearby.size, :positive?
     # Each result should be [member, distance]
     assert_instance_of Array, nearby[0]
     assert_instance_of String, nearby[0][1]
@@ -251,7 +267,6 @@ class GeoDSLTest < Minitest::Test
     # First result should be farthest
     assert_equal "far", nearby[0][0]
   end
-
   # ============================================================
   # Radius by Member Tests
   # ============================================================
@@ -261,7 +276,7 @@ class GeoDSLTest < Minitest::Test
     geo.add(
       store1: [-122.4194, 37.7749],
       store2: [-122.4094, 37.7849],
-      store3: [-87.6298, 41.8781]  # Chicago - far away
+      store3: [-87.6298, 41.8781] # Chicago - far away
     )
 
     nearby = geo.radius_by_member(:store1, 50, unit: :km)
@@ -278,7 +293,7 @@ class GeoDSLTest < Minitest::Test
     nearby = geo.radius_by_member(:store1, 50, unit: :km, withdist: true)
 
     assert_instance_of Array, nearby
-    assert nearby.size > 0
+    assert_predicate nearby.size, :positive?
     # Each result should be [member, distance]
     assert_instance_of Array, nearby[0]
   end
@@ -295,7 +310,6 @@ class GeoDSLTest < Minitest::Test
 
     assert_equal 2, nearby.size
   end
-
   # ============================================================
   # Hash Tests
   # ============================================================
@@ -307,7 +321,7 @@ class GeoDSLTest < Minitest::Test
     geohash = geo.hash(:sf)
 
     assert_instance_of String, geohash
-    assert geohash.length > 0
+    assert_predicate geohash.length, :positive?
   end
 
   def test_hash_multiple_members
@@ -340,6 +354,24 @@ class GeoDSLTest < Minitest::Test
 
     assert_nil result
   end
+end
+
+class GeoDSLTestPart3 < Minitest::Test
+  def setup
+    @redis = RR.new(url: ENV.fetch("REDIS_URL", "redis://localhost:6379"))
+    @key = "test:geo:#{SecureRandom.hex(8)}"
+  end
+
+  def teardown
+    @redis&.del(@key)
+    @redis&.close
+  end
+
+  attr_reader :redis
+
+  # ============================================================
+  # Entry Point Tests
+  # ============================================================
 
   # ============================================================
   # Removal Tests
@@ -380,7 +412,6 @@ class GeoDSLTest < Minitest::Test
 
     assert_equal 2, geo.count
   end
-
   # ============================================================
   # Existence Tests
   # ============================================================
@@ -397,30 +428,29 @@ class GeoDSLTest < Minitest::Test
     geo = redis.geo(@key)
     geo.add(:store1, -122.4194, 37.7749)
 
-    assert geo.include?(:store1)
-    refute geo.include?(:nonexistent)
+    assert_includes geo, :store1
+    refute_includes geo, :nonexistent
   end
 
   def test_exists_predicate
     geo = redis.geo(@key)
 
-    refute geo.exists?
+    refute_predicate geo, :exists?
 
     geo.add(:store1, -122.4194, 37.7749)
 
-    assert geo.exists?
+    assert_predicate geo, :exists?
   end
 
   def test_empty_predicate
     geo = redis.geo(@key)
 
-    assert geo.empty?
+    assert_empty geo
 
     geo.add(:store1, -122.4194, 37.7749)
 
-    refute geo.empty?
+    refute_empty geo
   end
-
   # ============================================================
   # Count Tests
   # ============================================================
@@ -448,7 +478,6 @@ class GeoDSLTest < Minitest::Test
 
     assert_equal 2, geo.length
   end
-
   # ============================================================
   # Iteration Tests
   # ============================================================
@@ -458,7 +487,7 @@ class GeoDSLTest < Minitest::Test
     geo.add(store1: [-122.4194, 37.7749], store2: [-118.2437, 34.0522])
 
     members = []
-    result = geo.each { |member, lon, lat| members << member }
+    result = geo.each { |member, _lon, _lat| members << member }
 
     assert_same geo, result
     assert_equal 2, members.size
@@ -495,6 +524,24 @@ class GeoDSLTest < Minitest::Test
 
     assert_instance_of Enumerator, enum
   end
+end
+
+class GeoDSLTestPart4 < Minitest::Test
+  def setup
+    @redis = RR.new(url: ENV.fetch("REDIS_URL", "redis://localhost:6379"))
+    @key = "test:geo:#{SecureRandom.hex(8)}"
+  end
+
+  def teardown
+    @redis&.del(@key)
+    @redis&.close
+  end
+
+  attr_reader :redis
+
+  # ============================================================
+  # Entry Point Tests
+  # ============================================================
 
   # ============================================================
   # Conversion Tests
@@ -531,9 +578,8 @@ class GeoDSLTest < Minitest::Test
 
     hash = geo.to_h
 
-    assert_equal({}, hash)
+    assert_empty(hash)
   end
-
   # ============================================================
   # Clear Tests
   # ============================================================
@@ -557,7 +603,6 @@ class GeoDSLTest < Minitest::Test
     assert_equal 1, result
     assert_equal 0, geo.count
   end
-
   # ============================================================
   # Expiration Tests
   # ============================================================
@@ -569,7 +614,7 @@ class GeoDSLTest < Minitest::Test
     result = geo.expire(60)
 
     assert_same geo, result
-    assert geo.ttl > 0
+    assert_predicate geo.ttl, :positive?
   end
 
   def test_expire_at
@@ -579,7 +624,7 @@ class GeoDSLTest < Minitest::Test
     result = geo.expire_at(Time.now + 60)
 
     assert_same geo, result
-    assert geo.ttl > 0
+    assert_predicate geo.ttl, :positive?
   end
 
   def test_ttl
@@ -590,8 +635,8 @@ class GeoDSLTest < Minitest::Test
 
     geo.expire(60)
 
-    assert geo.ttl > 0
-    assert geo.ttl <= 60
+    assert_predicate geo.ttl, :positive?
+    assert_operator geo.ttl, :<=, 60
   end
 
   def test_persist
@@ -604,7 +649,6 @@ class GeoDSLTest < Minitest::Test
     assert_same geo, result
     assert_equal(-1, geo.ttl)
   end
-
   # ============================================================
   # Integration Tests
   # ============================================================
@@ -623,7 +667,7 @@ class GeoDSLTest < Minitest::Test
     user_location = [-122.42, 37.78]
     nearby = stores.radius(user_location[0], user_location[1], 5, unit: :km, withdist: true, sort: :asc)
 
-    assert nearby.size > 0
+    assert_predicate nearby.size, :positive?
     # Closest should be first
     assert_equal "downtown", nearby[0][0]
   end
@@ -650,7 +694,7 @@ class GeoDSLTest < Minitest::Test
     drivers = redis.geo(:drivers, :active)
 
     # Add driver locations
-    drivers.add(driver_123: [-122.4194, 37.7749], driver_456: [-122.4094, 37.7849])
+    drivers.add(driver123: [-122.4194, 37.7749], driver456: [-122.4094, 37.7849])
 
     # Find nearest driver
     pickup = [-122.420, 37.780]
@@ -664,12 +708,11 @@ class GeoDSLTest < Minitest::Test
     geo = redis.geo(@key)
 
     geo.add(:store1, -122.4194, 37.7749)
-       .add(store2: [-118.2437, 34.0522])
-       .remove(:store1)
-       .expire(3600)
+      .add(store2: [-118.2437, 34.0522])
+      .remove(:store1)
+      .expire(3600)
 
     assert_equal 1, geo.count
-    assert geo.ttl > 0
+    assert_predicate geo.ttl, :positive?
   end
 end
-

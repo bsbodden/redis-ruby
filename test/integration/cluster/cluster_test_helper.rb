@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 require "test_helper"
+require_relative "cluster_docker_support"
+require_relative "cluster_readiness"
 
 # Redis Cluster TestContainers support
 #
@@ -17,57 +19,8 @@ module ClusterTestContainerSupport
   REPLICA_PORTS = [17_003, 17_004, 17_005].freeze
   COMPOSE_FILE = File.expand_path("../../../docker/docker-compose.cluster.yml", __dir__)
 
-  # Detect whether we're running inside a Docker container
-  def self.inside_docker?
-    @inside_docker ||= begin
-      File.exist?("/.dockerenv") || File.read("/proc/1/cgroup").include?("docker")
-    rescue StandardError
-      false
-    end
-  end
-
-  # Connect to the cluster network if running inside Docker
-  def self.connect_to_network!
-    return unless inside_docker?
-
-    container_id = begin
-      File.read("/etc/hostname").strip
-    rescue StandardError
-      nil
-    end
-    return unless container_id
-
-    # Connect to the cluster network
-    system("docker network connect docker_default #{container_id} 2>/dev/null")
-  end
-
-  # Detect the Docker host
-  # With host networking, cluster nodes bind to host interfaces
-  def self.docker_host
-    if inside_docker? && @compose_started
-      # With host networking, use the Docker host gateway IP
-      # This is the IP that host-networked containers use
-      gateway = `ip route | grep default | awk '{print $3}'`.strip
-      gateway.empty? ? "host.docker.internal" : gateway
-    elsif system("getent hosts host.docker.internal >/dev/null 2>&1")
-      "host.docker.internal"
-    else
-      "localhost"
-    end
-  rescue StandardError
-    "localhost"
-  end
-
-  # Get host translation map for cluster client
-  # Maps 127.0.0.1 (announced by cluster) to actual reachable host
-  def self.host_translation
-    return nil unless inside_docker? && @compose_started
-
-    target = docker_host
-    return nil if ["127.0.0.1", "localhost"].include?(target)
-
-    { "127.0.0.1" => target }
-  end
+  extend ClusterDockerSupport
+  extend ClusterReadiness
 
   class << self
     attr_reader :container, :nodes, :network
@@ -92,13 +45,7 @@ module ClusterTestContainerSupport
       return unless @started
 
       puts "Stopping Redis Cluster..."
-
-      if @compose_started
-        stop_compose
-      else
-        cleanup
-      end
-
+      @compose_started ? stop_compose : cleanup
       @started = false
     end
 
@@ -128,33 +75,24 @@ module ClusterTestContainerSupport
     private
 
     def use_docker_compose?
-      # Prefer Docker Compose if available and not in CI
       File.exist?(COMPOSE_FILE) && !ENV["CI"]
     end
 
     def start_with_compose!
       puts "Starting Redis Cluster with Docker Compose..."
-
-      # Start the cluster
       result = system("docker-compose -f #{COMPOSE_FILE} up -d 2>&1")
       raise "Docker Compose failed" unless result
 
-      # Set compose_started early for network detection
       @compose_started = true
-
-      # Connect to network if inside Docker
       connect_to_network! if inside_docker?
-
-      # Wait for cluster to be healthy
       wait_for_compose_cluster
-
-      # Build node list
-      cluster_ip = docker_host
-      @nodes = CLUSTER_PORTS.map do |port|
-        { host: cluster_ip, port: port }
-      end
-
+      build_compose_node_list
       puts "Redis Cluster started with Docker Compose"
+    end
+
+    def build_compose_node_list
+      cluster_ip = docker_host
+      @nodes = CLUSTER_PORTS.map { |port| { host: cluster_ip, port: port } }
     end
 
     def stop_compose
@@ -166,56 +104,36 @@ module ClusterTestContainerSupport
       host = docker_host
       port = CLUSTER_PORTS.first
       puts "Waiting for cluster to be ready (host: #{host}:#{port})..."
-      start_time = Time.now
-
-      loop do
-        raise "Timeout waiting for Redis Cluster" if Time.now - start_time > timeout
-
-        begin
-          conn = RR::Connection::TCP.new(
-            host: host,
-            port: port,
-            timeout: 5.0
-          )
-          result = conn.call("CLUSTER", "INFO")
-          conn.close
-
-          if result.include?("cluster_state:ok")
-            puts "Cluster is ready!"
-            return
-          end
-        rescue StandardError => e
-          puts "Waiting... (#{e.class})"
-        end
-
-        sleep 2
-      end
+      wait_for_cluster_state_ok(host, port, timeout: timeout)
     end
 
     def start_with_testcontainers!
       puts "Starting Redis Cluster with TestContainers..."
+      create_docker_network
+      create_and_start_container
+      wait_for_cluster_ready
+      build_testcontainer_node_list
+    end
 
-      # Create a Docker network for cluster communication
+    def create_docker_network
       require "docker"
       @network_name = "redis_cluster_test_#{Process.pid}"
       @network = Docker::Network.create(@network_name)
+    end
 
-      # Start the cluster container with network
+    def create_and_start_container
       @container = Testcontainers::DockerContainer.new(CLUSTER_IMAGE)
       CLUSTER_PORTS.each { |port| @container.with_fixed_exposed_port(port, port) }
       @container.with_env("IP", "0.0.0.0")
       @container.with_env("INITIAL_PORT", "7000")
       @container.start
-
-      # Connect container to network
       @network.connect(@container._id)
+    end
 
-      wait_for_cluster_ready
-
+    def build_testcontainer_node_list
       @nodes = CLUSTER_PORTS.map do |port|
         { host: @container.host, port: port, internal_port: port }
       end
-
       puts "Redis Cluster started: #{@nodes.map { |n| "#{n[:host]}:#{n[:port]}" }.join(", ")}"
     end
 
@@ -237,30 +155,7 @@ module ClusterTestContainerSupport
 
     def wait_for_cluster_ready(timeout: 90)
       puts "Waiting for cluster to be ready..."
-      start_time = Time.now
-
-      loop do
-        raise "Timeout waiting for Redis Cluster" if Time.now - start_time > timeout
-
-        begin
-          conn = RR::Connection::TCP.new(
-            host: @container.host,
-            port: 7000,
-            timeout: 5.0
-          )
-          result = conn.call("CLUSTER", "INFO")
-          conn.close
-
-          if result.include?("cluster_state:ok")
-            puts "Cluster is ready!"
-            return
-          end
-        rescue StandardError => e
-          puts "Waiting... (#{e.class}: #{e.message})"
-        end
-
-        sleep 2
-      end
+      wait_for_cluster_state_ok(@container.host, 7000, timeout: timeout)
     end
   end
 end
@@ -279,37 +174,11 @@ class ClusterTestCase < Minitest::Test
 
   def setup
     skip_cluster_tests unless cluster_available?
-
-    if ENV["REDIS_CLUSTER_URL"]
-      @cluster_nodes = ENV["REDIS_CLUSTER_URL"].split(",")
-    elsif self.class.use_cluster_testcontainers?
-      begin
-        ClusterTestContainerSupport.start!
-        @cluster_nodes = ClusterTestContainerSupport.seed_nodes
-
-        # When running inside Docker, cluster nodes announce 127.0.0.1 which isn't
-        # accessible. We need to skip unless running in the same network context.
-        if ClusterTestContainerSupport.inside_docker?
-          # Try a simple connectivity test
-          verify_cluster_connectivity!
-        end
-      rescue StandardError => e
-        skip "Failed to start Cluster: #{e.message}"
-      end
-    else
-      skip "REDIS_CLUSTER_URL not set and TestContainers not enabled"
-    end
-
-    host_translation = ClusterTestContainerSupport.host_translation
-    @cluster = RR::ClusterClient.new(
-      nodes: @cluster_nodes,
-      host_translation: host_translation
-    )
+    resolve_cluster_nodes
+    initialize_cluster_client
   end
 
   def verify_cluster_connectivity!
-    # Try to connect and execute a simple command
-    # This will fail if the cluster announces addresses we can't reach
     host_translation = ClusterTestContainerSupport.host_translation
     client = RR::ClusterClient.new(
       nodes: @cluster_nodes,
@@ -330,6 +199,32 @@ class ClusterTestCase < Minitest::Test
   attr_reader :cluster, :cluster_nodes
 
   private
+
+  def resolve_cluster_nodes
+    if ENV["REDIS_CLUSTER_URL"]
+      @cluster_nodes = ENV["REDIS_CLUSTER_URL"].split(",")
+    elsif self.class.use_cluster_testcontainers?
+      start_cluster_testcontainers
+    else
+      skip "REDIS_CLUSTER_URL not set and TestContainers not enabled"
+    end
+  end
+
+  def start_cluster_testcontainers
+    ClusterTestContainerSupport.start!
+    @cluster_nodes = ClusterTestContainerSupport.seed_nodes
+    verify_cluster_connectivity! if ClusterTestContainerSupport.inside_docker?
+  rescue StandardError => e
+    skip "Failed to start Cluster: #{e.message}"
+  end
+
+  def initialize_cluster_client
+    host_translation = ClusterTestContainerSupport.host_translation
+    @cluster = RR::ClusterClient.new(
+      nodes: @cluster_nodes,
+      host_translation: host_translation
+    )
+  end
 
   def cluster_available?
     return true if ENV["REDIS_CLUSTER_URL"]

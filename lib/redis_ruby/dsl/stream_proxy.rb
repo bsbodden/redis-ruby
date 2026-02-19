@@ -46,7 +46,8 @@ module RR
       #
       # @example With hash and options
       #   stream.add({temp: 23.5}, entry_id: "1000-0", maxlen: 1000)
-      def add(fields = nil, entry_id: "*", maxlen: nil, minid: nil, approximate: false, nomkstream: false, limit: nil, **kwargs)
+      def add(fields = nil, entry_id: "*", maxlen: nil, minid: nil, approximate: false, nomkstream: false, limit: nil,
+              **kwargs)
         # If fields is nil, use kwargs as fields
         fields = kwargs if fields.nil?
 
@@ -142,10 +143,7 @@ module RR
       # Get the stream key
       #
       # @return [String] Stream key
-      def key
-        @key
-      end
+      attr_reader :key
     end
   end
 end
-

@@ -5,21 +5,22 @@ require_relative "../unit_test_helper"
 # Branch-coverage unit tests for RR::Commands::Search
 # Uses a lightweight MockClient that includes the module directly
 # and records every command sent through call / call_Nargs.
-class SearchBranchTest < Minitest::Test
-  # ------------------------------------------------------------------ mock --
+module SearchBranchTestMocks
   class MockClient
     include RR::Commands::Search
 
     attr_reader :last_command
 
-    def call(*args)       = (@last_command = args)
-    def call_1arg(cmd, a) = (@last_command = [cmd, a])
-    def call_2args(cmd, a, b)       = (@last_command = [cmd, a, b])
-    def call_3args(cmd, a, b, c)    = (@last_command = [cmd, a, b, c])
+    def call(*args) = (@last_command = args)
+    def call_1arg(cmd, arg_one) = (@last_command = [cmd, arg_one])
+    def call_2args(cmd, arg_one, arg_two) = (@last_command = [cmd, arg_one, arg_two])
+    def call_3args(cmd, arg_one, arg_two, arg_three) = (@last_command = [cmd, arg_one, arg_two, arg_three])
   end
+end
 
+class SearchBranchTest < Minitest::Test
   def setup
-    @client = MockClient.new
+    @client = SearchBranchTestMocks::MockClient.new
   end
 
   # ============================================================
@@ -55,9 +56,9 @@ class SearchBranchTest < Minitest::Test
 
   def test_ft_info_converts_to_hash
     # Stub call_1arg to return array pairs
-    mock = MockClient.new
-    def mock.call_1arg(_cmd, _a)
-      @last_command = [_cmd, _a]
+    mock = SearchBranchTestMocks::MockClient.new
+    def mock.call_1arg(cmd, arg_one)
+      @last_command = [cmd, arg_one]
       ["index_name", "idx", "num_docs", 42]
     end
     result = mock.ft_info("idx")
@@ -296,6 +297,16 @@ class SearchBranchTest < Minitest::Test
     assert_equal "<b>", cmd[idx_t + 1]
     assert_equal "</b>", cmd[idx_t + 2]
   end
+end
+
+class SearchBranchTestPart2 < Minitest::Test
+  def setup
+    @client = SearchBranchTestMocks::MockClient.new
+  end
+
+  # ============================================================
+  # ft_create
+  # ============================================================
 
   def test_ft_search_highlight_hash_without_tags
     @client.ft_search("idx", "q", highlight: { fields: ["title"] })
@@ -592,6 +603,16 @@ class SearchBranchTest < Minitest::Test
     refute_nil idx
     assert_equal 2, cmd[idx + 1]
   end
+end
+
+class SearchBranchTestPart3 < Minitest::Test
+  def setup
+    @client = SearchBranchTestMocks::MockClient.new
+  end
+
+  # ============================================================
+  # ft_create
+  # ============================================================
 
   def test_ft_spellcheck_combined_options
     @client.ft_spellcheck("idx", "helo", distance: 2, include: "dict1", exclude: "dict2", dialect: 3)
@@ -622,9 +643,9 @@ class SearchBranchTest < Minitest::Test
   # ============================================================
 
   def test_ft_syndump
-    mock = MockClient.new
-    def mock.call_1arg(_cmd, _a)
-      @last_command = [_cmd, _a]
+    mock = SearchBranchTestMocks::MockClient.new
+    def mock.call_1arg(cmd, arg_one)
+      @last_command = [cmd, arg_one]
       ["hello", ["group1"], "world", ["group1"]]
     end
     result = mock.ft_syndump("idx")
@@ -785,9 +806,9 @@ class SearchBranchTest < Minitest::Test
   # ============================================================
 
   def test_ft_config_get_default
-    mock = MockClient.new
-    def mock.call_2args(_cmd, _sub, _opt)
-      @last_command = [_cmd, _sub, _opt]
+    mock = SearchBranchTestMocks::MockClient.new
+    def mock.call_2args(cmd, sub, opt)
+      @last_command = [cmd, sub, opt]
       [%w[TIMEOUT 500]]
     end
     result = mock.ft_config_get
@@ -797,9 +818,9 @@ class SearchBranchTest < Minitest::Test
   end
 
   def test_ft_config_get_specific
-    mock = MockClient.new
-    def mock.call_2args(_cmd, _sub, _opt)
-      @last_command = [_cmd, _sub, _opt]
+    mock = SearchBranchTestMocks::MockClient.new
+    def mock.call_2args(cmd, sub, opt)
+      @last_command = [cmd, sub, opt]
       [%w[TIMEOUT 500]]
     end
     mock.ft_config_get("TIMEOUT")

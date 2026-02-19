@@ -190,6 +190,13 @@ class LockTest < Minitest::Test
     assert_nil lock.ttl
     @mock_client.verify
   end
+end
+
+class LockTestPart2 < Minitest::Test
+  def setup
+    @mock_client = Minitest::Mock.new
+    @mock_script = Minitest::Mock.new
+  end
 
   def test_extend_increases_ttl
     @mock_client.expect(:register_script, @mock_script, [String])

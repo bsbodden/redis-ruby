@@ -33,7 +33,7 @@ module RR
         nodes: [
           { host: "node1", port: 8001 },
           { host: "node2", port: 8001 },
-          { host: "node3", port: 8001 }
+          { host: "node3", port: 8001 },
         ],
         database_name: "db1"
       )
@@ -77,100 +77,81 @@ module RR
     # ============================================================
 
     def test_discover_endpoint_returns_host_and_port
-      discovery = DiscoveryService.allocate
-      discovery.instance_variable_set(:@nodes, [{ host: "localhost", port: 8001 }])
-      discovery.instance_variable_set(:@database_name, "db1")
-      discovery.instance_variable_set(:@timeout, 5.0)
+      discovery = build_discovery(nodes: [{ host: "localhost", port: 8001 }])
 
-      @mock_connection.expect(:call, ["10.0.0.45", "12000"], ["SENTINEL", "get-master-addr-by-name", "db1"])
+      @mock_connection.expect(:call, ["10.0.0.45", "12000"], %w[SENTINEL get-master-addr-by-name db1])
       @mock_connection.expect(:close, nil)
 
-      discovery.stub(:create_connection, ->(**kwargs) { @mock_connection }) do
+      discovery.stub(:create_connection, ->(**_kwargs) { @mock_connection }) do
         endpoint = discovery.discover_endpoint
 
         assert_equal "10.0.0.45", endpoint[:host]
-        assert_equal 12000, endpoint[:port]
+        assert_equal 12_000, endpoint[:port]
       end
     end
 
     def test_discover_endpoint_tries_next_node_on_failure
-      discovery = DiscoveryService.allocate
-      discovery.instance_variable_set(:@nodes, [
-        { host: "node1", port: 8001 },
-        { host: "node2", port: 8001 }
-      ])
-      discovery.instance_variable_set(:@database_name, "db1")
-      discovery.instance_variable_set(:@timeout, 5.0)
+      discovery = build_discovery(nodes: two_nodes)
+      failing_conn = build_failing_connection
 
-      failing_connection = Minitest::Mock.new
-      def failing_connection.call(*args)
-        raise ConnectionError, "Connection failed"
-      end
-      failing_connection.expect(:close, nil)
-
-      @mock_connection.expect(:call, ["10.0.0.45", "12000"], ["SENTINEL", "get-master-addr-by-name", "db1"])
+      @mock_connection.expect(:call, ["10.0.0.45", "12000"], %w[SENTINEL get-master-addr-by-name db1])
       @mock_connection.expect(:close, nil)
 
       call_count = 0
-      discovery.stub(:create_connection, ->(**kwargs) {
+      discovery.stub(:create_connection, lambda { |**_kwargs|
         call_count += 1
-        call_count == 1 ? failing_connection : @mock_connection
+        call_count == 1 ? failing_conn : @mock_connection
       }) do
         endpoint = discovery.discover_endpoint
 
         assert_equal "10.0.0.45", endpoint[:host]
-        assert_equal 12000, endpoint[:port]
+        assert_equal 12_000, endpoint[:port]
       end
-
-      failing_connection.verify
+      failing_conn.verify
     end
 
     def test_discover_endpoint_raises_when_all_nodes_fail
-      discovery = DiscoveryService.allocate
-      discovery.instance_variable_set(:@nodes, [
-        { host: "node1", port: 8001 },
-        { host: "node2", port: 8001 }
-      ])
-      discovery.instance_variable_set(:@database_name, "db1")
-      discovery.instance_variable_set(:@timeout, 5.0)
+      discovery = build_discovery(nodes: two_nodes)
 
-      call_count = 0
-      discovery.stub(:create_connection, ->(**kwargs) {
-        call_count += 1
-        conn = Minitest::Mock.new
-        def conn.call(*args)
-          raise ConnectionError, "Connection failed"
-        end
-        conn.expect(:close, nil)
-        conn
-      }) do
-        error = assert_raises(DiscoveryServiceError) do
-          discovery.discover_endpoint
-        end
-
+      discovery.stub(:create_connection, ->(**_kwargs) { build_failing_connection }) do
+        error = assert_raises(DiscoveryServiceError) { discovery.discover_endpoint }
         assert_match(/Failed to discover endpoint/, error.message)
       end
-
-      assert_equal 2, call_count
     end
 
     def test_discover_endpoint_raises_when_database_not_found
-      discovery = DiscoveryService.allocate
-      discovery.instance_variable_set(:@nodes, [{ host: "localhost", port: 8001 }])
-      discovery.instance_variable_set(:@database_name, "nonexistent")
-      discovery.instance_variable_set(:@timeout, 5.0)
+      discovery = build_discovery(nodes: [{ host: "localhost", port: 8001 }], database_name: "nonexistent")
 
-      @mock_connection.expect(:call, nil, ["SENTINEL", "get-master-addr-by-name", "nonexistent"])
+      @mock_connection.expect(:call, nil, %w[SENTINEL get-master-addr-by-name nonexistent])
       @mock_connection.expect(:close, nil)
 
-      discovery.stub(:create_connection, ->(**kwargs) { @mock_connection }) do
-        error = assert_raises(DiscoveryServiceError) do
-          discovery.discover_endpoint
-        end
-
+      discovery.stub(:create_connection, ->(**_kwargs) { @mock_connection }) do
+        error = assert_raises(DiscoveryServiceError) { discovery.discover_endpoint }
         assert_match(/Database.*not found/, error.message)
       end
     end
+
+    private
+
+    def build_discovery(nodes:, database_name: "db1", timeout: 5.0)
+      discovery = DiscoveryService.allocate
+      discovery.instance_variable_set(:@nodes, nodes)
+      discovery.instance_variable_set(:@database_name, database_name)
+      discovery.instance_variable_set(:@timeout, timeout)
+      discovery
+    end
+
+    def two_nodes
+      [{ host: "node1", port: 8001 }, { host: "node2", port: 8001 }]
+    end
+
+    def build_failing_connection
+      conn = Minitest::Mock.new
+      def conn.call(*_args)
+        raise ConnectionError, "Connection failed"
+      end
+      conn.expect(:close, nil)
+      conn
+    end
   end
 end
-

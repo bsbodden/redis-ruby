@@ -77,16 +77,16 @@ module RR
       # @param command [String] Command name
       # @param args [Array] Command arguments
       # @return [Object] Command result
-      def call(command, *args)
+      def call(command, *)
         ensure_connected
-        write_command(command, *args)
+        write_command(command, *)
         read_response
       end
 
       # Direct call without connection check - use when caller already verified connection
       # @api private
-      def call_direct(command, *args)
-        write_command(command, *args)
+      def call_direct(command, *)
+        write_command(command, *)
         read_response
       end
 
@@ -180,9 +180,9 @@ module RR
         callback ||= block
         raise ArgumentError, "Callback must be provided" unless callback
 
-        valid_events = [:connected, :disconnected, :reconnected, :error]
+        valid_events = %i[connected disconnected reconnected error]
         unless valid_events.include?(event_type)
-          raise ArgumentError, "Invalid event type: #{event_type}. Valid types: #{valid_events.join(', ')}"
+          raise ArgumentError, "Invalid event type: #{event_type}. Valid types: #{valid_events.join(", ")}"
         end
 
         @callbacks[event_type] << callback
@@ -207,7 +207,7 @@ module RR
           type: :disconnected,
           host: @host,
           port: @port,
-          timestamp: Time.now
+          timestamp: Time.now,
         })
 
         close
@@ -217,49 +217,71 @@ module RR
 
       # Establish SSL connection
       def connect
+        establish_ssl_socket
+        @pid = Process.pid
+        trigger_connect_success
+      rescue StandardError => e
+        trigger_connect_error(e)
+      end
+
+      # Create TCP socket, wrap in SSL, and initialize protocol layers
+      def establish_ssl_socket
         @tcp_socket = Socket.tcp(@host, @port, connect_timeout: @timeout)
         begin
           configure_tcp_socket
-
-          ssl_context = create_ssl_context
-          @ssl_socket = OpenSSL::SSL::SSLSocket.new(@tcp_socket, ssl_context)
-          @ssl_socket.hostname = @host # SNI support
-          @ssl_socket.connect
-          @ssl_socket.post_connection_check(@host) if verify_peer?
-
+          setup_ssl_layer
           @buffered_io = Protocol::BufferedIO.new(@ssl_socket, read_timeout: @timeout, write_timeout: @timeout)
           @decoder = Protocol::RESP3Decoder.new(@buffered_io)
         rescue StandardError
-          @ssl_socket&.close rescue nil
-          @tcp_socket&.close rescue nil
-          @ssl_socket = nil
-          @tcp_socket = nil
+          cleanup_sockets_on_error
           raise
         end
-        @pid = Process.pid # Track PID for fork safety
+      end
 
-        # Trigger appropriate callback
+      # Set up the SSL socket on top of the TCP socket
+      def setup_ssl_layer
+        ssl_context = create_ssl_context
+        @ssl_socket = OpenSSL::SSL::SSLSocket.new(@tcp_socket, ssl_context)
+        @ssl_socket.hostname = @host
+        @ssl_socket.connect
+        @ssl_socket.post_connection_check(@host) if verify_peer?
+      end
+
+      # Clean up sockets when connection setup fails
+      def cleanup_sockets_on_error
+        begin
+          @ssl_socket&.close
+        rescue StandardError
+          nil
+        end
+        begin
+          @tcp_socket&.close
+        rescue StandardError
+          nil
+        end
+        @ssl_socket = nil
+        @tcp_socket = nil
+      end
+
+      # Trigger appropriate callback on successful connection
+      def trigger_connect_success
         event_type = @ever_connected ? :reconnected : :connected
         @ever_connected = true
+        trigger_callbacks(event_type, { type: event_type, host: @host, port: @port, timestamp: Time.now })
+      end
 
-        trigger_callbacks(event_type, {
-          type: event_type,
-          host: @host,
-          port: @port,
-          timestamp: Time.now
-        })
-      rescue StandardError => e
-        error = e.is_a?(ConnectionError) ? e : ConnectionError.new("Failed to connect to #{@host}:#{@port}: #{e.message}")
-
-        trigger_callbacks(:error, {
-          type: :error,
-          host: @host,
-          port: @port,
-          error: error,
-          timestamp: Time.now
-        })
-
+      # Trigger error callback and raise wrapped error
+      def trigger_connect_error(err)
+        error = wrap_connection_error(err)
+        trigger_callbacks(:error, { type: :error, host: @host, port: @port, error: error, timestamp: Time.now })
         raise error
+      end
+
+      # Wrap non-ConnectionError exceptions
+      def wrap_connection_error(err)
+        return err if err.is_a?(ConnectionError)
+
+        ConnectionError.new("Failed to connect to #{@host}:#{@port}: #{err.message}")
       end
 
       # Trigger callbacks for an event
@@ -311,8 +333,8 @@ module RR
       end
 
       # Write a single command to the socket
-      def write_command(command, *args)
-        encoded = @encoder.encode_command(command, *args)
+      def write_command(command, *)
+        encoded = @encoder.encode_command(command, *)
         @ssl_socket.write(encoded)
         @ssl_socket.flush
       end

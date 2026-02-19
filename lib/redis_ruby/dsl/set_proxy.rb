@@ -43,6 +43,7 @@ module RR
       #   set.add(:tag1, :tag2)
       def add(*members)
         return self if members.empty?
+
         @redis.sadd(@key, *members.map(&:to_s))
         self
       end
@@ -60,6 +61,7 @@ module RR
       #   set.remove(:tag1, :tag2, :tag3)
       def remove(*members)
         return self if members.empty?
+
         @redis.srem(@key, *members.map(&:to_s))
         self
       end
@@ -116,7 +118,7 @@ module RR
       # @example
       #   set.empty?  # => false
       def empty?
-        size == 0
+        size.zero?
       end
 
       # Check if the set key exists
@@ -126,7 +128,7 @@ module RR
       # @example
       #   set.exists?  # => true
       def exists?
-        @redis.exists(@key) > 0
+        @redis.exists(@key).positive?
       end
 
       # Get the union of this set with other sets
@@ -138,6 +140,7 @@ module RR
       #   set.union(:other_set1, :other_set2)
       def union(*other_keys)
         return members if other_keys.empty?
+
         @redis.sunion(@key, *other_keys.map(&:to_s))
       end
 
@@ -150,6 +153,7 @@ module RR
       #   set.intersect(:other_set1, :other_set2)
       def intersect(*other_keys)
         return members if other_keys.empty?
+
         @redis.sinter(@key, *other_keys.map(&:to_s))
       end
 
@@ -162,6 +166,7 @@ module RR
       #   set.difference(:other_set1, :other_set2)
       def difference(*other_keys)
         return members if other_keys.empty?
+
         @redis.sdiff(@key, *other_keys.map(&:to_s))
       end
 
@@ -206,10 +211,10 @@ module RR
       #
       # @example
       #   set.each { |member| puts member }
-      def each(&block)
+      def each(&)
         return enum_for(:each) unless block_given?
 
-        members.each(&block)
+        members.each(&)
         self
       end
 
@@ -228,5 +233,3 @@ module RR
     end
   end
 end
-
-

@@ -130,8 +130,8 @@ module RR
       # @example
       #   sorted_set.top(10)  # => ["player3", "player2", "player1"]
       #   sorted_set.top(10, with_scores: true)  # => [["player3", 200.0], ...]
-      def top(n, with_scores: false)
-        @redis.zrevrange(@key, 0, n - 1, withscores: with_scores)
+      def top(num, with_scores: false)
+        @redis.zrevrange(@key, 0, num - 1, withscores: with_scores)
       end
 
       # Get bottom N members (lowest scores first)
@@ -142,8 +142,8 @@ module RR
       #
       # @example
       #   sorted_set.bottom(5)  # => ["player1", "player2", ...]
-      def bottom(n, with_scores: false)
-        @redis.zrange(@key, 0, n - 1, withscores: with_scores)
+      def bottom(num, with_scores: false)
+        @redis.zrange(@key, 0, num - 1, withscores: with_scores)
       end
 
       # Get members in a rank range (ascending order)
@@ -211,6 +211,7 @@ module RR
       #   sorted_set.remove(:player1, :player2, :player3)
       def remove(*members)
         return self if members.empty?
+
         @redis.zrem(@key, *members.map(&:to_s))
         self
       end
@@ -254,9 +255,9 @@ module RR
         if with_scores
           result
         elsif count.nil?
-          result[0]  # Single member without count
+          result[0] # Single member without count
         else
-          result.map(&:first)  # Multiple members
+          result.map(&:first) # Multiple members
         end
       end
 
@@ -275,9 +276,9 @@ module RR
         if with_scores
           result
         elsif count.nil?
-          result[0]  # Single member without count
+          result[0] # Single member without count
         else
-          result.map(&:first)  # Multiple members
+          result.map(&:first) # Multiple members
         end
       end
 
@@ -334,7 +335,7 @@ module RR
       # @example
       #   sorted_set.empty?  # => false
       def empty?
-        count == 0
+        count.zero?
       end
 
       # Remove all members
@@ -354,7 +355,7 @@ module RR
       #
       # @example
       #   sorted_set.each { |member, score| puts "#{member}: #{score}" }
-      def each(&block)
+      def each
         return enum_for(:each) unless block_given?
 
         cursor = 0
@@ -376,7 +377,7 @@ module RR
       #
       # @example
       #   sorted_set.each_member { |member| puts member }
-      def each_member(&block)
+      def each_member
         return enum_for(:each_member) unless block_given?
 
         each { |member, _score| yield member }
@@ -404,7 +405,7 @@ module RR
         result = @redis.zrange(@key, 0, -1, withscores: true)
         return {} if result.nil? || result.empty?
 
-        Hash[result.map { |member, score| [member.to_sym, score] }]
+        result.transform_keys(&:to_sym)
       end
 
       # Get random member(s)
@@ -435,5 +436,3 @@ module RR
     end
   end
 end
-
-

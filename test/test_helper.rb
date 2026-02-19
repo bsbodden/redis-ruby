@@ -19,9 +19,9 @@ begin
   WebMock.disable_net_connect!(
     allow_localhost: true,
     allow: [
-      /unix/,  # Allow Unix socket connections (Docker API)
+      /unix/, # Allow Unix socket connections (Docker API)
       /127\.0\.0\.1/,
-      /localhost/
+      /localhost/,
     ]
   )
 rescue LoadError

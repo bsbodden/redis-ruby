@@ -14,7 +14,7 @@ module RR
       assert_equal "localhost", client.hostname
       assert_equal 6379, client.port
       assert_equal 0, client.db
-      assert_equal 5.0, client.timeout
+      assert_in_delta(5.0, client.timeout)
     end
 
     def test_client_with_custom_options
@@ -30,7 +30,7 @@ module RR
       assert_equal "localhost", client.hostname
       assert_equal 6380, client.port
       assert_equal 1, client.db
-      assert_equal 10.0, client.timeout
+      assert_in_delta(10.0, client.timeout)
     end
 
     # ============================================================
@@ -45,6 +45,7 @@ module RR
       def stub_resolver.resolve
         "127.0.0.1"
       end
+
       def stub_resolver.refresh; end
 
       client.instance_variable_set(:@dns_resolver, stub_resolver)
@@ -53,7 +54,7 @@ module RR
       result = client.ping
 
       assert_equal "PONG", result
-      assert client.connected?
+      assert_predicate client, :connected?
 
       client.close
     end
@@ -66,6 +67,7 @@ module RR
       def stub_resolver.resolve
         "127.0.0.1"
       end
+
       def stub_resolver.refresh; end
 
       client.instance_variable_set(:@dns_resolver, stub_resolver)
@@ -86,7 +88,7 @@ module RR
       # Mock DNS resolver to return different IPs
       call_count = 0
       stub_resolver = Object.new
-      define_singleton_method = ->(obj, name, &block) do
+      define_singleton_method = lambda do |obj, name, &block|
         obj.define_singleton_method(name, &block)
       end
 
@@ -95,22 +97,25 @@ module RR
         "127.0.0.1"
       end
 
-      define_singleton_method.call(stub_resolver, :refresh) {}
+      define_singleton_method.call(stub_resolver, :refresh) { nil }
 
       client.instance_variable_set(:@dns_resolver, stub_resolver)
 
       # First connection
       client.ping
-      assert client.connected?
+
+      assert_predicate client, :connected?
 
       # Force disconnect
       client.close
-      refute client.connected?
+
+      refute_predicate client, :connected?
 
       # Should reconnect on next command
       result = client.ping
+
       assert_equal "PONG", result
-      assert client.connected?
+      assert_predicate client, :connected?
 
       client.close
     end
@@ -131,11 +136,13 @@ module RR
       def stub_resolver.resolve
         "127.0.0.1"
       end
+
       def stub_resolver.refresh; end
 
       client.instance_variable_set(:@dns_resolver, stub_resolver)
 
       result = client.ping
+
       assert_equal "PONG", result
 
       client.close
@@ -156,4 +163,3 @@ module RR
     end
   end
 end
-

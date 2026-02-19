@@ -76,8 +76,8 @@ recent_posts.add(
   "post:123" => now,
   "post:124" => now - 3600,      # 1 hour ago
   "post:125" => now - 7200,      # 2 hours ago
-  "post:126" => now - 86400,     # 1 day ago
-  "post:127" => now - 172800     # 2 days ago
+  "post:126" => now - 86_400,     # 1 day ago
+  "post:127" => now - 172_800     # 2 days ago
 )
 
 puts "Most recent 3 posts:"
@@ -86,7 +86,7 @@ recent_posts.top(3).each do |post_id|
 end
 
 # Remove posts older than 1 day
-cutoff = now - 86400
+cutoff = now - 86_400
 removed = recent_posts.remove_by_score(-Float::INFINITY, cutoff - 1)
 puts "\nRemoved #{removed} old posts"
 puts "Remaining posts: #{recent_posts.count}"
@@ -110,15 +110,15 @@ grades.add(
 
 puts "Students with A grades (90-100):"
 a_students = grades.by_score(90, 100)
-puts "  #{a_students.join(', ')}"
+puts "  #{a_students.join(", ")}"
 
 puts "\nStudents with B grades (80-89):"
 b_students = grades.by_score(80, 89)
-puts "  #{b_students.join(', ')}"
+puts "  #{b_students.join(", ")}"
 
 puts "\nStudents who need help (< 70):"
 struggling = grades.by_score(0, 69)
-puts "  #{struggling.join(', ')}"
+puts "  #{struggling.join(", ")}"
 
 # ============================================================
 # Example 5: Rank Queries
@@ -175,7 +175,7 @@ ratings.add(
 
 puts "All movies and ratings:"
 ratings.each do |movie, rating|
-  puts "  #{movie}: #{'⭐' * rating.to_i} (#{rating})"
+  puts "  #{movie}: #{"⭐" * rating.to_i} (#{rating})"
 end
 
 # ============================================================
@@ -197,7 +197,7 @@ puts "Empty? #{favorites.empty?}"
 # Cleanup
 # ============================================================
 
-puts "\n" + "=" * 80
+puts "\n#{"=" * 80}"
 puts "Cleaning up..."
 redis.del(
   "game:leaderboard",
@@ -211,4 +211,3 @@ redis.del(
 # Session scores will auto-expire
 redis.close
 puts "Done!"
-

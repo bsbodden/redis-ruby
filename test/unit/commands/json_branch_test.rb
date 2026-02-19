@@ -2,11 +2,7 @@
 
 require_relative "../unit_test_helper"
 
-class JSONBranchTest < Minitest::Test
-  # ============================================================
-  # MockClient includes the JSON module and records commands
-  # ============================================================
-
+module JSONBranchTestMocks
   class MockClient
     include RR::Commands::JSON
 
@@ -17,52 +13,91 @@ class JSONBranchTest < Minitest::Test
       mock_return(args)
     end
 
-    def call_1arg(cmd, a1)
-      @last_command = [cmd, a1]
-      mock_return([cmd, a1])
+    def call_1arg(cmd, arg_one)
+      @last_command = [cmd, arg_one]
+      mock_return([cmd, arg_one])
     end
 
-    def call_2args(cmd, a1, a2)
-      @last_command = [cmd, a1, a2]
-      mock_return([cmd, a1, a2])
+    def call_2args(cmd, arg_one, arg_two)
+      @last_command = [cmd, arg_one, arg_two]
+      mock_return([cmd, arg_one, arg_two])
     end
 
-    def call_3args(cmd, a1, a2, a3)
-      @last_command = [cmd, a1, a2, a3]
-      mock_return([cmd, a1, a2, a3])
+    def call_3args(cmd, arg_one, arg_two, arg_three)
+      @last_command = [cmd, arg_one, arg_two, arg_three]
+      mock_return([cmd, arg_one, arg_two, arg_three])
     end
+
+    MOCK_RETURNS = {
+      "JSON.GET" => '{"name":"test"}',
+      "JSON.MGET" => ['{"name":"Alice"}', nil, '{"name":"Bob"}'],
+      "JSON.DEL" => 1, "JSON.CLEAR" => 1,
+      "JSON.TYPE" => ["object"],
+      "JSON.NUMINCRBY" => "[31]", "JSON.NUMMULTBY" => "[200]",
+      "JSON.STRAPPEND" => [10], "JSON.STRLEN" => [5],
+      "JSON.ARRAPPEND" => [3], "JSON.ARRLEN" => [3],
+      "JSON.ARRINDEX" => [0], "JSON.ARRINSERT" => [4],
+      "JSON.ARRPOP" => ['"last_tag"'], "JSON.ARRTRIM" => [2],
+      "JSON.OBJKEYS" => [%w[name age]], "JSON.OBJLEN" => [2],
+      "JSON.TOGGLE" => [1], "JSON.DEBUG" => 256,
+    }.freeze
 
     private
 
     def mock_return(args)
-      case args[0]
-      when "JSON.GET" then '{"name":"test"}'
-      when "JSON.MGET" then ['{"name":"Alice"}', nil, '{"name":"Bob"}']
-      when "JSON.SET" then "OK"
-      when "JSON.DEL" then 1
-      when "JSON.TYPE" then ["object"]
-      when "JSON.NUMINCRBY" then "[31]"
-      when "JSON.NUMMULTBY" then "[200]"
-      when "JSON.STRAPPEND" then [10]
-      when "JSON.STRLEN" then [5]
-      when "JSON.ARRAPPEND" then [3]
-      when "JSON.ARRLEN" then [3]
-      when "JSON.ARRINDEX" then [0]
-      when "JSON.ARRINSERT" then [4]
-      when "JSON.ARRPOP" then ['"last_tag"']
-      when "JSON.ARRTRIM" then [2]
-      when "JSON.OBJKEYS" then [%w[name age]]
-      when "JSON.OBJLEN" then [2]
-      when "JSON.CLEAR" then 1
-      when "JSON.TOGGLE" then [1]
-      when "JSON.DEBUG" then 256
-      else "OK"
-      end
+      MOCK_RETURNS.fetch(args[0], "OK")
     end
   end
 
+  class NilJsonGetMock
+    include RR::Commands::JSON
+
+    def call(*) = nil
+    def call_1arg(*, **) = nil
+    def call_2args(*) = nil
+    def call_3args(*) = nil
+  end
+
+  class NilArrpopMock
+    include RR::Commands::JSON
+
+    def call(*) = nil
+    def call_1arg(*, **) = nil
+    def call_2args(*) = nil
+    def call_3args(*) = nil
+  end
+
+  class ScalarArrpopMock
+    include RR::Commands::JSON
+
+    def call(*) = '"last_tag"'
+    def call_1arg(*, **) = '"last_tag"'
+    def call_2args(*) = '"last_tag"'
+    def call_3args(*) = '"last_tag"'
+  end
+
+  class ArrayWithNilArrpopMock
+    include RR::Commands::JSON
+
+    def call(*) = [nil, '"tag"']
+    def call_1arg(*, **) = [nil, '"tag"']
+    def call_2args(*) = [nil, '"tag"']
+    def call_3args(*) = [nil, '"tag"']
+  end
+
+  class ToggleFalseMock
+    include RR::Commands::JSON
+
+    def call(*) = [0]
+    def call_1arg(*, **) = [0]
+    def call_2args(*) = [0]
+    def call_3args(*) = [0]
+  end
+end
+
+class JSONBranchTest < Minitest::Test
   def setup
-    @client = MockClient.new
+    @client = JSONBranchTestMocks::MockClient.new
   end
 
   # ============================================================
@@ -131,21 +166,11 @@ class JSONBranchTest < Minitest::Test
   end
 
   def test_json_get_returns_nil_when_result_nil
-    client = NilJsonGetMock.new
+    client = JSONBranchTestMocks::NilJsonGetMock.new
     result = client.json_get("nonexistent")
 
     assert_nil result
   end
-
-  class NilJsonGetMock
-    include RR::Commands::JSON
-
-    def call(*) = nil
-    def call_1arg(*, **) = nil
-    def call_2args(*) = nil
-    def call_3args(*) = nil
-  end
-
   # ============================================================
   # json_mget
   # ============================================================
@@ -389,53 +414,35 @@ class JSONBranchTest < Minitest::Test
   end
 
   def test_json_arrpop_returns_nil_when_result_nil
-    client = NilArrpopMock.new
+    client = JSONBranchTestMocks::NilArrpopMock.new
     result = client.json_arrpop("doc")
 
     assert_nil result
   end
+end
 
-  class NilArrpopMock
-    include RR::Commands::JSON
-
-    def call(*) = nil
-    def call_1arg(*, **) = nil
-    def call_2args(*) = nil
-    def call_3args(*) = nil
+class JSONBranchTestPart2 < Minitest::Test
+  def setup
+    @client = JSONBranchTestMocks::MockClient.new
   end
 
+  # ============================================================
+  # json_set branches
+  # ============================================================
+
   def test_json_arrpop_with_non_array_result
-    client = ScalarArrpopMock.new
+    client = JSONBranchTestMocks::ScalarArrpopMock.new
     result = client.json_arrpop("doc")
 
     assert_equal "last_tag", result
   end
 
-  class ScalarArrpopMock
-    include RR::Commands::JSON
-
-    def call(*) = '"last_tag"'
-    def call_1arg(*, **) = '"last_tag"'
-    def call_2args(*) = '"last_tag"'
-    def call_3args(*) = '"last_tag"'
-  end
-
   def test_json_arrpop_with_array_containing_nil
-    client = ArrayWithNilArrpopMock.new
+    client = JSONBranchTestMocks::ArrayWithNilArrpopMock.new
     result = client.json_arrpop("doc")
 
     assert_equal [nil, "tag"], result
   end
-
-  class ArrayWithNilArrpopMock
-    include RR::Commands::JSON
-
-    def call(*) = [nil, '"tag"']
-    def call_1arg(*, **) = [nil, '"tag"']
-    def call_2args(*) = [nil, '"tag"']
-    def call_3args(*) = [nil, '"tag"']
-  end
-
   # ============================================================
   # json_arrtrim
   # ============================================================
@@ -517,21 +524,11 @@ class JSONBranchTest < Minitest::Test
   end
 
   def test_json_toggle_returns_boolean_array
-    client = ToggleFalseMock.new
+    client = JSONBranchTestMocks::ToggleFalseMock.new
     result = client.json_toggle("doc", "$.active")
 
     assert_equal [false], result
   end
-
-  class ToggleFalseMock
-    include RR::Commands::JSON
-
-    def call(*) = [0]
-    def call_1arg(*, **) = [0]
-    def call_2args(*) = [0]
-    def call_3args(*) = [0]
-  end
-
   # ============================================================
   # json_debug_memory
   # ============================================================

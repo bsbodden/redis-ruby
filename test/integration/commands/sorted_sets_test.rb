@@ -205,6 +205,10 @@ class SortedSetsCommandsTest < RedisRubyTestCase
   ensure
     redis.del("test:zset")
   end
+end
+
+class SortedSetsCommandsTestPart2 < RedisRubyTestCase
+  use_testcontainers!
 
   def test_zadd_nx_mixed_new_and_existing
     redis.zadd("test:zset", 1, "one")
@@ -402,6 +406,11 @@ class SortedSetsCommandsTest < RedisRubyTestCase
   end
 
   # ZREVRANGEBYSCORE tests
+end
+
+class SortedSetsCommandsTestPart3 < RedisRubyTestCase
+  use_testcontainers!
+
   def test_zrevrangebyscore
     redis.zadd("test:zset", 1, "one", 2, "two", 3, "three")
     result = redis.zrevrangebyscore("test:zset", 3, 1)
@@ -595,6 +604,11 @@ class SortedSetsCommandsTest < RedisRubyTestCase
   end
 
   # ZUNION tests (Redis 6.2+)
+end
+
+class SortedSetsCommandsTestPart4 < RedisRubyTestCase
+  use_testcontainers!
+
   def test_zunion_basic
     redis.zadd("test:zset1", 1, "one", 2, "two")
     redis.zadd("test:zset2", 2, "two", 3, "three")
@@ -786,6 +800,10 @@ class SortedSetsCommandsTest < RedisRubyTestCase
   ensure
     redis.del("test:zset1", "test:zset2", "test:result")
   end
+end
+
+class SortedSetsCommandsTestPart2 < RedisRubyTestCase
+  use_testcontainers!
 
   # ============================================================
   # Redis 7.0+ Commands
@@ -902,6 +920,10 @@ class SortedSetsCommandsTest < RedisRubyTestCase
     skip "ZMPOP not supported (requires Redis 7.0+)" if e.message.include?("unknown command")
     raise
   end
+end
+
+class SortedSetsCommandsTestPart3 < RedisRubyTestCase
+  use_testcontainers!
 
   # ============================================================
   # Unified ZRANGE Interface Tests (Redis 6.2+)

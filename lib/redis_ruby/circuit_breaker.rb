@@ -107,11 +107,10 @@ module RR
         check_state_transition
 
         if @state == STATE_OPEN
-          if @fallback
-            return @fallback.call
-          else
-            raise CircuitBreakerOpenError, "Circuit breaker is OPEN (failures: #{@failure_count})"
-          end
+          return @fallback.call if @fallback
+
+          raise CircuitBreakerOpenError, "Circuit breaker is OPEN (failures: #{@failure_count})"
+
         end
       end
 
@@ -193,7 +192,7 @@ module RR
           state_durations: durations,
           transition_count: @transition_count,
           opened_at: @opened_at,
-          last_failure_time: @last_failure_time
+          last_failure_time: @last_failure_time,
         }
       end
     end
@@ -228,14 +227,11 @@ module RR
         @failure_count += 1
         @total_failures += 1
         @last_failure_time = monotonic_time
-        @success_count = 0  # Reset success count on failure
+        @success_count = 0 # Reset success count on failure
 
-        if @state == STATE_HALF_OPEN
-          # Any failure in half-open state reopens the circuit
-          open_circuit
-        elsif @state == STATE_CLOSED && @failure_count >= @failure_threshold
-          open_circuit
-        end
+        should_open = (@state == STATE_HALF_OPEN) ||
+                      (@state == STATE_CLOSED && @failure_count >= @failure_threshold)
+        open_circuit if should_open
       end
     end
 
@@ -251,9 +247,9 @@ module RR
 
       time_since_open = monotonic_time - @opened_at
 
-      if time_since_open >= @reset_timeout
-        transition_to_half_open
-      end
+      return unless time_since_open >= @reset_timeout
+
+      transition_to_half_open
     end
 
     # Open the circuit.
@@ -330,7 +326,7 @@ module RR
         failure_count: @failure_count,
         success_count: @success_count,
         total_failures: @total_failures,
-        total_successes: @total_successes
+        total_successes: @total_successes,
       }
 
       begin
@@ -358,4 +354,3 @@ module RR
   # temporarily blocking operations to allow the system to recover.
   class CircuitBreakerOpenError < Error; end
 end
-

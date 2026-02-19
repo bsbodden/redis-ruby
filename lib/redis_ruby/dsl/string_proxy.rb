@@ -66,7 +66,6 @@ module RR
       #   str.value = "hello"
       def value=(val)
         @redis.set(@key, val.to_s)
-        val
       end
 
       # Append a value to the string
@@ -125,7 +124,7 @@ module RR
       # @example
       #   str.exists?()  # => true
       def exists?
-        @redis.exists(@key) > 0
+        @redis.exists(@key).positive?
       end
 
       # Check if the string is empty or doesn't exist
@@ -176,5 +175,3 @@ module RR
     end
   end
 end
-
-

@@ -13,9 +13,7 @@ class ListDSLTest < Minitest::Test
     @redis.close
   end
 
-  def redis
-    @redis
-  end
+  attr_reader :redis
 
   # ============================================================
   # Entry Point Tests
@@ -23,16 +21,16 @@ class ListDSLTest < Minitest::Test
 
   def test_list_creates_proxy
     list = redis.list(@key)
+
     assert_instance_of RR::DSL::ListProxy, list
   end
 
   def test_list_with_composite_key
     list = redis.list(:jobs, :pending, 123)
     list.push("job1")
-    
+
     assert_equal "job1", redis.lindex("jobs:pending:123", 0)
   end
-
   # ============================================================
   # Push/Pop Tests (Right Side)
   # ============================================================
@@ -40,7 +38,7 @@ class ListDSLTest < Minitest::Test
   def test_push_single_value
     list = redis.list(@key)
     result = list.push("item1")
-    
+
     assert_same list, result
     assert_equal "item1", redis.lindex(@key, 0)
   end
@@ -48,23 +46,23 @@ class ListDSLTest < Minitest::Test
   def test_push_multiple_values
     list = redis.list(@key)
     list.push("item1", "item2", "item3")
-    
-    assert_equal ["item1", "item2", "item3"], redis.lrange(@key, 0, -1)
+
+    assert_equal %w[item1 item2 item3], redis.lrange(@key, 0, -1)
   end
 
   def test_push_operator
     list = redis.list(@key)
     list << "item1" << "item2"
-    
-    assert_equal ["item1", "item2"], redis.lrange(@key, 0, -1)
+
+    assert_equal %w[item1 item2], redis.lrange(@key, 0, -1)
   end
 
   def test_pop_single
     redis.rpush(@key, "item1", "item2", "item3")
     list = redis.list(@key)
-    
+
     result = list.pop
-    
+
     assert_equal "item3", result
     assert_equal 2, redis.llen(@key)
   end
@@ -72,13 +70,12 @@ class ListDSLTest < Minitest::Test
   def test_pop_multiple
     redis.rpush(@key, "item1", "item2", "item3")
     list = redis.list(@key)
-    
+
     result = list.pop(2)
-    
-    assert_equal ["item3", "item2"], result
+
+    assert_equal %w[item3 item2], result
     assert_equal 1, redis.llen(@key)
   end
-
   # ============================================================
   # Shift/Unshift Tests (Left Side)
   # ============================================================
@@ -86,9 +83,9 @@ class ListDSLTest < Minitest::Test
   def test_shift_single
     redis.rpush(@key, "item1", "item2", "item3")
     list = redis.list(@key)
-    
+
     result = list.shift
-    
+
     assert_equal "item1", result
     assert_equal 2, redis.llen(@key)
   end
@@ -96,17 +93,17 @@ class ListDSLTest < Minitest::Test
   def test_shift_multiple
     redis.rpush(@key, "item1", "item2", "item3")
     list = redis.list(@key)
-    
+
     result = list.shift(2)
-    
-    assert_equal ["item1", "item2"], result
+
+    assert_equal %w[item1 item2], result
     assert_equal 1, redis.llen(@key)
   end
 
   def test_unshift_single
     list = redis.list(@key)
     result = list.unshift("item1")
-    
+
     assert_same list, result
     assert_equal "item1", redis.lindex(@key, 0)
   end
@@ -114,11 +111,10 @@ class ListDSLTest < Minitest::Test
   def test_unshift_multiple
     list = redis.list(@key)
     list.unshift("item1", "item2", "item3")
-    
-    # LPUSH adds in reverse order
-    assert_equal ["item3", "item2", "item1"], redis.lrange(@key, 0, -1)
-  end
 
+    # LPUSH adds in reverse order
+    assert_equal %w[item3 item2 item1], redis.lrange(@key, 0, -1)
+  end
   # ============================================================
   # Array-Like Access Tests
   # ============================================================
@@ -126,7 +122,7 @@ class ListDSLTest < Minitest::Test
   def test_index_access
     redis.rpush(@key, "item1", "item2", "item3")
     list = redis.list(@key)
-    
+
     assert_equal "item1", list[0]
     assert_equal "item2", list[1]
     assert_equal "item3", list[-1]
@@ -135,18 +131,18 @@ class ListDSLTest < Minitest::Test
   def test_range_access
     redis.rpush(@key, "item1", "item2", "item3", "item4", "item5")
     list = redis.list(@key)
-    
-    assert_equal ["item1", "item2", "item3"], list[0..2]
-    assert_equal ["item2", "item3"], list[1..2]
-    assert_equal ["item4", "item5"], list[-2..-1]
+
+    assert_equal %w[item1 item2 item3], list[0..2]
+    assert_equal %w[item2 item3], list[1..2]
+    assert_equal %w[item4 item5], list[-2..]
   end
 
   def test_range_access_with_count
     redis.rpush(@key, "item1", "item2", "item3", "item4", "item5")
     list = redis.list(@key)
-    
-    assert_equal ["item1", "item2", "item3"], list[0, 3]
-    assert_equal ["item2", "item3"], list[1, 2]
+
+    assert_equal %w[item1 item2 item3], list[0, 3]
+    assert_equal %w[item2 item3], list[1, 2]
   end
 
   def test_index_assignment
@@ -157,7 +153,6 @@ class ListDSLTest < Minitest::Test
 
     assert_equal "new_value", redis.lindex(@key, 1)
   end
-
   # ============================================================
   # Insertion Tests
   # ============================================================
@@ -169,7 +164,7 @@ class ListDSLTest < Minitest::Test
     result = list.insert_before("item2", "new_item")
 
     assert_same list, result
-    assert_equal ["item1", "new_item", "item2", "item3"], redis.lrange(@key, 0, -1)
+    assert_equal %w[item1 new_item item2 item3], redis.lrange(@key, 0, -1)
   end
 
   def test_insert_after
@@ -179,8 +174,26 @@ class ListDSLTest < Minitest::Test
     result = list.insert_after("item2", "new_item")
 
     assert_same list, result
-    assert_equal ["item1", "item2", "new_item", "item3"], redis.lrange(@key, 0, -1)
+    assert_equal %w[item1 item2 new_item item3], redis.lrange(@key, 0, -1)
   end
+end
+
+class ListDSLTestPart2 < Minitest::Test
+  def setup
+    @redis = RR.new(url: ENV.fetch("REDIS_URL", "redis://localhost:6379"))
+    @key = "test:list:#{SecureRandom.hex(8)}"
+  end
+
+  def teardown
+    @redis.del(@key)
+    @redis.close
+  end
+
+  attr_reader :redis
+
+  # ============================================================
+  # Entry Point Tests
+  # ============================================================
 
   # ============================================================
   # Removal Tests
@@ -193,7 +206,7 @@ class ListDSLTest < Minitest::Test
     removed = list.remove("a")
 
     assert_equal 3, removed
-    assert_equal ["b", "c"], redis.lrange(@key, 0, -1)
+    assert_equal %w[b c], redis.lrange(@key, 0, -1)
   end
 
   def test_remove_first_occurrence
@@ -203,7 +216,7 @@ class ListDSLTest < Minitest::Test
     removed = list.remove("a", count: 1)
 
     assert_equal 1, removed
-    assert_equal ["b", "a", "c", "a"], redis.lrange(@key, 0, -1)
+    assert_equal %w[b a c a], redis.lrange(@key, 0, -1)
   end
 
   def test_remove_last_occurrence
@@ -213,9 +226,8 @@ class ListDSLTest < Minitest::Test
     removed = list.remove("a", count: -1)
 
     assert_equal 1, removed
-    assert_equal ["a", "b", "a", "c"], redis.lrange(@key, 0, -1)
+    assert_equal %w[a b a c], redis.lrange(@key, 0, -1)
   end
-
   # ============================================================
   # Trimming Tests
   # ============================================================
@@ -227,7 +239,7 @@ class ListDSLTest < Minitest::Test
     result = list.trim(0..2)
 
     assert_same list, result
-    assert_equal ["item1", "item2", "item3"], redis.lrange(@key, 0, -1)
+    assert_equal %w[item1 item2 item3], redis.lrange(@key, 0, -1)
   end
 
   def test_keep_first_n
@@ -237,9 +249,8 @@ class ListDSLTest < Minitest::Test
     result = list.keep(3)
 
     assert_same list, result
-    assert_equal ["item1", "item2", "item3"], redis.lrange(@key, 0, -1)
+    assert_equal %w[item1 item2 item3], redis.lrange(@key, 0, -1)
   end
-
   # ============================================================
   # Blocking Operations Tests
   # ============================================================
@@ -274,7 +285,6 @@ class ListDSLTest < Minitest::Test
 
     assert_equal "item1", result
   end
-
   # ============================================================
   # Inspection Tests
   # ============================================================
@@ -291,29 +301,28 @@ class ListDSLTest < Minitest::Test
   def test_empty_on_empty_list
     list = redis.list(@key)
 
-    assert list.empty?
+    assert_empty list
   end
 
   def test_empty_on_non_empty_list
     redis.rpush(@key, "item1")
     list = redis.list(@key)
 
-    refute list.empty?
+    refute_empty list
   end
 
   def test_exists_when_key_exists
     redis.rpush(@key, "item1")
     list = redis.list(@key)
 
-    assert list.exists?
+    assert_predicate list, :exists?
   end
 
   def test_exists_when_key_does_not_exist
     list = redis.list(@key)
 
-    refute list.exists?
+    refute_predicate list, :exists?
   end
-
   # ============================================================
   # Conversion Tests
   # ============================================================
@@ -322,7 +331,7 @@ class ListDSLTest < Minitest::Test
     redis.rpush(@key, "item1", "item2", "item3")
     list = redis.list(@key)
 
-    assert_equal ["item1", "item2", "item3"], list.to_a
+    assert_equal %w[item1 item2 item3], list.to_a
   end
 
   def test_first_single
@@ -336,7 +345,7 @@ class ListDSLTest < Minitest::Test
     redis.rpush(@key, "item1", "item2", "item3", "item4")
     list = redis.list(@key)
 
-    assert_equal ["item1", "item2", "item3"], list.first(3)
+    assert_equal %w[item1 item2 item3], list.first(3)
   end
 
   def test_last_single
@@ -350,8 +359,26 @@ class ListDSLTest < Minitest::Test
     redis.rpush(@key, "item1", "item2", "item3", "item4")
     list = redis.list(@key)
 
-    assert_equal ["item3", "item4"], list.last(2)
+    assert_equal %w[item3 item4], list.last(2)
   end
+end
+
+class ListDSLTestPart3 < Minitest::Test
+  def setup
+    @redis = RR.new(url: ENV.fetch("REDIS_URL", "redis://localhost:6379"))
+    @key = "test:list:#{SecureRandom.hex(8)}"
+  end
+
+  def teardown
+    @redis.del(@key)
+    @redis.close
+  end
+
+  attr_reader :redis
+
+  # ============================================================
+  # Entry Point Tests
+  # ============================================================
 
   # ============================================================
   # Iteration Tests
@@ -364,7 +391,7 @@ class ListDSLTest < Minitest::Test
     items = []
     result = list.each { |item| items << item }
 
-    assert_equal ["item1", "item2", "item3"], items
+    assert_equal %w[item1 item2 item3], items
     assert_same list, result
   end
 
@@ -375,7 +402,7 @@ class ListDSLTest < Minitest::Test
     enumerator = list.each
 
     assert_instance_of Enumerator, enumerator
-    assert_equal ["item1", "item2", "item3"], enumerator.to_a
+    assert_equal %w[item1 item2 item3], enumerator.to_a
   end
 
   def test_each_with_index
@@ -387,7 +414,6 @@ class ListDSLTest < Minitest::Test
 
     assert_equal [["item1", 0], ["item2", 1], ["item3", 2]], items
   end
-
   # ============================================================
   # Clear Tests
   # ============================================================
@@ -401,7 +427,6 @@ class ListDSLTest < Minitest::Test
     assert_same list, result
     assert_equal 0, redis.llen(@key)
   end
-
   # ============================================================
   # Expiration Tests
   # ============================================================
@@ -445,7 +470,6 @@ class ListDSLTest < Minitest::Test
     assert_same list, result
     assert_equal(-1, redis.ttl(@key))
   end
-
   # ============================================================
   # Integration Tests
   # ============================================================
@@ -498,7 +522,7 @@ class ListDSLTest < Minitest::Test
     # Get recent activities
     recent = feed.to_a
 
-    assert_equal ["activity3", "activity2"], recent
+    assert_equal %w[activity3 activity2], recent
 
     redis.del("user:123:activity")
   end
@@ -513,4 +537,3 @@ class ListDSLTest < Minitest::Test
     assert_operator list.ttl, :>, 0
   end
 end
-

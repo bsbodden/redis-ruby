@@ -22,7 +22,7 @@ module RR
   #
   class CallbackErrorHandler
     # Available error handling strategies
-    STRATEGIES = [:ignore, :log, :raise].freeze
+    STRATEGIES = %i[ignore log raise].freeze
 
     # Default strategy
     DEFAULT_STRATEGY = :log
@@ -36,7 +36,7 @@ module RR
     # @raise [ArgumentError] If strategy is invalid
     def initialize(strategy: DEFAULT_STRATEGY, logger: nil)
       unless STRATEGIES.include?(strategy)
-        raise ArgumentError, "Invalid strategy: #{strategy}. Valid strategies: #{STRATEGIES.join(', ')}"
+        raise ArgumentError, "Invalid strategy: #{strategy}. Valid strategies: #{STRATEGIES.join(", ")}"
       end
 
       @strategy = strategy
@@ -66,8 +66,8 @@ module RR
     # @param context [String, nil] Context information
     # @yield Block to execute
     # @return [Object, nil] Result of the block, or nil if error occurred
-    def call(context: nil, &block)
-      block.call
+    def call(context: nil)
+      yield
     rescue StandardError => e
       handle_error(e, context: context)
       nil
@@ -95,4 +95,3 @@ module RR
     end
   end
 end
-

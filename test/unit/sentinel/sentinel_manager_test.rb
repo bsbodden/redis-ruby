@@ -210,7 +210,9 @@ class SentinelManagerTest < Minitest::Test
 
     assert_nil result
   end
+end
 
+class SentinelManagerTestPart2 < Minitest::Test
   # ============================================================
   # Connection leak tests
   # ============================================================
@@ -243,9 +245,9 @@ class SentinelManagerTest < Minitest::Test
     manager.stubs(:create_sentinel_connection).returns(mock_conn)
 
     result = manager.discover_sentinels
-    assert_equal [], result
-  end
 
+    assert_empty result
+  end
   # ============================================================
   # Mutex not held during sleep/I/O (Bug #12)
   # ============================================================
@@ -263,11 +265,9 @@ class SentinelManagerTest < Minitest::Test
     call_count = 0
     manager.define_singleton_method(:query_master_from_sentinel) do |sentinel|
       call_count += 1
-      if sentinel[:host] == "sentinel1"
-        raise StandardError, "connection refused"
-      else
-        { host: "master1", port: 6379 }
-      end
+      raise StandardError, "connection refused" if sentinel[:host] == "sentinel1"
+
+      { host: "master1", port: 6379 }
     end
 
     # Stub sleep to avoid actual delays
@@ -292,11 +292,9 @@ class SentinelManagerTest < Minitest::Test
     )
 
     manager.define_singleton_method(:query_master_from_sentinel) do |sentinel|
-      if sentinel[:host] == "sentinel1"
-        raise StandardError, "connection refused"
-      else
-        { host: "master1", port: 6379 }
-      end
+      raise StandardError, "connection refused" if sentinel[:host] == "sentinel1"
+
+      { host: "master1", port: 6379 }
     end
     manager.stubs(:sleep)
 
@@ -318,11 +316,9 @@ class SentinelManagerTest < Minitest::Test
     call_count = 0
     manager.define_singleton_method(:query_replicas_from_sentinel) do |sentinel|
       call_count += 1
-      if sentinel[:host] == "sentinel1"
-        raise StandardError, "connection refused"
-      else
-        [{ host: "replica1", port: 6380 }]
-      end
+      raise StandardError, "connection refused" if sentinel[:host] == "sentinel1"
+
+      [{ host: "replica1", port: 6380 }]
     end
     manager.stubs(:sleep)
 

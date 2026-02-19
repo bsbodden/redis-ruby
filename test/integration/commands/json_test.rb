@@ -201,6 +201,10 @@ class JSONCommandsTest < RedisRubyTestCase
   ensure
     redis.del("json:arrtrim")
   end
+end
+
+class JSONCommandsTestPart2 < RedisRubyTestCase
+  use_testcontainers!
 
   def test_json_objkeys
     redis.json_set("json:objkeys", "$", { name: "Test", age: 25, active: true })

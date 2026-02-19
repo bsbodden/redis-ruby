@@ -58,7 +58,7 @@ report.allocated_objects_by_location
   .first(15)
   .each do |stat|
     short_path = stat[:data].gsub(%r{.*/lib/}, "")
-    puts format("  %-55s %8d", short_path, stat[:count])
+    puts format("  %<path>-55s %<count>8d", path: short_path, count: stat[:count])
 end
 
 # ============================================================
@@ -83,7 +83,7 @@ report.allocated_objects_by_location
   .first(15)
   .each do |stat|
     short_path = stat[:data].gsub(%r{.*/lib/}, "")
-    puts format("  %-55s %8d", short_path, stat[:count])
+    puts format("  %<path>-55s %<count>8d", path: short_path, count: stat[:count])
 end
 
 # ============================================================
@@ -122,13 +122,13 @@ GC.start
 before = GC.stat[:total_allocated_objects]
 1000.times { redis.get("profile_key") }
 after = GC.stat[:total_allocated_objects]
-puts format("  GET: %.2f objects/call", (after - before) / 1000.0)
+puts format("  GET: %<val>.2f objects/call", val: (after - before) / 1000.0)
 
 GC.start
 before = GC.stat[:total_allocated_objects]
 1000.times { |i| redis.set("profile_key", "v#{i}") }
 after = GC.stat[:total_allocated_objects]
-puts format("  SET: %.2f objects/call (includes string interpolation)", (after - before) / 1000.0)
+puts format("  SET: %<val>.2f objects/call (includes string interpolation)", val: (after - before) / 1000.0)
 
 GC.start
 before = GC.stat[:total_allocated_objects]
@@ -138,7 +138,7 @@ before = GC.stat[:total_allocated_objects]
   end
 end
 after = GC.stat[:total_allocated_objects]
-puts format("  PIPELINE (100 cmds): %.2f objects/pipeline", (after - before) / 100.0)
+puts format("  PIPELINE (100 cmds): %<val>.2f objects/pipeline", val: (after - before) / 100.0)
 
 # ============================================================
 # 5. YJIT Stats
@@ -153,12 +153,12 @@ if defined?(RubyVM::YJIT) && RubyVM::YJIT.enabled?
   if stats[:yjit_insns_count] && stats[:vm_insns_count]
     total = stats[:yjit_insns_count] + stats[:vm_insns_count]
     ratio = (stats[:yjit_insns_count].to_f / total * 100).round(2)
-    puts format("  Ratio in YJIT: %s%%", ratio)
+    puts format("  Ratio in YJIT: %<val>s%%", val: ratio)
   end
 
-  puts format("  Compiled ISEQs: %d", stats[:compiled_iseq_count]) if stats[:compiled_iseq_count]
+  puts format("  Compiled ISEQs: %<val>d", val: stats[:compiled_iseq_count]) if stats[:compiled_iseq_count]
 
-  puts format("  Invalidations: %d", stats[:invalidation_count]) if stats[:invalidation_count]
+  puts format("  Invalidations: %<val>d", val: stats[:invalidation_count]) if stats[:invalidation_count]
 end
 
 redis.close

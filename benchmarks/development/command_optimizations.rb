@@ -129,10 +129,9 @@ puts "Command                     redis-rb      redis-ruby    Speedup"
 puts "-" * 70
 
 results.each do |name, data|
-  speedup_str = format("%.2fx", data[:speedup])
-  speedup_str = speedup_str unless data[:speedup] >= 1.0
-  puts format("%-20s %12.1f i/s %12.1f i/s %10s",
-              name, data[:rb], data[:ruby], speedup_str)
+  speedup_str = format("%<val>.2fx", val: data[:speedup])
+  puts format("%<name>-20s %<rb>12.1f i/s %<ruby>12.1f i/s %<speedup>10s",
+              name: name, rb: data[:rb], ruby: data[:ruby], speedup: speedup_str)
 end
 
 puts "=" * 70

@@ -203,6 +203,12 @@ class StringsCommandsTest < RedisRubyTestCase
   end
 
   # GETDEL / GETEX
+end
+
+class StringsCommandsTestPart2 < RedisRubyTestCase
+  use_testcontainers!
+
+  # INCR / DECR
   def test_getdel
     redis.set("test:getdel", "value")
     result = redis.getdel("test:getdel")
@@ -394,6 +400,12 @@ class StringsCommandsTest < RedisRubyTestCase
   end
 
   # Edge cases
+end
+
+class StringsCommandsTestPart3 < RedisRubyTestCase
+  use_testcontainers!
+
+  # INCR / DECR
   def test_setrange_beyond_string_length
     redis.set("test:setrange", "abc")
     redis.setrange("test:setrange", 5, "xyz")

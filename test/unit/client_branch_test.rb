@@ -2,8 +2,7 @@
 
 require_relative "unit_test_helper"
 
-class ClientBranchTest < Minitest::Test
-  # A mock connection that simulates a real Redis connection
+module ClientBranchTestMocks
   class MockConnection
     attr_reader :last_command, :connected, :closed, :calls
 
@@ -59,7 +58,6 @@ class ClientBranchTest < Minitest::Test
       case command
       when "PING" then "PONG"
       when "GET" then "value"
-      when "SET", "AUTH", "SELECT", "WATCH", "UNWATCH", "DISCARD" then "OK"
       when "HGET" then "field_value"
       when "HSET" then 1
       else "OK"
@@ -67,7 +65,6 @@ class ClientBranchTest < Minitest::Test
     end
   end
 
-  # Mock connection that returns a CommandError
   class ErrorConnection < MockConnection
     def call_direct(command, *args)
       @last_command = [command, *args]
@@ -89,7 +86,9 @@ class ClientBranchTest < Minitest::Test
       RR::CommandError.new("ERR test error")
     end
   end
+end
 
+class ClientBranchTest < Minitest::Test
   # ============================================================
   # Initialization tests
   # ============================================================
@@ -251,7 +250,7 @@ class ClientBranchTest < Minitest::Test
 
   def test_connected_returns_connection_state
     client = RR::Client.new
-    mock_conn = MockConnection.new
+    mock_conn = ClientBranchTestMocks::MockConnection.new
     client.instance_variable_set(:@connection, mock_conn)
 
     assert_predicate client, :connected?
@@ -270,7 +269,7 @@ class ClientBranchTest < Minitest::Test
 
   def test_close_with_connection
     client = RR::Client.new
-    mock_conn = MockConnection.new
+    mock_conn = ClientBranchTestMocks::MockConnection.new
     client.instance_variable_set(:@connection, mock_conn)
 
     client.close
@@ -308,7 +307,7 @@ class ClientBranchTest < Minitest::Test
 
   def test_call_returns_result
     client = RR::Client.new
-    mock_conn = MockConnection.new
+    mock_conn = ClientBranchTestMocks::MockConnection.new
     client.instance_variable_set(:@connection, mock_conn)
 
     result = client.call("PING")
@@ -318,7 +317,7 @@ class ClientBranchTest < Minitest::Test
 
   def test_call_raises_command_error
     client = RR::Client.new
-    error_conn = ErrorConnection.new
+    error_conn = ClientBranchTestMocks::ErrorConnection.new
     client.instance_variable_set(:@connection, error_conn)
 
     assert_raises(RR::CommandError) do
@@ -332,7 +331,7 @@ class ClientBranchTest < Minitest::Test
 
   def test_call_1arg_returns_result
     client = RR::Client.new
-    mock_conn = MockConnection.new
+    mock_conn = ClientBranchTestMocks::MockConnection.new
     client.instance_variable_set(:@connection, mock_conn)
 
     result = client.get("mykey")
@@ -342,7 +341,7 @@ class ClientBranchTest < Minitest::Test
 
   def test_call_1arg_raises_command_error
     client = RR::Client.new
-    error_conn = ErrorConnection.new
+    error_conn = ClientBranchTestMocks::ErrorConnection.new
     client.instance_variable_set(:@connection, error_conn)
 
     assert_raises(RR::CommandError) do
@@ -356,7 +355,7 @@ class ClientBranchTest < Minitest::Test
 
   def test_call_2args_returns_result
     client = RR::Client.new
-    mock_conn = MockConnection.new
+    mock_conn = ClientBranchTestMocks::MockConnection.new
     client.instance_variable_set(:@connection, mock_conn)
 
     result = client.set("mykey", "myval")
@@ -366,7 +365,7 @@ class ClientBranchTest < Minitest::Test
 
   def test_call_2args_raises_command_error
     client = RR::Client.new
-    error_conn = ErrorConnection.new
+    error_conn = ClientBranchTestMocks::ErrorConnection.new
     client.instance_variable_set(:@connection, error_conn)
 
     assert_raises(RR::CommandError) do
@@ -380,7 +379,7 @@ class ClientBranchTest < Minitest::Test
 
   def test_call_3args_returns_result
     client = RR::Client.new
-    mock_conn = MockConnection.new
+    mock_conn = ClientBranchTestMocks::MockConnection.new
     client.instance_variable_set(:@connection, mock_conn)
 
     result = client.hset("myhash", "field", "val")
@@ -390,7 +389,7 @@ class ClientBranchTest < Minitest::Test
 
   def test_call_3args_raises_command_error
     client = RR::Client.new
-    error_conn = ErrorConnection.new
+    error_conn = ClientBranchTestMocks::ErrorConnection.new
     client.instance_variable_set(:@connection, error_conn)
 
     assert_raises(RR::CommandError) do
@@ -404,7 +403,7 @@ class ClientBranchTest < Minitest::Test
 
   def test_decode_responses_string_unfrozen
     client = RR::Client.new(decode_responses: true, encoding: "UTF-8")
-    mock_conn = MockConnection.new
+    mock_conn = ClientBranchTestMocks::MockConnection.new
     client.instance_variable_set(:@connection, mock_conn)
 
     result = client.get("mykey")
@@ -412,12 +411,18 @@ class ClientBranchTest < Minitest::Test
     assert_equal "value", result
     assert_equal Encoding::UTF_8, result.encoding
   end
+end
+
+class ClientBranchTestPart2 < Minitest::Test
+  # ============================================================
+  # Initialization tests
+  # ============================================================
 
   def test_decode_responses_string_frozen
     client = RR::Client.new(decode_responses: true, encoding: "UTF-8")
 
     # Create a connection that returns frozen strings
-    frozen_conn = MockConnection.new
+    frozen_conn = ClientBranchTestMocks::MockConnection.new
     def frozen_conn.call_1arg(_command, _arg)
       "frozen_value"
     end
@@ -432,7 +437,7 @@ class ClientBranchTest < Minitest::Test
   def test_decode_responses_array
     client = RR::Client.new(decode_responses: true, encoding: "UTF-8")
 
-    array_conn = MockConnection.new
+    array_conn = ClientBranchTestMocks::MockConnection.new
     def array_conn.call_direct(_command, *_args)
       %w[val1 val2]
     end
@@ -448,7 +453,7 @@ class ClientBranchTest < Minitest::Test
   def test_decode_responses_hash
     client = RR::Client.new(decode_responses: true, encoding: "UTF-8")
 
-    hash_conn = MockConnection.new
+    hash_conn = ClientBranchTestMocks::MockConnection.new
     def hash_conn.call_direct(_command, *_args)
       { "key" => "val" }
     end
@@ -466,7 +471,7 @@ class ClientBranchTest < Minitest::Test
   def test_decode_responses_integer_passthrough
     client = RR::Client.new(decode_responses: true, encoding: "UTF-8")
 
-    int_conn = MockConnection.new
+    int_conn = ClientBranchTestMocks::MockConnection.new
     def int_conn.call_direct(_command, *_args)
       42
     end
@@ -481,7 +486,7 @@ class ClientBranchTest < Minitest::Test
   def test_decode_responses_nil_passthrough
     client = RR::Client.new(decode_responses: true, encoding: "UTF-8")
 
-    nil_conn = MockConnection.new
+    nil_conn = ClientBranchTestMocks::MockConnection.new
     def nil_conn.call_1arg(_command, _arg)
       nil
     end
@@ -494,7 +499,7 @@ class ClientBranchTest < Minitest::Test
 
   def test_decode_responses_disabled
     client = RR::Client.new(decode_responses: false)
-    mock_conn = MockConnection.new
+    mock_conn = ClientBranchTestMocks::MockConnection.new
     client.instance_variable_set(:@connection, mock_conn)
 
     result = client.get("mykey")
@@ -504,7 +509,7 @@ class ClientBranchTest < Minitest::Test
 
   def test_decode_responses_custom_encoding
     client = RR::Client.new(decode_responses: true, encoding: "ISO-8859-1")
-    mock_conn = MockConnection.new
+    mock_conn = ClientBranchTestMocks::MockConnection.new
     client.instance_variable_set(:@connection, mock_conn)
 
     result = client.get("mykey")
@@ -518,7 +523,7 @@ class ClientBranchTest < Minitest::Test
 
   def test_ping
     client = RR::Client.new
-    mock_conn = MockConnection.new
+    mock_conn = ClientBranchTestMocks::MockConnection.new
     client.instance_variable_set(:@connection, mock_conn)
 
     result = client.ping
@@ -532,7 +537,7 @@ class ClientBranchTest < Minitest::Test
 
   def test_pipelined_executes_commands
     client = RR::Client.new
-    mock_conn = MockConnection.new
+    mock_conn = ClientBranchTestMocks::MockConnection.new
 
     # We need to mock Pipeline properly
     pipeline = mock("pipeline")
@@ -550,7 +555,7 @@ class ClientBranchTest < Minitest::Test
 
   def test_pipelined_raises_command_error_in_results
     client = RR::Client.new
-    mock_conn = MockConnection.new
+    mock_conn = ClientBranchTestMocks::MockConnection.new
 
     cmd_error = RR::CommandError.new("ERR pipeline error")
     pipeline = mock("pipeline")
@@ -560,7 +565,9 @@ class ClientBranchTest < Minitest::Test
     client.instance_variable_set(:@connection, mock_conn)
 
     assert_raises(RR::CommandError) do
-      client.pipelined { |_pipe| }
+      client.pipelined do |_pipe|
+        # Intentionally empty to test error propagation
+      end
     end
   end
 
@@ -570,7 +577,7 @@ class ClientBranchTest < Minitest::Test
 
   def test_multi_executes_transaction
     client = RR::Client.new
-    mock_conn = MockConnection.new
+    mock_conn = ClientBranchTestMocks::MockConnection.new
 
     transaction = mock("transaction")
     transaction.expects(:execute).returns(["OK", 1])
@@ -578,14 +585,16 @@ class ClientBranchTest < Minitest::Test
 
     client.instance_variable_set(:@connection, mock_conn)
 
-    results = client.multi { |_tx| }
+    results = client.multi do |_tx|
+      # Intentionally empty; transaction is mocked
+    end
 
     assert_equal ["OK", 1], results
   end
 
   def test_multi_returns_nil_when_aborted
     client = RR::Client.new
-    mock_conn = MockConnection.new
+    mock_conn = ClientBranchTestMocks::MockConnection.new
 
     transaction = mock("transaction")
     transaction.expects(:execute).returns(nil)
@@ -593,14 +602,16 @@ class ClientBranchTest < Minitest::Test
 
     client.instance_variable_set(:@connection, mock_conn)
 
-    result = client.multi { |_tx| }
+    result = client.multi do |_tx|
+      # Intentionally empty; transaction is mocked
+    end
 
     assert_nil result
   end
 
   def test_multi_raises_command_error_from_transaction_itself
     client = RR::Client.new
-    mock_conn = MockConnection.new
+    mock_conn = ClientBranchTestMocks::MockConnection.new
 
     cmd_error = RR::CommandError.new("MISCONF config error")
     transaction = mock("transaction")
@@ -610,13 +621,15 @@ class ClientBranchTest < Minitest::Test
     client.instance_variable_set(:@connection, mock_conn)
 
     assert_raises(RR::CommandError) do
-      client.multi { |_tx| }
+      client.multi do |_tx|
+        # Intentionally empty; transaction is mocked
+      end
     end
   end
 
   def test_multi_raises_command_error_in_results
     client = RR::Client.new
-    mock_conn = MockConnection.new
+    mock_conn = ClientBranchTestMocks::MockConnection.new
 
     cmd_error = RR::CommandError.new("ERR in result")
     transaction = mock("transaction")
@@ -626,7 +639,9 @@ class ClientBranchTest < Minitest::Test
     client.instance_variable_set(:@connection, mock_conn)
 
     assert_raises(RR::CommandError) do
-      client.multi { |_tx| }
+      client.multi do |_tx|
+        # Intentionally empty; transaction is mocked
+      end
     end
   end
 
@@ -636,7 +651,7 @@ class ClientBranchTest < Minitest::Test
 
   def test_watch_without_block
     client = RR::Client.new
-    mock_conn = MockConnection.new
+    mock_conn = ClientBranchTestMocks::MockConnection.new
     client.instance_variable_set(:@connection, mock_conn)
 
     result = client.watch("key1", "key2")
@@ -646,7 +661,7 @@ class ClientBranchTest < Minitest::Test
 
   def test_watch_with_block
     client = RR::Client.new
-    mock_conn = MockConnection.new
+    mock_conn = ClientBranchTestMocks::MockConnection.new
     client.instance_variable_set(:@connection, mock_conn)
 
     block_called = false
@@ -661,7 +676,7 @@ class ClientBranchTest < Minitest::Test
 
   def test_watch_with_block_unwatches_on_exception
     client = RR::Client.new
-    mock_conn = MockConnection.new
+    mock_conn = ClientBranchTestMocks::MockConnection.new
     client.instance_variable_set(:@connection, mock_conn)
 
     assert_raises(RuntimeError) do
@@ -680,7 +695,7 @@ class ClientBranchTest < Minitest::Test
 
   def test_discard
     client = RR::Client.new
-    mock_conn = MockConnection.new
+    mock_conn = ClientBranchTestMocks::MockConnection.new
     client.instance_variable_set(:@connection, mock_conn)
 
     result = client.discard
@@ -690,7 +705,7 @@ class ClientBranchTest < Minitest::Test
 
   def test_unwatch
     client = RR::Client.new
-    mock_conn = MockConnection.new
+    mock_conn = ClientBranchTestMocks::MockConnection.new
     client.instance_variable_set(:@connection, mock_conn)
 
     result = client.unwatch
@@ -701,13 +716,19 @@ class ClientBranchTest < Minitest::Test
   # ============================================================
   # ensure_connected - creates connections for different topologies
   # ============================================================
+end
+
+class ClientBranchTestPart3 < Minitest::Test
+  # ============================================================
+  # Initialization tests
+  # ============================================================
 
   def test_ensure_connected_creates_tcp_connection
     client = RR::Client.new(host: "localhost", port: 6379)
 
     RR::Connection::TCP.expects(:new)
       .with(host: "localhost", port: 6379, timeout: 5.0)
-      .returns(MockConnection.new)
+      .returns(ClientBranchTestMocks::MockConnection.new)
 
     client.send(:ensure_connected)
 
@@ -720,7 +741,7 @@ class ClientBranchTest < Minitest::Test
     RR::Connection::SSL.expects(:new)
       .with(host: "localhost", port: 6380, timeout: 5.0,
             ssl_params: { verify_mode: 0 })
-      .returns(MockConnection.new)
+      .returns(ClientBranchTestMocks::MockConnection.new)
 
     client.send(:ensure_connected)
 
@@ -732,7 +753,7 @@ class ClientBranchTest < Minitest::Test
 
     RR::Connection::Unix.expects(:new)
       .with(path: "/tmp/redis.sock", timeout: 5.0)
-      .returns(MockConnection.new)
+      .returns(ClientBranchTestMocks::MockConnection.new)
 
     client.send(:ensure_connected)
 
@@ -741,7 +762,7 @@ class ClientBranchTest < Minitest::Test
 
   def test_ensure_connected_skips_when_already_connected
     client = RR::Client.new
-    mock_conn = MockConnection.new
+    mock_conn = ClientBranchTestMocks::MockConnection.new
     client.instance_variable_set(:@connection, mock_conn)
 
     # Should not create a new connection
@@ -756,7 +777,7 @@ class ClientBranchTest < Minitest::Test
 
   def test_authenticate_with_password_only
     client = RR::Client.new(password: "secret")
-    mock_conn = MockConnection.new
+    mock_conn = ClientBranchTestMocks::MockConnection.new
 
     RR::Connection::TCP.expects(:new).returns(mock_conn)
 
@@ -771,7 +792,7 @@ class ClientBranchTest < Minitest::Test
 
   def test_authenticate_with_username_and_password
     client = RR::Client.new(username: "admin", password: "secret")
-    mock_conn = MockConnection.new
+    mock_conn = ClientBranchTestMocks::MockConnection.new
 
     RR::Connection::TCP.expects(:new).returns(mock_conn)
 
@@ -785,7 +806,7 @@ class ClientBranchTest < Minitest::Test
 
   def test_no_authenticate_without_password
     client = RR::Client.new
-    mock_conn = MockConnection.new
+    mock_conn = ClientBranchTestMocks::MockConnection.new
 
     RR::Connection::TCP.expects(:new).returns(mock_conn)
 
@@ -802,7 +823,7 @@ class ClientBranchTest < Minitest::Test
 
   def test_select_db_when_positive
     client = RR::Client.new(db: 3)
-    mock_conn = MockConnection.new
+    mock_conn = ClientBranchTestMocks::MockConnection.new
 
     RR::Connection::TCP.expects(:new).returns(mock_conn)
 
@@ -816,7 +837,7 @@ class ClientBranchTest < Minitest::Test
 
   def test_no_select_db_when_zero
     client = RR::Client.new(db: 0)
-    mock_conn = MockConnection.new
+    mock_conn = ClientBranchTestMocks::MockConnection.new
 
     RR::Connection::TCP.expects(:new).returns(mock_conn)
 
@@ -927,7 +948,7 @@ class ClientBranchTest < Minitest::Test
   def test_decode_nested_array_in_array
     client = RR::Client.new(decode_responses: true, encoding: "UTF-8")
 
-    nested_conn = MockConnection.new
+    nested_conn = ClientBranchTestMocks::MockConnection.new
     def nested_conn.call_direct(_command, *_args)
       [%w[inner1 inner2], "outer"]
     end
@@ -944,7 +965,7 @@ class ClientBranchTest < Minitest::Test
   def test_decode_nested_hash_with_array_values
     client = RR::Client.new(decode_responses: true, encoding: "UTF-8")
 
-    nested_conn = MockConnection.new
+    nested_conn = ClientBranchTestMocks::MockConnection.new
     def nested_conn.call_direct(_command, *_args)
       { "key" => %w[val1 val2] }
     end
@@ -963,7 +984,7 @@ class ClientBranchTest < Minitest::Test
   def test_decode_responses_boolean_passthrough
     client = RR::Client.new(decode_responses: true, encoding: "UTF-8")
 
-    bool_conn = MockConnection.new
+    bool_conn = ClientBranchTestMocks::MockConnection.new
     def bool_conn.call_direct(_command, *_args)
       true
     end
@@ -977,7 +998,7 @@ class ClientBranchTest < Minitest::Test
   def test_decode_responses_float_passthrough
     client = RR::Client.new(decode_responses: true, encoding: "UTF-8")
 
-    float_conn = MockConnection.new
+    float_conn = ClientBranchTestMocks::MockConnection.new
     def float_conn.call_direct(_command, *_args)
       3.14
     end
@@ -994,7 +1015,7 @@ class ClientBranchTest < Minitest::Test
 
   def test_health_check_returns_false_on_connection_error
     client = RR::Client.new
-    mock_conn = MockConnection.new
+    mock_conn = ClientBranchTestMocks::MockConnection.new
     def mock_conn.call_direct(_command, *_args)
       raise RR::ConnectionError, "connection refused"
     end
@@ -1005,7 +1026,7 @@ class ClientBranchTest < Minitest::Test
 
   def test_health_check_returns_true_when_healthy
     client = RR::Client.new
-    mock_conn = MockConnection.new
+    mock_conn = ClientBranchTestMocks::MockConnection.new
     client.instance_variable_set(:@connection, mock_conn)
 
     assert client.health_check

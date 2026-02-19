@@ -26,6 +26,7 @@ class DNSClientTest < Minitest::Test
     client.stubs(:create_connection).returns(mock_conn)
 
     result = client.call("GET", "key")
+
     assert_equal "value", result
   end
 
@@ -47,6 +48,7 @@ class DNSClientTest < Minitest::Test
     client.stubs(:create_connection).returns(mock_conn)
 
     result = client.call_1arg("GET", "key")
+
     assert_equal "value", result
   end
 
@@ -56,7 +58,8 @@ class DNSClientTest < Minitest::Test
     mock_conn.stubs(:close)
 
     seq = sequence("call_seq")
-    mock_conn.expects(:call_2args).with("SET", "key", "val").in_sequence(seq).raises(RR::ConnectionError, "lost connection")
+    mock_conn.expects(:call_2args).with("SET", "key", "val").in_sequence(seq).raises(RR::ConnectionError,
+                                                                                     "lost connection")
     mock_conn.expects(:call_2args).with("SET", "key", "val").in_sequence(seq).returns("OK")
 
     mock_resolver = mock("resolver")
@@ -68,6 +71,7 @@ class DNSClientTest < Minitest::Test
     client.stubs(:create_connection).returns(mock_conn)
 
     result = client.call_2args("SET", "key", "val")
+
     assert_equal "OK", result
   end
 

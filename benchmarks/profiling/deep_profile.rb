@@ -96,19 +96,19 @@ report.pretty_print(to_file: "tmp/profiles/memory_report.txt", detailed_report: 
 puts "\nTop 15 Allocated Memory by Gem/File:"
 puts "-" * 70
 report.allocated_memory_by_gem.first(15).each do |stat|
-  puts format("  %-50s %10s bytes", stat[:data], stat[:count])
+  puts format("  %<data>-50s %<count>10s bytes", data: stat[:data], count: stat[:count])
 end
 
 puts "\nTop 15 Allocated Objects by Location:"
 puts "-" * 70
 report.allocated_objects_by_location.first(15).each do |stat|
-  puts format("  %-55s %8d", stat[:data], stat[:count])
+  puts format("  %<data>-55s %<count>8d", data: stat[:data], count: stat[:count])
 end
 
 puts "\nTop 10 Retained Objects by Location:"
 puts "-" * 70
 report.retained_objects_by_location.first(10).each do |stat|
-  puts format("  %-55s %8d", stat[:data], stat[:count])
+  puts format("  %<data>-55s %<count>8d", data: stat[:data], count: stat[:count])
 end
 
 # NOTE: String analysis removed - format varies by memory_profiler version
@@ -163,7 +163,7 @@ puts "Location                                                Count     Old GC"
 puts "-" * 70
 sorted.first(20).each do |(path, line, type), (count, old_count, *)|
   short_path = path.to_s.gsub(%r{.*/lib/}, "")
-  puts format("%-50s %10d %10d", "#{short_path}:#{line} (#{type})", count, old_count)
+  puts format("%<loc>-50s %<count>10d %<old>10d", loc: "#{short_path}:#{line} (#{type})", count: count, old: old_count)
 end
 
 # ============================================================
@@ -187,7 +187,7 @@ puts "-" * 70
   before = gc_before[key] || 0
   after = gc_after[key] || 0
   diff = after - before
-  puts format("  %-35s %15d (delta: %+d)", key, after, diff)
+  puts format("  %<key>-35s %<after>15d (delta: %<diff>+d)", key: key, after: after, diff: diff)
 end
 
 # ============================================================
@@ -222,14 +222,14 @@ if defined?(RubyVM::YJIT) && RubyVM::YJIT.enabled?
                 else
                   value
                 end
-    puts format("  %-35s %s", key, formatted)
+    puts format("  %<key>-35s %<val>s", key: key, val: formatted)
   end
 
   # Calculate ratio_in_yjit if available
   if stats[:yjit_insns_count] && stats[:vm_insns_count]
     total = stats[:yjit_insns_count] + stats[:vm_insns_count]
     ratio = (stats[:yjit_insns_count].to_f / total * 100).round(2)
-    puts format("  %-35s %s%%", "ratio_in_yjit", ratio)
+    puts format("  %<key>-35s %<val>s%%", key: "ratio_in_yjit", val: ratio)
   end
 end
 
@@ -254,9 +254,9 @@ end
 t2 = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 gc_stat_after = GC.stat[:total_allocated_objects]
 
-puts format("  Time: %.4f seconds", t2 - t1)
-puts format("  Objects allocated: %d", gc_stat_after - gc_stat_before)
-puts format("  Objects per encode: %.2f", (gc_stat_after - gc_stat_before) / 10_000.0)
+puts format("  Time: %<val>.4f seconds", val: t2 - t1)
+puts format("  Objects allocated: %<val>d", val: gc_stat_after - gc_stat_before)
+puts format("  Objects per encode: %<val>.2f", val: (gc_stat_after - gc_stat_before) / 10_000.0)
 
 # Profile pipeline encoding
 puts "\nEncoding 100 pipelines of 100 commands each..."
@@ -272,9 +272,9 @@ end
 t2 = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 gc_stat_after = GC.stat[:total_allocated_objects]
 
-puts format("  Time: %.4f seconds", t2 - t1)
-puts format("  Objects allocated: %d", gc_stat_after - gc_stat_before)
-puts format("  Objects per pipeline: %.2f", (gc_stat_after - gc_stat_before) / 100.0)
+puts format("  Time: %<val>.4f seconds", val: t2 - t1)
+puts format("  Objects allocated: %<val>d", val: gc_stat_after - gc_stat_before)
+puts format("  Objects per pipeline: %<val>.2f", val: (gc_stat_after - gc_stat_before) / 100.0)
 
 redis.close
 puts "\n#{"=" * 70}"

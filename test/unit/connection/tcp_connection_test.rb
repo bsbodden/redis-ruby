@@ -220,7 +220,7 @@ class TCPConnectionTest < Minitest::Test
 
     conn = RR::Connection::TCP.new
 
-    assert_equal 5.0, conn.timeout
+    assert_in_delta(5.0, conn.timeout)
   end
 
   def test_connect_enforces_custom_timeout
@@ -229,7 +229,7 @@ class TCPConnectionTest < Minitest::Test
 
     conn = RR::Connection::TCP.new(host: "redis.example.com", port: 6380, timeout: 2.0)
 
-    assert_equal 2.0, conn.timeout
+    assert_in_delta(2.0, conn.timeout)
   end
 
   def test_socket_closed_on_configure_socket_failure

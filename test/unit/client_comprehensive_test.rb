@@ -307,6 +307,12 @@ class ClientComprehensiveTest < Minitest::Test
     assert_respond_to client, :zrange
     assert_respond_to client, :zscore
   end
+end
+
+class ClientComprehensiveTestPart2 < Minitest::Test
+  # ============================================================
+  # URL parsing tests
+  # ============================================================
 
   def test_includes_geo_commands
     client = RR::Client.new

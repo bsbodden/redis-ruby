@@ -43,8 +43,8 @@ module RR
       #   create_from "0"
       #   create_from "$", mkstream: true
       def create_from(id, mkstream: false, entriesread: nil)
-        @redis.xgroup_create(@stream_key, @group_name, id.to_s, 
-                             mkstream: mkstream, 
+        @redis.xgroup_create(@stream_key, @group_name, id.to_s,
+                             mkstream: mkstream,
                              entriesread: entriesread)
       end
 
@@ -84,17 +84,18 @@ module RR
         @redis.xgroup_destroy(@stream_key, @group_name)
       end
 
-      # Set the consumer group's last delivered ID
+      # Update the consumer group's last delivered ID
       #
       # @param id [String] New last delivered ID
       # @return [String] "OK"
       #
       # @example
-      #   set_id "1000-0"
-      #   set_id "$"
-      def set_id(id)
+      #   update_id "1000-0"
+      #   update_id "$"
+      def update_id(id)
         @redis.xgroup_setid(@stream_key, @group_name, id.to_s)
       end
+      alias set_id update_id
 
       # Create a consumer in the group
       #
@@ -140,4 +141,3 @@ module RR
     end
   end
 end
-

@@ -312,6 +312,46 @@ class VectorSetCommandsTest < RedisRubyTestCase
 
     assert_equal 2, members.length
   end
+end
+
+class VectorSetCommandsTestPart2 < RedisRubyTestCase
+  use_testcontainers!
+
+  def setup
+    super
+    @vset_key = "vset:test:#{SecureRandom.hex(4)}"
+
+    # Check if Vector Set commands are available (Redis 8.0+)
+    begin
+      redis.vcard("__test_vset__")
+    rescue RR::CommandError => e
+      if e.message.include?("unknown command") || e.message.include?("ERR unknown")
+        skip "Vector Set commands not available (requires Redis 8.0+)"
+      end
+    end
+  end
+
+  def teardown
+    begin
+      redis.del(@vset_key)
+    rescue StandardError
+      nil
+    end
+    super
+  end
+
+  # Helper to convert float array to FP32 blob
+  def to_fp32_blob(float_array)
+    float_array.pack("e*")
+  end
+
+  # Helper to validate quantized vectors with tolerance
+  def vectors_close?(original, quantized, tolerance: 0.1)
+    return false if original.length != quantized.length
+
+    max_diff = original.zip(quantized).map { |o, q| (o - q).abs }.max
+    max_diff <= tolerance
+  end
 
   def test_vlinks
     # Create a set with enough elements to have links
