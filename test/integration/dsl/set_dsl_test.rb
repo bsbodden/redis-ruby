@@ -578,7 +578,7 @@ class SetDSLTestPart4 < RedisRubyTestCase
     assert_equal 3, post_tags.size
 
     # Iterate
-    tags = post_tags.map { |tag| tag }
+    tags = post_tags.to_a
 
     assert_equal 3, tags.size
 

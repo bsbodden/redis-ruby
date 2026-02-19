@@ -405,7 +405,7 @@ module RR
         result = @redis.zrange(@key, 0, -1, withscores: true)
         return {} if result.nil? || result.empty?
 
-        result.transform_keys(&:to_sym)
+        result.to_h.transform_keys(&:to_sym)
       end
 
       # Get random member(s)

@@ -91,6 +91,7 @@ Naming/MethodParameterName:
     - lt   # less than
     - nx   # only if not exists
     - px   # expiration in milliseconds
+    - to   # range end (time series)
     - xx   # only if exists
 
 # Redis commands use non-predicate names like SETNX, GETEX

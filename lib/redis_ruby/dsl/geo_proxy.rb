@@ -311,7 +311,7 @@ module RR
           cursor, results = @redis.zscan(@key, cursor)
           # zscan returns [[member, score], ...] pairs
           # For each member, get its position
-          results.each_key do |member|
+          results.map(&:first).each do |member|
             pos = @redis.geopos(@key, member).first
             yield member.to_sym, pos[0], pos[1] if pos
           end

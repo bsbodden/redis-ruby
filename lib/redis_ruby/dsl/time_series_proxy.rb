@@ -66,11 +66,11 @@ module RR
       # @param from [Integer, Time, String] Start timestamp
       # @param to [Integer, Time, String] End timestamp
       # @return [TimeSeriesQueryBuilder] Query builder for chaining
-      def range(from: nil, until_ts: nil)
+      def range(from: nil, to: nil)
         require_relative "time_series_query_builder"
         builder = TimeSeriesQueryBuilder.new(@client, @key)
         builder.from(from) if from
-        builder.to(until_ts) if until_ts
+        builder.to(to) if to
         builder
       end
 
@@ -78,11 +78,11 @@ module RR
       # @param from [Integer, Time, String] Start timestamp
       # @param to [Integer, Time, String] End timestamp
       # @return [TimeSeriesQueryBuilder] Query builder for chaining
-      def reverse_range(from: nil, until_ts: nil)
+      def reverse_range(from: nil, to: nil)
         require_relative "time_series_query_builder"
         builder = TimeSeriesQueryBuilder.new(@client, @key)
         builder.from(from) if from
-        builder.to(until_ts) if until_ts
+        builder.to(to) if to
         builder.reverse
       end
 
@@ -97,9 +97,9 @@ module RR
       # @param from [Integer, Time, String] Start timestamp
       # @param to [Integer, Time, String] End timestamp
       # @return [Integer] Number of samples deleted
-      def delete(from:, until_ts:)
+      def delete(from:, to:)
         from_timestamp = normalize_timestamp(from)
-        to_timestamp = normalize_timestamp(until_ts)
+        to_timestamp = normalize_timestamp(to)
         @client.ts_del(@key, from_timestamp, to_timestamp)
       end
 

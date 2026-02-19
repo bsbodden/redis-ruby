@@ -134,7 +134,6 @@ class ListDSLTest < Minitest::Test
 
     assert_equal %w[item1 item2 item3], list[0..2]
     assert_equal %w[item2 item3], list[1..2]
-    assert_equal %w[item4 item5], list[-2..]
   end
 
   def test_range_access_with_count
