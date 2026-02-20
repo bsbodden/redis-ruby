@@ -39,6 +39,20 @@ module RR
       @commands = []
     end
 
+    # Check if currently inside a MULTI block
+    #
+    # @return [Boolean]
+    def in_multi?
+      true
+    end
+
+    # Prevent nested MULTI calls (redis-py pattern)
+    #
+    # @raise [ArgumentError] always, since Transaction already represents a MULTI block
+    def multi
+      raise ArgumentError, "MULTI calls cannot be nested"
+    end
+
     # Handle arbitrary commands that aren't explicitly defined
     def method_missing(method_name, *, **kwargs)
       # Convert method name to Redis command (e.g., :echo -> "ECHO")
