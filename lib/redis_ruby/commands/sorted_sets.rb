@@ -361,7 +361,7 @@ module RR
       # @param timeout [Numeric] timeout in seconds
       # @return [Array, nil] [key, member, score] or nil
       def bzpopmin(*keys, timeout: 0)
-        result = call(CMD_BZPOPMIN, *keys, timeout)
+        result = blocking_call(timeout, CMD_BZPOPMIN, *keys, timeout)
         return nil if result.nil?
 
         [result[0], result[1], parse_score(result[2])]
@@ -373,7 +373,7 @@ module RR
       # @param timeout [Numeric] timeout in seconds
       # @return [Array, nil] [key, member, score] or nil
       def bzpopmax(*keys, timeout: 0)
-        result = call(CMD_BZPOPMAX, *keys, timeout)
+        result = blocking_call(timeout, CMD_BZPOPMAX, *keys, timeout)
         return nil if result.nil?
 
         [result[0], result[1], parse_score(result[2])]
@@ -539,7 +539,7 @@ module RR
       def bzmpop(timeout, *keys, modifier: :min, count: nil)
         args = [CMD_BZMPOP, timeout, keys.length, *keys, modifier.to_s.upcase]
         args.push(OPT_COUNT, count) if count
-        parse_zmpop_result(call(*args))
+        parse_zmpop_result(blocking_call(timeout, *args))
       end
 
       # Count members in a lexicographical range

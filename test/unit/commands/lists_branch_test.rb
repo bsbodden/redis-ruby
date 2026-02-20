@@ -27,6 +27,11 @@ class ListsBranchTest < Minitest::Test
       (@last_command = [cmd, arg_one, arg_two, arg_three]
        "OK")
     end
+
+    def blocking_call(_timeout, *args)
+      (@last_command = args
+       nil)
+    end
   end
 
   def setup

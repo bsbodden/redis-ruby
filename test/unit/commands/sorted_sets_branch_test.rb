@@ -34,6 +34,11 @@ class SortedSetsBranchTest < Minitest::Test
       mock_return_value(@last_command)
     end
 
+    def blocking_call(_timeout, *args)
+      @last_command = args
+      mock_return_value(args)
+    end
+
     attr_writer :mock_override
 
     def clear_mock_override
@@ -157,6 +162,11 @@ class SortedSetsBranchTestPart2 < Minitest::Test
     def call_3args(cmd, arg_one, arg_two, arg_three)
       @last_command = [cmd, arg_one, arg_two, arg_three]
       mock_return_value(@last_command)
+    end
+
+    def blocking_call(_timeout, *args)
+      @last_command = args
+      mock_return_value(args)
     end
 
     attr_writer :mock_override
@@ -350,6 +360,11 @@ class SortedSetsBranchTestPart3 < Minitest::Test
       mock_return_value(@last_command)
     end
 
+    def blocking_call(_timeout, *args)
+      @last_command = args
+      mock_return_value(args)
+    end
+
     attr_writer :mock_override
 
     def clear_mock_override
@@ -537,6 +552,11 @@ class SortedSetsBranchTestPart4 < Minitest::Test
       mock_return_value(@last_command)
     end
 
+    def blocking_call(_timeout, *args)
+      @last_command = args
+      mock_return_value(args)
+    end
+
     attr_writer :mock_override
 
     def clear_mock_override
@@ -694,6 +714,11 @@ class SortedSetsBranchTestPart5 < Minitest::Test
       mock_return_value(@last_command)
     end
 
+    def blocking_call(_timeout, *args)
+      @last_command = args
+      mock_return_value(args)
+    end
+
     attr_writer :mock_override
 
     def clear_mock_override
@@ -848,6 +873,11 @@ class SortedSetsBranchTestPart6 < Minitest::Test
     def call_3args(cmd, arg_one, arg_two, arg_three)
       @last_command = [cmd, arg_one, arg_two, arg_three]
       mock_return_value(@last_command)
+    end
+
+    def blocking_call(_timeout, *args)
+      @last_command = args
+      mock_return_value(args)
     end
 
     attr_writer :mock_override
@@ -1039,6 +1069,11 @@ class SortedSetsBranchTestPart7 < Minitest::Test
       mock_return_value(@last_command)
     end
 
+    def blocking_call(_timeout, *args)
+      @last_command = args
+      mock_return_value(args)
+    end
+
     attr_writer :mock_override
 
     def clear_mock_override
@@ -1216,6 +1251,11 @@ class SortedSetsBranchTestPart8 < Minitest::Test
       mock_return_value(@last_command)
     end
 
+    def blocking_call(_timeout, *args)
+      @last_command = args
+      mock_return_value(args)
+    end
+
     attr_writer :mock_override
 
     def clear_mock_override
@@ -1386,6 +1426,11 @@ class SortedSetsBranchTestPart9 < Minitest::Test
       mock_return_value(@last_command)
     end
 
+    def blocking_call(_timeout, *args)
+      @last_command = args
+      mock_return_value(args)
+    end
+
     attr_writer :mock_override
 
     def clear_mock_override
@@ -1551,6 +1596,11 @@ class SortedSetsBranchTestPart10 < Minitest::Test
     def call_3args(cmd, arg_one, arg_two, arg_three)
       @last_command = [cmd, arg_one, arg_two, arg_three]
       mock_return_value(@last_command)
+    end
+
+    def blocking_call(_timeout, *args)
+      @last_command = args
+      mock_return_value(args)
     end
 
     attr_writer :mock_override
@@ -1734,6 +1784,11 @@ class SortedSetsBranchTestPart11 < Minitest::Test
       mock_return_value(@last_command)
     end
 
+    def blocking_call(_timeout, *args)
+      @last_command = args
+      mock_return_value(args)
+    end
+
     attr_writer :mock_override
 
     def clear_mock_override
@@ -1912,6 +1967,11 @@ class SortedSetsBranchTestPart12 < Minitest::Test
       mock_return_value(@last_command)
     end
 
+    def blocking_call(_timeout, *args)
+      @last_command = args
+      mock_return_value(args)
+    end
+
     attr_writer :mock_override
 
     def clear_mock_override
@@ -2085,6 +2145,11 @@ class SortedSetsBranchTestPart13 < Minitest::Test
       mock_return_value(@last_command)
     end
 
+    def blocking_call(_timeout, *args)
+      @last_command = args
+      mock_return_value(args)
+    end
+
     attr_writer :mock_override
 
     def clear_mock_override
@@ -2230,6 +2295,11 @@ class SortedSetsBranchTestPart14 < Minitest::Test
     def call_3args(cmd, arg_one, arg_two, arg_three)
       @last_command = [cmd, arg_one, arg_two, arg_three]
       mock_return_value(@last_command)
+    end
+
+    def blocking_call(_timeout, *args)
+      @last_command = args
+      mock_return_value(args)
     end
 
     attr_writer :mock_override

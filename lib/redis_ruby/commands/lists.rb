@@ -262,7 +262,7 @@ module RR
       def blmpop(timeout, *keys, direction: :left, count: nil)
         args = [CMD_BLMPOP, timeout, keys.length, *keys, direction.to_s.upcase]
         args.push("COUNT", count) if count
-        call(*args)
+        blocking_call(timeout, *args)
       end
 
       # Return the index of matching elements
@@ -290,7 +290,7 @@ module RR
       # @param timeout [Numeric] timeout in seconds (0 = block forever)
       # @return [Array, nil] [key, element] or nil on timeout
       def blpop(*keys, timeout: 0)
-        call(CMD_BLPOP, *keys, timeout)
+        blocking_call(timeout, CMD_BLPOP, *keys, timeout)
       end
 
       # Blocking pop from the right of one or more lists
@@ -299,7 +299,7 @@ module RR
       # @param timeout [Numeric] timeout in seconds (0 = block forever)
       # @return [Array, nil] [key, element] or nil on timeout
       def brpop(*keys, timeout: 0)
-        call(CMD_BRPOP, *keys, timeout)
+        blocking_call(timeout, CMD_BRPOP, *keys, timeout)
       end
 
       # Blocking RPOPLPUSH
@@ -309,7 +309,7 @@ module RR
       # @param timeout [Numeric] timeout in seconds
       # @return [String, nil] element or nil on timeout
       def brpoplpush(source, destination, timeout: 0)
-        call_3args(CMD_BRPOPLPUSH, source, destination, timeout)
+        blocking_call(timeout, CMD_BRPOPLPUSH, source, destination, timeout)
       end
 
       # Blocking LMOVE
@@ -321,8 +321,8 @@ module RR
       # @param timeout [Numeric] timeout in seconds
       # @return [String, nil] element or nil on timeout
       def blmove(source, destination, wherefrom, whereto, timeout: 0)
-        call(CMD_BLMOVE, source, destination,
-             wherefrom.to_s.upcase, whereto.to_s.upcase, timeout)
+        blocking_call(timeout, CMD_BLMOVE, source, destination,
+                      wherefrom.to_s.upcase, whereto.to_s.upcase, timeout)
       end
     end
   end

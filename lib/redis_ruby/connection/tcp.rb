@@ -87,6 +87,14 @@ module RR
         @decoder.decode
       end
 
+      # Blocking call with extended read timeout for commands like BLPOP, BRPOP
+      # @param timeout [Numeric] Total read timeout (connection timeout + command timeout + padding)
+      # @api private
+      def blocking_call(timeout, command, *)
+        write_command_fast(command, *)
+        @buffered_io.with_timeout(timeout) { @decoder.decode }
+      end
+
       # Ultra-fast path for single-argument commands (GET, DEL, EXISTS, etc.)
       # Avoids splat allocation overhead
       # Note: flush removed since TCP_NODELAY is enabled (no buffering)

@@ -112,6 +112,31 @@ module RR
       execute_with_protection(command, args)
     end
 
+    # Execute a blocking Redis command with timeout padding
+    #
+    # Adds the command's own timeout to the socket read timeout to prevent
+    # premature ReadTimeoutError. For example, BLPOP with timeout=5 will
+    # use read_timeout + 5 + 1 (1s padding for network latency).
+    #
+    # @param command_timeout [Numeric] The blocking timeout from the command
+    # @param command [String] Command name
+    # @param args [Array] Command arguments
+    # @return [Object] Command result
+    def blocking_call(command_timeout, command, *args)
+      @retry_policy.call do
+        ensure_connected
+        if command_timeout && command_timeout > 0
+          padded_timeout = @timeout + command_timeout + 1
+          result = @connection.blocking_call(padded_timeout, command, *args)
+        else
+          result = @connection.call_direct(command, *args)
+        end
+        raise result if result.is_a?(CommandError)
+
+        @decode_responses ? decode_result(result) : result
+      end
+    end
+
     # Fast path for single-argument commands (GET, DEL, EXISTS, etc.)
     # @api private
     def call_1arg(command, arg)
