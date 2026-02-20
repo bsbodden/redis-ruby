@@ -7,6 +7,7 @@ module RR
   class ConnectionError < Error; end
   class CommandError < Error; end
   class TimeoutError < Error; end
+  class WatchError < Error; end
 
   # Sentinel-specific errors
   class SentinelError < Error; end

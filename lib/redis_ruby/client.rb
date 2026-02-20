@@ -95,6 +95,7 @@ module RR
       @timeout = timeout
       @ssl_params = ssl_params
       @connection = nil
+      @watching = false
       @decode_responses = decode_responses
       @encoding = encoding
       @instrumentation = instrumentation
@@ -221,7 +222,11 @@ module RR
         results = transaction.execute
       end
 
-      return nil if results.nil?
+      if results.nil?
+        raise WatchError, "Watched variable changed" if @watching
+
+        return nil
+      end
 
       raise results if results.is_a?(CommandError)
 
@@ -240,8 +245,10 @@ module RR
       return result unless block
 
       begin
+        @watching = true
         yield self
       ensure
+        @watching = false
         @connection.call(CMD_UNWATCH)
       end
     end
