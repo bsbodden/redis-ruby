@@ -321,6 +321,36 @@ end
 
 ## Error Handling
 
+### Nested MULTI Prevention
+
+Calling `multi` inside a transaction block raises `ArgumentError` immediately, preventing the common mistake of sending a nested `MULTI` to Redis (which Redis itself rejects with an error):
+
+```ruby
+redis.multi do |tx|
+  tx.set("key", "value")
+  tx.multi do |inner_tx|  # => raises ArgumentError: "MULTI calls cannot be nested"
+    inner_tx.set("key2", "value2")
+  end
+end
+```
+
+### Aborted Transactions (WatchError)
+
+When a `WATCH`ed key is modified by another client before `EXEC`, the transaction is aborted and `multi` returns `nil`:
+
+```ruby
+result = redis.watch("counter") do
+  current = redis.get("counter").to_i
+  redis.multi do |tx|
+    tx.set("counter", current + 1)
+  end
+end
+
+if result.nil?
+  puts "Transaction aborted — another client modified 'counter'"
+end
+```
+
 ### Command Errors in Transactions
 
 ```ruby

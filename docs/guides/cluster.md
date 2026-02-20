@@ -202,19 +202,44 @@ redis.smembers("tags:{post:1}")
 
 ### Cross-Slot Operations
 
-Operations spanning multiple slots will fail:
+Operations spanning multiple slots will raise `RR::CrossSlotError`:
 
 ```ruby
-# This will raise an error - keys on different nodes
+# This will raise CrossSlotError - keys on different nodes
 begin
   redis.mget("user:1000", "user:2000", "user:3000")
-rescue RR::Error => e
+rescue RR::CrossSlotError => e
   puts e.message  # => "CROSSSLOT Keys in request don't hash to the same slot"
 end
 
 # Solution: Use hash tags or fetch individually
 values = ["user:1000", "user:2000", "user:3000"].map { |key| redis.get(key) }
 ```
+
+### WATCH/UNWATCH in Cluster Mode
+
+WATCH and UNWATCH are routed to the node owning the watched keys' slot. All watched keys must hash to the same slot:
+
+```ruby
+# Works - all keys use same hash tag
+redis.watch("user:{123}:balance", "user:{123}:pending") do
+  balance = redis.get("user:{123}:balance").to_i
+  redis.multi do |tx|
+    tx.set("user:{123}:balance", balance - 100)
+  end
+end
+
+# Raises CrossSlotError - keys span multiple slots
+begin
+  redis.watch("user:100", "user:200") do
+    # ...
+  end
+rescue RR::CrossSlotError => e
+  puts "Use hash tags: #{e.message}"
+end
+```
+
+UNWATCH is automatically sent to the same node that received the WATCH command.
 
 ### Transactions in Cluster Mode
 
@@ -234,8 +259,24 @@ begin
     tx.set("user:100", "Alice")
     tx.set("user:200", "Bob")  # Different slot!
   end
-rescue RR::Error => e
+rescue RR::CrossSlotError => e
   puts "Transaction failed: #{e.message}"
+end
+```
+
+### Cluster Error Handling
+
+```ruby
+begin
+  redis.get("key")
+rescue RR::CrossSlotError => e
+  # Keys in a multi-key operation don't hash to the same slot
+rescue RR::TryAgainError => e
+  # Temporary error during slot migration (auto-retried by client)
+rescue RR::ClusterDownError => e
+  # Cluster is unavailable
+rescue RR::ClusterError => e
+  # Catch-all for cluster-related errors
 end
 ```
 

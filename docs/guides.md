@@ -35,7 +35,7 @@ Browse the guides in the navigation menu to learn about:
 
 ### Performance & Reliability
 
-- **Client-Side Caching** - RESP3 tracking for improved performance
+- **Client-Side Caching** - Transparent multi-command caching with RESP3 push-based invalidation
 - **Distributed Locks** - Coordinating access to shared resources
 
 Each guide includes detailed examples, best practices, and troubleshooting tips.

@@ -79,6 +79,30 @@ redis = RR.sentinel(
 )
 ```
 
+### TLS Connections
+
+TLS is automatically enabled for sentinel connections when using the `rediss://` URL scheme:
+
+```ruby
+# TLS auto-enabled from rediss:// scheme
+redis = RR.sentinel(
+  sentinels: [
+    "rediss://sentinel1.example.com:26379",
+    "rediss://sentinel2.example.com:26379",
+    "rediss://sentinel3.example.com:26379"
+  ],
+  service_name: "mymaster"
+)
+
+# Or explicitly with ssl: true in hash form
+redis = RR.sentinel(
+  sentinels: [
+    { host: "sentinel1.example.com", port: 26379, ssl: true }
+  ],
+  service_name: "mymaster"
+)
+```
+
 ### Connection Options
 
 ```ruby

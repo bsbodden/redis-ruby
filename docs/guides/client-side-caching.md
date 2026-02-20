@@ -12,7 +12,10 @@ This guide covers client-side caching in redis-ruby using Redis's RESP3 protocol
 ## Table of Contents
 
 - [What is Client-Side Caching](#what-is-client-side-caching)
+- [Quick Start](#quick-start)
 - [RESP3 Tracking](#resp3-tracking)
+- [Transparent Caching](#transparent-caching)
+- [Scoped Caching Blocks](#scoped-caching-blocks)
 - [Cache Invalidation](#cache-invalidation)
 - [Configuration](#configuration)
 - [Performance Benefits](#performance-benefits)
@@ -37,6 +40,31 @@ Client-side caching stores frequently accessed data in the application's memory,
 - **Lower Redis Load**: Fewer requests to Redis server
 - **Automatic Invalidation**: Server notifies when data changes
 - **Consistency**: Cache stays synchronized with Redis
+
+## Quick Start
+
+The simplest way to enable client-side caching is with the `cache:` parameter:
+
+```ruby
+require "redis_ruby"
+
+# Enable transparent caching (default config: 10,000 entries, no TTL)
+redis = RR.new(url: "redis://localhost:6379", cache: true)
+
+# All cacheable read commands are automatically cached
+redis.get("user:1")      # Cache miss → round-trip to Redis
+redis.get("user:1")      # Cache hit → returns from local memory
+redis.hgetall("config")  # Also cached — 60+ commands supported
+
+# Custom configuration
+redis = RR.new(cache: { max_entries: 5_000, ttl: 300, mode: :optin })
+
+# Or use a Config object
+config = RR::Cache::Config.new(max_entries: 5_000, ttl: 300)
+redis = RR.new(cache: config)
+```
+
+This works with `Client`, `PooledClient`, and `SentinelClient`.
 
 ## RESP3 Tracking
 
@@ -99,6 +127,70 @@ puts "Hits: #{stats[:hits]}"
 puts "Misses: #{stats[:misses]}"
 puts "Hit rate: #{stats[:hit_rate]}%"
 puts "Size: #{stats[:size]} entries"
+```
+
+## Transparent Caching
+
+When caching is enabled via the `cache:` parameter, redis-ruby intercepts cacheable read commands in the call path and serves them from the local cache when available. This is transparent — no code changes are needed beyond enabling the cache.
+
+### Supported Commands
+
+Over 60 commands are cached automatically, including:
+
+- **Strings**: GET, MGET, GETEX, GETDEL, STRLEN, GETRANGE
+- **Hashes**: HGET, HMGET, HGETALL, HLEN, HKEYS, HVALS, HEXISTS
+- **Lists**: LRANGE, LINDEX, LLEN
+- **Sets**: SMEMBERS, SISMEMBER, SCARD, SRANDMEMBER
+- **Sorted Sets**: ZRANGE, ZREVRANGE, ZRANGEBYSCORE, ZSCORE, ZCARD, ZCOUNT, ZRANK
+- **JSON**: JSON.GET, JSON.MGET, JSON.TYPE, JSON.STRLEN, JSON.ARRLEN
+- **Search**: FT.SEARCH, FT.AGGREGATE
+- **Time Series**: TS.GET, TS.RANGE, TS.MRANGE
+- **Other**: EXISTS, TYPE, TTL, PTTL, PFCOUNT, XLEN, XRANGE, BITCOUNT, GEODIST, GEOPOS, etc.
+
+### Composite Cache Keys
+
+Commands with multiple arguments use composite cache keys. For example, `HGET myhash field1` and `HGET myhash field2` are cached separately:
+
+```ruby
+redis.hget("myhash", "field1")  # Cache key: "HGET:myhash:field1"
+redis.hget("myhash", "field2")  # Cache key: "HGET:myhash:field2"
+```
+
+When Redis invalidates the key `myhash`, all related cache entries are removed automatically via a reverse index.
+
+### Thundering Herd Prevention
+
+When a cache miss occurs, the entry is marked as IN_PROGRESS before fetching from Redis. This prevents multiple concurrent requests for the same key from all hitting Redis simultaneously.
+
+## Scoped Caching Blocks
+
+Use `cached` and `uncached` blocks to temporarily override caching behavior:
+
+```ruby
+redis = RR.new(url: "redis://localhost:6379", cache: true)
+
+# Force caching on (even for normally non-cacheable commands)
+redis.cache.cached do
+  redis.get("key")   # Always uses cache
+  redis.set("key", "val")  # Also cached in this block
+end
+
+# Bypass cache entirely
+redis.cache.uncached do
+  redis.get("key")   # Always hits Redis directly
+end
+```
+
+Blocks can be nested and restore the previous state on exit (even on exception):
+
+```ruby
+redis.cache.cached do
+  # caching is on
+  redis.cache.uncached do
+    # caching is off
+  end
+  # caching is on again
+end
 ```
 
 ## Cache Invalidation
@@ -695,6 +787,33 @@ cache = RR::Cache.new(
   ttl: 60,              # Time-to-live in seconds (nil = no TTL)
   mode: :default        # Tracking mode
 )
+```
+
+### Using Cache::Config
+
+For reusable configuration, use the `Cache::Config` value object:
+
+```ruby
+config = RR::Cache::Config.new(
+  max_entries: 5_000,
+  ttl: 300,
+  mode: :optin,
+  key_filter: ->(key) { key.start_with?("user:") }
+)
+
+# Pass to Cache directly
+cache = RR::Cache.new(redis, config)
+
+# Or pass to Client via cache: parameter
+redis = RR.new(cache: config)
+```
+
+`Config.from` accepts multiple input types:
+
+```ruby
+RR::Cache::Config.from(true)                        # Default config
+RR::Cache::Config.from(max_entries: 5000, ttl: 60)  # From hash
+RR::Cache::Config.from(existing_config)              # Pass-through
 ```
 
 ### Maximum Cache Size

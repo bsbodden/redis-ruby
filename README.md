@@ -20,7 +20,7 @@
 ![Language](https://img.shields.io/github/languages/top/redis/redis-ruby)
 ![GitHub last commit](https://img.shields.io/github/last-commit/redis/redis-ruby)
 
-[Installation](#installation) &bull; [Usage](#usage) &bull; [Command Reference](#command-reference) &bull; [Advanced Topics](#advanced-topics) &bull; [Contributing](#contributing)
+[Installation](#installation) &bull; [Usage](#usage) &bull; [Advanced Topics](#advanced-topics) &bull; [Error Handling](#error-handling) &bull; [Reliability](#reliability) &bull; [Contributing](#contributing)
 
 </div>
 
@@ -124,6 +124,9 @@ redis = RR.new(url: "redis://localhost:6379")
 # TLS (Redis Cloud, production)
 redis = RR.new(url: "rediss://user:pass@host:port")
 
+# IPv6
+redis = RR.new(url: "redis://[::1]:6379")
+
 # Unix socket
 redis = RR.new(path: "/var/run/redis.sock")
 
@@ -135,6 +138,8 @@ redis = RR.new(
   reconnect_attempts: 3
 )
 ```
+
+Client configuration is validated at initialization — invalid `timeout`, `db`, `port`, or `reconnect_attempts` values raise `ArgumentError` immediately rather than causing confusing runtime errors.
 
 ### Connection Pools
 
@@ -339,7 +344,12 @@ redis.watch("balance") do
     tx.set("balance", balance + 100)
   end
 end
+# Returns nil if another client modified "balance" before EXEC
 ```
+
+**Safety features:**
+- **Nested MULTI prevention**: Calling `multi` inside a transaction block raises `ArgumentError` instead of sending a nested `MULTI` to Redis
+- **Aborted transactions**: When a `WATCH`ed key is modified by another client, `multi` returns `nil` (following the redis-rb convention)
 
 ### PubSub
 
@@ -408,12 +418,52 @@ redis.fcall("myfunc", keys: ["key1"], args: ["arg1"])
 
 ### Client-Side Caching
 
-```ruby
-cache = RR::Cache.new(redis, max_entries: 10_000, ttl: 60)
-cache.enable!
+redis-ruby provides server-assisted client-side caching using Redis `CLIENT TRACKING` with RESP3 push-based invalidation. When a cached key is modified by any client, Redis automatically sends an invalidation message and the local cache is updated immediately.
 
-value = cache.get("frequently:read:key")  # Cached after first read, auto-invalidated via RESP3
+```ruby
+# Enable transparent caching via the cache: parameter
+redis = RR.new(url: "redis://localhost:6379", cache: true)
+
+# All cacheable read commands are automatically cached
+redis.get("user:1")      # Cache miss → fetches from Redis
+redis.get("user:1")      # Cache hit → returns from local cache (no round-trip)
+redis.hgetall("config")  # Also cached — supports 60+ commands
+
+# Custom configuration
+redis = RR.new(cache: { max_entries: 5_000, ttl: 300, mode: :optin })
 ```
+
+**Scoped caching with blocks:**
+
+```ruby
+# Force caching for a block (even non-cacheable commands)
+redis.cache.cached do
+  redis.get("key")  # Always uses cache
+end
+
+# Bypass cache for a block
+redis.cache.uncached do
+  redis.get("key")  # Always hits Redis directly
+end
+```
+
+**Cache stats and monitoring:**
+
+```ruby
+stats = redis.cache.stats
+# => { hits: 1234, misses: 56, hit_rate: 0.956, evictions: 12,
+#      invalidations: 8, size: 542, enabled: true, ... }
+```
+
+**Features:**
+- 60+ cacheable commands (GET, MGET, HGET, HGETALL, ZRANGE, JSON.GET, FT.SEARCH, etc.)
+- Composite cache keys for multi-argument commands (e.g., `HGET key field`)
+- LRU eviction with configurable max entries and TTL
+- IN_PROGRESS sentinel to prevent thundering herd on cache miss
+- Push-based invalidation via RESP3 (no polling)
+- `cached { }` / `uncached { }` block scoping
+- Key and command filtering
+- Works with `Client`, `PooledClient`, and `SentinelClient`
 
 ### Topologies
 
@@ -424,10 +474,26 @@ redis = RR.sentinel(
   service_name: "mymaster"
 )
 
+# Sentinel with TLS - auto-enabled from rediss:// scheme
+redis = RR.sentinel(
+  sentinels: ["rediss://sentinel1:26379", "rediss://sentinel2:26379"],
+  service_name: "mymaster"
+)
+
 # Cluster - automatic sharding
 redis = RR.cluster(
   nodes: ["redis://node1:6379", "redis://node2:6379", "redis://node3:6379"]
 )
+
+# Cluster WATCH/UNWATCH - keys must hash to same slot
+redis = RR.cluster(nodes: [...])
+redis.watch("user:{123}:balance", "user:{123}:pending") do
+  balance = redis.get("user:{123}:balance").to_i
+  redis.multi do |tx|
+    tx.set("user:{123}:balance", balance - 100)
+  end
+end
+# Raises RR::CrossSlotError if keys span multiple slots
 
 # Redis Enterprise Discovery Service - automatic endpoint discovery
 redis = RR.discovery(
@@ -763,6 +829,63 @@ redis.vcard("embeddings")
 | **Sentinel** | 17 | `sentinel_masters`, `sentinel_failover` |
 | **Server** | 53 | `info`, `config_get`, `client_list` |
 | **Total** | **500+** | |
+
+## Error Handling
+
+redis-ruby provides a hierarchy of error classes for precise error handling:
+
+```ruby
+begin
+  redis.get("key")
+rescue RR::ConnectionError => e
+  # Connection lost, timeout, etc.
+rescue RR::CommandError => e
+  # Redis returned an error (WRONGTYPE, etc.)
+rescue RR::TimeoutError => e
+  # Operation timed out
+rescue RR::WatchError => e
+  # Watched key modified during transaction
+rescue RR::CrossSlotError => e
+  # Cluster: keys in WATCH/MULTI span multiple slots
+rescue RR::TryAgainError => e
+  # Cluster: temporary slot migration in progress (auto-retried)
+rescue RR::ClusterDownError => e
+  # Cluster: cluster is down or unreachable
+rescue RR::Error => e
+  # Catch-all for any redis-ruby error
+end
+```
+
+## Reliability
+
+### Fork Safety
+
+redis-ruby detects when a process is forked (e.g., by Puma, Unicorn, or Resque) and automatically reconnects in the child process, replaying AUTH and SELECT commands to restore the correct session state:
+
+```ruby
+redis = RR.new(url: "redis://localhost:6379", password: "secret", db: 2)
+
+fork do
+  # Connection is automatically re-established with AUTH + SELECT
+  redis.get("key")  # Works without manual reconnection
+end
+```
+
+### Blocking Command Timeouts
+
+Blocking commands (`BLPOP`, `BRPOP`, `BLMOVE`, `BZPOPMIN`, `BZPOPMAX`) automatically extend the connection timeout to accommodate the command's own timeout argument, preventing premature socket timeouts:
+
+```ruby
+redis = RR.new(url: "redis://localhost:6379", timeout: 5.0)
+
+# BLPOP with 30s timeout — connection timeout is automatically
+# extended to connection_timeout + 30 + 1s padding
+redis.blpop("queue", 30)
+```
+
+### Connection Stream Integrity
+
+The client tracks pending reads on the connection to detect response desynchronization. If a connection is interrupted mid-response (e.g., by a timeout), subsequent operations automatically revalidate the connection rather than reading stale data from the previous command.
 
 ## Performance
 

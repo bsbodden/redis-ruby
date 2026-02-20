@@ -152,6 +152,21 @@ redis = RR.new(url: "rediss://localhost:6380")
 redis = RR.new(url: "unix:///var/run/redis.sock")
 ```
 
+### IPv6 URLs
+
+IPv6 addresses are supported using standard bracket notation:
+
+```ruby
+# IPv6 loopback
+redis = RR.new(url: "redis://[::1]:6379")
+
+# IPv6 with authentication
+redis = RR.new(url: "redis://user:pass@[::1]:6379/0")
+
+# IPv6 with TLS
+redis = RR.new(url: "rediss://[2001:db8::1]:6380")
+```
+
 ### URL Format
 
 ```
@@ -356,6 +371,31 @@ redis.reconnect
 # Connection is automatically established on first command
 redis = RR.new(host: "localhost")
 redis.ping  # Connects and sends PING
+```
+
+### Configuration Validation
+
+Client configuration is validated at initialization. Invalid values raise `ArgumentError` immediately rather than causing confusing runtime errors:
+
+```ruby
+# These raise ArgumentError
+RR.new(timeout: -1)           # => "timeout must be a positive number"
+RR.new(db: -1)                # => "db must be a non-negative integer"
+RR.new(port: 99999)           # => "port must be between 1 and 65535"
+RR.new(reconnect_attempts: -1) # => "reconnect_attempts must be non-negative"
+```
+
+## Fork Safety
+
+redis-ruby detects when a process is forked (e.g., by Puma, Unicorn, or Resque) and automatically reconnects in the child process, replaying AUTH and SELECT commands to restore the correct session state:
+
+```ruby
+redis = RR.new(url: "redis://localhost:6379", password: "secret", db: 2)
+
+fork do
+  # Connection is automatically re-established with AUTH + SELECT
+  redis.get("key")  # Works without manual reconnection
+end
 ```
 
 ## Best Practices
