@@ -34,7 +34,7 @@ module RR
     class TCP
       include TCPEventDispatch
 
-      attr_reader :host, :port, :timeout
+      attr_reader :host, :port, :timeout, :pending_reads
 
       DEFAULT_HOST = "localhost"
       DEFAULT_PORT = 6379
@@ -62,6 +62,7 @@ module RR
         @decoder = nil
         @pid = nil
         @callbacks = Hash.new { |h, k| h[k] = [] }
+        @pending_reads = 0
         @ever_connected = false
         @event_dispatcher = event_dispatcher
         @callback_error_handler = callback_error_handler || CallbackErrorHandler.new(strategy: :log)
@@ -83,16 +84,22 @@ module RR
       # Direct call without connection check - use when caller already verified connection
       # @api private
       def call_direct(command, *)
+        @pending_reads += 1
         write_command_fast(command, *)
-        @decoder.decode
+        result = @decoder.decode
+        @pending_reads -= 1
+        result
       end
 
       # Blocking call with extended read timeout for commands like BLPOP, BRPOP
       # @param timeout [Numeric] Total read timeout (connection timeout + command timeout + padding)
       # @api private
       def blocking_call(timeout, command, *)
+        @pending_reads += 1
         write_command_fast(command, *)
-        @buffered_io.with_timeout(timeout) { @decoder.decode }
+        result = @buffered_io.with_timeout(timeout) { @decoder.decode }
+        @pending_reads -= 1
+        result
       end
 
       # Ultra-fast path for single-argument commands (GET, DEL, EXISTS, etc.)
@@ -100,8 +107,11 @@ module RR
       # Note: flush removed since TCP_NODELAY is enabled (no buffering)
       # @api private
       def call_1arg(command, arg)
+        @pending_reads += 1
         @socket.write(@encoder.encode_command(command, arg))
-        @decoder.decode
+        result = @decoder.decode
+        @pending_reads -= 1
+        result
       end
 
       # Ultra-fast path for two-argument commands (SET without options, HGET, etc.)
@@ -109,8 +119,11 @@ module RR
       # Note: flush removed since TCP_NODELAY is enabled (no buffering)
       # @api private
       def call_2args(command, arg1, arg2)
+        @pending_reads += 1
         @socket.write(@encoder.encode_command(command, arg1, arg2))
-        @decoder.decode
+        result = @decoder.decode
+        @pending_reads -= 1
+        result
       end
 
       # Ultra-fast path for three-argument commands (HSET, etc.)
@@ -118,8 +131,11 @@ module RR
       # Note: flush removed since TCP_NODELAY is enabled (no buffering)
       # @api private
       def call_3args(command, arg1, arg2, arg3)
+        @pending_reads += 1
         @socket.write(@encoder.encode_command(command, arg1, arg2, arg3))
-        @decoder.decode
+        result = @decoder.decode
+        @pending_reads -= 1
+        result
       end
 
       # Ensure we have a valid connection, reconnecting if forked
@@ -128,7 +144,18 @@ module RR
       # @return [void]
       # @raise [ConnectionError] if reconnection fails
       def ensure_connected
-        return if @socket && !@socket.closed?
+        # If connected, verify the response stream is clean
+        if @socket && !@socket.closed?
+          return if @pending_reads == 0
+
+          # Response stream is corrupted (interrupted between write and read).
+          # Close and reconnect to get a clean stream.
+          begin
+            close
+          rescue StandardError
+            nil
+          end
+        end
 
         # Only check for fork when we thought we had a connection
         if @pid
@@ -152,6 +179,7 @@ module RR
       #
       # @return [void]
       def reconnect
+        @pending_reads = 0
         begin
           close
         rescue StandardError
@@ -166,10 +194,16 @@ module RR
       # @return [Array] Array of results
       def pipeline(commands)
         ensure_connected
+        @pending_reads += commands.size
         write_pipeline(commands)
         # Pre-allocate array to avoid map allocation
         count = commands.size
-        Array.new(count) { read_response }
+        results = Array.new(count) do
+          result = read_response
+          @pending_reads -= 1
+          result
+        end
+        results
       end
 
       # Close the connection
@@ -182,6 +216,23 @@ module RR
       # @return [Boolean] true if connected
       def connected?
         @socket && !@socket.closed?
+      end
+
+      # Validate the connection is clean (no pending reads from interrupted commands).
+      # If the response stream is corrupted (pending_reads > 0), closes the connection
+      # to prevent response desynchronization (redis-rb #1294, #1162).
+      #
+      # @return [Boolean] true if connection is valid, false if corrupted and closed
+      def revalidate
+        if @pending_reads > 0
+          begin
+            close
+          rescue StandardError
+            nil
+          end
+          return false
+        end
+        connected?
       end
 
       # Write a single command to the socket

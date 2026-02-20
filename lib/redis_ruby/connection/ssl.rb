@@ -36,7 +36,7 @@ module RR
     #   )
     #
     class SSL
-      attr_reader :host, :port, :timeout
+      attr_reader :host, :port, :timeout, :pending_reads
 
       DEFAULT_HOST = "localhost"
       DEFAULT_PORT = 6379
@@ -68,6 +68,7 @@ module RR
         @decoder = nil
         @pid = nil
         @callbacks = Hash.new { |h, k| h[k] = [] }
+        @pending_reads = 0
         @ever_connected = false
         connect
       end
@@ -79,42 +80,57 @@ module RR
       # @return [Object] Command result
       def call(command, *)
         ensure_connected
+        @pending_reads += 1
         write_command(command, *)
-        read_response
+        result = read_response
+        @pending_reads -= 1
+        result
       end
 
       # Direct call without connection check - use when caller already verified connection
       # @api private
       def call_direct(command, *)
+        @pending_reads += 1
         write_command(command, *)
-        read_response
+        result = read_response
+        @pending_reads -= 1
+        result
       end
 
       # Ultra-fast path for single-argument commands (GET, DEL, EXISTS, etc.)
       # Avoids splat allocation overhead
       # @api private
       def call_1arg(command, arg)
+        @pending_reads += 1
         @ssl_socket.write(@encoder.encode_command(command, arg))
         @ssl_socket.flush
-        @decoder.decode
+        result = @decoder.decode
+        @pending_reads -= 1
+        result
       end
 
       # Ultra-fast path for two-argument commands (SET without options, HGET, etc.)
       # Avoids splat allocation overhead
       # @api private
       def call_2args(command, arg1, arg2)
+        @pending_reads += 1
         @ssl_socket.write(@encoder.encode_command(command, arg1, arg2))
         @ssl_socket.flush
-        @decoder.decode
+        result = @decoder.decode
+        @pending_reads -= 1
+        result
       end
 
       # Ultra-fast path for three-argument commands (HSET, etc.)
       # Avoids splat allocation overhead
       # @api private
       def call_3args(command, arg1, arg2, arg3)
+        @pending_reads += 1
         @ssl_socket.write(@encoder.encode_command(command, arg1, arg2, arg3))
         @ssl_socket.flush
-        @decoder.decode
+        result = @decoder.decode
+        @pending_reads -= 1
+        result
       end
 
       # Execute multiple commands in a pipeline
@@ -123,10 +139,30 @@ module RR
       # @return [Array] Array of results
       def pipeline(commands)
         ensure_connected
+        @pending_reads += commands.size
         write_pipeline(commands)
-        # Pre-allocate array to avoid map allocation
         count = commands.size
-        Array.new(count) { read_response }
+        results = Array.new(count) do
+          result = read_response
+          @pending_reads -= 1
+          result
+        end
+        results
+      end
+
+      # Validate the connection is clean (no pending reads from interrupted commands).
+      #
+      # @return [Boolean] true if connection is valid, false if corrupted and closed
+      def revalidate
+        if @pending_reads > 0
+          begin
+            close
+          rescue StandardError
+            nil
+          end
+          return false
+        end
+        connected?
       end
 
       # Ensure we have a valid connection, reconnecting if forked
@@ -134,21 +170,32 @@ module RR
       # @return [void]
       # @raise [ConnectionError] if reconnection fails
       def ensure_connected
+        # If connected, verify the response stream is clean
+        if connected?
+          if @pending_reads > 0
+            begin
+              close
+            rescue StandardError
+              nil
+            end
+          else
+            return
+          end
+        end
+
         # Fork safety: detect if we're in a child process
         if @pid && @pid != Process.pid
-          # We've forked - the socket is shared with parent, must reconnect
           @ssl_socket = nil
           @tcp_socket = nil
-          reconnect
-        elsif !connected?
-          reconnect
         end
+        reconnect
       end
 
       # Reconnect to the server
       #
       # @return [void]
       def reconnect
+        @pending_reads = 0
         begin
           close
         rescue StandardError
