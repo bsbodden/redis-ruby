@@ -68,7 +68,16 @@ module RR
         @callback_error_handler = callback_error_handler || CallbackErrorHandler.new(strategy: :log)
         @async_callbacks = async_callbacks
         @instrumentation = instrumentation
+        @push_handler = nil
         connect
+      end
+
+      # Register a handler for push messages (invalidation, pub/sub, etc.)
+      #
+      # @yield [Array] Push message data
+      # @return [void]
+      def on_push(&block)
+        @push_handler = block
       end
 
       # Execute a Redis command
@@ -86,7 +95,7 @@ module RR
       def call_direct(command, *)
         @pending_reads += 1
         write_command_fast(command, *)
-        result = @decoder.decode
+        result = decode_with_push_handling
         @pending_reads -= 1
         result
       end
@@ -97,7 +106,7 @@ module RR
       def blocking_call(timeout, command, *)
         @pending_reads += 1
         write_command_fast(command, *)
-        result = @buffered_io.with_timeout(timeout) { @decoder.decode }
+        result = @buffered_io.with_timeout(timeout) { decode_with_push_handling }
         @pending_reads -= 1
         result
       end
@@ -109,7 +118,7 @@ module RR
       def call_1arg(command, arg)
         @pending_reads += 1
         @socket.write(@encoder.encode_command(command, arg))
-        result = @decoder.decode
+        result = decode_with_push_handling
         @pending_reads -= 1
         result
       end
@@ -121,7 +130,7 @@ module RR
       def call_2args(command, arg1, arg2)
         @pending_reads += 1
         @socket.write(@encoder.encode_command(command, arg1, arg2))
-        result = @decoder.decode
+        result = decode_with_push_handling
         @pending_reads -= 1
         result
       end
@@ -133,7 +142,7 @@ module RR
       def call_3args(command, arg1, arg2, arg3)
         @pending_reads += 1
         @socket.write(@encoder.encode_command(command, arg1, arg2, arg3))
-        result = @decoder.decode
+        result = decode_with_push_handling
         @pending_reads -= 1
         result
       end
@@ -265,10 +274,10 @@ module RR
       def read_response(timeout: nil)
         if timeout
           @buffered_io.with_timeout(timeout) do
-            @decoder.decode
+            decode_with_push_handling
           end
         else
-          @decoder.decode
+          decode_with_push_handling
         end
       end
 
@@ -302,6 +311,22 @@ module RR
       }.freeze
 
       private
+
+      # Decode a response, routing any interleaved push messages to the handler.
+      # Push messages (invalidations, etc.) can arrive asynchronously on the same
+      # connection. We loop until we get a non-push response.
+      def decode_with_push_handling
+        loop do
+          result = @decoder.decode
+          if result.is_a?(Protocol::PushMessage) && @push_handler
+            @push_handler.call(result.data)
+          elsif result.is_a?(Protocol::PushMessage)
+            # No handler registered, discard push message and continue
+          else
+            return result
+          end
+        end
+      end
 
       # Establish socket connection
       def connect

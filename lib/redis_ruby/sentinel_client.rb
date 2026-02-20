@@ -56,7 +56,7 @@ module RR
     include Commands::ACL
     include Commands::Server
 
-    attr_reader :service_name, :role, :timeout
+    attr_reader :service_name, :role, :timeout, :cache
 
     VALID_ROLES = %i[master replica slave].freeze
     DEFAULT_TIMEOUT = 5.0
@@ -74,10 +74,11 @@ module RR
     # @param ssl_params [Hash] SSL parameters for OpenSSL::SSL::SSLContext
     # @param reconnect_attempts [Integer] Number of reconnect attempts on failure
     # @param min_other_sentinels [Integer] Minimum number of peer sentinels required
+    # @param cache [Boolean, Hash, Cache::Config, nil] Client-side caching configuration
     def initialize(sentinels:, service_name:, role: :master, password: nil,
                    sentinel_password: nil, db: 0, timeout: DEFAULT_TIMEOUT,
                    ssl: false, ssl_params: {}, reconnect_attempts: 3,
-                   min_other_sentinels: 0)
+                   min_other_sentinels: 0, cache: nil)
       validate_role!(role)
 
       @service_name = service_name
@@ -88,6 +89,7 @@ module RR
       @ssl = ssl
       @ssl_params = ssl_params
       @reconnect_attempts = reconnect_attempts
+      @cache = nil
 
       @sentinel_manager = SentinelManager.new(
         sentinels: sentinels,
@@ -100,6 +102,8 @@ module RR
       @connection = nil
       @current_address = nil
       @mutex = Mutex.new
+
+      build_cache(cache) if cache
     end
 
     # Execute a Redis command with automatic failover handling
@@ -107,25 +111,49 @@ module RR
     # @param args [Array] Command arguments
     # @return [Object] Command result
     def call(command, *args)
-      call_with_retry { |conn| conn.call(command, *args) }
+      if @cache&.enabled? && !args.empty?
+        @cache.fetch(command, args[0], *args[1..]) do
+          call_with_retry { |conn| conn.call(command, *args) }
+        end
+      else
+        call_with_retry { |conn| conn.call(command, *args) }
+      end
     end
 
     # Fast path for single-argument commands (GET, DEL, EXISTS, etc.)
     # @api private
     def call_1arg(command, arg)
-      call_with_retry { |conn| conn.call_1arg(command, arg) }
+      if @cache&.enabled?
+        @cache.fetch(command, arg) do
+          call_with_retry { |conn| conn.call_1arg(command, arg) }
+        end
+      else
+        call_with_retry { |conn| conn.call_1arg(command, arg) }
+      end
     end
 
     # Fast path for two-argument commands (SET without options, HGET, etc.)
     # @api private
     def call_2args(command, arg1, arg2)
-      call_with_retry { |conn| conn.call_2args(command, arg1, arg2) }
+      if @cache&.enabled?
+        @cache.fetch(command, arg1, arg2) do
+          call_with_retry { |conn| conn.call_2args(command, arg1, arg2) }
+        end
+      else
+        call_with_retry { |conn| conn.call_2args(command, arg1, arg2) }
+      end
     end
 
     # Fast path for three-argument commands (HSET, LRANGE, etc.)
     # @api private
     def call_3args(command, arg1, arg2, arg3)
-      call_with_retry { |conn| conn.call_3args(command, arg1, arg2, arg3) }
+      if @cache&.enabled?
+        @cache.fetch(command, arg1, arg2, arg3) do
+          call_with_retry { |conn| conn.call_3args(command, arg1, arg2, arg3) }
+        end
+      else
+        call_with_retry { |conn| conn.call_3args(command, arg1, arg2, arg3) }
+      end
     end
 
     # Close the connection
@@ -182,6 +210,12 @@ module RR
     attr_reader :sentinel_manager
 
     private
+
+    # Build cache from option
+    def build_cache(cache_option)
+      config = Cache::Config.from(cache_option)
+      @cache = Cache.new(self, config)
+    end
 
     # Execute a block with connection retry on failover errors
     def call_with_retry

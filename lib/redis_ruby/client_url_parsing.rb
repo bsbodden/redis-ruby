@@ -108,6 +108,9 @@ module RR
       @connection = create_connection
       authenticate if @password
       select_db if @db.positive?
+
+      # Wire push handler for cache invalidation after connection setup
+      wire_cache_push_handler if respond_to?(:wire_cache_push_handler, true)
     end
 
     # Build a default retry policy from reconnect_attempts count

@@ -70,7 +70,16 @@ module RR
         @callbacks = Hash.new { |h, k| h[k] = [] }
         @pending_reads = 0
         @ever_connected = false
+        @push_handler = nil
         connect
+      end
+
+      # Register a handler for push messages (invalidation, pub/sub, etc.)
+      #
+      # @yield [Array] Push message data
+      # @return [void]
+      def on_push(&block)
+        @push_handler = block
       end
 
       # Execute a Redis command
@@ -82,7 +91,7 @@ module RR
         ensure_connected
         @pending_reads += 1
         write_command(command, *)
-        result = read_response
+        result = decode_with_push_handling
         @pending_reads -= 1
         result
       end
@@ -92,7 +101,7 @@ module RR
       def call_direct(command, *)
         @pending_reads += 1
         write_command(command, *)
-        result = read_response
+        result = decode_with_push_handling
         @pending_reads -= 1
         result
       end
@@ -104,7 +113,7 @@ module RR
         @pending_reads += 1
         @ssl_socket.write(@encoder.encode_command(command, arg))
         @ssl_socket.flush
-        result = @decoder.decode
+        result = decode_with_push_handling
         @pending_reads -= 1
         result
       end
@@ -116,7 +125,7 @@ module RR
         @pending_reads += 1
         @ssl_socket.write(@encoder.encode_command(command, arg1, arg2))
         @ssl_socket.flush
-        result = @decoder.decode
+        result = decode_with_push_handling
         @pending_reads -= 1
         result
       end
@@ -128,7 +137,7 @@ module RR
         @pending_reads += 1
         @ssl_socket.write(@encoder.encode_command(command, arg1, arg2, arg3))
         @ssl_socket.flush
-        result = @decoder.decode
+        result = decode_with_push_handling
         @pending_reads -= 1
         result
       end
@@ -423,9 +432,23 @@ module RR
         @ssl_socket.flush
       end
 
-      # Read a response from the socket
+      # Read a response from the socket, routing push messages
       def read_response
-        @decoder.decode
+        decode_with_push_handling
+      end
+
+      # Decode a response, routing any interleaved push messages to the handler.
+      def decode_with_push_handling
+        loop do
+          result = @decoder.decode
+          if result.is_a?(Protocol::PushMessage) && @push_handler
+            @push_handler.call(result.data)
+          elsif result.is_a?(Protocol::PushMessage)
+            # No handler registered, discard push message
+          else
+            return result
+          end
+        end
       end
     end
   end

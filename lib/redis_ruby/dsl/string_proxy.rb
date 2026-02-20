@@ -162,6 +162,32 @@ module RR
         self
       end
 
+      # Fetch with fallback block (cache-friendly)
+      #
+      # Returns cached/stored value if it exists, or executes the block
+      # to compute and store the value. Works transparently with
+      # client-side caching when enabled.
+      #
+      # @param force [Boolean] Force re-computation even if value exists
+      # @yield Block to compute value if not found
+      # @return [Object] The value
+      #
+      # @example
+      #   str.fetch { expensive_compute() }
+      #   str.fetch(force: true) { recomputed_value() }
+      def fetch(force: false, &block)
+        unless force
+          val = get
+          return val unless val.nil?
+        end
+
+        return nil unless block
+
+        val = block.call
+        set(val)
+        val
+      end
+
       # Delete the key
       #
       # @return [Integer] Number of keys deleted (0 or 1)
