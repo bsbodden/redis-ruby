@@ -144,24 +144,11 @@ module RR
       # @return [void]
       # @raise [ConnectionError] if reconnection fails
       def ensure_connected
-        # If connected, verify the response stream is clean
-        if @socket && !@socket.closed?
-          return if @pending_reads == 0
-
-          # Response stream is corrupted (interrupted between write and read).
-          # Close and reconnect to get a clean stream.
-          begin
-            close
-          rescue StandardError
-            nil
-          end
-        end
-
-        # Only check for fork when we thought we had a connection
+        # Fork safety: detect if we're in a child process BEFORE checking socket state.
+        # After fork, the socket is shared with the parent and must not be reused.
         if @pid
           current_pid = Process.pid
           if @pid != current_pid
-            # We've forked - the socket is shared with parent, must reconnect
             trigger_event(:marked_for_reconnect, {
               type: :marked_for_reconnect,
               host: @host,
@@ -170,8 +157,22 @@ module RR
               timestamp: Time.now,
             })
             @socket = nil # Don't close - parent owns this socket
+            @pending_reads = 0
           end
         end
+
+        # If connected, verify the response stream is clean
+        if @socket && !@socket.closed?
+          return if @pending_reads == 0
+
+          # Response stream is corrupted (interrupted between write and read).
+          begin
+            close
+          rescue StandardError
+            nil
+          end
+        end
+
         reconnect unless connected?
       end
 

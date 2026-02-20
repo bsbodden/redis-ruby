@@ -93,8 +93,16 @@ module RR
       @connection.call(self.class::CMD_SELECT, @db.to_s)
     end
 
-    # Ensure connection is established
+    # Ensure connection is established, with fork safety.
+    # After fork, discards the parent's connection and creates a fresh one
+    # with full prelude replay (AUTH, SELECT).
     def ensure_connected
+      # Fork safety: detect child process and force reconnection
+      if @pid != Process.pid
+        @connection = nil # Discard parent's connection (don't close - parent owns it)
+        @pid = Process.pid
+      end
+
       return if @connection&.connected?
 
       @connection = create_connection

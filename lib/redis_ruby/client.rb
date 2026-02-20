@@ -95,6 +95,7 @@ module RR
       @timeout = timeout
       @ssl_params = ssl_params
       @connection = nil
+      @pid = Process.pid
       @watching = false
       @decode_responses = decode_responses
       @encoding = encoding

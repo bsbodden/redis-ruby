@@ -135,6 +135,17 @@ module RR
       # @return [void]
       # @raise [ConnectionError] if reconnection fails
       def ensure_connected
+        # Fork safety: detect if we're in a child process BEFORE checking socket state.
+        # After fork, the socket is shared with the parent and must not be reused.
+        if @pid
+          current_pid = Process.pid
+          if @pid != current_pid
+            @socket = nil # Don't close - parent owns this socket
+            @pending_reads = 0
+          end
+        end
+
+        # If connected, verify the response stream is clean
         if @socket && !@socket.closed?
           return if @pending_reads == 0
 
@@ -145,12 +156,6 @@ module RR
           end
         end
 
-        if @pid
-          current_pid = Process.pid
-          if @pid != current_pid
-            @socket = nil # Don't close - parent owns this socket
-          end
-        end
         reconnect unless connected?
       end
 
