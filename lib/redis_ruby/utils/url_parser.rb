@@ -58,7 +58,7 @@ module RR
       # @return [Hash] Parsed components
       def parse_tcp(uri)
         {
-          host: uri.host || DEFAULT_HOST,
+          host: uri.hostname || DEFAULT_HOST,
           port: uri.port || DEFAULT_PORT,
           db: extract_db(uri.path),
           password: uri.password,
