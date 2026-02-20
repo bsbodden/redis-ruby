@@ -78,6 +78,8 @@ module RR
       # @param members [Array<String>]
       # @return [Integer] number of members added (not already present)
       def sadd(key, *members)
+        return 0 if members.empty?
+
         # Fast path for single member (most common)
         return call_2args(CMD_SADD, key, members[0]) if members.size == 1
 
@@ -90,6 +92,8 @@ module RR
       # @param members [Array<String>]
       # @return [Integer] number of members removed
       def srem(key, *members)
+        return 0 if members.empty?
+
         # Fast path for single member (most common)
         return call_2args(CMD_SREM, key, members[0]) if members.size == 1
 

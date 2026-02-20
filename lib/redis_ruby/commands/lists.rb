@@ -68,6 +68,8 @@ module RR
       # @param values [Array<String>]
       # @return [Integer] length of list after push
       def lpush(key, *values)
+        return 0 if values.empty?
+
         # Fast path for single value (most common)
         return call_2args(CMD_LPUSH, key, values[0]) if values.size == 1
 
@@ -80,6 +82,8 @@ module RR
       # @param values [Array<String>]
       # @return [Integer] length of list after push, or 0 if key doesn't exist
       def lpushx(key, *values)
+        return 0 if values.empty?
+
         # Fast path for single value
         return call_2args(CMD_LPUSHX, key, values[0]) if values.size == 1
 
@@ -92,6 +96,8 @@ module RR
       # @param values [Array<String>]
       # @return [Integer] length of list after push
       def rpush(key, *values)
+        return 0 if values.empty?
+
         # Fast path for single value (most common)
         return call_2args(CMD_RPUSH, key, values[0]) if values.size == 1
 
@@ -104,6 +110,8 @@ module RR
       # @param values [Array<String>]
       # @return [Integer] length of list after push, or 0 if key doesn't exist
       def rpushx(key, *values)
+        return 0 if values.empty?
+
         # Fast path for single value
         return call_2args(CMD_RPUSHX, key, values[0]) if values.size == 1
 

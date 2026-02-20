@@ -61,6 +61,8 @@ module RR
       # @param field_values [Array<String>] Field-value pairs (field1, value1, field2, value2, ...)
       # @return [Integer] 1 if field is new, 0 if updated
       def hset(key, *field_values)
+        return 0 if field_values.empty?
+
         # Fast path for single field-value pair
         return call_3args(CMD_HSET, key, field_values[0], field_values[1]) if field_values.size == 2
 
@@ -92,6 +94,8 @@ module RR
       # @param fields [Array<String>]
       # @return [Array<String, nil>] values (nil for missing fields)
       def hmget(key, *fields)
+        return [] if fields.empty?
+
         call(CMD_HMGET, key, *fields)
       end
 
@@ -101,6 +105,8 @@ module RR
       # @param field_values [Array] field1, value1, field2, value2, ...
       # @return [String] "OK"
       def hmset(key, *field_values)
+        return "OK" if field_values.empty?
+
         call(CMD_HMSET, key, *field_values)
       end
 
@@ -123,6 +129,8 @@ module RR
       # @param fields [Array<String>]
       # @return [Integer] number of fields deleted
       def hdel(key, *fields)
+        return 0 if fields.empty?
+
         # Fast path for single field
         return call_2args(CMD_HDEL, key, fields[0]) if fields.size == 1
 
