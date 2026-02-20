@@ -288,12 +288,39 @@ module RR
         end
       end
 
-      # Set up the SSL socket on top of the TCP socket
+      # Set up the SSL socket on top of the TCP socket.
+      # Uses non-blocking handshake with timeout to handle WaitReadable/WaitWritable
+      # during the SSL negotiation phase (redis-rb #972).
       def setup_ssl_layer
         ssl_context = create_ssl_context
+        setup_ssl_layer_with_timeout(ssl_context)
+      end
+
+      # Perform SSL handshake with non-blocking IO and timeout handling
+      def setup_ssl_layer_with_timeout(ssl_context)
         @ssl_socket = OpenSSL::SSL::SSLSocket.new(@tcp_socket, ssl_context)
         @ssl_socket.hostname = @host
-        @ssl_socket.connect
+
+        deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + @timeout
+
+        loop do
+          result = @ssl_socket.connect_nonblock(exception: false)
+
+          case result
+          when :wait_readable
+            remaining = deadline - Process.clock_gettime(Process::CLOCK_MONOTONIC)
+            raise TimeoutError, "SSL handshake timed out" if remaining <= 0
+            raise TimeoutError, "SSL handshake timed out" unless IO.select([@tcp_socket], nil, nil, remaining)
+          when :wait_writable
+            remaining = deadline - Process.clock_gettime(Process::CLOCK_MONOTONIC)
+            raise TimeoutError, "SSL handshake timed out" if remaining <= 0
+            raise TimeoutError, "SSL handshake timed out" unless IO.select(nil, [@tcp_socket], nil, remaining)
+          else
+            # Handshake complete
+            break
+          end
+        end
+
         @ssl_socket.post_connection_check(@host) if verify_peer?
       end
 
