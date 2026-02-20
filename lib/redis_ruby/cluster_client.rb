@@ -157,7 +157,95 @@ module RR
       @mutex.synchronize { @nodes.size }
     end
 
+    # Watch keys for optimistic locking in cluster mode
+    #
+    # All watched keys must hash to the same slot. WATCH and UNWATCH
+    # are sent to the node owning that slot (redis-rb issue #955).
+    #
+    # @param keys [Array<String>] Keys to watch (must be in same slot)
+    # @yield [self] Block to execute while keys are watched
+    # @return [Object] Block result, or "OK" without block
+    def watch(*keys)
+      raise ArgumentError, "WATCH requires at least one key" if keys.empty?
+
+      verify_same_slot!(keys)
+      slot = key_slot(keys[0].to_s)
+      node_addr = node_for_slot(slot)
+      conn = get_connection(node_addr)
+
+      result = conn.call("WATCH", *keys)
+      raise result if result.is_a?(CommandError)
+
+      if block_given?
+        @watched_connection = conn
+        begin
+          yield self
+        ensure
+          conn.call("UNWATCH")
+          @watched_connection = nil
+        end
+      else
+        @watched_connection = conn
+        result
+      end
+    end
+
+    # Cancel WATCH — sent to the same node that received WATCH
+    #
+    # @return [String] "OK"
+    def unwatch
+      conn = @watched_connection
+      raise RR::Error, "UNWATCH called without a preceding WATCH" unless conn
+
+      result = conn.call("UNWATCH")
+      @watched_connection = nil
+      raise result if result.is_a?(CommandError)
+
+      result
+    end
+
+    # Execute a transaction (MULTI/EXEC) on a specific node
+    #
+    # All commands in the block must target the same slot.
+    #
+    # @yield [tx] Transaction object for queuing commands
+    # @return [Array, nil] Results or nil if aborted
+    def multi
+      conn = @watched_connection || random_master_connection
+      tx = Transaction.new(conn)
+      yield tx
+      results = tx.execute
+      @watched_connection = nil
+      return nil if results.nil?
+      raise results if results.is_a?(CommandError)
+
+      results.each { |r| raise r if r.is_a?(CommandError) }
+      results
+    end
+
     private
+
+    # Get a connection to a random master
+    def random_master_connection
+      addr = random_master
+      raise ConnectionError, "No master nodes available" unless addr
+
+      get_connection(addr)
+    end
+
+    # Verify all keys hash to the same slot
+    def verify_same_slot!(keys)
+      return if keys.size <= 1
+
+      first_slot = key_slot(keys[0].to_s)
+      keys[1..].each do |key|
+        slot = key_slot(key.to_s)
+        next if slot == first_slot
+
+        raise CrossSlotError,
+              "CROSSSLOT All watched keys must hash to the same slot (use hash tags)"
+      end
+    end
 
     # Select the appropriate node based on read/write and read_from config
     def select_node_for_operation(node_info, for_read)
@@ -234,7 +322,8 @@ module RR
     end
 
     # Handle command errors including redirections
-    def handle_command_error(error, command, args, _slot, redirections)
+    # rubocop:disable Metrics/CyclomaticComplexity
+    def handle_command_error(error, command, args, slot, redirections)
       message = error.message
 
       if message.start_with?("MOVED")
@@ -242,11 +331,16 @@ module RR
       elsif message.start_with?("ASK")
         handle_ask_error(message, command, args)
       elsif message.start_with?("CLUSTERDOWN")
-        raise RR::Error, "Cluster is down: #{message}"
+        raise ClusterDownError, message
+      elsif message.start_with?("CROSSSLOT")
+        raise CrossSlotError, message
+      elsif message.start_with?("TRYAGAIN")
+        handle_tryagain_error(command, args, slot, redirections)
       else
         raise error
       end
     end
+    # rubocop:enable Metrics/CyclomaticComplexity
 
     # Handle MOVED redirection (topology changed)
     def handle_moved_error(message, command, args, redirections)
@@ -267,6 +361,18 @@ module RR
       raise result if result.is_a?(CommandError)
 
       result
+    end
+
+    # Handle TRYAGAIN error (retry after brief delay)
+    def handle_tryagain_error(command, args, slot, redirections)
+      raise TryAgainError, "TRYAGAIN after #{MAX_REDIRECTIONS} attempts" if redirections >= MAX_REDIRECTIONS
+
+      sleep(0.1)
+      execute_with_retry(command, args, slot, redirections: redirections + 1)
+    rescue RR::Error => e
+      raise TryAgainError, e.message if e.message.include?("Too many redirections")
+
+      raise
     end
 
     # Check if command is a read command

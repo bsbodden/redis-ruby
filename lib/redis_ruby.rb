@@ -21,6 +21,8 @@ module RR
   class ClusterDownError < ClusterError; end
   class MovedError < ClusterError; end
   class AskError < ClusterError; end
+  class CrossSlotError < ClusterError; end
+  class TryAgainError < ClusterError; end
 
   class << self
     # Create a new synchronous Redis client connection
