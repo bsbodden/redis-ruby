@@ -89,8 +89,8 @@ class ClusterRedirectIntegrationTest < ClusterTestCase
     # Skip if by chance all keys are in same slot
     skip "Keys happened to be in same slot" if slots.size == 1
 
-    # MSET with cross-slot keys should fail
-    error = assert_raises(RR::CommandError) do
+    # MSET with cross-slot keys should fail with CrossSlotError
+    error = assert_raises(RR::CrossSlotError) do
       cluster.call("MSET", "key1", "v1", "key2", "v2", "key3", "v3")
     end
 
