@@ -367,11 +367,28 @@ module RR
         @subscription_connection.write_command([command, *targets])
       end
 
-      # Clean up subscription connection after subscription ends
+      # Clean up subscription connection after subscription ends.
+      # Drains any remaining unsubscribe confirmations to ensure the connection
+      # properly exits pub/sub mode for reuse (redis-rb #1259).
       def cleanup_subscription_connection
+        drain_subscription_state if @subscription_connection
         @subscription_connection = nil
-        # NOTE: We don't close the connection here because it may be reused
-        # The connection exits subscription mode when all channels are unsubscribed
+      end
+
+      # Drain remaining subscription messages to ensure the connection exits pub/sub mode.
+      # After timeout, the UNSUBSCRIBE may have been sent but the confirmation not yet read.
+      def drain_subscription_state
+        3.times do
+          message = @subscription_connection.read_response(timeout: 0.5)
+          next unless message.is_a?(Array)
+
+          type = message[0]
+          if %w[unsubscribe punsubscribe sunsubscribe].include?(type)
+            break if message[2].to_i.zero? # All channels unsubscribed, connection is clean
+          end
+        rescue TimeoutError, ConnectionError
+          break
+        end
       end
 
       # Process subscription messages in a loop until fully unsubscribed
@@ -406,14 +423,21 @@ module RR
         :break
       end
 
+      # Minimum read timeout - prevents negative/zero timeouts after deadline passes,
+      # ensuring we can still read unsubscribe confirmations.
+      MIN_READ_TIMEOUT = 0.1
+
       def compute_read_timeout(timeout, deadline)
-        if timeout
-          [1.0, timeout].min
-        elsif deadline
-          [1.0, deadline - Process.clock_gettime(Process::CLOCK_MONOTONIC)].min
-        else
-          3600.0
-        end
+        result = if timeout
+                   [1.0, timeout].min
+                 elsif deadline
+                   [1.0, deadline - Process.clock_gettime(Process::CLOCK_MONOTONIC)].min
+                 else
+                   3600.0
+                 end
+        # Never return negative or zero timeout - need at least MIN_READ_TIMEOUT
+        # to read unsubscribe confirmations after deadline passes
+        [result, MIN_READ_TIMEOUT].max
       end
 
       # Dispatch a subscription message to the appropriate handler callback
