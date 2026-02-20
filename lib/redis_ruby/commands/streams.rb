@@ -542,10 +542,14 @@ module RR
       end
 
       # Parse stream entries from [id, [field, value, ...]] to [id, {field => value}]
+      # Filters out nil entries that occur when stream messages have been trimmed/deleted
       def parse_entries(entries)
         return [] if entries.nil?
 
-        entries.map do |id, fields|
+        entries.filter_map do |entry|
+          next if entry.nil?
+
+          id, fields = entry
           [id, fields.is_a?(Hash) ? fields : Hash[*fields]]
         end
       end
