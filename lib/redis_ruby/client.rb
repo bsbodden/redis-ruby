@@ -83,6 +83,8 @@ module RR
                    ssl: false, ssl_params: {}, retry_policy: nil, reconnect_attempts: 0,
                    decode_responses: false, encoding: "UTF-8", instrumentation: nil,
                    circuit_breaker: nil)
+      validate_options!(db: db, port: port, timeout: timeout)
+
       @host = host
       @port = port
       @path = path
@@ -334,6 +336,22 @@ module RR
     def deregister_connection_callback(event_type, callback)
       ensure_connected
       @connection.deregister_callback(event_type, callback)
+    end
+
+    private
+
+    def validate_options!(db:, port:, timeout:)
+      unless db.is_a?(Integer) && db >= 0
+        raise ArgumentError, "db must be an Integer >= 0, got #{db.inspect}"
+      end
+
+      unless port.is_a?(Integer) && port > 0
+        raise ArgumentError, "port must be a positive Integer, got #{port.inspect}"
+      end
+
+      unless timeout.is_a?(Numeric) && timeout > 0
+        raise ArgumentError, "timeout must be a positive Numeric, got #{timeout.inspect}"
+      end
     end
   end
 end
