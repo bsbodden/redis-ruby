@@ -191,13 +191,29 @@ module RR
           {
             host: sentinel[:host] || sentinel["host"],
             port: (sentinel[:port] || sentinel["port"] || DEFAULT_SENTINEL_PORT).to_i,
+            ssl: sentinel[:ssl] || sentinel["ssl"] || false,
           }
         when String
-          host, port = sentinel.split(":")
-          { host: host, port: (port || DEFAULT_SENTINEL_PORT).to_i }
+          parse_sentinel_string(sentinel)
         else
           raise ArgumentError, "Invalid sentinel configuration: #{sentinel.inspect}"
         end
+      end
+    end
+
+    # Parse sentinel string: supports "host:port" and "redis[s]://host:port" formats.
+    # rediss:// scheme auto-enables TLS for the sentinel connection (redis-rb #1249).
+    def parse_sentinel_string(sentinel)
+      if sentinel.match?(%r{\A\w+://})
+        uri = URI.parse(sentinel)
+        {
+          host: uri.hostname || uri.host,
+          port: uri.port || DEFAULT_SENTINEL_PORT,
+          ssl: uri.scheme == "rediss",
+        }
+      else
+        host, port = sentinel.split(":")
+        { host: host, port: (port || DEFAULT_SENTINEL_PORT).to_i, ssl: false }
       end
     end
     # rubocop:enable Metrics/CyclomaticComplexity
@@ -365,11 +381,19 @@ module RR
 
     # Create a connection to a Sentinel server
     def create_sentinel_connection(sentinel)
-      conn = Connection::TCP.new(
-        host: sentinel[:host],
-        port: sentinel[:port],
-        timeout: @timeout
-      )
+      conn = if sentinel[:ssl]
+               Connection::SSL.new(
+                 host: sentinel[:host],
+                 port: sentinel[:port],
+                 timeout: @timeout
+               )
+             else
+               Connection::TCP.new(
+                 host: sentinel[:host],
+                 port: sentinel[:port],
+                 timeout: @timeout
+               )
+             end
 
       # Authenticate if password is set
       conn.call("AUTH", @password) if @password
