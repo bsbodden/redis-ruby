@@ -222,11 +222,7 @@ module RR
         results = transaction.execute
       end
 
-      if results.nil?
-        raise WatchError, "Watched variable changed" if @watching
-
-        return nil
-      end
+      return nil if results.nil?
 
       raise results if results.is_a?(CommandError)
 
