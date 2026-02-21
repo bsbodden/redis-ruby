@@ -3,6 +3,7 @@
 require "uri"
 require_relative "client_url_parsing"
 require_relative "concerns/client_instrumentation"
+require_relative "concerns/client_caching"
 
 module RR
   # The main synchronous Redis client
@@ -44,6 +45,7 @@ module RR
     include Commands::Server
     include ClientUrlParsing
     include Concerns::ClientInstrumentation
+    include Concerns::ClientCaching
 
     attr_reader :host, :port, :path, :db, :timeout, :password, :ssl, :ssl_params, :cache
 
@@ -85,29 +87,16 @@ module RR
                    decode_responses: false, encoding: "UTF-8", instrumentation: nil,
                    circuit_breaker: nil, cache: nil)
       validate_options!(db: db, port: port, timeout: timeout)
-
-      @host = host
-      @port = port
-      @path = path
-      @db = db
-      @password = password
-      @username = username
+      init_connection_state(host, port, path, db, password, username, timeout)
       @ssl = ssl
-      @timeout = timeout
       @ssl_params = ssl_params
-      @connection = nil
-      @pid = Process.pid
-      @watching = false
       @decode_responses = decode_responses
       @encoding = encoding
       @instrumentation = instrumentation
       @circuit_breaker = circuit_breaker
       @cache = nil
-
       parse_url(url) if url
-
       @retry_policy = retry_policy || build_default_retry_policy(reconnect_attempts)
-
       build_cache(cache) if cache
     end
 
@@ -117,13 +106,7 @@ module RR
     # @param args [Array] Command arguments
     # @return [Object] Command result
     def call(command, *args)
-      if @cache&.enabled? && !args.empty?
-        @cache.fetch(command, args[0], *args[1..]) do
-          execute_with_protection(command, args)
-        end
-      else
-        execute_with_protection(command, args)
-      end
+      call_via_cache(command, args) { execute_with_protection(command, args) }
     end
 
     # Execute a blocking Redis command with timeout padding
@@ -154,37 +137,19 @@ module RR
     # Fast path for single-argument commands (GET, DEL, EXISTS, etc.)
     # @api private
     def call_1arg(command, arg)
-      if @cache&.enabled?
-        @cache.fetch(command) do
-          execute_1arg_no_cache(command, arg)
-        end
-      else
-        execute_1arg_no_cache(command, arg)
-      end
+      call_1arg_via_cache(command) { execute_1arg_no_cache(command, arg) }
     end
 
     # Fast path for two-argument commands (HGET, simple SET, etc.)
     # @api private
     def call_2args(command, arg1, arg2)
-      if @cache&.enabled?
-        @cache.fetch(command, arg1, arg2) do
-          execute_2args_no_cache(command, arg1, arg2)
-        end
-      else
-        execute_2args_no_cache(command, arg1, arg2)
-      end
+      call_2args_via_cache(command, arg1, arg2) { execute_2args_no_cache(command, arg1, arg2) }
     end
 
     # Fast path for three-argument commands (HSET, etc.)
     # @api private
     def call_3args(command, arg1, arg2, arg3)
-      if @cache&.enabled?
-        @cache.fetch(command, arg1, arg2, arg3) do
-          execute_3args_no_cache(command, arg1, arg2, arg3)
-        end
-      else
-        execute_3args_no_cache(command, arg1, arg2, arg3)
-      end
+      call_3args_via_cache(command, arg1, arg2, arg3) { execute_3args_no_cache(command, arg1, arg2, arg3) }
     end
 
     # Ping the Redis server
@@ -301,14 +266,6 @@ module RR
       !@path.nil?
     end
 
-    # Check if the connection is healthy
-    #
-    # @param command [String] Command to use for health check (default: "PING")
-    # @return [Boolean] true if healthy, false otherwise
-    def healthy?(command: "PING")
-      health_check(command: command)
-    end
-
     # Perform a health check
     #
     # @param command [String] Command to use for health check (default: "PING")
@@ -325,6 +282,8 @@ module RR
         false
       end
     end
+
+    alias healthy? health_check
 
     # Register a callback for connection lifecycle events
     #
@@ -354,37 +313,6 @@ module RR
 
     private
 
-    # Unwrapped fast paths (no cache check)
-    def execute_1arg_no_cache(command, arg)
-      if @circuit_breaker
-        @circuit_breaker.call { execute_1arg_with_instrumentation(command, arg) }
-      else
-        execute_1arg_with_instrumentation(command, arg)
-      end
-    end
-
-    def execute_2args_no_cache(command, arg1, arg2)
-      if @circuit_breaker
-        @circuit_breaker.call { execute_2args_with_instrumentation(command, arg1, arg2) }
-      else
-        execute_2args_with_instrumentation(command, arg1, arg2)
-      end
-    end
-
-    def execute_3args_no_cache(command, arg1, arg2, arg3)
-      if @circuit_breaker
-        @circuit_breaker.call { execute_3args_with_instrumentation(command, arg1, arg2, arg3) }
-      else
-        execute_3args_with_instrumentation(command, arg1, arg2, arg3)
-      end
-    end
-
-    # Build and wire cache from option
-    def build_cache(cache_option)
-      config = Cache::Config.from(cache_option)
-      @cache = Cache.new(self, config)
-    end
-
     # Wire push handler on connection for cache invalidation
     def wire_cache_push_handler
       return unless @cache&.enabled? && @connection
@@ -392,6 +320,19 @@ module RR
       @connection.on_push do |push_data|
         @cache.process_invalidation(push_data)
       end
+    end
+
+    def init_connection_state(host, port, path, db, password, username, timeout)
+      @host = host
+      @port = port
+      @path = path
+      @db = db
+      @password = password
+      @username = username
+      @timeout = timeout
+      @connection = nil
+      @pid = Process.pid
+      @watching = false
     end
 
     def validate_options!(db:, port:, timeout:)

@@ -153,36 +153,35 @@ module RR
       # @return [void]
       # @raise [ConnectionError] if reconnection fails
       def ensure_connected
-        # Fork safety: detect if we're in a child process BEFORE checking socket state.
-        # After fork, the socket is shared with the parent and must not be reused.
-        if @pid
-          current_pid = Process.pid
-          if @pid != current_pid
-            trigger_event(:marked_for_reconnect, {
-              type: :marked_for_reconnect,
-              host: @host,
-              port: @port,
-              reason: "fork_detected",
-              timestamp: Time.now,
-            })
-            @socket = nil # Don't close - parent owns this socket
-            @pending_reads = 0
-          end
-        end
-
-        # If connected, verify the response stream is clean
-        if @socket && !@socket.closed?
-          return if @pending_reads.zero?
-
-          # Response stream is corrupted (interrupted between write and read).
-          begin
-            close
-          rescue StandardError
-            nil
-          end
-        end
-
+        handle_fork_if_needed
+        verify_stream_or_close if @socket && !@socket.closed?
         reconnect unless connected?
+      end
+
+      # Fork safety: detect if we're in a child process and discard parent's socket
+      def handle_fork_if_needed
+        return unless @pid
+
+        current_pid = Process.pid
+        return if @pid == current_pid
+
+        trigger_event(:marked_for_reconnect, {
+          type: :marked_for_reconnect, host: @host, port: @port,
+          reason: "fork_detected", timestamp: Time.now,
+        })
+        @socket = nil # Don't close - parent owns this socket
+        @pending_reads = 0
+      end
+
+      # Verify response stream is clean; close if corrupted
+      def verify_stream_or_close
+        return if @pending_reads.zero?
+
+        begin
+          close
+        rescue StandardError
+          nil
+        end
       end
 
       # Reconnect to the server
@@ -280,35 +279,6 @@ module RR
         end
       end
 
-      # Map of event types to builder lambdas
-      EVENT_BUILDERS = {
-        connection_created: lambda { |d|
-          ConnectionCreatedEvent.new(host: d[:host], port: d[:port], timestamp: d[:timestamp])
-        },
-        connected: lambda { |d|
-          ConnectionConnectedEvent.new(host: d[:host], port: d[:port], first_connection: d[:first_connection],
-                                       timestamp: d[:timestamp])
-        },
-        reconnected: lambda { |d|
-          ConnectionConnectedEvent.new(host: d[:host], port: d[:port], first_connection: d[:first_connection],
-                                       timestamp: d[:timestamp])
-        },
-        disconnected: lambda { |d|
-          ConnectionDisconnectedEvent.new(host: d[:host], port: d[:port], reason: d[:reason], timestamp: d[:timestamp])
-        },
-        error: lambda { |d|
-          ConnectionErrorEvent.new(host: d[:host], port: d[:port], error: d[:error], timestamp: d[:timestamp])
-        },
-        health_check: lambda { |d|
-          ConnectionHealthCheckEvent.new(host: d[:host], port: d[:port], healthy: d[:healthy], latency: d[:latency],
-                                         timestamp: d[:timestamp])
-        },
-        marked_for_reconnect: lambda { |d|
-          ConnectionMarkedForReconnectEvent.new(host: d[:host], port: d[:port], reason: d[:reason],
-                                                timestamp: d[:timestamp])
-        },
-      }.freeze
-
       private
 
       # Decode a response, routing any interleaved push messages to the handler.
@@ -353,30 +323,6 @@ module RR
           @socket = nil
           raise
         end
-      end
-
-      # Trigger appropriate callback on successful connection
-      def trigger_connect_success
-        event_type = @ever_connected ? :reconnected : :connected
-        @ever_connected = true
-        trigger_event(event_type, {
-          type: event_type, host: @host, port: @port,
-          first_connection: event_type == :connected, timestamp: Time.now,
-        })
-      end
-
-      # Trigger error callback and raise wrapped error
-      def trigger_connect_error(err)
-        error = wrap_connection_error(err)
-        trigger_event(:error, { type: :error, host: @host, port: @port, error: error, timestamp: Time.now })
-        raise error
-      end
-
-      # Wrap non-ConnectionError exceptions
-      def wrap_connection_error(err)
-        return err if err.is_a?(ConnectionError)
-
-        ConnectionError.new("Failed to connect to #{@host}:#{@port}: #{err.message}")
       end
 
       # Configure socket options for performance

@@ -16,6 +16,7 @@ class TLSReconnectIOTest < Minitest::Test
     tcp_socket = mock("tcp_socket")
     tcp_socket.stubs(:setsockopt)
     tcp_socket.stubs(:closed?).returns(false)
+    tcp_socket.stubs(:wait_readable).returns(true)
 
     ssl_context = mock("ssl_context")
 
@@ -31,7 +32,6 @@ class TLSReconnectIOTest < Minitest::Test
     conn.instance_variable_set(:@ssl_params, {})
 
     OpenSSL::SSL::SSLSocket.stubs(:new).returns(ssl_socket)
-    IO.stubs(:select).returns([[tcp_socket], nil, nil])
 
     conn.send(:setup_ssl_layer_with_timeout, ssl_context)
   end
@@ -44,6 +44,7 @@ class TLSReconnectIOTest < Minitest::Test
     tcp_socket = mock("tcp_socket")
     tcp_socket.stubs(:setsockopt)
     tcp_socket.stubs(:closed?).returns(false)
+    tcp_socket.stubs(:wait_writable).returns(true)
 
     ssl_context = mock("ssl_context")
 
@@ -58,7 +59,6 @@ class TLSReconnectIOTest < Minitest::Test
     conn.instance_variable_set(:@ssl_params, {})
 
     OpenSSL::SSL::SSLSocket.stubs(:new).returns(ssl_socket)
-    IO.stubs(:select).returns([nil, [tcp_socket], nil])
 
     conn.send(:setup_ssl_layer_with_timeout, ssl_context)
   end
@@ -75,6 +75,8 @@ class TLSReconnectIOTest < Minitest::Test
     tcp_socket.stubs(:setsockopt)
     tcp_socket.stubs(:closed?).returns(false)
     tcp_socket.stubs(:close)
+    # wait_readable returns nil on timeout
+    tcp_socket.stubs(:wait_readable).returns(nil)
 
     ssl_context = mock("ssl_context")
 
@@ -85,8 +87,6 @@ class TLSReconnectIOTest < Minitest::Test
     conn.instance_variable_set(:@ssl_params, {})
 
     OpenSSL::SSL::SSLSocket.stubs(:new).returns(ssl_socket)
-    # IO.select returns nil on timeout
-    IO.stubs(:select).returns(nil)
 
     assert_raises(RR::TimeoutError) do
       conn.send(:setup_ssl_layer_with_timeout, ssl_context)

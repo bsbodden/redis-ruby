@@ -311,22 +311,17 @@ module RR
       # Force cache state from cached/uncached blocks
       return true if @force_cache == true
       return false if @force_cache == false
-
       return false unless @registry.cacheable?(command)
+      return false if key_filtered_out?(redis_key)
 
-      # Apply key filter if configured
-      return false if @config.key_filter && redis_key && !@config.key_filter.call(redis_key)
-
-      # Apply mode-based filtering
-      case @config.mode
-      when :optin
-        false # In optin mode, only explicit cache: true enables caching
-      else
-        true
-      end
+      @config.mode != :optin
     end
 
     private
+
+    def key_filtered_out?(redis_key)
+      @config.key_filter && redis_key && !@config.key_filter.call(redis_key)
+    end
 
     def lookup_cached(command, key, *)
       cache_key = @key_builder.build(command, key, *)

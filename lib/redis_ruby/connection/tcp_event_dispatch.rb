@@ -10,6 +10,35 @@ module RR
       VALID_EVENT_TYPES = %i[connected disconnected reconnected error
                              connection_created health_check marked_for_reconnect].freeze
 
+      # Map of event types to builder lambdas
+      EVENT_BUILDERS = {
+        connection_created: lambda { |d|
+          ConnectionCreatedEvent.new(host: d[:host], port: d[:port], timestamp: d[:timestamp])
+        },
+        connected: lambda { |d|
+          ConnectionConnectedEvent.new(host: d[:host], port: d[:port], first_connection: d[:first_connection],
+                                       timestamp: d[:timestamp])
+        },
+        reconnected: lambda { |d|
+          ConnectionConnectedEvent.new(host: d[:host], port: d[:port], first_connection: d[:first_connection],
+                                       timestamp: d[:timestamp])
+        },
+        disconnected: lambda { |d|
+          ConnectionDisconnectedEvent.new(host: d[:host], port: d[:port], reason: d[:reason], timestamp: d[:timestamp])
+        },
+        error: lambda { |d|
+          ConnectionErrorEvent.new(host: d[:host], port: d[:port], error: d[:error], timestamp: d[:timestamp])
+        },
+        health_check: lambda { |d|
+          ConnectionHealthCheckEvent.new(host: d[:host], port: d[:port], healthy: d[:healthy], latency: d[:latency],
+                                         timestamp: d[:timestamp])
+        },
+        marked_for_reconnect: lambda { |d|
+          ConnectionMarkedForReconnectEvent.new(host: d[:host], port: d[:port], reason: d[:reason],
+                                                timestamp: d[:timestamp])
+        },
+      }.freeze
+
       # Register a callback for connection lifecycle events
       #
       # @param event_type [Symbol] Event type
@@ -71,6 +100,30 @@ module RR
 
       private
 
+      # Trigger appropriate callback on successful connection
+      def trigger_connect_success
+        event_type = @ever_connected ? :reconnected : :connected
+        @ever_connected = true
+        trigger_event(event_type, {
+          type: event_type, host: @host, port: @port,
+          first_connection: event_type == :connected, timestamp: Time.now,
+        })
+      end
+
+      # Trigger error callback and raise wrapped error
+      def trigger_connect_error(err)
+        error = wrap_connection_error(err)
+        trigger_event(:error, { type: :error, host: @host, port: @port, error: error, timestamp: Time.now })
+        raise error
+      end
+
+      # Wrap non-ConnectionError exceptions
+      def wrap_connection_error(err)
+        return err if err.is_a?(ConnectionError)
+
+        ConnectionError.new("Failed to connect to #{@host}:#{@port}: #{err.message}")
+      end
+
       # Trigger callbacks and events for a lifecycle event
       def trigger_event(event_type, event_data)
         start_time = @instrumentation ? Process.clock_gettime(Process::CLOCK_MONOTONIC) : nil
@@ -104,7 +157,7 @@ module RR
 
       # Dispatch event to event dispatcher
       def dispatch_event(event_type, event_data)
-        event = TCP::EVENT_BUILDERS.fetch(event_type, nil)&.call(event_data)
+        event = EVENT_BUILDERS.fetch(event_type, nil)&.call(event_data)
         @event_dispatcher.dispatch(event) if event
       end
     end

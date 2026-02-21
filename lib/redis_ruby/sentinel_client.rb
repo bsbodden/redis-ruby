@@ -2,6 +2,7 @@
 
 require "uri"
 require_relative "concerns/single_connection_operations"
+require_relative "concerns/client_caching"
 
 module RR
   # Sentinel-backed Redis client
@@ -35,6 +36,7 @@ module RR
   #
   class SentinelClient
     include Concerns::SingleConnectionOperations
+    include Concerns::ClientCaching
     include Commands::Strings
     include Commands::Keys
     include Commands::Hashes
@@ -80,29 +82,8 @@ module RR
                    ssl: false, ssl_params: {}, reconnect_attempts: 3,
                    min_other_sentinels: 0, cache: nil)
       validate_role!(role)
-
-      @service_name = service_name
-      @role = normalize_role(role)
-      @password = password
-      @db = db
-      @timeout = timeout
-      @ssl = ssl
-      @ssl_params = ssl_params
-      @reconnect_attempts = reconnect_attempts
-      @cache = nil
-
-      @sentinel_manager = SentinelManager.new(
-        sentinels: sentinels,
-        service_name: service_name,
-        sentinel_password: sentinel_password,
-        timeout: timeout,
-        min_other_sentinels: min_other_sentinels
-      )
-
-      @connection = nil
-      @current_address = nil
-      @mutex = Mutex.new
-
+      init_sentinel_state(service_name, role, password, db, timeout, ssl, ssl_params, reconnect_attempts)
+      init_sentinel_manager(sentinels, service_name, sentinel_password, timeout, min_other_sentinels)
       build_cache(cache) if cache
     end
 
@@ -111,47 +92,25 @@ module RR
     # @param args [Array] Command arguments
     # @return [Object] Command result
     def call(command, *args)
-      if @cache&.enabled? && !args.empty?
-        @cache.fetch(command, args[0], *args[1..]) do
-          call_with_retry { |conn| conn.call(command, *args) }
-        end
-      else
-        call_with_retry { |conn| conn.call(command, *args) }
-      end
+      call_via_cache(command, args) { call_with_retry { |conn| conn.call(command, *args) } }
     end
 
     # Fast path for single-argument commands (GET, DEL, EXISTS, etc.)
     # @api private
     def call_1arg(command, arg)
-      if @cache&.enabled?
-        @cache.fetch(command) do
-          call_with_retry { |conn| conn.call_1arg(command, arg) }
-        end
-      else
-        call_with_retry { |conn| conn.call_1arg(command, arg) }
-      end
+      call_1arg_via_cache(command) { call_with_retry { |conn| conn.call_1arg(command, arg) } }
     end
 
     # Fast path for two-argument commands (SET without options, HGET, etc.)
     # @api private
     def call_2args(command, arg1, arg2)
-      if @cache&.enabled?
-        @cache.fetch(command, arg1, arg2) do
-          call_with_retry { |conn| conn.call_2args(command, arg1, arg2) }
-        end
-      else
-        call_with_retry { |conn| conn.call_2args(command, arg1, arg2) }
-      end
+      call_2args_via_cache(command, arg1, arg2) { call_with_retry { |conn| conn.call_2args(command, arg1, arg2) } }
     end
 
     # Fast path for three-argument commands (HSET, LRANGE, etc.)
     # @api private
     def call_3args(command, arg1, arg2, arg3)
-      if @cache&.enabled?
-        @cache.fetch(command, arg1, arg2, arg3) do
-          call_with_retry { |conn| conn.call_3args(command, arg1, arg2, arg3) }
-        end
-      else
+      call_3args_via_cache(command, arg1, arg2, arg3) do
         call_with_retry { |conn| conn.call_3args(command, arg1, arg2, arg3) }
       end
     end
@@ -211,10 +170,27 @@ module RR
 
     private
 
-    # Build cache from option
-    def build_cache(cache_option)
-      config = Cache::Config.from(cache_option)
-      @cache = Cache.new(self, config)
+    def init_sentinel_state(service_name, role, password, db, timeout, ssl, ssl_params, reconnect_attempts)
+      @service_name = service_name
+      @role = normalize_role(role)
+      @password = password
+      @db = db
+      @timeout = timeout
+      @ssl = ssl
+      @ssl_params = ssl_params
+      @reconnect_attempts = reconnect_attempts
+      @cache = nil
+      @connection = nil
+      @current_address = nil
+      @mutex = Mutex.new
+    end
+
+    def init_sentinel_manager(sentinels, service_name, sentinel_password, timeout, min_other_sentinels)
+      @sentinel_manager = SentinelManager.new(
+        sentinels: sentinels, service_name: service_name,
+        sentinel_password: sentinel_password, timeout: timeout,
+        min_other_sentinels: min_other_sentinels
+      )
     end
 
     # Execute a block with connection retry on failover errors

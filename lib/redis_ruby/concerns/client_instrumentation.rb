@@ -9,6 +9,33 @@ module RR
     module ClientInstrumentation
       private
 
+      # Execute 1-arg command with circuit breaker protection
+      def execute_1arg_no_cache(command, arg)
+        if @circuit_breaker
+          @circuit_breaker.call { execute_1arg_with_instrumentation(command, arg) }
+        else
+          execute_1arg_with_instrumentation(command, arg)
+        end
+      end
+
+      # Execute 2-arg command with circuit breaker protection
+      def execute_2args_no_cache(command, arg1, arg2)
+        if @circuit_breaker
+          @circuit_breaker.call { execute_2args_with_instrumentation(command, arg1, arg2) }
+        else
+          execute_2args_with_instrumentation(command, arg1, arg2)
+        end
+      end
+
+      # Execute 3-arg command with circuit breaker protection
+      def execute_3args_no_cache(command, arg1, arg2, arg3)
+        if @circuit_breaker
+          @circuit_breaker.call { execute_3args_with_instrumentation(command, arg1, arg2, arg3) }
+        else
+          execute_3args_with_instrumentation(command, arg1, arg2, arg3)
+        end
+      end
+
       # Execute command with circuit breaker and instrumentation protection
       def execute_with_protection(command, args)
         if @circuit_breaker

@@ -2,6 +2,7 @@
 
 require "uri"
 require_relative "concerns/pooled_operations"
+require_relative "concerns/client_caching"
 
 module RR
   # Thread-safe Redis client with connection pooling
@@ -22,6 +23,7 @@ module RR
   #
   class PooledClient
     include Concerns::PooledOperations
+    include Concerns::ClientCaching
     include Commands::Strings
     include Commands::Keys
     include Commands::Hashes
@@ -67,33 +69,9 @@ module RR
     def initialize(url: nil, host: DEFAULT_HOST, port: DEFAULT_PORT, db: DEFAULT_DB,
                    password: nil, timeout: DEFAULT_TIMEOUT, pool: {}, instrumentation: nil,
                    circuit_breaker: nil, cache: nil)
-      # Initialize ALL instance variables upfront for consistent object shapes (YJIT optimization)
-      @host = host
-      @port = port
-      @db = db
-      @password = password
-      @timeout = timeout
-      @pool = nil
-      @instrumentation = instrumentation
-      @circuit_breaker = circuit_breaker
-      @cache = nil
-
-      # Override from URL if provided
+      init_pooled_state(host, port, db, password, timeout, instrumentation, circuit_breaker)
       parse_url(url) if url
-
-      pool_size = pool.fetch(:size) { DEFAULT_POOL_SIZE }
-      pool_timeout = pool.fetch(:timeout) { DEFAULT_POOL_TIMEOUT }
-
-      @pool = Connection::Pool.new(
-        host: @host,
-        port: @port,
-        size: pool_size,
-        pool_timeout: pool_timeout,
-        connection_timeout: @timeout,
-        password: @password,
-        db: @db
-      )
-
+      init_pool(pool)
       build_cache(cache) if cache
     end
 
@@ -105,49 +83,25 @@ module RR
     # @param args [Array] Command arguments
     # @return [Object] Command result
     def call(command, *args)
-      if @cache&.enabled? && !args.empty?
-        @cache.fetch(command, args[0], *args[1..]) do
-          execute_with_protection(command, args)
-        end
-      else
-        execute_with_protection(command, args)
-      end
+      call_via_cache(command, args) { execute_with_protection(command, args) }
     end
 
     # Fast path for single-argument commands (GET, DEL, EXISTS, etc.)
     # @api private
     def call_1arg(command, arg)
-      if @cache&.enabled?
-        @cache.fetch(command) do
-          execute_1arg_no_cache(command, arg)
-        end
-      else
-        execute_1arg_no_cache(command, arg)
-      end
+      call_1arg_via_cache(command) { execute_1arg_no_cache(command, arg) }
     end
 
     # Fast path for two-argument commands (SET without options, HGET, etc.)
     # @api private
     def call_2args(command, arg1, arg2)
-      if @cache&.enabled?
-        @cache.fetch(command, arg1, arg2) do
-          execute_2args_no_cache(command, arg1, arg2)
-        end
-      else
-        execute_2args_no_cache(command, arg1, arg2)
-      end
+      call_2args_via_cache(command, arg1, arg2) { execute_2args_no_cache(command, arg1, arg2) }
     end
 
     # Fast path for three-argument commands (HSET, LRANGE, etc.)
     # @api private
     def call_3args(command, arg1, arg2, arg3)
-      if @cache&.enabled?
-        @cache.fetch(command, arg1, arg2, arg3) do
-          execute_3args_no_cache(command, arg1, arg2, arg3)
-        end
-      else
-        execute_3args_no_cache(command, arg1, arg2, arg3)
-      end
+      call_3args_via_cache(command, arg1, arg2, arg3) { execute_3args_no_cache(command, arg1, arg2, arg3) }
     end
 
     # Execute a block with a connection from the pool
@@ -210,6 +164,28 @@ module RR
 
     private
 
+    # Initialize instance variables upfront for consistent object shapes (YJIT optimization)
+    def init_pooled_state(host, port, db, password, timeout, instrumentation, circuit_breaker)
+      @host = host
+      @port = port
+      @db = db
+      @password = password
+      @timeout = timeout
+      @pool = nil
+      @instrumentation = instrumentation
+      @circuit_breaker = circuit_breaker
+      @cache = nil
+    end
+
+    def init_pool(pool)
+      @pool = Connection::Pool.new(
+        host: @host, port: @port,
+        size: pool.fetch(:size) { DEFAULT_POOL_SIZE },
+        pool_timeout: pool.fetch(:timeout) { DEFAULT_POOL_TIMEOUT },
+        connection_timeout: @timeout, password: @password, db: @db
+      )
+    end
+
     # Unwrapped fast paths (no cache check)
     def execute_1arg_no_cache(command, arg)
       if @circuit_breaker
@@ -233,12 +209,6 @@ module RR
       else
         execute_3args_with_instrumentation(command, arg1, arg2, arg3)
       end
-    end
-
-    # Build shared cache for the pool
-    def build_cache(cache_option)
-      config = Cache::Config.from(cache_option)
-      @cache = Cache.new(self, config)
     end
 
     # Execute command with circuit breaker and instrumentation protection
