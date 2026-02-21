@@ -66,18 +66,18 @@ module RR
       @client = client
       @force_cache = nil
 
-      if config_or_options.is_a?(Config)
-        @config = config_or_options
-      elsif config_or_options.is_a?(Hash)
-        @config = Config.new(**config_or_options)
-      else
-        @config = Config.new(max_entries: max_entries, ttl: ttl, mode: mode)
-      end
+      @config = if config_or_options.is_a?(Config)
+                  config_or_options
+                elsif config_or_options.is_a?(Hash)
+                  Config.new(**config_or_options)
+                else
+                  Config.new(max_entries: max_entries, ttl: ttl, mode: mode)
+                end
 
       @store = @config.store || Store.new(max_entries: @config.max_entries)
       @stats = Stats.new
       @registry = CommandRegistry.new(
-        allow_list: @config.cacheable_commands,
+        allow_list: @config.cacheable_commands
       )
       @key_builder = KeyBuilder.new
       @enabled = false
@@ -166,12 +166,10 @@ module RR
     # @param args [Array] Additional command arguments
     # @yield Block that executes the actual Redis command
     # @return [Object] Cached or fresh value
-    def fetch(command, redis_key, *args)
-      unless @enabled && cacheable?(command, redis_key)
-        return yield
-      end
+    def fetch(command, redis_key, *)
+      return yield unless @enabled && cacheable?(command, redis_key)
 
-      cache_key = @key_builder.build(command, redis_key, *args)
+      cache_key = @key_builder.build(command, redis_key, *)
       cached = @store.get(cache_key)
 
       if cached && cached != Store::IN_PROGRESS
@@ -223,8 +221,8 @@ module RR
     # @return [Boolean] true if key was cached
     def invalidate(key)
       count = @store.delete_by_redis_key(key, @key_builder)
-      @stats.invalidate_bulk!(count) if count > 0
-      count > 0
+      @stats.invalidate_bulk!(count) if count.positive?
+      count.positive?
     end
 
     # Invalidate multiple keys
@@ -237,7 +235,7 @@ module RR
         deleted = @store.delete_by_redis_key(key, @key_builder)
         count += deleted
       end
-      @stats.invalidate_bulk!(count) if count > 0
+      @stats.invalidate_bulk!(count) if count.positive?
       count
     end
 
@@ -317,9 +315,7 @@ module RR
       return false unless @registry.cacheable?(command)
 
       # Apply key filter if configured
-      if @config.key_filter && redis_key
-        return false unless @config.key_filter.call(redis_key)
-      end
+      return false if @config.key_filter && redis_key && !@config.key_filter.call(redis_key)
 
       # Apply mode-based filtering
       case @config.mode
@@ -332,8 +328,8 @@ module RR
 
     private
 
-    def lookup_cached(command, key, *args)
-      cache_key = @key_builder.build(command, key, *args)
+    def lookup_cached(command, key, *)
+      cache_key = @key_builder.build(command, key, *)
       result = @store.get(cache_key)
       return nil if result.nil? || result == Store::IN_PROGRESS
 
@@ -345,10 +341,10 @@ module RR
       @client.call("CLIENT", "CACHING", "YES") if @enabled && @config.mode == :optin
     end
 
-    def store_if_cacheable(command, key, value, *args)
+    def store_if_cacheable(command, key, value, *)
       return unless value
 
-      cache_key = @key_builder.build(command, key, *args)
+      cache_key = @key_builder.build(command, key, *)
       @store.set(cache_key, value, ttl: @config.ttl)
     end
 

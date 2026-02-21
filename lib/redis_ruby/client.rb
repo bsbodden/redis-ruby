@@ -139,7 +139,7 @@ module RR
     def blocking_call(command_timeout, command, *args)
       @retry_policy.call do
         ensure_connected
-        if command_timeout && command_timeout > 0
+        if command_timeout&.positive?
           padded_timeout = @timeout + command_timeout + 1
           result = @connection.blocking_call(padded_timeout, command, *args)
         else
@@ -155,7 +155,7 @@ module RR
     # @api private
     def call_1arg(command, arg)
       if @cache&.enabled?
-        @cache.fetch(command, arg) do
+        @cache.fetch(command) do
           execute_1arg_no_cache(command, arg)
         end
       else
@@ -395,17 +395,16 @@ module RR
     end
 
     def validate_options!(db:, port:, timeout:)
-      unless db.is_a?(Integer) && db >= 0
-        raise ArgumentError, "db must be an Integer >= 0, got #{db.inspect}"
+      raise ArgumentError, "db must be an Integer >= 0, got #{db.inspect}" unless db.is_a?(Integer) && db >= 0
+
+      unless port.is_a?(Integer) && port.positive?
+        raise ArgumentError,
+              "port must be a positive Integer, got #{port.inspect}"
       end
 
-      unless port.is_a?(Integer) && port > 0
-        raise ArgumentError, "port must be a positive Integer, got #{port.inspect}"
-      end
+      return if timeout.is_a?(Numeric) && timeout.positive?
 
-      unless timeout.is_a?(Numeric) && timeout > 0
-        raise ArgumentError, "timeout must be a positive Numeric, got #{timeout.inspect}"
-      end
+      raise ArgumentError, "timeout must be a positive Numeric, got #{timeout.inspect}"
     end
   end
 end

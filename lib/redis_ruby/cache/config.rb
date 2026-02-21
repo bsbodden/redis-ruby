@@ -62,7 +62,7 @@ module RR
       end
 
       def validate_max_entries!(max_entries)
-        return if max_entries.is_a?(Integer) && max_entries > 0
+        return if max_entries.is_a?(Integer) && max_entries.positive?
 
         raise ArgumentError, "max_entries must be a positive Integer, got #{max_entries.inspect}"
       end

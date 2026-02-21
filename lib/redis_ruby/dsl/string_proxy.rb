@@ -183,7 +183,7 @@ module RR
 
         return nil unless block
 
-        val = block.call
+        val = yield
         set(val)
         val
       end

@@ -57,7 +57,7 @@ module RR
       # @param redis_key [String] The Redis key it references
       def remove(cache_key, redis_key)
         @reverse_index[redis_key]&.delete(cache_key)
-        @reverse_index.delete(redis_key) if @reverse_index[redis_key]&.empty?
+        @reverse_index.delete(redis_key) if @reverse_index[redis_key] && @reverse_index[redis_key].empty?
       end
 
       # Remove all cache key mappings for a Redis key

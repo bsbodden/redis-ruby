@@ -124,7 +124,7 @@ module RR
     # @api private
     def call_1arg(command, arg)
       if @cache&.enabled?
-        @cache.fetch(command, arg) do
+        @cache.fetch(command) do
           call_with_retry { |conn| conn.call_1arg(command, arg) }
         end
       else

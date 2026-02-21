@@ -55,7 +55,7 @@ module RR
       # @return [Float] Hit rate between 0.0 and 1.0
       def hit_rate
         total = @hits + @misses
-        return 0.0 if total == 0
+        return 0.0 if total.zero?
 
         @hits.to_f / total
       end

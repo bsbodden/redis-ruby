@@ -118,7 +118,7 @@ module RR
     # @api private
     def call_1arg(command, arg)
       if @cache&.enabled?
-        @cache.fetch(command, arg) do
+        @cache.fetch(command) do
           execute_1arg_no_cache(command, arg)
         end
       else

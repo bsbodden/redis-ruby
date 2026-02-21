@@ -172,7 +172,7 @@ module RR
 
         # If connected, verify the response stream is clean
         if @socket && !@socket.closed?
-          return if @pending_reads == 0
+          return if @pending_reads.zero?
 
           # Response stream is corrupted (interrupted between write and read).
           begin
@@ -208,12 +208,11 @@ module RR
         write_pipeline(commands)
         # Pre-allocate array to avoid map allocation
         count = commands.size
-        results = Array.new(count) do
+        Array.new(count) do
           result = read_response
           @pending_reads -= 1
           result
         end
-        results
       end
 
       # Close the connection
@@ -234,7 +233,7 @@ module RR
       #
       # @return [Boolean] true if connection is valid, false if corrupted and closed
       def revalidate
-        if @pending_reads > 0
+        if @pending_reads.positive?
           begin
             close
           rescue StandardError

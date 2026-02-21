@@ -48,9 +48,7 @@ module RR
           entry = @cache[cache_key]
           return nil unless entry
 
-          if entry.value == IN_PROGRESS
-            return IN_PROGRESS
-          end
+          return IN_PROGRESS if entry.value == IN_PROGRESS
 
           if entry.expired?
             delete_entry(cache_key)
@@ -108,9 +106,7 @@ module RR
           cache_keys = key_builder.remove_all_for(redis_key)
           count = 0
           cache_keys.each do |ck|
-            if delete_entry(ck)
-              count += 1
-            end
+            count += 1 if delete_entry(ck)
           end
           count
         end
@@ -149,9 +145,7 @@ module RR
       # Total evictions since creation
       #
       # @return [Integer]
-      def eviction_count
-        @eviction_count
-      end
+      attr_reader :eviction_count
 
       private
 

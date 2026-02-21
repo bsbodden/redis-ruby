@@ -47,10 +47,8 @@ module RR
       # @param allow_list [Array<String>, nil] Custom allow list (nil = default)
       # @param deny_list [Array<String>, nil] Commands to exclude from caching
       def initialize(allow_list: nil, deny_list: nil)
-        base = allow_list ? allow_list.map(&:upcase).to_set : DEFAULT_CACHEABLE_SET.dup
-        if deny_list
-          deny_list.each { |cmd| base.delete(cmd.upcase) }
-        end
+        base = allow_list ? allow_list.to_set(&:upcase) : DEFAULT_CACHEABLE_SET.dup
+        deny_list&.each { |cmd| base.delete(cmd.upcase) }
         @cacheable = base.freeze
       end
 

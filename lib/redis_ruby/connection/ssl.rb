@@ -151,19 +151,18 @@ module RR
         @pending_reads += commands.size
         write_pipeline(commands)
         count = commands.size
-        results = Array.new(count) do
+        Array.new(count) do
           result = read_response
           @pending_reads -= 1
           result
         end
-        results
       end
 
       # Validate the connection is clean (no pending reads from interrupted commands).
       #
       # @return [Boolean] true if connection is valid, false if corrupted and closed
       def revalidate
-        if @pending_reads > 0
+        if @pending_reads.positive?
           begin
             close
           rescue StandardError
@@ -189,15 +188,14 @@ module RR
 
         # If connected, verify the response stream is clean
         if connected?
-          if @pending_reads > 0
-            begin
-              close
-            rescue StandardError
-              nil
-            end
-          else
-            return
+          return unless @pending_reads.positive?
+
+          begin
+            close
+          rescue StandardError
+            nil
           end
+
         end
 
         reconnect
@@ -319,11 +317,11 @@ module RR
           when :wait_readable
             remaining = deadline - Process.clock_gettime(Process::CLOCK_MONOTONIC)
             raise TimeoutError, "SSL handshake timed out" if remaining <= 0
-            raise TimeoutError, "SSL handshake timed out" unless IO.select([@tcp_socket], nil, nil, remaining)
+            raise TimeoutError, "SSL handshake timed out" unless @tcp_socket.wait_readable(remaining)
           when :wait_writable
             remaining = deadline - Process.clock_gettime(Process::CLOCK_MONOTONIC)
             raise TimeoutError, "SSL handshake timed out" if remaining <= 0
-            raise TimeoutError, "SSL handshake timed out" unless IO.select(nil, [@tcp_socket], nil, remaining)
+            raise TimeoutError, "SSL handshake timed out" unless @tcp_socket.wait_writable(remaining)
           else
             # Handshake complete
             break
