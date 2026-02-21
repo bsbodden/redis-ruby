@@ -12,7 +12,7 @@ class WatchErrorTest < Minitest::Test
   end
 
   def test_watch_error_inherits_from_error
-    assert RR::WatchError < RR::Error
+    assert_operator RR::WatchError, :<, RR::Error
   end
 
   def test_watch_error_can_be_raised_and_rescued
@@ -71,19 +71,8 @@ class WatchErrorTest < Minitest::Test
 
   def test_user_can_raise_watch_error_in_retry_pattern
     # Demonstrates the intended usage pattern for WatchError
-    attempts = 0
-
     assert_raises(RR::WatchError) do
-      loop do
-        attempts += 1
-        result = nil # simulate aborted multi
-
-        raise RR::WatchError, "Watched variable changed" if result.nil?
-
-        break result
-      end
+      raise RR::WatchError, "Watched variable changed"
     end
-
-    assert_equal 1, attempts
   end
 end

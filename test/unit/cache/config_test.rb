@@ -18,7 +18,7 @@ class CacheConfigTest < Minitest::Test
     config = RR::Cache::Config.new(
       max_entries: 5000,
       ttl: 300,
-      mode: :optin,
+      mode: :optin
     )
 
     assert_equal 5000, config.max_entries
@@ -29,6 +29,7 @@ class CacheConfigTest < Minitest::Test
   def test_all_valid_modes
     %i[default optin optout broadcast].each do |mode|
       config = RR::Cache::Config.new(mode: mode)
+
       assert_equal mode, config.mode
     end
   end

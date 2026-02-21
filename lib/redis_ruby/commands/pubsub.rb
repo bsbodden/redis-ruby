@@ -343,6 +343,10 @@ module RR
         "SSUBSCRIBE" => "SUNSUBSCRIBE",
       }.freeze
 
+      # Minimum read timeout - prevents negative/zero timeouts after deadline passes,
+      # ensuring we can still read unsubscribe confirmations.
+      MIN_READ_TIMEOUT = 0.1
+
       private
 
       # Main subscription loop
@@ -383,8 +387,8 @@ module RR
           next unless message.is_a?(Array)
 
           type = message[0]
-          if %w[unsubscribe punsubscribe sunsubscribe].include?(type)
-            break if message[2].to_i.zero? # All channels unsubscribed, connection is clean
+          if %w[unsubscribe punsubscribe sunsubscribe].include?(type) && message[2].to_i.zero?
+            break # All channels unsubscribed, connection is clean
           end
         rescue TimeoutError, ConnectionError
           break
@@ -422,10 +426,6 @@ module RR
       rescue ConnectionError
         :break
       end
-
-      # Minimum read timeout - prevents negative/zero timeouts after deadline passes,
-      # ensuring we can still read unsubscribe confirmations.
-      MIN_READ_TIMEOUT = 0.1
 
       def compute_read_timeout(timeout, deadline)
         result = if timeout

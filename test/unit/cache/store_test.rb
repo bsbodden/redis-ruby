@@ -9,6 +9,7 @@ class CacheStoreTest < Minitest::Test
 
   def test_set_and_get
     @store.set("GET:key", "value")
+
     assert_equal "value", @store.get("GET:key")
   end
 
@@ -18,38 +19,45 @@ class CacheStoreTest < Minitest::Test
 
   def test_set_with_ttl
     @store.set("GET:key", "value", ttl: 3600)
+
     assert_equal "value", @store.get("GET:key")
   end
 
   def test_expired_entry_returns_nil
     @store.set("GET:key", "value", ttl: 0.001)
     sleep 0.01
+
     assert_nil @store.get("GET:key")
   end
 
   def test_no_ttl_does_not_expire
     @store.set("GET:key", "value")
+
     assert_equal "value", @store.get("GET:key")
   end
 
   def test_mark_in_progress
     @store.mark_in_progress("GET:key")
+
     assert_equal RR::Cache::Store::IN_PROGRESS, @store.get("GET:key")
   end
 
   def test_in_progress_not_counted_as_key
     @store.mark_in_progress("GET:key")
+
     refute @store.key?("GET:key")
   end
 
   def test_overwrite_in_progress_with_value
     @store.mark_in_progress("GET:key")
     @store.set("GET:key", "actual_value")
+
     assert_equal "actual_value", @store.get("GET:key")
   end
 
   def test_delete
     @store.set("GET:key", "value")
+
     assert @store.delete("GET:key")
     assert_nil @store.get("GET:key")
   end
@@ -92,12 +100,14 @@ class CacheStoreTest < Minitest::Test
 
   def test_key_exists
     @store.set("GET:key", "value")
+
     assert @store.key?("GET:key")
   end
 
   def test_key_expired_returns_false
     @store.set("GET:key", "value", ttl: 0.001)
     sleep 0.01
+
     refute @store.key?("GET:key")
   end
 
@@ -133,7 +143,7 @@ class CacheStoreTest < Minitest::Test
     store.set("GET:key4", "v4")
 
     assert_equal "v1", store.get("GET:key1") # touched, not evicted
-    assert_nil store.get("GET:key2")          # evicted
+    assert_nil store.get("GET:key2") # evicted
     assert_equal "v3", store.get("GET:key3")
     assert_equal "v4", store.get("GET:key4")
   end
@@ -161,12 +171,15 @@ class CacheStoreTest < Minitest::Test
 
   def test_cache_entry_struct
     entry = RR::Cache::Store::CacheEntry.new("val", nil)
+
     refute_predicate entry, :expired?
 
     future = RR::Cache::Store::CacheEntry.new("val", Process.clock_gettime(Process::CLOCK_MONOTONIC) + 3600)
+
     refute_predicate future, :expired?
 
     past = RR::Cache::Store::CacheEntry.new("val", Process.clock_gettime(Process::CLOCK_MONOTONIC) - 1)
+
     assert_predicate past, :expired?
   end
 end

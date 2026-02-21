@@ -25,7 +25,7 @@ class PubSubConnectionLeakTest < Minitest::Test
     client.instance_variable_set(:@connection, connection)
 
     client.subscribe_with_timeout(0.1, "channel") do |on|
-      on.message { |_ch, _msg| }
+      on.message { |_ch, _msg| nil }
     end
 
     # Connection should still be the same object (not leaked)
@@ -33,31 +33,11 @@ class PubSubConnectionLeakTest < Minitest::Test
   end
 
   def test_cleanup_drains_unsubscribe_confirmation
-    client = RR::Client.new
-    client.stubs(:ensure_connected)
-
-    connection = mock("connection")
-    connection.stubs(:connected?).returns(true)
-    connection.stubs(:write_command)
-
-    # Subscribe confirmation, timeout, unsubscribe sent, then confirmation comes
-    call_count = 0
-    connection.stubs(:read_response).with(timeout: anything) do
-      call_count += 1
-      case call_count
-      when 1
-        ["subscribe", "ch", 1]
-      when 2
-        raise RR::TimeoutError, "timeout"
-      when 3
-        ["unsubscribe", "ch", 0]
-      end
-    end
-
-    client.instance_variable_set(:@connection, connection)
+    client, connection = build_pubsub_client
+    stub_subscribe_timeout_unsubscribe(connection, "ch")
 
     client.subscribe_with_timeout(0.1, "ch") do |on|
-      on.message { |_ch, _msg| }
+      on.message { |_ch, _msg| nil }
     end
   end
 
@@ -91,10 +71,34 @@ class PubSubConnectionLeakTest < Minitest::Test
     client.instance_variable_set(:@connection, connection)
 
     client.subscribe_with_timeout(0.1, "ch") do |on|
-      on.message { |_ch, _msg| }
+      on.message { |_ch, _msg| nil }
     end
 
     # @subscription_connection should be nil after cleanup
     assert_nil client.instance_variable_get(:@subscription_connection)
+  end
+
+  private
+
+  def build_pubsub_client
+    client = RR::Client.new
+    client.stubs(:ensure_connected)
+    connection = mock("connection")
+    connection.stubs(:connected?).returns(true)
+    connection.stubs(:write_command)
+    client.instance_variable_set(:@connection, connection)
+    [client, connection]
+  end
+
+  def stub_subscribe_timeout_unsubscribe(connection, channel)
+    call_count = 0
+    connection.stubs(:read_response).with(timeout: anything) do
+      call_count += 1
+      case call_count
+      when 1 then ["subscribe", channel, 1]
+      when 2 then raise RR::TimeoutError, "timeout"
+      when 3 then ["unsubscribe", channel, 0]
+      end
+    end
   end
 end

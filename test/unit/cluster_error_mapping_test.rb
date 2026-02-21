@@ -90,6 +90,7 @@ class ClusterErrorMappingTest < Minitest::Test
     client.stubs(:get_connection).returns(conn)
 
     result = client.call("SET", "key", "val")
+
     assert_equal "OK", result
   end
 

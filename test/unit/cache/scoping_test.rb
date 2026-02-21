@@ -11,13 +11,13 @@ class CacheScopingTest < Minitest::Test
 
   def test_cached_block_forces_caching_on
     @cache.cached do
-      assert_equal true, @cache.force_cache_state
+      assert @cache.force_cache_state
     end
   end
 
   def test_uncached_block_forces_caching_off
     @cache.uncached do
-      assert_equal false, @cache.force_cache_state
+      refute @cache.force_cache_state
     end
   end
 
@@ -29,7 +29,7 @@ class CacheScopingTest < Minitest::Test
     assert_nil @cache.force_cache_state
 
     @cache.cached do
-      assert_equal true, @cache.force_cache_state
+      assert @cache.force_cache_state
     end
 
     assert_nil @cache.force_cache_state
@@ -39,7 +39,7 @@ class CacheScopingTest < Minitest::Test
     assert_nil @cache.force_cache_state
 
     @cache.uncached do
-      assert_equal false, @cache.force_cache_state
+      refute @cache.force_cache_state
     end
 
     assert_nil @cache.force_cache_state
@@ -47,13 +47,13 @@ class CacheScopingTest < Minitest::Test
 
   def test_nested_scoping
     @cache.cached do
-      assert_equal true, @cache.force_cache_state
+      assert @cache.force_cache_state
 
       @cache.uncached do
-        assert_equal false, @cache.force_cache_state
+        refute @cache.force_cache_state
       end
 
-      assert_equal true, @cache.force_cache_state
+      assert @cache.force_cache_state
     end
 
     assert_nil @cache.force_cache_state
@@ -103,11 +103,13 @@ class CacheScopingTest < Minitest::Test
 
   def test_cached_block_return_value
     result = @cache.cached { 42 }
+
     assert_equal 42, result
   end
 
   def test_uncached_block_return_value
     result = @cache.uncached { "hello" }
+
     assert_equal "hello", result
   end
 
@@ -116,7 +118,7 @@ class CacheScopingTest < Minitest::Test
   def build_mock_client
     client = Object.new
 
-    def client.call(*args)
+    def client.call(*_args)
       "OK"
     end
 

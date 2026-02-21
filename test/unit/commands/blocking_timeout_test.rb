@@ -68,6 +68,7 @@ class BlockingTimeoutTest < Minitest::Test
 
   def test_blocking_call_method_exists
     client = RR::Client.new
+
     assert_respond_to client, :blocking_call
   end
 end

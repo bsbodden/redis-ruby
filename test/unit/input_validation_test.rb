@@ -41,11 +41,13 @@ class InputValidationTest < Minitest::Test
 
   def test_db_zero_is_valid
     client = RR::Client.new(db: 0)
+
     assert_equal 0, client.instance_variable_get(:@db)
   end
 
   def test_db_positive_integer_is_valid
     client = RR::Client.new(db: 5)
+
     assert_equal 5, client.instance_variable_get(:@db)
   end
 
@@ -59,6 +61,7 @@ class InputValidationTest < Minitest::Test
 
   def test_port_positive_integer_is_valid
     client = RR::Client.new(port: 6380)
+
     assert_equal 6380, client.instance_variable_get(:@port)
   end
 
@@ -72,11 +75,13 @@ class InputValidationTest < Minitest::Test
 
   def test_timeout_as_integer_is_valid
     client = RR::Client.new(timeout: 5)
+
     assert_equal 5, client.instance_variable_get(:@timeout)
   end
 
   def test_timeout_as_float_is_valid
     client = RR::Client.new(timeout: 2.5)
-    assert_equal 2.5, client.instance_variable_get(:@timeout)
+
+    assert_in_delta(2.5, client.instance_variable_get(:@timeout))
   end
 end

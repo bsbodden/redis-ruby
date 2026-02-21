@@ -38,7 +38,7 @@ class StreamNilEntriesTest < Minitest::Test
 
     result = @client.xclaim("stream", "group", "consumer", 0, "id1", "id2")
 
-    assert_equal [], result
+    assert_empty result
   end
 
   def test_xclaim_handles_nil_response
@@ -46,7 +46,7 @@ class StreamNilEntriesTest < Minitest::Test
 
     result = @client.xclaim("stream", "group", "consumer", 0, "id1")
 
-    assert_equal [], result
+    assert_empty result
   end
 
   # --- XAUTOCLAIM with nil entries (redis-rb #1165) ---
@@ -86,8 +86,8 @@ class StreamNilEntriesTest < Minitest::Test
     next_id, entries, deleted = @client.xautoclaim("stream", "group", "consumer", 0, "0-0")
 
     assert_equal "0-0", next_id
-    assert_equal [], entries
-    assert_equal [], deleted
+    assert_empty entries
+    assert_empty deleted
   end
 
   def test_xautoclaim_handles_nil_result
@@ -104,7 +104,7 @@ class StreamNilEntriesTest < Minitest::Test
     # When RESP2 returns flat arrays: [id, [field, value, ...]]
     # and an entry has nil fields
     mock_response = [
-      ["1609459200000-0", ["field1", "value1", "field2", "value2"]],
+      ["1609459200000-0", %w[field1 value1 field2 value2]],
       nil,
     ]
 

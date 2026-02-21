@@ -12,7 +12,7 @@ class IPv6URLParsingTest < Minitest::Test
     assert_equal "::1", result[:host]
     assert_equal 6379, result[:port]
     assert_equal 0, result[:db]
-    assert_equal false, result[:ssl]
+    refute result[:ssl]
   end
 
   def test_ipv6_full_address_with_port_and_db
@@ -28,7 +28,7 @@ class IPv6URLParsingTest < Minitest::Test
 
     assert_equal "::1", result[:host]
     assert_equal 6380, result[:port]
-    assert_equal true, result[:ssl]
+    assert result[:ssl]
   end
 
   def test_ipv6_without_port_uses_default

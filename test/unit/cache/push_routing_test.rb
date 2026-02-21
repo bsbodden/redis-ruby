@@ -19,6 +19,7 @@ class CachePushRoutingTest < Minitest::Test
     # Simulate caching a value
     mock_client.mock_get_return("value1")
     cache.get("key1")
+
     assert cache.cached?("key1")
 
     # Simulate receiving push invalidation (the data array from PushMessage)
@@ -74,8 +75,8 @@ class CachePushRoutingTest < Minitest::Test
       @get_return = val
     end
 
-    def client.call_history
-      @call_history
+    class << client
+      attr_reader :call_history
     end
 
     client

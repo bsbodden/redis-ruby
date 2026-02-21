@@ -50,7 +50,7 @@ class CacheStatsTest < Minitest::Test
 
   def test_hit_rate_calculation
     3.times { @stats.hit! }
-    1.times { @stats.miss! }
+    @stats.miss!
 
     assert_in_delta 0.75, @stats.hit_rate
   end

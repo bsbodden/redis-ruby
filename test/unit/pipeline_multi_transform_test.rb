@@ -56,19 +56,8 @@ class PipelineMultiTransformTest < Minitest::Test
 
   # Transaction with multiple commands preserves types
   def test_transaction_preserves_result_types
-    client = RR::Client.new
-    client.stubs(:ensure_connected)
-
-    connection = mock("connection")
-    connection.stubs(:connected?).returns(true)
-    connection.stubs(:call).with("MULTI").returns("OK")
-    connection.stubs(:call).with("SET", "key", "value").returns("QUEUED")
-    connection.stubs(:call).with("GET", "key").returns("QUEUED")
-    connection.stubs(:call).with("HGETALL", "myhash").returns("QUEUED")
-    connection.stubs(:call).with("INCR", "counter").returns("QUEUED")
-    connection.stubs(:call).with("EXEC").returns(["OK", "value", { "f1" => "v1" }, 42])
-
-    client.instance_variable_set(:@connection, connection)
+    client, connection = build_client_with_connection
+    stub_multi_exec(connection, ["OK", "value", { "f1" => "v1" }, 42])
 
     results = client.multi do |tx|
       tx.set("key", "value")
@@ -127,5 +116,22 @@ class PipelineMultiTransformTest < Minitest::Test
     end
 
     assert_nil result
+  end
+
+  private
+
+  def build_client_with_connection
+    client = RR::Client.new
+    client.stubs(:ensure_connected)
+    connection = mock("connection")
+    connection.stubs(:connected?).returns(true)
+    connection.stubs(:call).returns("QUEUED")
+    client.instance_variable_set(:@connection, connection)
+    [client, connection]
+  end
+
+  def stub_multi_exec(connection, exec_result)
+    connection.stubs(:call).with("MULTI").returns("OK")
+    connection.stubs(:call).with("EXEC").returns(exec_result)
   end
 end

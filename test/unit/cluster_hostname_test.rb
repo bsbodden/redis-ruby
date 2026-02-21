@@ -54,6 +54,7 @@ class ClusterHostnameTest < Minitest::Test
     )
 
     node = client.node_for_slot(0)
+
     assert_equal "10.0.0.1:6379", node
   end
 
@@ -72,6 +73,7 @@ class ClusterHostnameTest < Minitest::Test
 
     # 10.0.0.99 is not in translation table, stays as-is
     node = client.node_for_slot(0)
+
     assert_equal "10.0.0.99:6379", node
   end
 
@@ -94,6 +96,7 @@ class ClusterHostnameTest < Minitest::Test
 
     # Read from replica should use translated address
     node = client.node_for_slot(0, for_read: true)
+
     assert_equal "replica.host:6380", node
   end
 
@@ -132,12 +135,12 @@ class ClusterHostnameTest < Minitest::Test
   end
 
   def test_normalize_nodes_invalid_format_raises
-    assert_raises(ArgumentError) do
-      mock_conn = mock("cluster_conn")
-      mock_conn.stubs(:close)
-      mock_conn.stubs(:call).returns([])
-      RR::Connection::TCP.stubs(:new).returns(mock_conn)
+    mock_conn = mock("cluster_conn")
+    mock_conn.stubs(:close)
+    mock_conn.stubs(:call).returns([])
+    RR::Connection::TCP.stubs(:new).returns(mock_conn)
 
+    assert_raises(ArgumentError) do
       RR::ClusterClient.new(nodes: [123])
     end
   end

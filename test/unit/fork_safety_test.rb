@@ -108,45 +108,40 @@ class ForkSafetyTest < Minitest::Test
   end
 
   def test_tcp_connection_fork_detection_before_socket_check
-    # Verify the TCP connection checks for fork before checking socket state
-    conn = RR::Connection::TCP.allocate
-    conn.instance_variable_set(:@host, "localhost")
-    conn.instance_variable_set(:@port, 6379)
-    conn.instance_variable_set(:@timeout, 5.0)
-    conn.instance_variable_set(:@pending_reads, 0)
-    conn.instance_variable_set(:@ever_connected, true)
-    conn.instance_variable_set(:@event_dispatcher, nil)
-    conn.instance_variable_set(:@callbacks, Hash.new { |h, k| h[k] = [] })
-
-    # Simulate a socket that appears connected (shared from parent)
-    socket = mock("parent_socket")
-    socket.stubs(:closed?).returns(false)
-    conn.instance_variable_set(:@socket, socket)
-
-    # Set PID to a different value (simulating fork)
-    conn.instance_variable_set(:@pid, Process.pid - 1)
+    conn, socket = build_forked_tcp_connection
 
     # After fork detection, socket should be nil'd (not closed)
     socket.expects(:close).never
-
-    # Mock the reconnect to create a new socket
-    new_socket = mock("new_socket")
-    new_socket.stubs(:closed?).returns(false)
-    new_socket.stubs(:setsockopt)
-    new_socket.stubs(:sync=)
-
-    Socket.stubs(:tcp).returns(new_socket)
-
-    encoder = RR::Protocol::RESP3Encoder.new
-    buffered_io = mock("buffered_io")
-    decoder = mock("decoder")
-
-    RR::Protocol::BufferedIO.stubs(:new).returns(buffered_io)
-    RR::Protocol::RESP3Decoder.stubs(:new).returns(decoder)
+    stub_reconnect_socket
 
     conn.ensure_connected
 
     # Socket should have been replaced
     refute_equal socket, conn.instance_variable_get(:@socket)
+  end
+
+  private
+
+  def build_forked_tcp_connection
+    conn = RR::Connection::TCP.allocate
+    { host: "localhost", port: 6379, timeout: 5.0, pending_reads: 0,
+      ever_connected: true, event_dispatcher: nil,
+      callbacks: Hash.new { |h, k| h[k] = [] }, }.each { |k, v| conn.instance_variable_set(:"@#{k}", v) }
+
+    socket = mock("parent_socket")
+    socket.stubs(:closed?).returns(false)
+    conn.instance_variable_set(:@socket, socket)
+    conn.instance_variable_set(:@pid, Process.pid - 1)
+    [conn, socket]
+  end
+
+  def stub_reconnect_socket
+    new_socket = mock("new_socket")
+    new_socket.stubs(:closed?).returns(false)
+    new_socket.stubs(:setsockopt)
+    new_socket.stubs(:sync=)
+    Socket.stubs(:tcp).returns(new_socket)
+    RR::Protocol::BufferedIO.stubs(:new).returns(mock("buffered_io"))
+    RR::Protocol::RESP3Decoder.stubs(:new).returns(mock("decoder"))
   end
 end

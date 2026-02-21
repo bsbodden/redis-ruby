@@ -11,7 +11,7 @@ class NestedMultiTest < Minitest::Test
     connection = mock("connection")
     tx = RR::Transaction.new(connection)
 
-    assert tx.in_multi?
+    assert_predicate tx, :in_multi?
   end
 
   def test_transaction_multi_not_allowed_inside_transaction
@@ -21,7 +21,7 @@ class NestedMultiTest < Minitest::Test
     tx = RR::Transaction.new(connection)
 
     assert_raises(ArgumentError) do
-      tx.multi { |_inner| }
+      tx.multi { |_inner| nil }
     end
   end
 
@@ -30,7 +30,7 @@ class NestedMultiTest < Minitest::Test
     tx = RR::Transaction.new(connection)
 
     error = assert_raises(ArgumentError) do
-      tx.multi { |_inner| }
+      tx.multi { |_inner| nil }
     end
 
     assert_match(/MULTI calls cannot be nested/, error.message)

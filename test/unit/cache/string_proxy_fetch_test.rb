@@ -28,7 +28,7 @@ class StringProxyFetchTest < Minitest::Test
   def test_fetch_with_force_recomputes
     @mock_redis.mock_get_return("existing")
 
-    result = @proxy.fetch(force: true) { "recomputed" }
+    result = @proxy.fetch(force: true) { "recomputed" } # rubocop:disable Style/RedundantFetchBlock
 
     assert_equal "recomputed", result
     assert_equal ["test:key", "recomputed"], @mock_redis.last_set_args
@@ -53,7 +53,7 @@ class StringProxyFetchTest < Minitest::Test
   def test_fetch_does_not_call_get_when_force
     @mock_redis.mock_get_return("existing")
 
-    @proxy.fetch(force: true) { "forced" }
+    @proxy.fetch(force: true) { "forced" } # rubocop:disable Style/RedundantFetchBlock
 
     # When force: true, should not call get
     refute_includes @mock_redis.call_history, [:get, "test:key"]
@@ -66,35 +66,24 @@ class StringProxyFetchTest < Minitest::Test
     redis.instance_variable_set(:@get_return, nil)
     redis.instance_variable_set(:@last_set_args, nil)
     redis.instance_variable_set(:@call_history, [])
-
-    def redis.get(key)
-      @call_history << [:get, key]
-      @get_return
-    end
-
-    def redis.set(key, value)
-      @call_history << [:set, key, value]
-      @last_set_args = [key, value.to_s]
-      "OK"
-    end
-
-    def redis.del(key)
-      @call_history << [:del, key]
-      1
-    end
-
-    def redis.mock_get_return(val)
-      @get_return = val
-    end
-
-    def redis.last_set_args
-      @last_set_args
-    end
-
-    def redis.call_history
-      @call_history
-    end
-
+    define_mock_redis_methods(redis)
     redis
+  end
+
+  def define_mock_redis_methods(redis)
+    def redis.get(key) = (@call_history << [:get, key]
+                          @get_return)
+
+    def redis.set(key, value) = (@call_history << [:set, key, value]
+                                 @last_set_args = [key, value.to_s]
+                                 "OK")
+
+    def redis.del(key) = (@call_history << [:del, key]
+                          1)
+
+    def redis.mock_get_return(val) = (@get_return = val)
+    class << redis
+      attr_reader :last_set_args, :call_history
+    end
   end
 end

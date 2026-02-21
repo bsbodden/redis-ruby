@@ -6,12 +6,14 @@ class CacheClientIntegrationTest < Minitest::Test
   # Test Config.from with different option types
   def test_config_from_true
     config = RR::Cache::Config.from(true)
+
     assert_instance_of RR::Cache::Config, config
     assert_equal 10_000, config.max_entries
   end
 
   def test_config_from_hash
     config = RR::Cache::Config.from(max_entries: 5000, ttl: 60)
+
     assert_equal 5000, config.max_entries
     assert_equal 60, config.ttl
   end
@@ -19,6 +21,7 @@ class CacheClientIntegrationTest < Minitest::Test
   def test_config_from_config
     original = RR::Cache::Config.new(max_entries: 3000)
     config = RR::Cache::Config.from(original)
+
     assert_same original, config
   end
 
@@ -56,7 +59,7 @@ class CacheClientIntegrationTest < Minitest::Test
     stats = cache.stats
 
     assert_equal 1, stats[:hits]
-    assert_equal 0, stats[:misses]  # The legacy .get path uses lookup_cached which tracks separately
+    assert_equal 0, stats[:misses] # The legacy .get path uses lookup_cached which tracks separately
     assert_equal 1, stats[:size]
     assert stats[:enabled]
   end
@@ -72,13 +75,14 @@ class CacheClientIntegrationTest < Minitest::Test
     cache.process_invalidation(["invalidate", ["key1"]])
 
     stats = cache.stats
+
     assert_equal 1, stats[:invalidations]
   end
 
   def test_cacheable_check_with_key_filter
     client = build_mock_client
     config = RR::Cache::Config.new(
-      key_filter: ->(key) { key.start_with?("user:") },
+      key_filter: ->(key) { key.start_with?("user:") }
     )
     cache = RR::Cache.new(client, config)
 
@@ -100,11 +104,11 @@ class CacheClientIntegrationTest < Minitest::Test
     client = Object.new
     client.instance_variable_set(:@get_return, nil)
 
-    def client.call(*args)
+    def client.call(*_args)
       "OK"
     end
 
-    def client.get(key)
+    def client.get(_key)
       @get_return
     end
 

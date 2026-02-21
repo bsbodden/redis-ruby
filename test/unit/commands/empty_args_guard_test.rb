@@ -75,6 +75,6 @@ class EmptyArgsGuardTest < Minitest::Test
   # --- HMGET with no fields ---
 
   def test_hmget_with_no_fields_returns_empty_array
-    assert_equal [], @client.hmget("key")
+    assert_empty @client.hmget("key")
   end
 end

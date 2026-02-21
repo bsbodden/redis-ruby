@@ -43,6 +43,7 @@ class CacheKeyBuilderTest < Minitest::Test
     @builder.remove("GET:user:1", "user:1")
 
     cache_keys = @builder.cache_keys_for("user:1")
+
     refute_includes cache_keys, "GET:user:1"
     assert_includes cache_keys, "HGET:user:1:name"
   end

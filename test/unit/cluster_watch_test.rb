@@ -41,6 +41,7 @@ class ClusterWatchTest < Minitest::Test
     client.stubs(:get_connection).with(node_addr).returns(conn)
 
     result = client.watch("foo") { "watched" }
+
     assert_equal "watched", result
   end
 
@@ -121,6 +122,7 @@ class ClusterWatchTest < Minitest::Test
     assert_equal client.key_slot("{user}:name"), client.key_slot("{user}:email")
 
     result = client.watch("{user}:name", "{user}:email") { "ok" }
+
     assert_equal "ok", result
   end
 
@@ -154,7 +156,7 @@ class ClusterWatchTest < Minitest::Test
 
     # WATCH sets the connection, MULTI should use it
     client.watch("foo")
-    results = client.multi { |_tx| }
+    results = client.multi { |_tx| nil }
 
     assert_equal ["OK"], results
   end
@@ -170,7 +172,8 @@ class ClusterWatchTest < Minitest::Test
     tx_mock.expects(:execute).returns(["OK"])
     RR::Transaction.expects(:new).with(conn).returns(tx_mock)
 
-    results = client.multi { |_tx| }
+    results = client.multi { |_tx| nil }
+
     assert_equal ["OK"], results
   end
 end

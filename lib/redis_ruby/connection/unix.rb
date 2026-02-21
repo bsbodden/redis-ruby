@@ -107,19 +107,18 @@ module RR
         @pending_reads += commands.size
         write_pipeline(commands)
         count = commands.size
-        results = Array.new(count) do
+        Array.new(count) do
           result = read_response
           @pending_reads -= 1
           result
         end
-        results
       end
 
       # Validate the connection is clean (no pending reads from interrupted commands).
       #
       # @return [Boolean] true if connection is valid, false if corrupted and closed
       def revalidate
-        if @pending_reads > 0
+        if @pending_reads.positive?
           begin
             close
           rescue StandardError
@@ -135,28 +134,31 @@ module RR
       # @return [void]
       # @raise [ConnectionError] if reconnection fails
       def ensure_connected
-        # Fork safety: detect if we're in a child process BEFORE checking socket state.
-        # After fork, the socket is shared with the parent and must not be reused.
-        if @pid
-          current_pid = Process.pid
-          if @pid != current_pid
-            @socket = nil # Don't close - parent owns this socket
-            @pending_reads = 0
-          end
-        end
-
-        # If connected, verify the response stream is clean
-        if @socket && !@socket.closed?
-          return if @pending_reads == 0
-
-          begin
-            close
-          rescue StandardError
-            nil
-          end
-        end
-
+        handle_fork_if_needed
+        verify_stream_or_close if @socket && !@socket.closed?
         reconnect unless connected?
+      end
+
+      # Fork safety: detect if we're in a child process and discard parent's socket
+      def handle_fork_if_needed
+        return unless @pid
+
+        current_pid = Process.pid
+        return if @pid == current_pid
+
+        @socket = nil # Don't close - parent owns this socket
+        @pending_reads = 0
+      end
+
+      # Verify response stream is clean; close if corrupted
+      def verify_stream_or_close
+        return if @pending_reads.zero?
+
+        begin
+          close
+        rescue StandardError
+          nil
+        end
       end
 
       # Reconnect to the server
